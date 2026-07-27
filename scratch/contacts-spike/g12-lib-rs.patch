@@ -1,0 +1,204 @@
+diff --git a/frontend/src-tauri/src/lib.rs b/frontend/src-tauri/src/lib.rs
+index 527512c..48bb518 100644
+--- a/frontend/src-tauri/src/lib.rs
++++ b/frontend/src-tauri/src/lib.rs
+@@ -2721,12 +2721,199 @@ async fn hide_overlay() -> Result<(), String> {
+     Ok(())
+ }
+ 
++// ---------------------------------------------------------------------------
++// SPIKE-ONLY — Kontakte-Bridge G12 (ADR-0016). TEMPORÄR, NICHT PRODUKTIV.
++// Nicht committen. Kein Bestandteil des späteren Produktcodes.
++//
++// Aktiv ausschließlich bei exakt JARVIS_CONTACTS_SPIKE_G12=1. Ohne diesen Wert
++// wird nichts davon ausgeführt und das reguläre Laufzeitverhalten ist identisch.
++//
++// KONTAKTFREI (Vertragsbestandteil dieses Harness): Er verwendet ausschließlich
++// die in scratch/contacts-spike/PROTOCOL.md dokumentierten Operationen
++// `caps`, `ping` und `shutdown` sowie die vom Sidecar unaufgefordert gesendete
++// `ready`-Zeile. Er ruft NIEMALS requestAccess auf, öffnet keinen
++// CNContactStore, liest keine Kontakte, Container, Gruppen oder Change History,
++// führt kein CRUD aus und erfindet keine neuen Protokolloperationen. Es gibt
++// keine Kontakt-Fachlogik; Ausgaben sind rein technisch und PII-frei.
++// ---------------------------------------------------------------------------
++
++#[cfg(target_os = "macos")]
++fn spike_g12_handshake() -> i32 {
++    use std::io::{BufRead, BufReader, Write};
++    use std::process::{Child, Command, Stdio};
++    use std::sync::mpsc::{self, Receiver};
++    use std::time::{Duration, Instant};
++
++    const TIMEOUT: Duration = Duration::from_secs(15);
++
++    fn body(child: &mut Child, rx: &Receiver<String>) -> Result<(), String> {
++        let mut stdin = child.stdin.take().ok_or("kein stdin")?;
++
++        let recv = |rx: &Receiver<String>| -> Result<serde_json::Value, String> {
++            let line = rx
++                .recv_timeout(TIMEOUT)
++                .map_err(|_| "Timeout beim Lesen von stdout".to_string())?;
++            serde_json::from_str::<serde_json::Value>(&line)
++                .map_err(|e| format!("ungueltiges JSON auf stdout: {e}"))
++        };
++        let mut ask = |op: &str, id: u64| -> Result<(), String> {
++            // Exakt das Anfrageformat aus PROTOCOL.md / driver.py.
++            writeln!(stdin, "{{\"id\":{id},\"op\":\"{op}\",\"params\":{{}}}}")
++                .and_then(|_| stdin.flush())
++                .map_err(|e| format!("Schreiben auf stdin fehlgeschlagen: {e}"))
++        };
++
++        // 1) Handshake: erste Zeile ohne vorherige Anfrage.
++        let ready = recv(rx)?;
++        if ready["type"].as_str() != Some("ready") {
++            return Err("erste Zeile ist kein ready".to_string());
++        }
++        if ready["protocol"].as_u64() != Some(1) {
++            return Err("Protokollversion ist nicht 1".to_string());
++        }
++        let auth = ready["authorizationStatus"].as_str().unwrap_or("?");
++        let caps_n = ready["caps"].as_array().map(|a| a.len()).unwrap_or(0);
++        println!("G12: ready=yes protocol=1 keySetVersion={} caps={caps_n}", ready["keySetVersion"]);
++        println!("G12: authorizationStatus={auth}");
++
++        // 2) caps — kein Store-Zugriff (PROTOCOL.md).
++        ask("caps", 1)?;
++        let c = recv(rx)?;
++        if c["ok"].as_bool() != Some(true) {
++            return Err("caps nicht ok".to_string());
++        }
++        println!(
++            "G12: caps=ok protocol={} authorizationStatus={} linkUnlinkSupported={}",
++            c["result"]["protocol"],
++            c["result"]["authorizationStatus"].as_str().unwrap_or("?"),
++            c["result"]["linkUnlinkSupported"]
++        );
++
++        // 3) ping — kein Store-Zugriff (PROTOCOL.md).
++        ask("ping", 2)?;
++        let p = recv(rx)?;
++        if p["ok"].as_bool() != Some(true) || p["result"]["pong"].as_bool() != Some(true) {
++            return Err("ping fehlgeschlagen".to_string());
++        }
++        println!("G12: ping=ok");
++
++        // 4) grazioeser Shutdown.
++        ask("shutdown", 3)?;
++        let s = recv(rx)?;
++        if s["ok"].as_bool() != Some(true) || s["result"]["bye"].as_bool() != Some(true) {
++            return Err("shutdown fehlgeschlagen".to_string());
++        }
++        println!("G12: shutdown=ok");
++        drop(stdin);
++        Ok(())
++    }
++
++    let exe = match std::env::current_exe() {
++        Ok(p) => p,
++        Err(e) => {
++            eprintln!("G12: FAIL current_exe: {e}");
++            return 2;
++        }
++    };
++    let dir = match exe.parent() {
++        Some(d) => d.to_path_buf(),
++        None => {
++            eprintln!("G12: FAIL kein MacOS-Verzeichnis ermittelbar");
++            return 2;
++        }
++    };
++    let sidecar = dir.join("jarvis-contacts");
++    println!("G12: macos-dir={}", dir.display());
++    println!("G12: sidecar={}", sidecar.display());
++    if !sidecar.is_file() {
++        eprintln!("G12: FAIL Sidecar nicht im Bundle gefunden");
++        return 2;
++    }
++
++    let mut child = match Command::new(&sidecar)
++        .stdin(Stdio::piped())
++        .stdout(Stdio::piped())
++        .stderr(Stdio::piped())
++        .spawn()
++    {
++        Ok(c) => c,
++        Err(e) => {
++            eprintln!("G12: FAIL Sidecar-Start: {e}");
++            return 2;
++        }
++    };
++
++    // Beide Drainer VOR dem ersten Write starten (Deadlock-Vermeidung, PROTOCOL.md).
++    let (tx, rx) = mpsc::channel::<String>();
++    if let Some(out) = child.stdout.take() {
++        std::thread::spawn(move || {
++            for line in BufReader::new(out).lines().map_while(Result::ok) {
++                if tx.send(line).is_err() {
++                    break;
++                }
++            }
++        });
++    }
++    if let Some(err) = child.stderr.take() {
++        std::thread::spawn(move || {
++            for line in BufReader::new(err).lines().map_while(Result::ok) {
++                eprintln!("G12: sidecar-stderr: {line}");
++            }
++        });
++    }
++
++    let outcome = body(&mut child, &rx);
++
++    // Child zuverlaessig beenden: kurz auf regulaeren Exit warten, sonst killen.
++    let deadline = Instant::now() + TIMEOUT;
++    let mut code: Option<i32> = None;
++    loop {
++        match child.try_wait() {
++            Ok(Some(st)) => {
++                code = st.code();
++                break;
++            }
++            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
++            _ => {
++                let _ = child.kill();
++                let _ = child.wait();
++                eprintln!("G12: Sidecar musste beendet werden (kein regulaerer Exit)");
++                break;
++            }
++        }
++    }
++
++    match outcome {
++        Ok(()) if code == Some(0) => {
++            println!("G12: sidecar-exit=0");
++            println!("G12: RESULT=PASS (kontaktfrei: ready, caps, ping, shutdown)");
++            0
++        }
++        Ok(()) => {
++            eprintln!("G12: FAIL unerwarteter Sidecar-Exitcode: {code:?}");
++            2
++        }
++        Err(e) => {
++            eprintln!("G12: FAIL {e}");
++            2
++        }
++    }
++}
++
+ // ---------------------------------------------------------------------------
+ // App entry point
+ // ---------------------------------------------------------------------------
+ 
+ #[cfg_attr(mobile, tauri::mobile_entry_point)]
+ pub fn run() {
++    // SPIKE-ONLY (G12), temporaer: vollstaendig inaktiv, ausser die Variable
++    // traegt exakt den Wert "1". Danach wird der Prozess beendet — es wird
++    // keine Tauri-Runtime, kein Backend und kein Fenster gestartet.
++    #[cfg(target_os = "macos")]
++    if std::env::var("JARVIS_CONTACTS_SPIKE_G12").as_deref() == Ok("1") {
++        std::process::exit(spike_g12_handshake());
++    }
++
+     let backend: SharedBackend = Arc::new(Mutex::new(BackendManager::default()));
+     let status: SharedStatus = Arc::new(Mutex::new(SetupStatus::default()));
+ 
