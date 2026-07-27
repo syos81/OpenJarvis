@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-30 (Entscheidungsweg)
-Zugehörige ADRs: ADR-0001 bis ADR-0014
+Zugehörige ADRs: ADR-0001 bis ADR-0017
 Verwandte DEC-Einträge: alle (dieses Dokument ist der Hub)
 ---
 
@@ -45,28 +45,40 @@ Zentrale Übersicht aller Architekturentscheidungen. Neue Entscheidungen werden 
 | DEC-027 | Grundsatz: Jede bewusste Upstream-Abweichung besitzt einen eigenen akzeptierten ADR — Baseline-Autorisierung allein ersetzt keinen ADR; DEV-1 nachdokumentiert | accepted | ADR-0013; 18 §1 | 2026-07-27 |
 | DEC-028 | DEV-2 (Tauri-Capability-Einengung) in eigenem ADR nachdokumentiert | accepted | ADR-0014; 18 DEV-2 | 2026-07-27 |
 | DEC-029 | WebSocket-Authentifizierung per Einmal-Ticket (kryptografisch zufällig, ≤ 30 s, einmalig, sitzungs-/fenster-/origin-/endpunktgebunden; Prüfung vor `accept()`; Redaction aus Logs) — konkrete Ausgestaltung von ADR-0008 | accepted | ADR-0008 (ergänzt); 09 §1 | 2026-07-27 |
+| DEC-030 | **Erstes Fachmodul: Kontakte** (löst DEC-D10; Gesamtreihenfolge bleibt offen) | accepted | Eigentümer-Entscheid; 16 | 2026-07-27 |
+| DEC-031 | Native macOS-Bridge als Swift-Sidecar (JSON-Lines-stdio) mit verpflichtendem Spike (TCC, Signierung, CNChangeHistory, vereinheitlichte Kontakte, gepackte Tauri-App); bei Scheitern **kein** automatischer PyObjC-Wechsel, erneute Freigabe nötig (löst DEC-D01) | accepted | ADR-0016 | 2026-07-27 |
+| DEC-032 | Gemeinsame providerneutrale CredentialStore-Schnittstelle mit nativer macOS-Keychain-Nutzung; identischer dokumentierter Service-/Account-Namensraum für Backend, CLI und Tauri-Hauptprozess; keyring-Bibliotheken hinter dem Vertrag zulässig; keine Geheimnisse an die React-SPA (löst DEC-D02) | accepted | ADR-0017 | 2026-07-27 |
+| DEC-033 | Backup-Recovery: zufälliger 256-Bit-Recovery-Key als standardisierte 24-Wort-Darstellung mit Prüfsumme; optionale zusätzliche Passphrasen-Hülle (Argon2id); Offline-Verwahrung und Bestätigung durch erneute Eingabe bei der Einrichtung (löst DEC-D03) | accepted | Eigentümer-Entscheid; ADR-0010; 13 §2 | 2026-07-27 |
+| DEC-034 | Desktop-E2E mit Playwright gegen den lokalen Entwicklungsstack mit Fake-Adapter; zusätzlich verpflichtender echter Tauri-Smoke- und Live-Test (löst DEC-D04) | accepted | Eigentümer-Entscheid; 15 §1 | 2026-07-27 |
+| DEC-035 | Desktop-Session-Token max. 8 Stunden, Rotation spätestens 30 Minuten vor Ablauf, sofortige Invalidierung bei App-Schließen oder Widerruf; WebSocket-Tickets einmalig und max. 30 Sekunden gültig (löst DEC-D05) | accepted | Eigentümer-Entscheid; ADR-0008; 09 §1 | 2026-07-27 |
+| DEC-036 | Audit-Checkpoints: Verankerung in jedem vollständigen Backup; zusätzlich externer manueller Export nach jeder künftigen R2-Aktion und mindestens quartalsweise; für Modul 1 existiert keine R2-Fachaktion (löst DEC-D07) | accepted | Eigentümer-Entscheid; ADR-0010; 13 §5 | 2026-07-27 |
+| DEC-037 | Sensitivität im Kontaktmodul: Namen, Kontaktdaten, Anschriften, Geburtstage, Rollen, Beziehungen, Organisationen, Bilder und Provider-IDs = S1; Freitextnotizen = S2. **Die globale Sensitivitätsmatrix (DEC-D09) bleibt offen** | accepted (modulbezogen) | Eigentümer-Entscheid; 12 §1 | 2026-07-27 |
+| DEC-038 | Live-Abnahme des Kontaktmoduls bevorzugt in einem separaten macOS-Testbenutzer mit isoliertem Apple-Kontakte-Bestand und Präfix `ZZZ-JarvisTest-`; keine Abhängigkeit von einem bestimmten „Auf meinem Mac"-Container; produktive private Kontakte bleiben unverändert (löst DEC-D11 für Modul 1) | accepted | Eigentümer-Entscheid; 15 §1 | 2026-07-27 |
+| DEC-039 | Initiale Workspaces: Privat, Arbeit, Hausverwaltung — konfigurierbare Werte, keine hartcodierte Fachlogik; umbenennbar, ergänzbar, später archivierbar (löst DEC-D15) | accepted | Eigentümer-Entscheid; 06 §6 | 2026-07-27 |
+| DEC-040 | Backup-Ziele: tägliches lokales verschlüsseltes Backup; zusätzlich externes Volume, sobald verbunden, mit automatischem Nachholen ausgefallener Läufe; Aufbewahrung 30 tägliche und 12 monatliche vollständige Wiederherstellungspunkte; ein nicht verbundenes Volume blockiert den lokalen Betrieb nicht, erzeugt aber eine sichtbare Warnung (löst DEC-D16) | accepted | Eigentümer-Entscheid; ADR-0010; 13 §3 | 2026-07-27 |
+| DEC-041 | Genehmigung der minimalen Integrationspunkte: **DEV-4** (readiness-gesteuerte Kontakte-Route, Navigationseintrag, minimal erforderliche sichere Tauri-Kommandos; keine Geheimnisse in der SPA, kein zweiter Ausführungspfad) und **DEV-5** (ausschließlich additive Personal-Dependency-Group in `pyproject.toml`; Standard-Abhängigkeiten und Wheel-Packaging unverändert) | accepted | ADR-0015; 18 DEV-4/DEV-5 | 2026-07-27 |
 
-## §2 Vertagte Entscheidungen (deferred)
+## §2 Vertagte Entscheidungen (Stand der 16 ursprünglichen Deferred Decisions)
 
 Details, Optionen und unverbindliche Empfehlungen: 17 §2.
 
-| ID | Titel | Status | Auslöser |
+| ID | Titel | Status | Auslöser bzw. Auflösung |
 |---|---|---|---|
-| DEC-D01 | Native-Bridge-Technik (PyObjC vs. Swift-Helper) | deferred | Materialisierung des ersten Apple-nativen Adapters |
-| DEC-D02 | Keychain-Anbindung (`keyring` vs. native Security-Framework-Integration) | deferred | Materialisierung des CredentialStore |
-| DEC-D03 | Recovery-Key-Format und optionale Passphrase | deferred | Materialisierung des Backup-Kerns |
-| DEC-D04 | UI-E2E-Werkzeug | deferred | erstes Modul mit UI-E2E-Pflicht |
-| DEC-D05 | Session-Token-TTL und Rotation | deferred | Materialisierung der Auth |
-| DEC-D06 | Optionale native R2-Zweitbestätigung | deferred | erstes R2-Modul |
-| DEC-D07 | Audit-Checkpoint-Kadenz und externes Medium | deferred | Materialisierung des Audit-Kerns |
-| DEC-D08 | Chat-Migration in die Personal-Datenhoheit (Zeitpunkt) | deferred | Planung des Chat-Moduls |
-| DEC-D09 | Sensitivitätsmatrix einzelner Datentypen | deferred | erstes LLM-nutzendes Modul |
-| DEC-D10 | Erstes Fachmodul und Modulreihenfolge | deferred | gesonderte Freigabe nach Architektur-Materialisierung |
-| DEC-D11 | Live-Abnahme-Anbieter | deferred | je Modul vor der Abnahme |
-| DEC-D12 | Broker-Ziel | deferred | weit vor dem Trading-Modul |
-| DEC-D13 | Home-Server-Secret-Store | deferred | Planung eines Home-Server-Betriebs |
-| DEC-D14 | Mail-Skalenpolitik | deferred | Planung des Mail-Moduls |
-| DEC-D15 | Initiale Workspaces | deferred | Inbetriebnahme des ersten Moduls |
-| DEC-D16 | Backup-Ziele und Aufbewahrung | deferred | Materialisierung des Backup-Kerns |
+| DEC-D01 | Native-Bridge-Technik (PyObjC vs. Swift-Helper) | **entschieden** | → DEC-031 (ADR-0016), 2026-07-27 |
+| DEC-D02 | Keychain-Anbindung (`keyring` vs. native Security-Framework-Integration) | **entschieden** | → DEC-032 (ADR-0017), 2026-07-27 |
+| DEC-D03 | Recovery-Key-Format und optionale Passphrase | **entschieden** | → DEC-033, 2026-07-27 |
+| DEC-D04 | UI-E2E-Werkzeug | **entschieden** | → DEC-034, 2026-07-27 |
+| DEC-D05 | Session-Token-TTL und Rotation | **entschieden** | → DEC-035, 2026-07-27 |
+| DEC-D06 | Optionale native R2-Zweitbestätigung | **offen** | erstes R2-Modul |
+| DEC-D07 | Audit-Checkpoint-Kadenz und externes Medium | **entschieden** | → DEC-036, 2026-07-27 |
+| DEC-D08 | Chat-Migration in die Personal-Datenhoheit (Zeitpunkt) | **offen** | Planung des Chat-Moduls |
+| DEC-D09 | Sensitivitätsmatrix einzelner Datentypen | **teilentschieden** | Kontakt-Modul-Klassifizierung → DEC-037; **globale Matrix weiterhin offen** (erstes LLM-nutzendes Modul) |
+| DEC-D10 | Erstes Fachmodul und Modulreihenfolge | **entschieden (Modulwahl)** | erstes Fachmodul = Kontakte → DEC-030; Gesamtreihenfolge weiterhin offen |
+| DEC-D11 | Live-Abnahme-Anbieter | **entschieden für Modul 1** | → DEC-038; je weiterem Modul erneut festzulegen |
+| DEC-D12 | Broker-Ziel | **offen** | weit vor dem Trading-Modul |
+| DEC-D13 | Home-Server-Secret-Store | **offen** | Planung eines Home-Server-Betriebs |
+| DEC-D14 | Mail-Skalenpolitik | **offen** | Planung des Mail-Moduls |
+| DEC-D15 | Initiale Workspaces | **entschieden** | → DEC-039, 2026-07-27 |
+| DEC-D16 | Backup-Ziele und Aufbewahrung | **entschieden** | → DEC-040, 2026-07-27 |
 
-**Zählung:** 29 akzeptierte, 16 vertagte Entscheidungen.
+**Zählung:** 41 akzeptierte Entscheidungen. **5 vollständig offene Deferred Decisions: DEC-D06, DEC-D08, DEC-D12, DEC-D13, DEC-D14.** **DEC-D09 bleibt teilweise offen** (Kontakt-Modul-Klassifizierung entschieden, globale Sensitivitätsmatrix offen) und wird weder als vollständig erledigt noch als vollständig offen gezählt. DEC-D10 und DEC-D11 sind für Modul 1 aufgelöst; ihre modul- bzw. reihenfolgebezogenen Restanteile werden je künftigem Modul erneut entschieden.

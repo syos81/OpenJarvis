@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: alle (Begriffsgrundlage)
-Zugehörige ADRs: ADR-0001 bis ADR-0014
+Zugehörige ADRs: ADR-0001 bis ADR-0017
 Verwandte DEC-Einträge: alle
 ---
 
@@ -53,6 +53,7 @@ Einzige normative Definitionsquelle für verbindliche Fachbegriffe. Kein anderes
 - **ProviderCollection** — Externe Sammlung innerhalb eines Bindings (konkreter Kalender, Adressbuch, Ordner); trägt die Workspace-Zuordnung.
 - **Provideradapter** — Implementierung eines Fachvertrags gegen einen Provider; zustandslos bzgl. kanonischer Daten, persistiert nichts.
 - **Native Bridge** — Eng begrenzte Anbindung von macOS-Frameworks (EventKit, CNContactStore) ausschließlich innerhalb der Adapterschicht (08 §4).
+- **Swift-Sidecar (Contacts-Bridge)** — Die beschlossene Ausprägung der Native Bridge für Kontakte: ein dünner, signierter Swift-Hilfsprozess mit JSON-Lines-Protokoll über stdio, der ausschließlich zwischen CN-Objekten und Adapter-DTOs übersetzt — ohne Fach-, Workspace-, Merge-, Risiko- oder Audit-Logik und ohne eigene kanonische Speicherung (ADR-0016, DEC-031).
 - **Capability Discovery** — Meldung eines Adapters, welche Operationen der konkrete Provider/Account unterstützt.
 - **Fehlertaxonomie** — Geschlossene Menge normalisierter Adapterfehler (08 §3 Nr. 5).
 
@@ -128,6 +129,7 @@ Einzige normative Definitionsquelle für verbindliche Fachbegriffe. Kein anderes
 - **Backup-Barriere** — Kurzzeitige Pause neuer Mutationen (CommandBus-Gate) für konsistente Snapshots; auch vor Migrationen.
 - **DEK** — Datenverschlüsselungsschlüssel des Backup-Repositories (AES-256-GCM).
 - **Recovery Key** — Einmalig erzeugter, offline zu verwahrender Schlüssel; wird nie automatisch in dasselbe Backup geschrieben.
+- **Recovery-Wortliste** — Die beschlossene Darstellung des Recovery Keys: ein zufälliger 256-Bit-Schlüssel als standardisierte 24-Wort-Folge mit Prüfsumme, offline zu verwahren und bei der Einrichtung durch erneute Eingabe zu bestätigen; eine zusätzliche Passphrasen-Hülle (Argon2id) ist optional (DEC-033).
 - **Schlüsselhülle (Envelope)** — Mit Keychain, Recovery Key oder Passphrase verschlüsselte DEK-Kopie im Repository-Header.
 - **Backup-Manifest** — Abschlussdokument eines Laufs (Bestandteile, Prüfsummen, Versionen, Snapshot-Zeitpunkte, Audit-Checkpoint); nur `complete`-Läufe sind wiederherstellbar.
 - **Atomare Aktivierung** — Umschalten auf einen vollständig geprüften Restore-Stand in einem Schritt; nie ein Mischstand.

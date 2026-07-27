@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-1 bis AV-37 (dieses Dokument ist ihr Primärdokument in Kurzform; Mechanik in 02–19)
-Zugehörige ADRs: ADR-0001 bis ADR-0014
+Zugehörige ADRs: ADR-0001 bis ADR-0017
 Verwandte DEC-Einträge: alle (siehe decisions-register.md)
 ---
 

@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: — (Navigationsdokument; Normenhierarchie siehe 01 §2)
-Zugehörige ADRs: ADR-0001 bis ADR-0014 (Übersicht)
+Zugehörige ADRs: ADR-0001 bis ADR-0017 (Übersicht)
 Verwandte DEC-Einträge: siehe decisions-register.md
 ---
 
@@ -40,7 +40,7 @@ Dieses Dokument ist **nicht normativ**. Es dient der Navigation durch den Archit
 | — | [Entscheidungsregister](decisions-register.md) | normativ (Index) | Akzeptierte und vertagte Entscheidungen |
 | — | [Traceability-Matrix](traceability-matrix.md) | normativ (Index) | AV-Regel → Primärdokument → Testtyp → Durchsetzungsstelle |
 
-ADRs: [docs/adr/](../adr/) — ADR-0001 bis ADR-0014, alle im Status `accepted` (ADR-0001–0012: Baseline-Rückdokumentation; ADR-0013/0014: eigene ADRs der Upstream-Abweichungen DEV-1/DEV-2).
+ADRs: [docs/adr/](../adr/) — ADR-0001 bis ADR-0017, alle im Status `accepted` (ADR-0001–0012: Baseline-Rückdokumentation; ADR-0013/0014: eigene ADRs der Upstream-Abweichungen DEV-1/DEV-2; ADR-0015–0017: Entscheidungen der Kontakte-Phase — Integrationspunkte DEV-4/DEV-5, Swift-Kontakte-Bridge, Keychain-Anbindung).
 
 ## 2. Lesereihenfolge
 

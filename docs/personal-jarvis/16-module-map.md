@@ -4,13 +4,13 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-2 (Modulgrenzen-Anteil), AV-11/AV-12 (Entitäten-Zuordnung), AV-33
-Zugehörige ADRs: ADR-0002, ADR-0012
-Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-D10 (offen)
+Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016
+Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031
 ---
 
 # 16 — Modulkarte
 
-**Dieses Dokument enthält keine Modulreihenfolge und keine Auswahl eines ersten Moduls.** Beides ist ausdrücklich offen (DEC-D10) und wird erst nach gesonderter Freigabe entschieden. Die Spalte „mögliche Adapter" nennt **nicht bindende Beispiele**; die endgültige Adapterwahl fällt je Modul (DEC-D10/D11).
+**Dieses Dokument enthält keine Modulreihenfolge.** Als **erstes Fachmodul wurde am 2026-07-27 „Kontakte" gewählt (DEC-030)**; die **Gesamtreihenfolge aller weiteren Module bleibt ausdrücklich offen** und wird erst nach gesonderter Freigabe entschieden. Die Spalte „mögliche Adapter" nennt **nicht bindende Beispiele**, sofern nicht ausdrücklich als beschlossen gekennzeichnet; die endgültige Adapterwahl fällt je Modul (Abnahmeziel je Modul: DEC-D11).
 
 ## §1 Module (ungeordnet)
 
@@ -18,7 +18,7 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-D10 (offen)
 |---|---|---|---|---|
 | Chat & Sessions | Konversation, Verlauf, Tool-Nutzung | PJR | — | **Upstream-getragen** (Chat-Seite, `sessions.db`); Personal ergänzt Pipeline-Tools; spätere Überführung der Verläufe: 06 §3 |
 | Modelle & Inferenz | Modellwahl, Routing-Politik, Egress-Grants je Workspace | PJR | — | Upstream-getragen (Engines/Models-Seite); Personal ergänzt Richtlinien (12) |
-| Kontakte | Personen, Rollen, Beziehungen, externe Identitäten | Basis | CardDAV, AppleContacts (CNContactStore), lokale vCard | eigenes Modul |
+| Kontakte | Personen, Rollen, Beziehungen, externe Identitäten | Basis | AppleContacts (CNContactStore über Swift-Sidecar, ADR-0016) als Erstadapter; CardDAV und lokale vCard als spätere Adapter | eigenes Modul; **gewähltes erstes Fachmodul (DEC-030)** |
 | Kalender | Kalender, Termine, Teilnehmer | Kontakte (Teilnehmer) | CalDAV, AppleEventKit, ICS-Feed (read-only) | eigenes Modul |
 | Mail | Konten, Ordner, Nachrichten-Metadaten, Versand | Kontakte | IMAP/SMTP, JMAP (Apple-Mail-App ist keine Datenquelle, 08 §4) | eigenes Modul |
 | Aufgaben & Projekte | Aufgaben, Projekte, Verknüpfungen | Kontakte, Kalender | AppleEventKit-Reminders, CalDAV-Tasks, lokal | eigenes Modul |
@@ -55,7 +55,7 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-D10 (offen)
 
 ## §4 Startkriterien je Modul (keine Reihenfolge)
 
-Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt.
+Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt. Diese Kriterien gelten unverändert für **alle** Module nach dem ersten; die **Reihenfolge der weiteren Module bleibt offen** und wird nicht in diesem Dokument festgelegt.
 
 ## §5 Modulunterlagen (Konvention)
 

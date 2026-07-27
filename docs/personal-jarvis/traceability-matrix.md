@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-1 bis AV-37 (Zuordnung)
-Zugehörige ADRs: ADR-0001 bis ADR-0014
+Zugehörige ADRs: ADR-0001 bis ADR-0017
 Verwandte DEC-Einträge: siehe Spalten
 ---
 
@@ -14,10 +14,10 @@ Für jede Verfassungsregel: **Primärdokument** (Single Source der Mechanik; zug
 
 | AV | Primärdokument | Zugehörige ADRs | Späterer Testtyp | Durchsetzungsstelle |
 |---|---|---|---|---|
-| AV-1 | 02 §2 (Verweis: 18) | ADR-0011, ADR-0013, ADR-0014 | Diff-Scope-Review; Abweichungs-Re-Check je Pick | Review-/Pick-Prozess, Abweichungsliste |
+| AV-1 | 02 §2 (Verweis: 18) | ADR-0011, ADR-0013, ADR-0014, ADR-0015 | Diff-Scope-Review; Abweichungs-Re-Check je Pick | Review-/Pick-Prozess, Abweichungsliste |
 | AV-2 | 19 | ADR-0012 | Modul-Abnahme-Review (DoD-Checkliste) | DoD-Gate, Eigentümer-Abnahme |
 | AV-3 | 19 (Verweis: 14 §2) | ADR-0012 | UI-E2E + Review (keine Platzhalter) | Readiness-Gating, Review |
-| AV-4 | 08 | ADR-0002 | Contract-Suite + Import-Grenzen-Check | Adapterschicht, Lint-Regel |
+| AV-4 | 08 | ADR-0002, ADR-0016 | Contract-Suite + Import-Grenzen-Check | Adapterschicht (inkl. Native Bridge), Lint-Regel |
 | AV-5 | 12 | ADR-0009 | Security-Tests (Egress) | EgressGuard (jeder Cloud-Abfluss inkl. Speech) |
 | AV-6 | 04 §2 | ADR-0001 | struktureller Import-Grenzen-Check (CI) | Lint-/Struktur-Check |
 | AV-7 | 04 §2 | ADR-0001 | Port-Contract-Tests | OJRA (Typkonvertierung) |
@@ -33,8 +33,8 @@ Für jede Verfassungsregel: **Primärdokument** (Single Source der Mechanik; zug
 | AV-17 | 10 §1–3 | ADR-0006 | Security-/Integrationstests (Kontexte, Freigaben) | ActionPipeline, Approval-Center |
 | AV-18 | 10 §1–2 | ADR-0006 | Security-Tests (kein LLM-Zugriff auf Orders/Regeln) | RiskEngine, R2-Executor |
 | AV-19 | 10 §4 | ADR-0006, ADR-0007 | Kill-Switch-Scope-Tests | Executor-Trennung |
-| AV-20 | 09 §4 | ADR-0004 | Security-Tests (Leak-Scan, Zweckbindung) | CredentialStore |
-| AV-21 | 09 §1 | ADR-0008, ADR-0014 | Security-/Integrationstests (Token; WS-Ticket: Einmalverwendung, Ablauf, Origin-Bindung; Lock) | Auth-Middleware, Session-/WS-Ticket-Aussteller, serve.lock |
+| AV-20 | 09 §4 | ADR-0004, ADR-0017 | Security-Tests (Leak-Scan, Zweckbindung) + CredentialStore-Contract-Suite | CredentialStore (Keychain-Anbindung) |
+| AV-21 | 09 §1 | ADR-0008, ADR-0014, ADR-0015 | Security-/Integrationstests (Token; WS-Ticket: Einmalverwendung, Ablauf, Origin-Bindung; Lock; kein Dauergeheimnis in der SPA) | Auth-Middleware, Session-/WS-Ticket-Aussteller, serve.lock, Tauri-Kommandofläche |
 | AV-22 | 12 | ADR-0009 | Security-Tests (S2-Blockade, Redaction, Provider-Eigenschaften) | EgressGuard (ModelPort; ebenso Cloud-Speech) |
 | AV-23 | 13 | ADR-0010 | Restore-Drill + Migrationstests | SnapshotCoordinator |
 | AV-24 | 10 §5–6 (Verweis: 13 §5) | ADR-0010 | Security-Tests (Chain-/Checkpoint-Verifikation) | AuditTrail, Checkpoint-Signierer |
@@ -45,7 +45,7 @@ Für jede Verfassungsregel: **Primärdokument** (Single Source der Mechanik; zug
 | AV-29 | 15 §6 | — (Baseline; DEC-009) | CI-Umgebungsdefinition | CI-Konfiguration, Doku |
 | AV-30 | 01 §4 | alle | Prozess-Review | ADR-Verfahren, Eigentümer-Freigabe |
 | AV-31 | 01 §4 (Verweis: 04 §2) | ADR-0001, ADR-0002 | Prozess-Review | ADR-Verfahren |
-| AV-32 | 18 §1 | ADR-0011, ADR-0013, ADR-0014 | Review je Pick | Abweichungsliste |
+| AV-32 | 18 §1 | ADR-0011, ADR-0013, ADR-0014, ADR-0015 | Review je Pick | Abweichungsliste |
 | AV-33 | 01 §5 (Verweis: 16 §3) | ADR-0012 | Planungs-Review | Review-Gate |
 | AV-34 | 04 §1, §4 | ADR-0001 | Integrationstests (Bootstrap fail-closed; App-Identität ohne Personal) | PersonalCompositionRoot, Integrationspunkt-Tests |
 | AV-35 | 05 | ADR-0005 | Integrationstests (Transport-Gleichheit API/CLI) | ApplicationCommandBus |
