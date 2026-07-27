@@ -51,10 +51,33 @@ def preflight(sc: Sidecar, allow_existing: bool) -> list[dict]:
     print("\n=== Preflight (Isolationsprüfung) ===")
     status = sc.ready.get("authorizationStatus")
     print(f"Autorisierung: {status}")
-    if status != "authorized":
-        print("Kontakte-Zugriff noch nicht erteilt. Der erste Store-Zugriff loest den")
-        print("TCC-Dialog aus. Bitte im Dialog 'Erlauben' waehlen und erneut starten.")
 
+    # Belegter Plattformbefund (Live-Test 2026-07-27, macOS 12.7.6):
+    # Eine Store-Operation wie `containers` loest bei notDetermined KEINEN
+    # TCC-Dialog aus — sie scheitert am requireAuth-Gate des Sidecars mit
+    # tcc_denied. Der Dialog entsteht ausschliesslich ueber die ausdrueckliche
+    # Anforderung in authorize.py. Deshalb wird hier VOR jeder Store-Operation
+    # fail-closed abgebrochen.
+    if status == "notDetermined":
+        print("\nABBRUCH: Kontakte-Zugriff ist noch nicht entschieden.")
+        print("phase_b.py loest selbst KEINEN Autorisierungsdialog mehr aus.")
+        print("Bitte zuerst ausfuehren:")
+        print("\n    python3 authorize.py\n")
+        print("Erst nach granted:true und authorizationStatus:authorized "
+              "erneut starten.")
+        print("Es wurde nichts gelesen, geschrieben oder geloescht.")
+        sys.exit(4)
+    if status in ("denied", "restricted"):
+        print(f"\nABBRUCH: Kontakte-Zugriff ist '{status}'.")
+        print("Ein erneuter Dialog ist nicht moeglich; die Entscheidung muss in den")
+        print("Systemeinstellungen (Sicherheit > Datenschutz > Kontakte) geaendert")
+        print("werden. Es wird keine Store-Operation gesendet.")
+        sys.exit(5)
+    if status != "authorized":
+        print(f"\nABBRUCH: Unerwarteter Autorisierungsstatus '{status}'.")
+        sys.exit(6)
+
+    # Ab hier ist der Zugriff nachweislich erteilt.
     r = sc.request("containers")
     if not r.get("ok"):
         print(f"ABBRUCH: containers fehlgeschlagen: {r}")

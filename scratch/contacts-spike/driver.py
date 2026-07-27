@@ -45,8 +45,11 @@ SIDECAR = _find_sidecar()
 
 
 class Sidecar:
-    def __init__(self, binary: Path = SIDECAR):
+    def __init__(self, binary: Path = SIDECAR, env: dict | None = None):
         self.binary = binary
+        # env=None erbt die Prozessumgebung (bisheriges Verhalten, unverändert).
+        # Ein explizites dict wird ausschließlich an den Child-Prozess gereicht.
+        self.env = env
         self.proc: subprocess.Popen | None = None
         self.inbox: queue.Queue = queue.Queue()
         self.stderr_tail: list[str] = []
@@ -62,7 +65,7 @@ class Sidecar:
         self.proc = subprocess.Popen(
             [str(self.binary)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, bufsize=1,
+            text=True, bufsize=1, env=self.env,
         )
         # Beide Drainer VOR dem ersten Write starten (Deadlock-Vermeidung, #309).
         threading.Thread(target=self._read_stdout, daemon=True).start()
@@ -224,7 +227,45 @@ def protocol_test() -> int:
     # T10 stderr enthält keine PII-Marker
     joined = " ".join(sc4.stderr_tail)
     check("stderr-no-pii", "@" not in joined and "ZZZ-" not in joined, joined[:120])
+
+    # ── T11–T13: Env-Gate der SPIKE-ONLY-Operation requestAuthorization ───────
+    # Alle drei Prüfungen sind kontaktfrei. requestAuthorization wird NUR ohne
+    # gesetztes Gate gesendet — dort ist ein requestAccess-Aufruf ausgeschlossen.
+    r = sc4.request("caps")
+    res = r.get("result", {})
+    check("caps-requestauth-supported",
+          res.get("requestAuthorizationSupported") is True, "")
+    check("caps-requestauth-disabled-by-default",
+          res.get("requestAuthorizationEnabled") is False,
+          f"enabled={res.get('requestAuthorizationEnabled')}")
+
+    r = sc4.request("requestAuthorization")
+    check("requestauth-gated-off",
+          r.get("ok") is False and r["error"]["code"] == "operation_disabled",
+          json.dumps(r.get("error", {}))[:120])
+
+    # Der Status darf sich dadurch nicht verändert haben (kein Dialog).
+    r = sc4.request("caps")
+    check("requestauth-gated-off-status-unchanged",
+          r["result"].get("authorizationStatus") == auth,
+          f"vorher={auth} nachher={r['result'].get('authorizationStatus')}")
     sc4.shutdown()
+
+    # T13: mit gesetztem Gate meldet caps nur die Verfügbarkeit.
+    # requestAuthorization wird hier bewusst NICHT gesendet — kein TCC-Dialog.
+    import os
+    gated_env = {**os.environ, "JARVIS_CONTACTS_SPIKE_TCC": "1"}
+    sc5 = Sidecar(env=gated_env)
+    ready5 = sc5.start()
+    check("gate-on-handshake-enabled",
+          ready5.get("requestAuthorizationEnabled") is True, "")
+    r = sc5.request("caps")
+    check("gate-on-caps-enabled",
+          r["result"].get("requestAuthorizationEnabled") is True, "")
+    check("gate-on-no-prompt-triggered",
+          r["result"].get("authorizationStatus") == auth,
+          f"authorizationStatus={r['result'].get('authorizationStatus')} (unverändert)")
+    sc5.shutdown()
 
     # ── Bericht ──────────────────────────────────────────────────────────────
     width = max(len(n) for n, _, _ in results)

@@ -47,8 +47,10 @@ belegter Plattformbefund: `CNSaveRequest` bietet keine Link-/Unlink-API
 ```
 
 **Fehlercodes (geschlossen):** `tcc_denied`, `not_found`, `conflict`,
-`invalid_request`, `forbidden`, `provider_error`, `unsupported`, `internal`.
-Die Abbildung auf `CapabilityError` erfolgt außerhalb des Sidecars.
+`invalid_request`, `forbidden`, `provider_error`, `unsupported`, `internal`
+sowie **SPIKE-ONLY** `operation_disabled` (siehe Abschnitt
+„SPIKE-ONLY: requestAuthorization"). Die Abbildung auf `CapabilityError`
+erfolgt außerhalb des Sidecars.
 
 **Streaming** (nur `enumerate`): null oder mehr Zwischenzeilen
 `{"id":<id>,"stream":"item","item":{...}}`, abgeschlossen durch die reguläre
@@ -101,6 +103,49 @@ liefern (im Spike verifiziert, siehe Handoff-Bericht).
   stdin beendet den Prozess ebenfalls mit `exit(0)`.
 - Nach `kill -9` liefert ein Neustart einen funktionsfähigen neuen Prozess;
   der alte hängt nicht nach.
+
+## SPIKE-ONLY: `requestAuthorization` (keine produktive Protokollentscheidung)
+
+**Belegter Plattformbefund (Live-Test 2026-07-27, macOS 12.7.6 Intel):** Eine
+normale Store-Operation wie `containers` löst bei `authorizationStatus ==
+notDetermined` **keinen** TCC-Dialog aus. Der Sidecar scheitert vorher an
+seinem eigenen `requireAuth`-Gate und antwortet `tcc_denied`. Der Dialog
+entsteht ausschließlich durch einen ausdrücklichen
+`CNContactStore.requestAccess(for: .contacts)`-Aufruf.
+
+Dafür existiert diese Operation. Sie ist eine **Spike-Erweiterung** und
+**nicht** Bestandteil einer produktiven Protokollfestlegung.
+
+**Env-Gate:** Die Operation ist standardmäßig deaktiviert. Sie ist nur
+verfügbar, wenn der Sidecar-Prozess mit exakt `JARVIS_CONTACTS_SPIKE_TCC=1`
+gestartet wurde. Andernfalls antwortet sie mit `operation_disabled` — **ohne**
+jeden `requestAccess`-Aufruf.
+
+| op | Params | Ergebnis |
+|---|---|---|
+| `requestAuthorization` | — | `{"granted":<bool>,"authorizationStatus":"<status>","promptAttempted":<bool>}` |
+
+**Verhalten nach Ausgangsstatus:**
+
+| Status vorher | Dialog | Antwort |
+|---|---|---|
+| `authorized` | nein | `granted:true`, `authorizationStatus:"authorized"`, `promptAttempted:false` |
+| `denied` / `restricted` | nein, **kein erneuter Prompt** | `granted:false`, aktueller Status, `promptAttempted:false` |
+| `notDetermined` | **genau einmal** `requestAccess` | `granted` aus der Completion, danach neu gelesener Status, `promptAttempted:true` |
+| Fehler / Timeout (fest: 120 s) | — | typisierter Fehler, fail-closed, **keine** Store-Operation |
+
+**Verbote (Vertragsbestandteil):** Die Operation liest keine Kontakte, keine
+Container, keine Gruppen und keine Change History, führt kein CRUD aus,
+bestätigt keinen Dialog automatisch, prompt bei `denied` nicht erneut, ändert
+keine TCC-Daten und ruft kein `tccutil` auf.
+
+**Handshake- und `caps`-Erweiterung:** beide melden zusätzlich
+`requestAuthorizationSupported:true` und `requestAuthorizationEnabled:<bool>`
+entsprechend dem Env-Gate. Alle übrigen Operationen und Felder bleiben
+unverändert.
+
+Der vorgesehene Aufrufweg ist ausschließlich `authorize.py`, das vor der
+Anforderung eine wörtliche manuelle Bestätigung verlangt.
 
 ## Spike-Sicherheitsrail (nur Spike, nicht produktiv)
 

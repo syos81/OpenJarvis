@@ -55,6 +55,8 @@ enum ErrCode: String {
     case providerError  = "provider_error"
     case unsupported    = "unsupported"
     case internalError  = "internal"
+    // SPIKE-ONLY: env-gatete Operation wurde ohne gesetztes Gate angefragt.
+    case operationDisabled = "operation_disabled"
 }
 
 func fail(_ id: Any, _ code: ErrCode, _ message: String, retryable: Bool = false) {
@@ -79,6 +81,74 @@ func requireAuth(_ id: Any) -> Bool {
     if CNContactStore.authorizationStatus(for: .contacts) == .authorized { return true }
     fail(id, .tccDenied, "Kontakte-Autorisierung ist \(authStatusText())")
     return false
+}
+
+// ── SPIKE-ONLY: ausdrückliche Autorisierungsanforderung (G7) ──────────────────
+// Belegter Plattformbefund (Live-Test 2026-07-27, macOS 12.7.6): Eine normale
+// Store-Operation wie `containers` löst bei `notDetermined` KEINEN TCC-Dialog
+// aus — sie scheitert am `requireAuth`-Gate mit `tcc_denied`. Der Dialog
+// entsteht ausschließlich durch einen ausdrücklichen
+// `CNContactStore.requestAccess(for:)`-Aufruf.
+//
+// Diese Operation ist eine Spike-Erweiterung und KEINE produktive
+// Protokollentscheidung. Sie ist standardmäßig deaktiviert und nur verfügbar,
+// wenn der Prozess mit JARVIS_CONTACTS_SPIKE_TCC=1 gestartet wurde.
+let kTccGateEnv = "JARVIS_CONTACTS_SPIKE_TCC"
+let kRequestAuthTimeout: TimeInterval = 120   // fester Timeout, fail-closed
+
+func tccGateEnabled() -> Bool {
+    ProcessInfo.processInfo.environment[kTccGateEnv] == "1"
+}
+
+/// Fordert die Kontakte-Autorisierung genau einmal an. Führt NIEMALS eine
+/// Store-Operation aus: keine Kontakte, Container, Gruppen, Change History,
+/// kein CRUD. Bestätigt keinen Dialog automatisch und prompt bei `denied`
+/// oder `restricted` nicht erneut.
+func opRequestAuthorization(_ id: Any) {
+    guard tccGateEnabled() else {
+        fail(id, .operationDisabled,
+             "requestAuthorization ist deaktiviert (\(kTccGateEnv)=1 erforderlich)")
+        return
+    }
+    switch CNContactStore.authorizationStatus(for: .contacts) {
+    case .authorized:
+        // Kein Dialog, kein Store-Read.
+        ok(id, ["granted": true, "authorizationStatus": "authorized",
+                "promptAttempted": false])
+        return
+    case .denied, .restricted:
+        // Kein erneuter Prompt — die Entscheidung liegt beim Nutzer im System.
+        ok(id, ["granted": false, "authorizationStatus": authStatusText(),
+                "promptAttempted": false])
+        return
+    case .notDetermined:
+        break
+    @unknown default:
+        fail(id, .internalError, "unbekannter Autorisierungsstatus")
+        return
+    }
+
+    diag("requestAccess wird genau einmal angefordert (Timeout \(Int(kRequestAuthTimeout)) s)")
+    let sem = DispatchSemaphore(value: 0)
+    var granted = false
+    var reqError: NSError?
+    store.requestAccess(for: .contacts) { g, e in
+        granted = g
+        reqError = e as NSError?
+        sem.signal()
+    }
+    if sem.wait(timeout: .now() + kRequestAuthTimeout) == .timedOut {
+        fail(id, .internalError,
+             "Timeout beim Warten auf die Autorisierungsentscheidung", retryable: true)
+        return
+    }
+    if let e = reqError {
+        fail(id, .providerError, "requestAccess: \(e.domain)/\(e.code)")
+        return
+    }
+    let after = authStatusText()
+    diag("Autorisierungsentscheidung erhalten, Status \(after)")
+    ok(id, ["granted": granted, "authorizationStatus": after, "promptAttempted": true])
 }
 
 // ── Schlüsselsatz (versioniert; Änderung erzwingt Resync) ─────────────────────
@@ -391,9 +461,12 @@ emit([
     "transactionAuthor": kTransactionAuthor,
     "caps": ["ping", "caps", "containers", "enumerate", "changes", "token",
              "get", "getUnified", "create", "update", "updateViaUnified",
-             "delete", "shutdown"],
+             "delete", "requestAuthorization", "shutdown"],
     "limits": ["mutationsRestrictedToPrefix": kTestPrefix,
                "linkUnlinkSupported": false],   // CNSaveRequest hat keine Link-API
+    // SPIKE-ONLY: Verfügbarkeit der ausdrücklichen Autorisierungsanforderung.
+    "requestAuthorizationSupported": true,
+    "requestAuthorizationEnabled": tccGateEnabled(),
 ])
 diag("bereit, Protokollversion \(kProtocolVersion), Autorisierung \(authStatusText())")
 
@@ -419,7 +492,10 @@ while let line = readLine(strippingNewline: true) {
     case "caps":             ok(id, ["protocol": kProtocolVersion,
                                      "authorizationStatus": authStatusText(),
                                      "keySetVersion": kKeySetVersion,
-                                     "linkUnlinkSupported": false])
+                                     "linkUnlinkSupported": false,
+                                     // SPIKE-ONLY (siehe opRequestAuthorization)
+                                     "requestAuthorizationSupported": true,
+                                     "requestAuthorizationEnabled": tccGateEnabled()])
     case "containers":       opContainers(id)
     case "enumerate":        opEnumerate(id)
     case "changes":          opChanges(id, params)
@@ -430,6 +506,8 @@ while let line = readLine(strippingNewline: true) {
     case "update":           opUpdate(id, params, viaUnified: false)
     case "updateViaUnified": opUpdate(id, params, viaUnified: true)
     case "delete":           opDelete(id, params)
+    // SPIKE-ONLY, env-gatet über JARVIS_CONTACTS_SPIKE_TCC=1
+    case "requestAuthorization": opRequestAuthorization(id)
     case "shutdown":
         ok(id, ["bye": true])
         diag("shutdown angefordert")
