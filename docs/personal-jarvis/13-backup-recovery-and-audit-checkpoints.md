@@ -4,8 +4,8 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-23, AV-24 (Checkpoint-Verankerung)
-Zugehörige ADRs: ADR-0010
-Verwandte DEC-Einträge: DEC-017, DEC-023, DEC-024
+Zugehörige ADRs: ADR-0010, ADR-0018 (Restore-Drill je Architektur)
+Verwandte DEC-Einträge: DEC-017, DEC-023, DEC-024, DEC-042
 ---
 
 # 13 — Backup, Recovery und Audit-Checkpoints
@@ -50,3 +50,5 @@ Ein Export von Zugangsdaten ist von normalen Backups getrennt, ausdrücklich fre
 ## §7 Restore-Drill
 
 Der dokumentierte Wiederherstellungstest auf einer leeren Installation ist Pflichtbestandteil der Abnahme des Backup-Kerns und umfasst **ausdrücklich den Verlust des ursprünglichen Macs und der ursprünglichen Keychain** (Wiederherstellung allein über die Recovery-Hülle).
+
+Auf macOS ist der Drill **je Zielarchitektur** (Apple Silicon arm64 und Intel x86_64) auf echter Hardware zu erbringen; ein bestandener Drill der einen Architektur gilt nicht für die andere (ADR-0018, DEC-042; Matrix in 15 §7). Das Backup-Format selbst ist architekturneutral — kanonische Datenbank, Blob-Store und Manifeste enthalten keine architekturabhängigen Artefakte. Geprüft wird die Wiederherstellbarkeit **auf** der jeweiligen Architektur, nicht ein architekturspezifisches Format.

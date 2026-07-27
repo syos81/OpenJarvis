@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-1 bis AV-37 (dieses Dokument ist ihr Primärdokument in Kurzform; Mechanik in 02–19)
-Zugehörige ADRs: ADR-0001 bis ADR-0017
+Zugehörige ADRs: ADR-0001 bis ADR-0018
 Verwandte DEC-Einträge: alle (siehe decisions-register.md)
 ---
 
@@ -97,7 +97,7 @@ ADRs liegen unter `docs/adr/`, sind fortlaufend nummeriert und tragen den Status
 - **AV-26** — Zentrale Contract-Suiten je Vertrag, Port und Store; jeder Provideradapter besteht sie und zusätzlich die Live-Abnahme, bevor er als fertig gilt (15).
 - **AV-27** — Die Port-/OJRA-Semantik ist durch Contract-Tests fixiert; Upstream-Übernahmen erfolgen nur nach dem Kriterienkatalog (02) mit Prüfung, Tests, eigenem Commit und Dokumentation.
 - **AV-28** — Migrations-, Security-, Wiederanlauf-/Recovery-, Kill-Switch- und Restore-Tests sind Pflichtbestandteil (15).
-- **AV-29** — Unterstützt ist ausschließlich die definierte Toolchain: uv, Python exakt 3.12, Rust stable ≥ 1.88, maturin, Node.js 22+ für Frontend/Vite/Tauri; macOS Apple Silicon primär, Linux sekundär; die Node-Zusatz-Bridges (WhatsApp-Baileys, Claude-Code-Runner) sind nicht unterstützt; nichts anderes wird behauptet (15 §6).
+- **AV-29** — Unterstützt ist ausschließlich die definierte Toolchain: uv, Python exakt 3.12, Rust stable ≥ 1.88, maturin, Node.js 22+ für Frontend/Vite/Tauri. **Zielplattform ist macOS ab Version 12.3 auf Apple Silicon arm64 und Intel x86_64 als gleichwertige produktive Architekturen** mit identischem fachlichem Funktionsumfang: Für beide Architekturen muss jeweils nativer ausführbarer Code gebaut und nachgewiesen werden; Laufzeit-, Sicherheits-, TCC- und Live-Abnahmen erfolgen separat auf echter Hardware der jeweiligen Architektur; Signierung, Packaging und Update-Auslieferung müssen sicherstellen, dass für beide Architekturen der korrekte native Code bereitgestellt und überprüft wird. **Ob dies durch ein gemeinsames Universal-2-Artefakt oder durch zwei getrennte architekturspezifische Pakete erfolgt, bleibt bis zur Entscheidung DEC-D17 offen.** Rosetta ersetzt keine native Abnahme; Linux bleibt sekundäres späteres Ziel (ADR-0018, DEC-042, DEC-D17). Die Node-Zusatz-Bridges (WhatsApp-Baileys, Claude-Code-Runner) sind nicht unterstützt; nichts anderes wird behauptet (15 §6).
 
 ### Prozess
 

@@ -4,8 +4,8 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-2 (Modulgrenzen-Anteil), AV-11/AV-12 (Entitäten-Zuordnung), AV-33
-Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016
-Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031
+Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016, ADR-0018
+Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042
 ---
 
 # 16 — Modulkarte
@@ -55,7 +55,7 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031
 
 ## §4 Startkriterien je Modul (keine Reihenfolge)
 
-Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt. Diese Kriterien gelten unverändert für **alle** Module nach dem ersten; die **Reihenfolge der weiteren Module bleibt offen** und wird nicht in diesem Dokument festgelegt.
+Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11) **und für macOS-Module Abnahmehardware beider Zielarchitekturen — Apple Silicon arm64 und Intel x86_64 — zur Verfügung steht** (ADR-0018, DEC-042; Matrix in 15 §7); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt. Diese Kriterien gelten unverändert für **alle** Module nach dem ersten; die **Reihenfolge der weiteren Module bleibt offen** und wird nicht in diesem Dokument festgelegt.
 
 ## §5 Modulunterlagen (Konvention)
 

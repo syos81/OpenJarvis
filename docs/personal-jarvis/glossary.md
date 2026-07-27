@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: alle (Begriffsgrundlage)
-Zugehörige ADRs: ADR-0001 bis ADR-0017
+Zugehörige ADRs: ADR-0001 bis ADR-0018
 Verwandte DEC-Einträge: alle
 ---
 
@@ -151,4 +151,11 @@ Einzige normative Definitionsquelle für verbindliche Fachbegriffe. Kein anderes
 - **Normenhierarchie** — Rangfolge der Dokumente bei Widersprüchen (01 §2).
 - **Definition of Done (DoD)** — Vollständigkeitskriterien eines Moduls (19).
 - **ADR** — Architecture Decision Record mit Status `proposed → accepted | rejected | superseded`; Änderungsweg für geschützte Bereiche.
-- **Live-Abnahme** — Dokumentierte Abnahme eines Provideradapters gegen einen echten Provider-Account.
+- **Live-Abnahme** — Dokumentierte Abnahme eines Provideradapters gegen einen echten Provider-Account; auf macOS je Zielarchitektur zu erbringen (15 §7).
+
+## Zielplattformen und Abnahme
+
+- **Zielarchitektur** — Eine der beiden gleichwertigen produktiven macOS-Prozessorarchitekturen von Personal Jarvis: **Apple Silicon arm64** und **Intel x86_64**, jeweils ab **macOS 12.3**. Beide erhalten denselben fachlichen Funktionsumfang; keine Fachfunktion darf auf eine Architektur beschränkt sein. Linux ist sekundäres späteres Ziel und keine Zielarchitektur dieser Baseline (AV-29, ADR-0018, DEC-042).
+- **Dual-Architektur-Abnahme** — Die verbindliche Abnahmematrix mit zwei Pflichtspalten (arm64, x86_64). Ein Gesamt-PASS existiert ausschließlich, wenn beide Spalten vollständig bestanden sind; ein Ergebnis der einen Architektur gilt niemals automatisch für die andere. Auf macOS Voraussetzung des Modulabschlusses (15 §7, 19).
+- **Native Hardware-Abnahme** — Nachweis eines geräteabhängigen Kriteriums (TCC, Codesigning, Packaging, Store-Zugriff, gepackte App, Backup/Restore, Live-Abnahme) auf physischer Hardware der jeweiligen Zielarchitektur. **Rosetta 2 ist kein Ersatz:** es übersetzt ausschließlich x86_64 → arm64, der umgekehrte Weg existiert nicht; ein unter Rosetta ausgeführter x86_64-Build ersetzt daher keine Prüfung auf echter Intel-Hardware, und die arm64-Abnahme ist auf Intel-Hardware technisch unmöglich (15 §7, ADR-0018).
+- **Universal 2** — Auslieferungsformat, bei dem ein einziges signiertes macOS-Artefakt den nativen Code beider Zielarchitekturen als Slices enthält (Alternative: zwei getrennte signierte architekturspezifische Release-Artefakte). **Die Wahl des Auslieferungsformats ist als DEC-D17 offen registriert** (17 §3); der Begriff ist hier nur definiert, nicht festgelegt. Unabhängig vom Format gilt unverändert: Für beide Architekturen muss nativer ausführbarer Code bereitgestellt und überprüft werden, und die Dual-Architektur-Abnahme bleibt in vollem Umfang Pflicht.

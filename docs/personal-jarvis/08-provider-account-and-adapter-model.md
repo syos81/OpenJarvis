@@ -3,9 +3,9 @@ Status: normativ
 Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
-Maßgebliche AV-Regeln: AV-4, AV-10
-Zugehörige ADRs: ADR-0002
-Verwandte DEC-Einträge: DEC-002, DEC-012
+Maßgebliche AV-Regeln: AV-4, AV-10 (zusätzlich berührt: AV-29 §4)
+Zugehörige ADRs: ADR-0002, ADR-0016, ADR-0018
+Verwandte DEC-Einträge: DEC-002, DEC-012, DEC-031, DEC-042
 ---
 
 # 08 — Provider-, Konto- und Adaptermodell
@@ -47,3 +47,4 @@ Jetzt verbindlich definiert (klein, providerneutral): `ProviderAccount`, `Creden
 - **TCC-Berechtigungsfluss** gehört zur Binding-Einrichtung; verweigerte Berechtigung ⇒ normalisierter Zustand `permission_denied` mit Anleitung (Modulzustand: 14 §4).
 - Der Systemspeicher ist ProviderAccount des Providers „apple-system"; Collections sind die dort sichtbaren Kalender/Adressbücher; Änderungsverfolgung über Store-Change-Signale mit Voll-Diff-Fallback; Read-back ist lokal und damit sofort `verified` — die dahinterliegende iCloud-Synchronisation ist Apples Verantwortung und wird **nicht** als eigene Verifikation ausgegeben.
 - **Mail:** ausschließlich offene Protokolle bzw. Provider-APIs (IMAP/SMTP bzw. JMAP). **Die Apple-Mail-App ist keine allgemeine Mail-Datenquelle** (DEC-012).
+- **Dual-Architektur-Pflicht (ADR-0018, DEC-042):** Für jede native macOS-Bridge — einschließlich des Swift-Contacts-Sidecars (ADR-0016) — muss für **beide** gleichwertigen Zielarchitekturen (Apple Silicon arm64 und Intel x86_64) nativer ausführbarer Code gebaut und nachgewiesen werden; Signierung und Packaging stellen sicher, dass beide Architekturen den korrekten nativen Code erhalten, und die Live-Abnahme erfolgt je Architektur auf echter Hardware (15 §7). Das Auslieferungsformat (gemeinsames Universal-2-Artefakt oder zwei architekturspezifische Pakete) ist dafür unerheblich und bleibt als **DEC-D17** offen. **Effektive Mindestversion ist macOS 12.3** (Contacts-API: `transactionAuthor` ab macOS 12, `shouldRefetchContacts` ab macOS 12.3). Die Bridge enthält **keine** architekturspezifische Fachlogik; Fachverträge, DTOs und Protokolle sind architekturneutral (AV-4). Architekturabhängigkeit ist ausschließlich in der Werkzeugschicht zulässig (Build-Skripte, Packaging, CI) und dort mit Host-Erkennung plus ausdrücklichem Override statt festverdrahteter Architektur.

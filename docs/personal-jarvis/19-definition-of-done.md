@@ -4,13 +4,15 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-2 (Primärdokument), AV-3, AV-26, AV-28
-Zugehörige ADRs: ADR-0012
-Verwandte DEC-Einträge: DEC-018
+Zugehörige ADRs: ADR-0012, ADR-0018
+Verwandte DEC-Einträge: DEC-018, DEC-042
 ---
 
 # 19 — Definition of Done (vollständig abgeschlossenes Modul)
 
 Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche folgenden Kriterien erfüllt und nachgewiesen sind. Erst danach beginnt das nächste Modul (AV-2). Kein Kriterium darf durch Platzhalter, Mocks oder Scheinimplementierungen in produktiven Pfaden erfüllt werden (AV-3).
+
+**Auf macOS gilt zusätzlich durchgehend:** Jedes gerätebezogene Kriterium ist auf **beiden** gleichwertigen Zielarchitekturen (Apple Silicon arm64 und Intel x86_64, Mindestversion macOS 12.3) auf echter Hardware nachzuweisen. Ein Ergebnis der einen Architektur gilt niemals automatisch für die andere; Rosetta ersetzt keine native Abnahme (ADR-0018, DEC-042; Matrix in 15 §7).
 
 ## §1 Datenmodell
 
@@ -28,7 +30,8 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 
 - Fachvertrag der Capability definiert (08 §3) — erst jetzt, nicht auf Vorrat (AV-33).
 - Mindestens die für das Modul beschlossenen Adapter implementiert; jeder besteht die zentrale Contract-Suite (15 §1 Nr. 2) inkl. deklarierter Verifikationstiefe.
-- **Live-Abnahme** gegen einen echten Provider-Account bestanden und protokolliert (Anbieter gemäß DEC-D11; AV-26).
+- **Live-Abnahme** gegen einen echten Provider-Account bestanden und protokolliert (Anbieter gemäß DEC-D11; AV-26) — auf macOS **je Zielarchitektur** (15 §7).
+- Native Bridges bzw. Sidecars liegen als **nativer ausführbarer Code beider** macOS-Zielarchitekturen vor, sind signiert und je Architektur getestet; das Auslieferungsformat ist dabei unerheblich (08 §4, ADR-0018, DEC-D17).
 
 ## §4 Rechte und Sicherheit
 
@@ -39,6 +42,7 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 ## §5 UI
 
 - Vollständiges, gekapseltes Modul-Frontend (14 §1–2): echte Navigationssichtbarkeit nur in erlaubten Zuständen, vollständiger Einrichtungsfluss falls `configuration_required` sichtbar sein soll, Status-/Fehlerflächen, keine leeren Menüpunkte.
+- Desktop-Abnahme (Entwicklungsbetrieb, gepackte App, App-Neustart) **je macOS-Zielarchitektur** bestanden (15 §1 Nr. 12, §7).
 - Kontenverwaltungs-Slice für die Provider des Moduls (Bindings, Collections, Re-Auth).
 
 ## §6 Fehlerfälle
@@ -48,10 +52,11 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 ## §7 Tests
 
 - Alle einschlägigen Suiten aus 15 §1 grün (Unit, Contract, Integration, Migration, Security, Zustandsmaschinen, native macOS soweit betroffen, UI-E2E, Kill-Switch/Sperren soweit betroffen).
+- Die **Dual-Architektur-Abnahmematrix (15 §7)** ist in **beiden** Pflichtspalten vollständig bestanden und mit Architektur, macOS-Version, Swift-/SDK-Version, Zertifikat, Testbenutzer und Datum protokolliert. Spike-Ergebnisse gelten als technische Vor- bzw. Teilnachweise und ersetzen keine Matrixzeile.
 
 ## §8 Betrieb und Daten­sicherheit
 
-- Moduldaten sind von der Snapshot-Registrierung erfasst; Restore-Roundtrip mit Moduldaten nachgewiesen (13).
+- Moduldaten sind von der Snapshot-Registrierung erfasst; Restore-Roundtrip mit Moduldaten nachgewiesen (13) — auf macOS **je Zielarchitektur** (13 §7, 15 §7).
 - Scheduler-/Automation-Anteile idempotent re-registrierbar (04 §2 SchedulerPort).
 
 ## §9 Dokumentation und Register
@@ -63,3 +68,4 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 ## §10 Abschluss
 
 - Live-Abnahme-Protokoll durch den Eigentümer bestätigt. Erst mit dieser Bestätigung gilt das Modul als abgeschlossen.
+- **Auf macOS ist der Abschluss zusätzlich an das vollständige Bestehen beider Spalten der Dual-Architektur-Abnahmematrix gebunden** (15 §7, ADR-0018). Module, deren Abnahme nur auf einer Architektur vorliegt, gelten als **nicht** abgeschlossen — auch rückwirkend.

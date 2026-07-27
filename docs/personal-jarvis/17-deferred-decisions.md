@@ -4,24 +4,26 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-30 (Entscheidungsweg), AV-33
-Zugehörige ADRs: ADR-0016, ADR-0017 (Auflösung von DEC-D01/D02); weitere Entscheidungen erfolgen je per ADR bzw. ausdrücklicher Freigabe
-Verwandte DEC-Einträge: DEC-D01 bis DEC-D16; DEC-030 bis DEC-040
+Zugehörige ADRs: ADR-0016, ADR-0017 (Auflösung von DEC-D01/D02), ADR-0018 (Auslöser von DEC-D17); weitere Entscheidungen erfolgen je per ADR bzw. ausdrücklicher Freigabe
+Verwandte DEC-Einträge: DEC-D01 bis DEC-D17; DEC-030 bis DEC-042
 ---
 
 # 17 — Deferred Decisions
 
 ## §1 Vorwegnahme-Verbot und aktueller Stand
 
-Ursprünglich waren **16 Entscheidungen bewusst offen**. Kein Dokument, kein ADR und keine Implementierung darf eine noch offene Entscheidung vorwegnehmen. Jede wird **vor der ersten betroffenen Implementierung** ausdrücklich entschieden (Freigabe durch den Eigentümer; Ergebnis wandert ins Entscheidungsregister und ggf. in einen ADR). Empfehlungen sind unverbindlich und **eindeutig als „nicht beschlossen" gekennzeichnet**.
+Ursprünglich waren **16 Entscheidungen bewusst offen**; mit DEC-D17 (2026-07-27) sind es **17**. Kein Dokument, kein ADR und keine Implementierung darf eine noch offene Entscheidung vorwegnehmen. Jede wird **vor der ersten betroffenen Implementierung** ausdrücklich entschieden (Freigabe durch den Eigentümer; Ergebnis wandert ins Entscheidungsregister und ggf. in einen ADR). Empfehlungen sind unverbindlich und **eindeutig als „nicht beschlossen" gekennzeichnet**.
 
 **Stand 2026-07-27** (Auslöser: Wahl des ersten Fachmoduls „Kontakte"):
 
-- **Vollständig offen bleiben genau 5:** DEC-D06, DEC-D08, DEC-D12, DEC-D13, DEC-D14.
+- **Vollständig offen bleiben genau 6:** DEC-D06, DEC-D08, DEC-D12, DEC-D13, DEC-D14, **DEC-D17** (neu registriert 2026-07-27).
 - **Teilentschieden: DEC-D09** — die Kontakt-Modul-Klassifizierung ist entschieden (DEC-037), die **globale Sensitivitätsmatrix bleibt offen**. DEC-D09 gilt weder als vollständig erledigt noch als vollständig offen.
 - **Entschieden:** DEC-D01 (DEC-031), DEC-D02 (DEC-032), DEC-D03 (DEC-033), DEC-D04 (DEC-034), DEC-D05 (DEC-035), DEC-D07 (DEC-036), DEC-D15 (DEC-039), DEC-D16 (DEC-040).
 - **Für Modul 1 aufgelöst, je künftigem Modul erneut zu entscheiden:** DEC-D10 (Modulwahl Kontakte = DEC-030; Gesamtreihenfolge weiterhin offen) und DEC-D11 (Abnahmeziel Modul 1 = DEC-038).
 
 Maßgeblich für den Entscheidungstext ist stets das Entscheidungsregister; die Spalte „Empfehlung" unten bleibt historisch und ist für entschiedene Punkte gegenstandslos.
+
+**Ergänzung 2026-07-27 (Auslieferungsformat):** ADR-0018 (DEC-042) entscheidet die Dual-Architektur-Unterstützung, lässt jedoch das **macOS-Auslieferungsformat** ausdrücklich offen. Diese Frage ist als **DEC-D17** regulär als offene Entscheidung registriert (§2, §3). Sie ist der erste Eintrag über die 16 ursprünglichen Deferred Decisions hinaus; die Liste umfasst damit **17 Einträge**, davon **6 vollständig offene: DEC-D06, DEC-D08, DEC-D12, DEC-D13, DEC-D14, DEC-D17**. Eine unverbindliche Empfehlung zugunsten von Universal 2 besteht, gilt aber **nicht** als beschlossen (Vorwegnahme-Verbot).
 
 ## §2 Liste
 
@@ -43,3 +45,32 @@ Maßgeblich für den Entscheidungstext ist stets das Entscheidungsregister; die 
 | DEC-D14 | **Mail-Skalenpolitik** | Sync-Fenster/Archivstrategie großer Postfächer (16 §2) | rollierendes Fenster + Archiv on demand | **offen** — Planung des Mail-Moduls |
 | DEC-D15 | **Initiale Workspaces** | Startbelegung (z. B. Privat, Arbeit, Hausverwaltung) — frei konfigurierbar (06 §6) | — (Nutzerwahl) | **entschieden 2026-07-27 → DEC-039** |
 | DEC-D16 | **Backup-Ziele und Aufbewahrung** | Zielorte, Rotation, Aufbewahrungsfristen (13 §3) | lokal + ein externes Ziel, täglich, 30/12-Rotation | **entschieden 2026-07-27 → DEC-040** |
+| DEC-D17 | **macOS-Auslieferungsformat** | ein signiertes Universal-2-Artefakt gegenüber zwei getrennten signierten Release-Artefakten für arm64 und x86_64 (§3; AV-29, 15 §6/§7) | Universal 2 — **unverbindlich, ausdrücklich nicht beschlossen** | **offen** — spätestens vor dem ersten produktiven Desktop-Release und vor endgültiger Festlegung von Updater-Manifest und Release-Artefakten (Auslöser: ADR-0018, DEC-042) |
+
+## §3 DEC-D17 — macOS-Auslieferungsformat (offen)
+
+**Entscheidungsfrage:** „Wird Personal Jarvis für macOS als ein signiertes Universal-2-Artefakt oder als zwei getrennte signierte Release-Artefakte für arm64 und x86_64 ausgeliefert?"
+
+**Verbindliche Abgrenzung (gilt unabhängig vom Ausgang):**
+
+1. DEC-D17 ändert **nichts** an der gleichwertigen Unterstützung beider Architekturen (DEC-042, AV-29).
+2. DEC-D17 ändert **nichts** an der getrennten Live-Abnahme auf echter Hardware je Architektur (15 §7).
+3. **Beide Varianten müssen denselben fachlichen Funktionsumfang und dieselben Sicherheitsregeln liefern.** Ein Format, das eine Architektur funktional oder sicherheitsseitig schlechter stellt, ist unzulässig.
+4. Eine Entscheidung darf **erst nach vorliegenden technischen Packaging-, Codesigning-, TCC-, Updater- und Rollback-Nachweisen** getroffen werden — nicht auf Basis von Präferenz oder Aufwandsschätzung allein.
+
+**Entscheidungsauslöser:** spätestens vor dem ersten produktiven Desktop-Release; zusätzlich vor der endgültigen Festlegung des Updater-Manifests und der Release-Artefakte.
+
+**Erforderliche Evidenz vor der Entscheidung:**
+
+- reproduzierbarer Build je Variante;
+- Nachweis beider nativer Slices bzw. beider architekturspezifischer Artefakte;
+- Codesigning und Designated Requirements je Variante;
+- TCC-Persistenz (Rebuild, Versions-Bump, Verschieben, Quarantäne);
+- Updater-Kompatibilität (Manifest, Kanal, Plattformschlüssel);
+- Rollback-Verhalten;
+- Download- und Installationsgröße;
+- CI-Aufwand;
+- Fehlzuordnungsrisiko (falsches Artefakt auf falscher Architektur);
+- Wartbarkeit.
+
+Bis zur Entscheidung darf **kein** Dokument eine der beiden Varianten vorschreiben oder ausschließen (17 §1, Vorwegnahme-Verbot).

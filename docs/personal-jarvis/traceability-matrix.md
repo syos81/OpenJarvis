@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-1 bis AV-37 (Zuordnung)
-Zugehörige ADRs: ADR-0001 bis ADR-0017
+Zugehörige ADRs: ADR-0001 bis ADR-0018
 Verwandte DEC-Einträge: siehe Spalten
 ---
 
@@ -15,7 +15,7 @@ Für jede Verfassungsregel: **Primärdokument** (Single Source der Mechanik; zug
 | AV | Primärdokument | Zugehörige ADRs | Späterer Testtyp | Durchsetzungsstelle |
 |---|---|---|---|---|
 | AV-1 | 02 §2 (Verweis: 18) | ADR-0011, ADR-0013, ADR-0014, ADR-0015 | Diff-Scope-Review; Abweichungs-Re-Check je Pick | Review-/Pick-Prozess, Abweichungsliste |
-| AV-2 | 19 | ADR-0012 | Modul-Abnahme-Review (DoD-Checkliste) | DoD-Gate, Eigentümer-Abnahme |
+| AV-2 | 19 | ADR-0012, ADR-0018 | Modul-Abnahme-Review (DoD-Checkliste) + **Dual-Architektur-Abnahmematrix beidspaltig bestanden** (Verweis: 15 §7) | DoD-Gate, Eigentümer-Abnahme |
 | AV-3 | 19 (Verweis: 14 §2) | ADR-0012 | UI-E2E + Review (keine Platzhalter) | Readiness-Gating, Review |
 | AV-4 | 08 | ADR-0002, ADR-0016 | Contract-Suite + Import-Grenzen-Check | Adapterschicht (inkl. Native Bridge), Lint-Regel |
 | AV-5 | 12 | ADR-0009 | Security-Tests (Egress) | EgressGuard (jeder Cloud-Abfluss inkl. Speech) |
@@ -39,10 +39,10 @@ Für jede Verfassungsregel: **Primärdokument** (Single Source der Mechanik; zug
 | AV-23 | 13 | ADR-0010 | Restore-Drill + Migrationstests | SnapshotCoordinator |
 | AV-24 | 10 §5–6 (Verweis: 13 §5) | ADR-0010 | Security-Tests (Chain-/Checkpoint-Verifikation) | AuditTrail, Checkpoint-Signierer |
 | AV-25 | 18 DEV-1 | ADR-0013 | Unit-Test (Default `False`) | Config-Default + Presets |
-| AV-26 | 15 §1 | ADR-0002, ADR-0012 | Contract-Suiten + Live-Abnahme | CI-Gates, DoD |
+| AV-26 | 15 §1 | ADR-0002, ADR-0012, ADR-0018 | Contract-Suiten + Live-Abnahme **je Zielarchitektur auf echter Hardware** (Verweis: 15 §7) | CI-Gates, DoD |
 | AV-27 | 02 §3 (Verweis: 15 §1 Nr. 2) | ADR-0001, ADR-0011 | Port-Contract-Tests + Pick-Prozess | CI + Review |
-| AV-28 | 15 §1 | ADR-0012 | Pflichtsuiten (Migration/Security/Recovery/Kill-Switch/Restore) | CI-Gates |
-| AV-29 | 15 §6 | — (Baseline; DEC-009) | CI-Umgebungsdefinition | CI-Konfiguration, Doku |
+| AV-28 | 15 §1 | ADR-0012, ADR-0018 | Pflichtsuiten (Migration/Security/Recovery/Kill-Switch/Restore); native macOS-Tests und Restore-Drill **auf beiden Zielarchitekturen** (Verweis: 15 §7, 13 §7) | CI-Gates (Runner beider Architekturen) |
+| AV-29 | 15 §6 | ADR-0018 (Baseline; DEC-009, DEC-042; offen: DEC-D17) | CI-Umgebungsdefinition; **Nachweis des nativen Codes beider Architekturen je macOS-Release-Artefakt** (formatunabhängig); Toolchain-Prüfung (Python exakt 3.12) | CI-Konfiguration (arm64- und x86_64-Runner), Doku |
 | AV-30 | 01 §4 | alle | Prozess-Review | ADR-Verfahren, Eigentümer-Freigabe |
 | AV-31 | 01 §4 (Verweis: 04 §2) | ADR-0001, ADR-0002 | Prozess-Review | ADR-Verfahren |
 | AV-32 | 18 §1 | ADR-0011, ADR-0013, ADR-0014, ADR-0015 | Review je Pick | Abweichungsliste |
