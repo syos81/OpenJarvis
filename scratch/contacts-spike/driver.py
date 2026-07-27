@@ -20,10 +20,22 @@ import threading
 import time
 from pathlib import Path
 
+def _tauri_triple() -> str:
+    """Tauri-externalBin-Suffix der laufenden Architektur (beide gleichwertig)."""
+    import platform
+    return {"arm64": "aarch64-apple-darwin",
+            "x86_64": "x86_64-apple-darwin"}.get(platform.machine(), platform.machine())
+
+
 def _find_sidecar() -> Path:
-    """Sidecar neben dem Skript (Export) oder im build/-Verzeichnis (Worktree)."""
+    """Sidecar neben dem Skript (Export), im build/-Verzeichnis (Worktree) oder
+    unter dem architekturbehafteten Tauri-Namen (gebündelter/exportierter Fall)."""
     here = Path(__file__).resolve().parent
-    for cand in (here / "jarvis-contacts", here / "build" / "jarvis-contacts"):
+    triple = _tauri_triple()
+    for cand in (here / "jarvis-contacts",
+                 here / "build" / "jarvis-contacts",
+                 here / f"jarvis-contacts-{triple}",
+                 here / "build" / f"jarvis-contacts-{triple}"):
         if cand.exists():
             return cand
     return here / "build" / "jarvis-contacts"

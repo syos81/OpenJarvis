@@ -7,7 +7,15 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="$HERE/src"
 BUILD="$HERE/build"
 # macOS 12.3 = effektive Untergrenze (transactionAuthor 12, shouldRefetchContacts 12.3)
-TARGET="${TARGET:-arm64-apple-macos12.3}"
+# Beide macOS-Architekturen sind gleichwertige Produktionsziele: die Host-
+# Architektur wird erkannt, TARGET bleibt zum Cross-Bauen überschreibbar.
+MIN_MACOS="${MIN_MACOS:-12.3}"
+case "$(uname -m)" in
+  arm64)  HOST_ARCH="arm64"  ;;
+  x86_64) HOST_ARCH="x86_64" ;;
+  *) echo "Nicht unterstützte Host-Architektur: $(uname -m)" >&2; exit 1 ;;
+esac
+TARGET="${TARGET:-${HOST_ARCH}-apple-macos${MIN_MACOS}}"
 BIN="$BUILD/jarvis-contacts-p0"
 
 mkdir -p "$BUILD"
@@ -31,6 +39,8 @@ swiftc -target "$TARGET" \
 
 echo "== Ergebnis =="
 ls -l "$BIN"
+echo "-- Architektur (muss $TARGET entsprechen) --"
+lipo -info "$BIN"
 echo "-- LC_BUILD_VERSION (minos muss $TARGET entsprechen) --"
 otool -l "$BIN" | grep -A4 LC_BUILD_VERSION | head -8
 echo "-- Contacts.framework verlinkt? --"
