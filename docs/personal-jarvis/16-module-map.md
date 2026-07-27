@@ -1,0 +1,62 @@
+---
+Status: normativ (Adapter-Nennungen sind gekennzeichnete, nicht bindende Beispiele)
+Architektur-Baseline: v3
+Freigabedatum: 2026-07-27
+Baseline-Tag: openjarvis-baseline-2026-07-27
+Maßgebliche AV-Regeln: AV-2 (Modulgrenzen-Anteil), AV-11/AV-12 (Entitäten-Zuordnung), AV-33
+Zugehörige ADRs: ADR-0002, ADR-0012
+Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-D10 (offen)
+---
+
+# 16 — Modulkarte
+
+**Dieses Dokument enthält keine Modulreihenfolge und keine Auswahl eines ersten Moduls.** Beides ist ausdrücklich offen (DEC-D10) und wird erst nach gesonderter Freigabe entschieden. Die Spalte „mögliche Adapter" nennt **nicht bindende Beispiele**; die endgültige Adapterwahl fällt je Modul (DEC-D10/D11).
+
+## §1 Module (ungeordnet)
+
+| Modul | Zweck / kanonischer Kern | Abhängigkeiten | mögliche Adapter (Beispiele) | Upstream-Verhältnis |
+|---|---|---|---|---|
+| Chat & Sessions | Konversation, Verlauf, Tool-Nutzung | PJR | — | **Upstream-getragen** (Chat-Seite, `sessions.db`); Personal ergänzt Pipeline-Tools; spätere Überführung der Verläufe: 06 §3 |
+| Modelle & Inferenz | Modellwahl, Routing-Politik, Egress-Grants je Workspace | PJR | — | Upstream-getragen (Engines/Models-Seite); Personal ergänzt Richtlinien (12) |
+| Kontakte | Personen, Rollen, Beziehungen, externe Identitäten | Basis | CardDAV, AppleContacts (CNContactStore), lokale vCard | eigenes Modul |
+| Kalender | Kalender, Termine, Teilnehmer | Kontakte (Teilnehmer) | CalDAV, AppleEventKit, ICS-Feed (read-only) | eigenes Modul |
+| Mail | Konten, Ordner, Nachrichten-Metadaten, Versand | Kontakte | IMAP/SMTP, JMAP (Apple-Mail-App ist keine Datenquelle, 08 §4) | eigenes Modul |
+| Aufgaben & Projekte | Aufgaben, Projekte, Verknüpfungen | Kontakte, Kalender | AppleEventKit-Reminders, CalDAV-Tasks, lokal | eigenes Modul |
+| Dokumente & Wissen | Dokument-Metadaten, Sammlungen, Blob-Verweise | Basis | Dateisystem-Import; später Cloud-Quellen | eigenes Modul |
+| Globale Suche | Query über kanonische DB + abgeleiteten Index | mehrere Module | — (nutzt MemoryIndexPort) | eigenes Modul |
+| Life OS | Messwerte, Ziele, Provenienz | Kontakte optional | HealthKit-Export, CSV, Geräte-Quellen | eigenes Modul |
+| Trading | Konten, Positionen, Orders, Risikoregeln | Basis, Benachrichtigungen | BrokerAdapter (Ziel: DEC-D12) | eigenes Modul; **immer R2** (10) |
+| Automationen | Trigger → Bedingung → Aktion über Capability-Operationen | alle Capabilities | — (nutzt SchedulerPort) | eigenes Modul |
+| Benachrichtigungen | zentrale Zustands-/Konflikt-/Freigabe-Hinweise | alle | — | eigenes Modul; bis dahin modul-lokale Statusflächen |
+| Voice | Diktat/Vorlesen im Personal-Kontext | Chat | — (Upstream-Speech via PJR; Speech lokal-first; **Cloud-STT/TTS nur über den EgressGuard**, 12 §5; Port-/Adaptertechnik erst mit dem Voice-Modul) | Upstream-Speech gekapselt |
+| Backup & Wiederherstellung | UI, Kataloge, Zeitpläne über dem Backup-Kern | Basis | — | eigenes Modul; **Backup-Kern ist Basis-Bestandteil** (13 §1) |
+| Einstellungen & Kontenverwaltung | Workspaces, ProviderAccounts, Bindings, CredentialReferences, Modulstatus | Basis | — | eigenes Modul; wächst als vertikaler Bestandteil jedes Moduls |
+
+## §2 Kanonische Entitäten je Modul (Datenhoheit, Single Source)
+
+- **Einstellungen & Kontenverwaltung:** `workspaces` · `provider_accounts` · `capability_bindings` · `provider_collections` (inkl. Workspace-Zuordnung) · CredentialReferences (Verweise, nie Secrets) · `settings`.
+- **Kontakte:** `contacts` (+ normalisierte Kindtabellen E-Mail/Telefon/Adresse) · `contact_roles` (contact × workspace × Rolle) · `contact_relations` (typisiert, mit Objektbezug) · `organizations` + Mitgliedschaften · `contact_external_ids` · Historie/Tombstones.
+- **Kalender:** `calendars` · `events` (UTC + IANA-Zeitzone; Wiederholungsregel roh; materialisierte Instanzen sind abgeleitet) · `event_attendees` (contact_id nullable + Roh-E-Mail) · `event_external_ids` · Tombstones.
+- **Mail:** `mail_folders` · `messages` (Header-Metadaten, Flags, Snippet kanonisch; Bodies/Anhänge im Blob-Store) · `mail_outbox`. Löschregel: Papierkorb-Semantik des Providers wird gespiegelt, nie stillschweigend expunged. Skalenpolitik: DEC-D14.
+- **Aufgaben & Projekte:** `projects` · `tasks` (Status, Fälligkeit; Bezüge über die Basis-Verknüpfungsinfrastruktur, 06 §5).
+- **Dokumente & Wissen:** `documents` (Metadaten, Hash, Blob-Referenz, Quelle) · `collections` · Verknüpfungen. Abgeleitet: Chunking/Embeddings im Index.
+- **Globale Suche:** keine kanonischen Entitäten außer `saved_searches`; konsumiert Read-APIs und Index.
+- **Life OS:** `metric_definitions` · `metric_samples` (Wert, Einheit, Zeitpunkt, **Provenienz**: Quelle, Import-Charge, Rohreferenz) · `goals`.
+- **Trading:** `broker_accounts` · `positions` · `orders` (Zustandsmaschine, 11 §6 Nr. 6) · `executions` · `risk_rules` (Änderung R2) · `portfolio_snapshots`. Marktdaten nur im Cache, nie kanonisch.
+- **Automationen:** `automations` (Trigger/Bedingung/Aktion als Referenzen auf Capability-Operationen) · `automation_runs`.
+- **Benachrichtigungen:** `notifications` (Quelle, Schwere, Zustand).
+- **Voice:** Einstellungen; Transkripte gehören dem Chat (Upstream) — nur Verweise.
+- **Backup:** `backup_catalog` (Läufe, Manifeste, Prüfsummen).
+- **Basis (Sicherheit/Infrastruktur):** `approval_intents` · `audit_log` · `outbox`-Tabellen (drei Warteschlangen) · `sync_state` · ResourceLink-/EntityAlias-Tabellen · Migrations-Ledger.
+
+## §3 Basis
+
+„Basis" bezeichnet die gemeinsamen Fundamentteile: PJR-Ports (nur benötigte) + OJRA, DB-Kern (ConnectionFactory/UoW/Migrations-Runner), CredentialStore, ActionPipeline-Kern, Audit (+ Checkpoint-Signierer), Outboxes + R1-Executor (R2-Executor erst mit dem ersten R2-Modul), Verknüpfungsinfrastruktur, Installations-Token-Auth, **Backup-Kern**, Kontenverwaltungs-Slice, Egress-Guard. Materialisierung strikt nach AV-33: nur in dem Umfang, den das unmittelbar nächste Modul zwingend braucht (Ausnahme Backup-Kern, DEC-024).
+
+## §4 Startkriterien je Modul (keine Reihenfolge)
+
+Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt.
+
+## §5 Modulunterlagen (Konvention)
+
+Je Modul entsteht mit seiner Umsetzung `docs/personal-jarvis/modules/<modul>.md` (Pflichtinhalt: 19). Verlinkung: Modulkarte (dieses Dokument), betroffene Verträge (08), Risikoklassifizierung (10), Egress-Labels (12), Testnachweise (15), Live-Abnahme-Protokoll. Das Verzeichnis wird erst mit dem ersten Modul angelegt.
