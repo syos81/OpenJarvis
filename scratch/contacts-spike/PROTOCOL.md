@@ -147,6 +147,26 @@ unverändert.
 Der vorgesehene Aufrufweg ist ausschließlich `authorize.py`, das vor der
 Anforderung eine wörtliche manuelle Bestätigung verlangt.
 
+## SPIKE-ONLY: Diagnose-Gate (stderr, keine Protokolländerung)
+
+Aktiv ausschließlich bei exakt `JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1`. Ohne
+diesen Wert erscheint **keine** zusätzliche Ausgabe und das Verhalten bleibt
+unverändert. **stdout bleibt in jedem Fall reines JSON-Lines-Protokoll** — die
+Stufen gehen ausschließlich nach `stderr` in der Form `[sidecar] stage=<name>`
+bzw. `[sidecar] stage=<name> error=<code>`.
+
+Zweck ist die Eingrenzung des auf dem Intel-Mac beobachteten `create`-Timeouts
+(siehe `docs/testing/contacts-bridge-create-timeout-diagnostics-2026-07-27.md`).
+
+Stufen des `create`-Pfads: `create.received` · `create.auth_ok` ·
+`create.validated` · `create.note_set_attempted` · `create.contact_constructed` ·
+`create.container_resolved` · `create.save_begin` · `create.save_returned` ·
+`create.response_written` · `create.failed error=<code>`.
+
+Ausgegeben werden **ausschließlich konstante Stufennamen und typisierte
+Fehlercodes** — niemals Namen, Identifier, E-Mail-Adressen, Telefonnummern,
+Anschriften, Geburtstage, Organisationen oder ganze Payloads.
+
 ## Spike-Sicherheitsrail (nur Spike, nicht produktiv)
 
 `create`/`update`/`delete` verweigern jede Operation, deren Ziel-Datensatz

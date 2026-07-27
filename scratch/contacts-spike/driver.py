@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -43,6 +44,41 @@ def _find_sidecar() -> Path:
 
 SIDECAR = _find_sidecar()
 
+# ── Typisierte Treiberfehler ─────────────────────────────────────────────────
+# Ein Request darf NIE wieder als nacktes queue.Empty enden: jeder Ausgang
+# traegt eine Fehlerklasse und PII-freie Diagnosefelder.
+ERR_REQUEST_TIMEOUT = "request_timeout"
+ERR_CHILD_EXITED = "child_exited"
+ERR_STDOUT_EOF = "stdout_eof"
+ERR_PROTOCOL_ERROR = "protocol_error"
+ERR_RESPONSE_ID_MISMATCH = "response_id_mismatch"
+ERR_MUTATION_OUTCOME_UNKNOWN = "mutation_outcome_unknown"
+
+# Operationen, deren Ausgang bei einem Abbruch NICHT bekannt ist.
+MUTATING_OPS = frozenset({"create", "update", "updateViaUnified", "delete"})
+
+# Nur technische Sidecar-Marker uebernehmen; alles andere wird verworfen, damit
+# selbst bei Fehlverhalten keine PII in Logs oder Fehlerdateien gelangt.
+_STDERR_ALLOWED = re.compile(r"^\[sidecar\][^@]*$")
+_STDERR_MAX_LINES = 20
+_STDERR_MAX_LEN = 200
+
+
+class DriverError(Exception):
+    """Fail-closed-Ausgang eines Requests mit PII-freier Diagnose."""
+
+    def __init__(self, error_class: str, **fields):
+        self.error_class = error_class
+        self.fields = fields
+        super().__init__(f"{error_class}: {fields}")
+
+    def to_dict(self) -> dict:
+        return {"error_class": self.error_class, **self.fields}
+
+    @property
+    def outcome_unknown(self) -> bool:
+        return self.error_class == ERR_MUTATION_OUTCOME_UNKNOWN
+
 
 class Sidecar:
     def __init__(self, binary: Path = SIDECAR, env: dict | None = None):
@@ -57,6 +93,11 @@ class Sidecar:
         self._next_id = 0
         self.ready: dict | None = None
         self.max_line_len = 0
+        # EOF-Signale der beiden Drainer — machen einen stillen Child-Tod sichtbar.
+        self.stdout_eof = threading.Event()
+        self.stderr_eof = threading.Event()
+        # Technische Diagnosestufen des Sidecars (PII-frei, nur mit Diagnose-Gate).
+        self.diag_stages: list[str] = []
 
     # ── Start / Stop ─────────────────────────────────────────────────────────
     def start(self, timeout: float = 10.0) -> dict:
@@ -78,39 +119,149 @@ class Sidecar:
 
     def _read_stdout(self) -> None:
         assert self.proc and self.proc.stdout
-        for raw in self.proc.stdout:
-            if self._stop.is_set():
-                break
-            self.max_line_len = max(self.max_line_len, len(raw))
-            line = raw.strip()
-            if not line:
-                continue
-            try:
-                self.inbox.put(json.loads(line))
-            except json.JSONDecodeError:
-                # Tolerant: Nicht-JSON wird protokolliert, ist aber ein Protokollfehler.
-                self.inbox.put({"_nonjson": line[:200]})
+        try:
+            for raw in self.proc.stdout:
+                if self._stop.is_set():
+                    break
+                self.max_line_len = max(self.max_line_len, len(raw))
+                line = raw.strip()
+                if not line:
+                    continue
+                try:
+                    self.inbox.put(json.loads(line))
+                except json.JSONDecodeError:
+                    # Tolerant lesen, aber als Protokollfehler kennzeichnen.
+                    self.inbox.put({"_nonjson": line[:200]})
+        finally:
+            # EOF: der Child schreibt nichts mehr. Wecker fuer wartende Requests.
+            self.stdout_eof.set()
+            self.inbox.put({"_eof": True})
 
     def _read_stderr(self) -> None:
         assert self.proc and self.proc.stderr
-        for raw in self.proc.stderr:
-            if self._stop.is_set():
-                break
-            self.stderr_tail.append(raw.rstrip())
-            del self.stderr_tail[:-100]
+        try:
+            for raw in self.proc.stderr:
+                if self._stop.is_set():
+                    break
+                line = raw.rstrip()
+                self.stderr_tail.append(line)
+                del self.stderr_tail[:-100]
+                if "[sidecar] stage=" in line:
+                    self.diag_stages.append(line.split("stage=", 1)[1].strip())
+                    del self.diag_stages[:-50]
+        finally:
+            self.stderr_eof.set()
+
+    # ── Diagnose ─────────────────────────────────────────────────────────────
+    def safe_stderr(self) -> list[str]:
+        """Begrenzte, PII-gefilterte stderr-Zeilen fuer Fehlerberichte."""
+        out = []
+        for line in self.stderr_tail[-_STDERR_MAX_LINES:]:
+            if _STDERR_ALLOWED.match(line):
+                out.append(line[:_STDERR_MAX_LEN])
+            else:
+                out.append("[redigiert: nicht-technische stderr-Zeile]")
+        return out
+
+    def child_exit_code(self) -> int | None:
+        return self.proc.poll() if self.proc else None
+
+    def child_alive(self) -> bool:
+        return bool(self.proc) and self.proc.poll() is None
+
+    def _kill_child(self) -> None:
+        """Child zuverlaessig beenden — ohne Retry der ausgeloesten Operation."""
+        if not self.proc or self.proc.poll() is not None:
+            return
+        self.proc.terminate()
+        try:
+            self.proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
+            try:
+                self.proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                pass
+
+    def _fail(self, error_class: str, op: str, rid: int, started: float,
+              wrong_ids: list, detail: str = "") -> "DriverError":
+        """Fehlerklasse ggf. auf mutation_outcome_unknown anheben und Child killen."""
+        effective = (ERR_MUTATION_OUTCOME_UNKNOWN
+                     if op in MUTATING_OPS and error_class in (
+                         ERR_REQUEST_TIMEOUT, ERR_CHILD_EXITED, ERR_STDOUT_EOF)
+                     else error_class)
+        alive = self.child_alive()
+        self._kill_child()
+        return DriverError(
+            effective,
+            underlying_class=error_class if effective != error_class else None,
+            request_id=rid,
+            operation=op,
+            elapsed_seconds=round(time.time() - started, 3),
+            child_exit_code=self.child_exit_code(),
+            child_alive=alive,
+            stdout_eof=self.stdout_eof.is_set(),
+            stderr_eof=self.stderr_eof.is_set(),
+            wrong_response_ids=wrong_ids[:10],
+            diag_stages=list(self.diag_stages),
+            stderr_tail=self.safe_stderr(),
+            detail=detail,
+        )
 
     def request(self, op: str, params: dict | None = None, timeout: float = 30.0) -> dict:
+        """Sendet eine Anfrage und liefert die Antwort.
+
+        Scheitert IMMER typisiert (DriverError) statt mit nacktem queue.Empty.
+        Fuer create/update/updateViaUnified/delete wird ein Abbruch zu
+        `mutation_outcome_unknown` angehoben: das bedeutet ausdruecklich
+        WEDER fehlgeschlagen NOCH erfolgreich. Es erfolgt kein Retry.
+        """
         assert self.proc and self.proc.stdin
         self._next_id += 1
         rid = self._next_id
+        started = time.time()
+        wrong_ids: list = []
         payload = {"id": rid, "op": op, "params": params or {}}
-        self.proc.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
-        self.proc.stdin.flush()
+        try:
+            self.proc.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError) as e:
+            raise self._fail(ERR_CHILD_EXITED, op, rid, started, wrong_ids,
+                             f"stdin nicht beschreibbar: {type(e).__name__}") from None
+
         stream: list[dict] = []
-        deadline = time.time() + timeout
+        deadline = started + timeout
         while True:
-            msg = self.inbox.get(timeout=max(0.1, deadline - time.time()))
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                raise self._fail(ERR_REQUEST_TIMEOUT, op, rid, started, wrong_ids,
+                                 f"keine Antwort binnen {timeout} s")
+            try:
+                msg = self.inbox.get(timeout=remaining)
+            except queue.Empty:
+                # Absoluter Deadline-Ablauf — kein stiller queue.Empty mehr.
+                if not self.child_alive():
+                    raise self._fail(ERR_CHILD_EXITED, op, rid, started, wrong_ids,
+                                     "Child beendet, keine Antwort") from None
+                raise self._fail(ERR_REQUEST_TIMEOUT, op, rid, started, wrong_ids,
+                                 f"keine Antwort binnen {timeout} s") from None
+
+            if msg.get("_eof"):
+                # stdout ist zu: es kann keine Antwort mehr kommen.
+                if not self.child_alive():
+                    raise self._fail(ERR_CHILD_EXITED, op, rid, started, wrong_ids,
+                                     "stdout EOF und Child beendet")
+                raise self._fail(ERR_STDOUT_EOF, op, rid, started, wrong_ids,
+                                 "stdout EOF bei noch laufendem Child")
+            if "_nonjson" in msg:
+                raise self._fail(ERR_PROTOCOL_ERROR, op, rid, started, wrong_ids,
+                                 "nicht parsebare Zeile auf stdout")
             if msg.get("id") != rid:
+                # Verwaiste Antwort: festhalten statt still verwerfen.
+                wrong_ids.append(msg.get("id"))
+                if len(wrong_ids) > 50:
+                    raise self._fail(ERR_RESPONSE_ID_MISMATCH, op, rid, started,
+                                     wrong_ids, "zu viele fremde Antwort-IDs")
                 continue
             if msg.get("stream") == "item":
                 stream.append(msg["item"])

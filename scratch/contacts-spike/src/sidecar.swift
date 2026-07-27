@@ -100,6 +100,30 @@ func tccGateEnabled() -> Bool {
     ProcessInfo.processInfo.environment[kTccGateEnv] == "1"
 }
 
+// ── SPIKE-ONLY: Diagnose-Gate für die create-Timeout-Analyse ──────────────────
+// Ohne exakt JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1 erscheint KEINE zusätzliche
+// Ausgabe; das bestehende Verhalten bleibt unverändert.
+//
+// Ausgegeben werden ausschließlich konstante technische Stufennamen — niemals
+// Namen, Identifier, E-Mail-Adressen, Telefonnummern, Anschriften, Geburtstage,
+// Organisationen oder ganze Payloads. stdout bleibt reines JSON-Lines-Protokoll.
+let kDiagGateEnv = "JARVIS_CONTACTS_SPIKE_DIAGNOSTICS"
+
+func diagGateEnabled() -> Bool {
+    ProcessInfo.processInfo.environment[kDiagGateEnv] == "1"
+}
+
+/// Technische Stufe nach stderr. Aufrufer übergeben ausschließlich konstante
+/// Stufennamen — keine Werte aus der Anfrage.
+func stage(_ name: String, error: ErrCode? = nil) {
+    guard diagGateEnabled() else { return }
+    if let e = error {
+        diag("stage=\(name) error=\(e.rawValue)")
+    } else {
+        diag("stage=\(name)")
+    }
+}
+
 /// Fordert die Kontakte-Autorisierung genau einmal an. Führt NIEMALS eine
 /// Store-Operation aus: keine Kontakte, Container, Gruppen, Change History,
 /// kein CRUD. Bestätigt keinen Dialog automatisch und prompt bei `denied`
@@ -337,14 +361,19 @@ func opGet(_ id: Any, _ params: [String: Any], unified: Bool) {
 }
 
 func opCreate(_ id: Any, _ params: [String: Any]) {
-    guard requireAuth(id) else { return }
+    stage("create.received")
+    guard requireAuth(id) else { stage("create.failed", error: .tccDenied); return }
+    stage("create.auth_ok")
     guard let given = params["givenName"] as? String,
           let family = params["familyName"] as? String else {
+        stage("create.failed", error: .invalidRequest)
         fail(id, .invalidRequest, "givenName/familyName fehlen"); return
     }
     guard given.hasPrefix(kTestPrefix) || family.hasPrefix(kTestPrefix) else {
+        stage("create.failed", error: .forbidden)
         fail(id, .forbidden, "Spike-Rail: nur \(kTestPrefix)-Datensätze"); return
     }
+    stage("create.validated")
     let c = CNMutableContact()
     c.givenName = given
     c.familyName = family
@@ -377,16 +406,31 @@ func opCreate(_ id: Any, _ params: [String: Any]) {
         dc.year = b["year"]; dc.month = b["month"]; dc.day = b["day"]
         c.birthday = dc
     }
-    if let noteText = params["note"] as? String { c.note = noteText }
+    // `note` erfordert seit macOS 11 das Entitlement
+    // com.apple.developer.contacts.notes. Der Spike-Sidecar traegt bewusst KEINE
+    // Entitlements — das Feld wird daher nur auf ausdrueckliche Anforderung
+    // gesetzt und ist im gestuften Ablauf ein eigener, isolierter Testschritt.
+    if let noteText = params["note"] as? String {
+        stage("create.note_set_attempted")
+        c.note = noteText
+    }
+    stage("create.contact_constructed")
 
     let req = CNSaveRequest()
     req.transactionAuthor = kTransactionAuthor
     req.add(c, toContainerWithIdentifier: params["containerIdentifier"] as? String)
+    stage("create.container_resolved")
     do {
+        stage("create.save_begin")
         try store.execute(req)
-        ok(id, ["identifier": c.identifier, "verified": (try? fetchRaw(identifier: c.identifier)) != nil])
+        stage("create.save_returned")
+        let verified = (try? fetchRaw(identifier: c.identifier)) != nil
+        ok(id, ["identifier": c.identifier, "verified": verified])
+        stage("create.response_written")
     } catch let e as NSError {
+        stage("create.failed", error: .providerError)
         fail(id, .providerError, "create: \(e.domain)/\(e.code) \(e.localizedDescription)")
+        stage("create.response_written")
     }
 }
 
