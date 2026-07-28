@@ -5,7 +5,7 @@ Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-26, AV-27 (Test-Anteil), AV-28, AV-29
 Zugehörige ADRs: ADR-0012, ADR-0018
-Verwandte DEC-Einträge: DEC-009, DEC-018, DEC-034, DEC-038, DEC-042
+Verwandte DEC-Einträge: DEC-009, DEC-018, DEC-034, DEC-038, DEC-042, DEC-043
 ---
 
 # 15 — Test- und Qualitätsarchitektur
@@ -52,6 +52,8 @@ Verbindlich: **uv · Python exakt 3.12 · Rust stable ≥ 1.88 · maturin · Nod
 
 **Python 3.12 ist produktive Pflicht** für Builds, Tests und den Kontakte-MASTER. Eine ältere Python-Version, die für isolierte kontaktfreie Spike-Skripte ausgereicht hat, ist **keine** produktive Toolchain-Abnahme.
 
+**Befund 2026-07-28 (offener Defekt, dokumentiert, nicht korrigiert):** Die Packaging-Konfiguration `frontend/src-tauri/tauri.conf.json` führt unter `bundle.macOS` weiterhin `"minimumSystemVersion": "10.15"` und widerspricht damit der verbindlichen Untergrenze **12.3**. ADR-0018 §2 bezeichnet eine niedrigere Angabe ausdrücklich als Defekt, der **vor produktivem Desktop-Betrieb** zu korrigieren ist. Die Korrektur ist eine Produktcode-Änderung und erfolgt in der produktiven Implementierungsphase, nicht in dieser Dokumentationsaktualisierung. Bis dahin gilt: **kein produktives Desktop-Release**.
+
 Die Node-Zusatz-Bridges (WhatsApp-Baileys, Claude-Code-Runner) sind **nicht unterstützt** und werden nicht verwendet. Es werden keine ungetesteten Python-Versionen, Architekturen oder Plattformen als unterstützt behauptet. „Kein Node" gilt ausschließlich für die defekten Zusatz-Bridges, nicht für Frontend und Tauri (DEC-009, ergänzt durch DEC-042).
 
 ## §7 Dual-Architektur-Abnahmematrix (macOS)
@@ -67,3 +69,43 @@ Regeln:
 3. **Evidenzangabe.** Jede Zeile trägt Architektur, macOS-Version, Swift-/SDK-Version, Zertifikatsbezeichnung, Testbenutzer und Datum. Ein Toolchain-Wechsel entwertet die betroffenen Zeilen.
 4. **Spike-Evidenz ist keine Abnahme.** Ergebnisse technischer Spikes gelten als Vor- bzw. Teilnachweis und ersetzen keine Zeile der Modulabnahme (AV-3, 19).
 5. **Formatunabhängigkeit.** Die Matrix schreibt **kein** Auslieferungsformat vor. Sie verlangt ausschließlich, dass für jede Architektur der korrekte native Code bereitgestellt, überprüft und auf echter Hardware abgenommen wird — gleich ob er aus einem gemeinsamen Universal-2-Artefakt oder aus einem architekturspezifischen Paket stammt. Die Formatwahl ist als **DEC-D17** offen (17 §2); kein Prüfschritt darf eine der beiden Varianten voraussetzen.
+
+## §8 Abnahmestand Kontakte-Modul (Stand 2026-07-28)
+
+Ausgefüllte Matrix nach der Struktur aus §7. **Zustände sind ausschließlich:** `PASS` · `FAIL` · `OPEN` · `NOT EXECUTABLE IN CURRENT ENVIRONMENT`. Mischbegriffe sind unzulässig; „teilweise", „weitgehend" oder „im Wesentlichen" gelten als `OPEN`.
+
+**Grundlage:** Spike G3a (ADR-0016 Punkt 8, DEC-043). **Alle unten mit `PASS` geführten Zeilen sind Spike-Nachweise und damit nach §7 Nr. 4 technische Vor- bzw. Teilnachweise — sie ersetzen keine Modulabnahme** (AV-3, 19). Die Modulabnahme entsteht erst mit der produktiven Implementierung.
+
+| Zeile | Apple Silicon arm64 | Intel x86_64 |
+|---|---|---|
+| Nativer Build der Zielarchitektur (`minos 12.3`) | PASS | PASS |
+| P0-Reachability der Native Bridge (ObjC-Shim, `CNChangeHistory`) | PASS | PASS |
+| Protokoll-/Contract-Suite (JSON-Lines, Handshake, `ping`, `caps`, Shutdown) | PASS | PASS |
+| Ad-hoc-signiertes Artefakt (T3) | PASS | PASS |
+| Zertifikatssigniertes Artefakt (T4, Hardened Runtime, DR zertifikatsbasiert) | PASS | PASS |
+| TCC-Erteilung (Autorisierung erteilt, auf den Sidecar attribuiert) | PASS | PASS |
+| Vollständige TCC-Persistenzmatrix (Rebuild, Versions-Bump, Verschieben, Quarantäne) | OPEN | OPEN |
+| Containerzugriff | PASS | OPEN |
+| Enumerate (vollständiger Lesepfad, aktueller Diagnosestand) | PASS | OPEN |
+| CRUD | PASS | OPEN |
+| Feldabdeckung | PASS | OPEN |
+| Delta-/Change-History-Pfad (inkl. externer Änderung, Echo-Unterdrückung, ungültiges Token) | PASS | OPEN |
+| Voll-Diff-Fallback | PASS | OPEN |
+| Isolation und laufgebundene Bereinigung (Fremdkontakte/Me-Karte unangetastet) | PASS | OPEN |
+| Vereinheitlichte Datensätze (Mehrcontainer/Unified) | NOT EXECUTABLE IN CURRENT ENVIRONMENT | OPEN |
+| Betrieb aus der gepackten App — **kontaktfreier** Handshake | OPEN | PASS |
+| Betrieb aus der gepackten App — **echte Kontakteoperation** | OPEN | OPEN |
+| Desktop-Entwicklungsbetrieb | OPEN | OPEN |
+| App-Neustart | OPEN | OPEN |
+| Backup-/Restore-Roundtrip | OPEN | OPEN |
+| Vollständige Live-Abnahme gegen einen echten Provider-Account | OPEN | OPEN |
+
+**Zur Zeile „vereinheitlichte Datensätze" auf arm64:** Der Mehrcontainer-Test verlangt mindestens zwei Container; der Abnahme-Testbenutzer hat genau einen (belegt) und bewusst weder Apple-ID noch iCloud. `NOT EXECUTABLE IN CURRENT ENVIRONMENT` bedeutet **weder bestanden noch fehlgeschlagen**: geprüft wurde nichts. Die Zeile ist auf einer Installation mit zwei Containern nachzuholen und zählt bis dahin wie `OPEN` gegen den Modulabschluss.
+
+**Ergänzender Nachweisstand:** 187 kontaktfreie Prüfungen (Protokoll, Treiber-Fehlermodi, Autorisierungsprofile, Enumerate-Diagnose, Isolation, Ergebnisberichterstattung) sind grün. Sie sind architekturneutral und ersetzen **keine** geräteabhängige Zeile dieser Matrix.
+
+**Gesamtstatus:**
+
+1. **Die produktive Implementierung des Kontakte-Moduls darf beginnen** (16 §4, ADR-0016 Punkt 8).
+2. **Der Modulabschluss bleibt gesperrt.** Ein Gesamt-PASS existiert nach §7 nur bei zwei vollständig bestandenen Spalten; beide Spalten enthalten `OPEN`-Zeilen (19 §10).
+3. Kein `OPEN` und kein `NOT EXECUTABLE IN CURRENT ENVIRONMENT` darf ohne die zugehörige Live-Abnahme auf echter Hardware nach `PASS` gesetzt werden (§7 Nr. 1–3).

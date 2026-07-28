@@ -5,7 +5,7 @@ Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-30 (Entscheidungsweg), AV-33
 Zugehörige ADRs: ADR-0016, ADR-0017 (Auflösung von DEC-D01/D02), ADR-0018 (Auslöser von DEC-D17); weitere Entscheidungen erfolgen je per ADR bzw. ausdrücklicher Freigabe
-Verwandte DEC-Einträge: DEC-D01 bis DEC-D17; DEC-030 bis DEC-042
+Verwandte DEC-Einträge: DEC-D01 bis DEC-D17; DEC-030 bis DEC-043
 ---
 
 # 17 — Deferred Decisions
@@ -55,6 +55,7 @@ Maßgeblich für den Entscheidungstext ist stets das Entscheidungsregister; die 
 
 1. DEC-D17 ändert **nichts** an der gleichwertigen Unterstützung beider Architekturen (DEC-042, AV-29).
 2. DEC-D17 ändert **nichts** an der getrennten Live-Abnahme auf echter Hardware je Architektur (15 §7).
+2a. **Der Kontakte-Bridge-Spike G3a nimmt DEC-D17 nicht vorweg** (Ergänzung 2026-07-28, DEC-043). Er hat je Architektur getrennt gebaut und signiert — das ist eine Arbeitsweise während der Entwicklung und **keine** Vorentscheidung über das Release-Format. Weder ein Universal-2-Artefakt noch zwei getrennte Pakete werden dadurch bevorzugt, vorgeschrieben oder ausgeschlossen. Die unverbindliche Empfehlung zugunsten von Universal 2 bleibt **ausdrücklich nicht beschlossen**. **DEC-D17 bleibt offen.**
 3. **Beide Varianten müssen denselben fachlichen Funktionsumfang und dieselben Sicherheitsregeln liefern.** Ein Format, das eine Architektur funktional oder sicherheitsseitig schlechter stellt, ist unzulässig.
 4. Eine Entscheidung darf **erst nach vorliegenden technischen Packaging-, Codesigning-, TCC-, Updater- und Rollback-Nachweisen** getroffen werden — nicht auf Basis von Präferenz oder Aufwandsschätzung allein.
 

@@ -31,8 +31,8 @@ Dieses Dokument ist **nicht normativ**. Es dient der Navigation durch den Archit
 | 12 | [Egress & Modell-Sicherheit](12-egress-and-model-security.md) | normativ | Fail-closed-Egress, Sensitivitätsklassen, Antwortbehandlung |
 | 13 | [Backup, Recovery & Audit-Checkpoints](13-backup-recovery-and-audit-checkpoints.md) | normativ | Schlüsselarchitektur, SnapshotCoordinator, Restore, Checkpoints |
 | 14 | [UI & Modul-Lifecycle](14-ui-and-module-lifecycle.md) | normativ | Build-time-Registrierung, Readiness, Zustandsmaschine |
-| 15 | [Tests & Quality-Gates](15-testing-and-quality-gates.md) | normativ | Testtaxonomie, Gates, Toolchain, Konformitätsprüfung |
-| 16 | [Modulkarte](16-module-map.md) | normativ | 15 Module ohne Reihenfolge, Basis, Startkriterien |
+| 15 | [Tests & Quality-Gates](15-testing-and-quality-gates.md) | normativ | Testtaxonomie, Gates, Toolchain, Konformitätsprüfung, Dual-Architektur-Abnahmematrix (§7) und ausgefüllter Abnahmestand Kontakte (§8) |
+| 16 | [Modulkarte](16-module-map.md) | normativ | 15 Module ohne Reihenfolge, Basis, Startkriterien, Produktstart-Gate Kontakte (§4.1) |
 | 17 | [Deferred Decisions](17-deferred-decisions.md) | normativ | 16 vertagte Entscheidungen, Vorwegnahme-Verbot |
 | 18 | [Upstream-Abweichungen](18-upstream-deviations.md) | normativ | Abweichungsliste mit ADR-/Test-Pflicht |
 | 19 | [Definition of Done](19-definition-of-done.md) | normativ | Vollständigkeitskriterien je Modul |

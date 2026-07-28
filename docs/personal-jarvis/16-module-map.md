@@ -5,7 +5,7 @@ Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-2 (Modulgrenzen-Anteil), AV-11/AV-12 (Entitäten-Zuordnung), AV-33
 Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016, ADR-0018
-Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042
+Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042, DEC-043
 ---
 
 # 16 — Modulkarte
@@ -56,6 +56,18 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042
 ## §4 Startkriterien je Modul (keine Reihenfolge)
 
 Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11) **und für macOS-Module Abnahmehardware beider Zielarchitekturen — Apple Silicon arm64 und Intel x86_64 — zur Verfügung steht** (ADR-0018, DEC-042; Matrix in 15 §7); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt. Diese Kriterien gelten unverändert für **alle** Module nach dem ersten; die **Reihenfolge der weiteren Module bleibt offen** und wird nicht in diesem Dokument festgelegt.
+
+### §4.1 Produktstart-Gate Kontakte (2026-07-28)
+
+Der nach ADR-0016 Punkt 2 verpflichtende Spike G3a ist auf Apple Silicon arm64 **bestanden**; kein Kill-Kriterium ist eingetreten (ADR-0016 Punkt 8, DEC-043). Die Startkriterien aus §4 sind damit für das Modul „Kontakte" erfüllt.
+
+**Die produktive Implementierung darf beginnen** und umfasst als **ein** vertikaler Zug: kanonische Contacts-Domäne · SQLite-Persistenz nach 06/07 · Native-Bridge-Vertrag nach 08 §3/§4 · Cursor-/Token-Modell und Voll-Diff-Fallback nach 11 §3 · Tombstones · Konflikt- und Echo-Unterdrückung · Berechtigungs- und Freigabemodell nach 09/10 · Audit und Logging nach 10 · Backend/API · Benutzeroberfläche nach 14 · Tests nach 15.
+
+**Es gilt die vertikale Entwicklungsregel (ADR-0012, 19).** Das Modul ist erst abgeschlossen, wenn für die definierte Capability **vollständig** vorliegen: Datenmodell · Persistenz · Backend · Native Bridge · Berechtigungen und Freigaben · UI · Fehler- und Randfälle · Tests · Logging · **produktiver Live-Test auf arm64 und x86_64**. Eine horizontale, halbfertige Verteilung über mehrere Fachmodule ist unzulässig; ebenso eine nur lesende Vorstufe (AV-3).
+
+**Der Modulabschluss bleibt gesperrt,** solange die Abnahmematrix in 15 §8 nicht in **beiden** Spalten vollständig bestanden ist. Spike-Evidenz ist Vor- bzw. Teilnachweis und ersetzt keine Abnahmezeile (15 §7 Nr. 4).
+
+**Kein anderes Fachmodul beginnt parallel.** Die Reihenfolge der weiteren Module bleibt unverändert offen.
 
 ## §5 Modulunterlagen (Konvention)
 

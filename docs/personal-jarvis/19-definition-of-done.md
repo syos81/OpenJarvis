@@ -5,7 +5,7 @@ Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: AV-2 (Primärdokument), AV-3, AV-26, AV-28
 Zugehörige ADRs: ADR-0012, ADR-0018
-Verwandte DEC-Einträge: DEC-018, DEC-042
+Verwandte DEC-Einträge: DEC-018, DEC-042, DEC-043
 ---
 
 # 19 — Definition of Done (vollständig abgeschlossenes Modul)
@@ -52,6 +52,7 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 ## §7 Tests
 
 - Alle einschlägigen Suiten aus 15 §1 grün (Unit, Contract, Integration, Migration, Security, Zustandsmaschinen, native macOS soweit betroffen, UI-E2E, Kill-Switch/Sperren soweit betroffen).
+- **Kontakte (Stand 2026-07-28):** Der Modulabschluss ist **gesperrt**. Die ausgefüllte Matrix in **15 §8** enthält in beiden Spalten `OPEN`-Zeilen; auf arm64 ist zusätzlich eine Zeile `NOT EXECUTABLE IN CURRENT ENVIRONMENT`, die bis zu ihrer Durchführung wie `OPEN` zählt. Der Beginn der produktiven Implementierung ist davon unberührt freigegeben (16 §4.1, ADR-0016 Punkt 8).
 - Die **Dual-Architektur-Abnahmematrix (15 §7)** ist in **beiden** Pflichtspalten vollständig bestanden und mit Architektur, macOS-Version, Swift-/SDK-Version, Zertifikat, Testbenutzer und Datum protokolliert. Spike-Ergebnisse gelten als technische Vor- bzw. Teilnachweise und ersetzen keine Matrixzeile.
 
 ## §8 Betrieb und Daten­sicherheit
