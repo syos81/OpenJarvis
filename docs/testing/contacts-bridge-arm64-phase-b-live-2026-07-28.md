@@ -125,7 +125,7 @@ Ein fachlicher Fehler hat Vorrang vor einem Reporting-Fehler: `1` schlägt `8`.
 ## 8. Rekonstruktion der Ergebnisdatei
 
 `results/phase-b-results.json` wurde **administrativ** nachgeschrieben
-(`scratch/contacts-spike/reconstruct_results.py`). Der Live-Lauf wurde
+(`spikes/contacts-bridge-g3a/reconstruct_results.py`). Der Live-Lauf wurde
 **nicht wiederholt**:
 
 - `reconstructed: true`
@@ -148,7 +148,7 @@ nicht durchführbaren Gates nie erreicht.
 
 ## 9. Tests
 
-Neu: `scratch/contacts-spike/test_phase_b_reporting.py` — **32** kontaktfreie
+Neu: `spikes/contacts-bridge-g3a/test_phase_b_reporting.py` — **32** kontaktfreie
 Prüfungen zu Ergebnispfad, Atomarität, fehlendem und gesperrtem
 Zielverzeichnis, Trennung von Reporting- und Sachurteil, Exitcodes,
 Gate-Zählung 28+1, PII-Freiheit der Datei und Rekonstruktionsfeldern.

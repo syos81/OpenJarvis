@@ -195,7 +195,7 @@ Der Diskriminator (E6 des Spike-Plans) bleibt in beiden Bundles intakt.
 
 ## 9. G12-Harness (`frontend/src-tauri/src/lib.rs`, temporär, nicht committet)
 
-Vollständiger Patch: `scratch/contacts-spike/g12-lib-rs.patch`
+Vollständiger Patch: `spikes/contacts-bridge-g3a/g12-lib-rs.patch`
 (rein additiv, 187 eingefügte Zeilen, 0 Löschungen, reproduzierbar
 anwendbar auf `d96f9a1`).
 

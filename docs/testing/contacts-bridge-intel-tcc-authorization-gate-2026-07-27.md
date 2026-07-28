@@ -11,7 +11,7 @@ gehärteter Helper `authorize.py`, korrigierter `phase_b.py`-Preflight).
 Referenzen: `docs/adr/ADR-0016-swift-contacts-bridge.md`,
 `docs/adr/ADR-0018-dual-architecture-macos-support.md`,
 `docs/testing/contacts-bridge-intel-t3-t4-evidence-2026-07-27.md`,
-`scratch/contacts-spike/PROTOCOL.md`.
+`spikes/contacts-bridge-g3a/PROTOCOL.md`.
 
 > **Spike-Evidenz, keine Kontakte-Modulabnahme** (15 §7 Regel 4; 19 §7).
 
