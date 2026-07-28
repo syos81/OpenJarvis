@@ -13,7 +13,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-__all__ = ["attach", "is_enabled", "ENABLE_ENV_VAR", "PersonalNotEnabled"]
+__all__ = ["attach", "is_enabled", "ENABLE_ENV_VAR", "PersonalNotEnabled",
+           "PersonalAlreadyAttached"]
 
 #: Feature-Schalter. Folgt der bestehenden Repository-Konvention: Präfix
 #: ``OPENJARVIS_``, Truthy-Werte ``1``/``true``/``yes``/``on`` (Muster aus
@@ -37,27 +38,75 @@ def is_enabled(environ: dict[str, str] | None = None) -> bool:
     return env.get(ENABLE_ENV_VAR, "").strip().lower() in _TRUTHY
 
 
-def attach(app: Any, *, database_path: str | None = None) -> Any:
+#: Marker auf ``app.state``: genau **ein** Shutdown-Hook je App.
+_SHUTDOWN_HOOK_ATTR = "personal_shutdown_registered"
+
+
+class PersonalAlreadyAttached(RuntimeError):
+    """``attach`` wurde zweimal auf dieselbe App angewandt."""
+
+
+def _register_shutdown_hook(app: Any, bootstrap: Any) -> bool:
+    """Registriert **genau einen** Shutdown-Hook je App.
+
+    Der Hook stoppt ``ContactsModule`` und gibt danach die exklusive
+    Prozesssperre frei. Er ist idempotent, weil ``PersonalBootstrap.stop()``
+    idempotent ist — ein doppelter Shutdown bleibt harmlos.
+    """
+    state = getattr(app, "state", None)
+    if state is not None and getattr(state, _SHUTDOWN_HOOK_ATTR, False):
+        return False
+
+    handler = getattr(app, "add_event_handler", None)
+    if callable(handler):
+        handler("shutdown", bootstrap.stop)
+        if state is not None:
+            setattr(state, _SHUTDOWN_HOOK_ATTR, True)
+        return True
+    return False
+
+
+def attach(app: Any, *, database_path: str | None = None,
+           lock_path: str | None = None,
+           sidecar_path: str | None = None,
+           bundle_dir: str | None = None) -> Any:
     """Hängt Personal Jarvis an eine bestehende FastAPI-App.
 
     Verhalten (04 §4, fail-closed):
 
-    * Der Bootstrap läuft vollständig durch, bevor irgendetwas registriert wird.
-    * Schlägt Migration oder Schema fehl, wird der Fehler **weitergereicht** —
-      er wird nicht protokolliert und geschluckt.
-    * In Gate A wird **keine Route** registriert. Die Laufzeit hängt an
-      ``app.state.personal_runtime``, damit ein Shutdown sie stoppen kann.
+    * Der Bootstrap läuft vollständig durch, bevor irgendetwas registriert wird
+      — einschließlich der exklusiven Prozesssperre (04 §1 Schritt 1).
+    * Schlägt Sperre, Migration oder Schema fehl, wird der Fehler
+      **weitergereicht** — er wird nicht protokolliert und geschluckt. Eine
+      bereits erworbene Sperre wird dabei wieder freigegeben.
+    * **Ein zweites ``attach`` auf dieselbe App ist fail-closed** und wird
+      abgewiesen: zwei Bootstraps auf einer App hätten zwei Eigentümer für
+      dieselbe Sperre.
+    * ``app.state.personal_bootstrap`` bleibt die Eigentümerreferenz; genau
+      **ein** Shutdown-Hook stoppt sie und gibt die Sperre frei.
+    * In Gate B wird weiterhin **keine Route** registriert und **kein**
+      Sidecar gestartet.
 
     Gibt die Laufzeit zurück, damit Aufrufer ohne FastAPI sie ebenfalls
     benutzen können.
     """
     from personaljarvis.bootstrap import PersonalBootstrap
 
-    bootstrap = PersonalBootstrap(database_path)
+    state = getattr(app, "state", None)
+    if state is not None and getattr(state, "personal_bootstrap", None) is not None:
+        raise PersonalAlreadyAttached(
+            "Personal Jarvis ist an dieser App bereits angehaengt; ein zweiter "
+            "Bootstrap wuerde einen zweiten Schreiber erzeugen."
+        )
+
+    bootstrap = PersonalBootstrap(
+        database_path, lock_path=lock_path,
+        sidecar_path=sidecar_path, bundle_dir=bundle_dir,
+    )
     runtime = bootstrap.start()
 
-    state = getattr(app, "state", None)
     if state is not None:
         state.personal_bootstrap = bootstrap
         state.personal_runtime = runtime
+    _register_shutdown_hook(app, bootstrap)
     return runtime

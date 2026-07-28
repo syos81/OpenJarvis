@@ -17,6 +17,37 @@ from personaljarvis.errors import LedgerError, PersonalJarvisError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 QUELLEN = REPO_ROOT / "src/personaljarvis"
+#: Die Native-Bridge ist die Adapterschicht (AV-4, ADR-0016): genau dort —
+#: und nur dort — sind Apple-Begriffe und Prozessverwaltung zulaessig.
+BRIDGE = QUELLEN / "contacts" / "bridge"
+
+
+def _python_code_ohne_prosa(path: Path) -> str:
+    """Python-Quelltext ohne Kommentare und Zeichenkettenliterale.
+
+    Die Verbote stehen als Kommentar oder Docstring IM Produktivcode
+    ("kein `shell=True`", "kein `requestAuthorization`"). Eine reine Textsuche
+    wuerde genau diese Abgrenzungsnotizen als Verstoss melden. Geprueft wird
+    deshalb ausschliesslich echter Code.
+    """
+    import io
+    import tokenize
+
+    stuecke = []
+    with open(path, "rb") as fh:
+        try:
+            for tok in tokenize.tokenize(fh.readline):
+                if tok.type in (tokenize.COMMENT, tokenize.STRING):
+                    continue
+                stuecke.append(tok.string)
+        except tokenize.TokenError:            # pragma: no cover
+            return path.read_text()
+    return " ".join(stuecke)
+
+
+def _kernquellen():
+    """Alle Produktivdateien AUSSER der Bridge."""
+    return [d for d in QUELLEN.rglob("*.py") if BRIDGE not in d.parents]
 
 
 # ── Start / Stop ─────────────────────────────────────────────────────────────
@@ -142,35 +173,76 @@ VERBOTENE_BEGRIFFE = (
 )
 
 
-def test_gate_a_quellen_enthalten_keine_bridge_begriffe():
+def test_kern_enthaelt_keine_bridge_begriffe():
+    """Der Fachkern bleibt frei von Apple- und Prozessbegriffen (AV-4).
+
+    Die Native-Bridge ist davon ausgenommen: sie **ist** die Adapterschicht.
+    """
     treffer = []
-    for datei in QUELLEN.rglob("*.py"):
-        text = datei.read_text()
+    for datei in _kernquellen():
+        code = _python_code_ohne_prosa(datei)
         for begriff in VERBOTENE_BEGRIFFE:
-            if begriff in text:
+            if begriff in code:
                 treffer.append(f"{datei.relative_to(REPO_ROOT)}: {begriff}")
     assert not treffer, treffer
 
 
-def test_gate_a_haengt_nicht_von_spikes_ab():
+def test_produktivcode_importiert_keine_spikes():
+    """Kein Produktmodul darf `spikes/` als Laufzeitabhaengigkeit nutzen.
+
+    Geprueft werden echte Bezuege — Importe und Pfadangaben —, nicht die
+    blosse Erwaehnung des Wortes in einem erlaeuternden Kommentar.
+    """
     for datei in QUELLEN.rglob("*.py"):
         text = datei.read_text()
-        assert "spikes" not in text, datei
-        assert "contacts-bridge-g3a" not in text, datei
+        for muster in ("import spikes", "from spikes", '"spikes/', "'spikes/",
+                       "contacts-bridge-g3a"):
+            assert muster not in text, f"{datei.relative_to(REPO_ROOT)}: {muster}"
 
 
-def test_gate_a_startet_keinen_prozess():
-    for datei in QUELLEN.rglob("*.py"):
-        text = datei.read_text()
-        for begriff in ("import subprocess", "os.system", "os.exec", "Popen"):
-            assert begriff not in text, f"{datei}: {begriff}"
+def test_nur_die_bridge_startet_prozesse():
+    """Prozessverwaltung ist ausschliesslich in der Bridge zulaessig.
+
+    Der Fachkern startet weiterhin **keinen** Prozess; die Bridge kapselt den
+    Sidecar-Start vollstaendig (ADR-0016, Plan §12).
+    """
+    for datei in _kernquellen():
+        code = _python_code_ohne_prosa(datei)
+        for begriff in ("subprocess", "os.system", "os.exec", "Popen"):
+            assert begriff not in code, f"{datei.relative_to(REPO_ROOT)}: {begriff}"
+
+
+def test_bridge_verwendet_keine_shell():
+    """Auch die Bridge startet nie ueber eine Shell (feste Argumentliste)."""
+    for datei in BRIDGE.rglob("*.py"):
+        code = _python_code_ohne_prosa(datei)
+        assert "shell=True" not in code.replace(" ", ""), datei.relative_to(REPO_ROOT)
+        assert "os.system" not in code.replace(" ", ""), datei.relative_to(REPO_ROOT)
 
 
 def test_kein_sidecar_prozess_nach_dem_lauf(module):
-    """Belegt zur Laufzeit: es läuft kein Kontakte-Sidecar."""
-    ergebnis = subprocess.run(["/bin/ps", "-Ao", "comm"], capture_output=True,
-                              text=True)
-    assert "jarvis-contacts" not in ergebnis.stdout
+    """Belegt zur Laufzeit: das Modul startet keinen Kontakte-Sidecar.
+
+    Geprueft wird der **eigene Prozessbaum**, nicht die globale Prozesstabelle:
+    seit Gate B starten andere Testmodule den Sidecar legitim fuer den
+    kontaktfreien Handshake, und `pytest -n auto` laesst sie parallel laufen.
+    Ein globaler Scan wuerde dort fremde, korrekte Prozesse als Verstoss melden.
+    """
+    import os
+
+    ergebnis = subprocess.run(["/bin/ps", "-Ao", "pid,ppid,comm"],
+                              capture_output=True, text=True)
+    eigene = {os.getpid()}
+    kinder = []
+    for zeile in ergebnis.stdout.splitlines()[1:]:
+        teile = zeile.split(None, 2)
+        if len(teile) < 3:
+            continue
+        pid, ppid, comm = teile
+        if ppid.isdigit() and int(ppid) in eigene:
+            eigene.add(int(pid))
+            kinder.append(comm.strip())
+    assert not any("jarvis-contacts" in c for c in kinder), kinder
 
 
 def test_module_haelt_nur_die_datenbank_offen(module):

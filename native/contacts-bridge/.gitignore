@@ -1,0 +1,5 @@
+# Build-Ausgaben — niemals Mach-O im Repository (Plan §12).
+# `build/` ist der Standardort; `BUILD_DIR` erlaubt getrennte Ausgaben je
+# Architektur (z. B. `build-arm64/`) — beide bleiben ungetrackt.
+build/
+build-*/

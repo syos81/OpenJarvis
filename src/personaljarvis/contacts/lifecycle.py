@@ -24,6 +24,14 @@ from personaljarvis.base.db.factory import ConnectionFactory
 from personaljarvis.base.db.migrations import ALL_MIGRATIONS, MigrationRunner
 from personaljarvis.base.db.migrations.runner import MigrationReport
 from personaljarvis.base.db.unit_of_work import UnitOfWork
+from personaljarvis.contacts.bridge.errors import (
+    BridgeConfigurationError,
+    BridgeError,
+    BridgeProtocolError,
+)
+from personaljarvis.contacts.bridge.models import BridgeCapabilities
+from personaljarvis.contacts.bridge.process import SidecarProcess
+from personaljarvis.contacts.bridge.resolver import resolve_sidecar
 from personaljarvis.contacts.domain.capabilities import (
     ContactCapabilitySet,
     default_capabilities,
@@ -44,14 +52,32 @@ __all__ = ["ModuleState", "ContactsRepositories", "ContactsModule"]
 
 
 class ModuleState(str, Enum):
-    """Teilmenge der Zustandsmaschine aus 14 §4, die Gate A erreichen kann."""
+    """Teilmenge der Zustandsmaschine aus 14 §4, die Gate A/B erreichen kann."""
 
     NOT_INSTALLED = "not_installed"
     INITIALIZING = "initializing"
     MIGRATION_REQUIRED = "migration_required"
     CONFIGURATION_REQUIRED = "configuration_required"
+    PERMISSION_REQUIRED = "permission_required"
+    DEGRADED = "degraded"
     ERROR = "error"
     SHUTTING_DOWN = "shutting_down"
+
+
+@dataclass(frozen=True)
+class BridgeStatus:
+    """Ergebnis des kontaktfreien Bridge-Startchecks (Gate B).
+
+    Der Check berührt den Kontakte-Store **nicht**: er startet den Sidecar,
+    liest den Handshake, prüft `ping`/`caps` und fährt ihn wieder herunter.
+    """
+
+    available: bool
+    reason: str = ""
+    protocol_version: int | None = None
+    authorization_status: str | None = None
+    capabilities: "BridgeCapabilities | None" = None
+    architectures: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -71,12 +97,19 @@ class ContactsRepositories:
 class ContactsModule:
     """Startet und stoppt den persistenten Teil des Kontakte-Moduls."""
 
-    def __init__(self, database_path: Path | str | None = None) -> None:
+    def __init__(self, database_path: Path | str | None = None, *,
+                 sidecar_path: Path | str | None = None,
+                 bundle_dir: Path | str | None = None) -> None:
         self._factory = ConnectionFactory(database_path)
         self._state = ModuleState.NOT_INSTALLED
         self._report: MigrationReport | None = None
         self._capabilities: ContactCapabilitySet | None = None
         self._started = False
+        # Bridge-Konfiguration — es wird beim Konstruieren NICHTS aufgelöst
+        # und kein Prozess gestartet.
+        self._sidecar_path = sidecar_path
+        self._bundle_dir = bundle_dir
+        self._bridge_status: BridgeStatus | None = None
 
     # ── Zustand ─────────────────────────────────────────────────────────────
     @property
@@ -96,6 +129,64 @@ class ContactsModule:
     @property
     def connection_factory(self) -> ConnectionFactory:
         return self._factory
+
+    @property
+    def bridge_status(self) -> BridgeStatus | None:
+        """Ergebnis des letzten Bridge-Startchecks; `None` vor dem ersten Lauf."""
+        return self._bridge_status
+
+    # ── Bridge-Startcheck (kontaktfrei) ─────────────────────────────────────
+    def check_bridge(self) -> BridgeStatus:
+        """Startet den Sidecar kontaktfrei und prüft Handshake, `ping`, `caps`.
+
+        Ausdrücklich **kein** Store-Zugriff: es wird weder `containers` noch
+        `enumerate`, `changes`, `get` noch `requestAuthorization` gesendet.
+        Der Prozess wird danach graziös beendet.
+
+        Der Zustand des Moduls wird entsprechend gesetzt; ein fehlendes Binary
+        oder ein Protokollfehler führt zu `degraded`, nie zu einem Absturz.
+        """
+        try:
+            location = resolve_sidecar(self._sidecar_path,
+                                       bundle_dir=self._bundle_dir)
+        except BridgeConfigurationError as exc:
+            self._bridge_status = BridgeStatus(available=False, reason=str(exc))
+            self._state = ModuleState.DEGRADED
+            return self._bridge_status
+
+        process = SidecarProcess(location)
+        try:
+            handshake = process.start()
+            # Nur kontaktfreie Operationen (protocol.CONTACT_FREE_OPERATIONS).
+            from personaljarvis.contacts.bridge import protocol as _p
+
+            envelope = process.request(_p.Operation.PING, timeout=10.0)
+            if envelope.get("ok") is not True:
+                raise BridgeProtocolError("ping wurde nicht beantwortet")
+            status = BridgeStatus(
+                available=True,
+                protocol_version=handshake.protocol_version,
+                authorization_status=handshake.authorization_status.value,
+                capabilities=handshake.capabilities,
+                architectures=location.architectures,
+            )
+        except BridgeError as exc:
+            status = BridgeStatus(available=False, reason=str(exc))
+        finally:
+            process.stop()
+
+        self._bridge_status = status
+        if not status.available:
+            self._state = ModuleState.DEGRADED
+        elif status.authorization_status != "authorized":
+            # Ohne erteilte Berechtigung ist kein Lesepfad möglich — das ist
+            # ein benannter Zustand, keine Fehlermeldung (14 §4).
+            self._state = ModuleState.PERMISSION_REQUIRED
+        else:
+            # Autorisierung liegt vor, aber ohne Binding/Import ist das Modul
+            # weiterhin nicht `ready` (Gate B endet vor dem Initialimport).
+            self._state = ModuleState.CONFIGURATION_REQUIRED
+        return status
 
     # ── Start / Stop ────────────────────────────────────────────────────────
     def start(self) -> MigrationReport:
@@ -141,6 +232,7 @@ class ContactsModule:
         self._factory.close()
         self._started = False
         self._capabilities = None
+        self._bridge_status = None
         self._state = ModuleState.NOT_INSTALLED
 
     # ── Arbeitseinheiten ────────────────────────────────────────────────────

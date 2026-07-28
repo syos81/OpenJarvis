@@ -27,6 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from personaljarvis.base.process_lock import ProcessLock
 from personaljarvis.contacts.lifecycle import ContactsModule, ModuleState
 
 __all__ = ["PersonalRuntime", "PersonalBootstrap"]
@@ -55,29 +56,54 @@ class PersonalRuntime:
 class PersonalBootstrap:
     """Baut die Personal-Objekte auf und wieder ab."""
 
-    def __init__(self, database_path: Path | str | None = None) -> None:
+    def __init__(self, database_path: Path | str | None = None, *,
+                 lock_path: Path | str | None = None,
+                 sidecar_path: Path | str | None = None,
+                 bundle_dir: Path | str | None = None) -> None:
         self._database_path = database_path
+        self._lock_path = lock_path
+        self._sidecar_path = sidecar_path
+        self._bundle_dir = bundle_dir
         self._runtime: PersonalRuntime | None = None
+        self._lock: ProcessLock | None = None
 
     @property
     def runtime(self) -> PersonalRuntime | None:
         return self._runtime
 
+    @property
+    def process_lock(self) -> ProcessLock | None:
+        return self._lock
+
     def start(self) -> PersonalRuntime:
         """Startet Personal Jarvis. Idempotent bei mehrfachem Aufruf.
 
-        Ein Fehler in Migration oder Schema wird **weitergereicht**; es bleibt
-        keine halbfertige Registrierung zurück.
+        Reihenfolge nach 04 §1: **zuerst** die exklusive Prozesssperre
+        (Schritt 1), danach Datenbank und Migrationen. Ein Fehler in Migration
+        oder Schema wird **weitergereicht**; es bleibt keine halbfertige
+        Registrierung zurück und die Sperre wird in jedem Fehlerfall wieder
+        freigegeben.
         """
         if self._runtime is not None:
             return self._runtime
 
-        contacts = ContactsModule(self._database_path)
+        # Schritt 1 (04 §1): exklusive Sperre. Ein zweiter Schreibprozess wird
+        # ausgeschlossen — auch im CLI-In-Process-Modus (07 §5).
+        lock = ProcessLock(self._lock_path)
+        lock.acquire()
+        self._lock = lock
+
+        contacts = ContactsModule(self._database_path,
+                                  sidecar_path=self._sidecar_path,
+                                  bundle_dir=self._bundle_dir)
         try:
             contacts.start()
         except Exception:
-            # Keine Teilregistrierung: was gestartet wurde, wird gestoppt.
+            # Keine Teilregistrierung: was gestartet wurde, wird gestoppt,
+            # und die Sperre wird freigegeben.
             contacts.stop()
+            lock.release()
+            self._lock = None
             self._runtime = None
             raise
 
@@ -85,7 +111,14 @@ class PersonalBootstrap:
         return self._runtime
 
     def stop(self) -> None:
-        if self._runtime is None:
-            return
-        self._runtime.contacts.stop()
-        self._runtime = None
+        """Fährt herunter und gibt die Sperre frei. Mehrfacher Aufruf ist harmlos."""
+        runtime, self._runtime = self._runtime, None
+        lock, self._lock = self._lock, None
+        try:
+            if runtime is not None:
+                runtime.contacts.stop()
+        finally:
+            # Die Sperre wird auch dann freigegeben, wenn der Modul-Stop
+            # scheitert — sonst bliebe der Prozess dauerhaft blockiert.
+            if lock is not None:
+                lock.release()
