@@ -235,6 +235,26 @@ class ContactsModule:
         self._bridge_status = None
         self._state = ModuleState.NOT_INSTALLED
 
+    # ── Synchronisation (Bereitstellung, kein Lauf) ─────────────────────────
+    def sync_service(self, client, *, workspace_id: str,
+                     provider_account_id: str):
+        """Stellt den Sync-Dienst bereit — und startet **nichts**.
+
+        Ausdrücklich nicht Teil dieser Methode: ein Store-Zugriff, ein
+        Initialimport, ein Hintergrundlauf, ein Timer. Der Aufrufer übergibt
+        einen bereits gestarteten Bridge-Client und löst jeden Lauf einzeln
+        aus (Plan §13).
+
+        Der Import steht bewusst **im Rumpf**: der Sync-Dienst kennt den
+        Lebenszyklus nur strukturell, ein Modulimport oben schlösse den Zyklus.
+        """
+        if not self._started:
+            raise PersonalJarvisError("Modul ist nicht gestartet")
+        from personaljarvis.contacts.sync.service import ContactsSyncService
+
+        return ContactsSyncService(client, self, workspace_id=workspace_id,
+                                   provider_account_id=provider_account_id)
+
     # ── Arbeitseinheiten ────────────────────────────────────────────────────
     def unit_of_work(self) -> UnitOfWork:
         if not self._started:

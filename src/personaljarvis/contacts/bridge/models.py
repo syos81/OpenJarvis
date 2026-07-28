@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 __all__ = [
     "FieldState",
@@ -25,6 +25,8 @@ __all__ = [
     "ContainerInfo",
     "LabeledValue",
     "PostalAddress",
+    "ServiceProfile",
+    "DatedValue",
     "BridgeContact",
     "ChangeEventType",
     "ChangeEvent",
@@ -165,6 +167,26 @@ class PostalAddress:
     iso_country_code: str
 
 
+@dataclass(frozen=True)
+class ServiceProfile:
+    """Soziales Profil bzw. Sofortnachrichtenadresse — Rohwerte des Providers."""
+
+    label: str | None
+    service: str
+    username: str
+    url: str | None = None
+
+
+@dataclass(frozen=True)
+class DatedValue:
+    """Ein gelabeltes Datum. Jahr, Monat und Tag sind einzeln optional."""
+
+    label: str | None
+    year: int | None = None
+    month: int | None = None
+    day: int | None = None
+
+
 def _labeled(items: Any) -> tuple[LabeledValue, ...]:
     if not isinstance(items, list):
         return ()
@@ -174,9 +196,39 @@ def _labeled(items: Any) -> tuple[LabeledValue, ...]:
     )
 
 
+def _int_or_none(value: Any) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _profiles(items: Any, *, with_url: bool) -> tuple[ServiceProfile, ...]:
+    if not isinstance(items, list):
+        return ()
+    return tuple(
+        ServiceProfile(
+            label=i.get("label"), service=str(i.get("service", "")),
+            username=str(i.get("username", "")),
+            url=(i.get("urlString") if with_url else None),
+        )
+        for i in items if isinstance(i, dict)
+    )
+
+
+def _dates(items: Any) -> tuple[DatedValue, ...]:
+    if not isinstance(items, list):
+        return ()
+    return tuple(
+        DatedValue(label=i.get("label"), year=_int_or_none(i.get("year")),
+                   month=_int_or_none(i.get("month")), day=_int_or_none(i.get("day")))
+        for i in items if isinstance(i, dict)
+    )
+
+
 @dataclass(frozen=True)
 class BridgeContact:
     """Rohdatensatz des Providers — **nicht** die kanonische Entität."""
+
+    #: Rohantwort **ohne** den Miniaturbild-Blob — siehe `parse`.
+    BLOB_KEYS: ClassVar[tuple[str, ...]] = ("thumbnailBase64",)
 
     provider_identifier: str
     key_set_version: int
@@ -187,6 +239,11 @@ class BridgeContact:
     given_name: str = ""
     middle_name: str = ""
     family_name: str = ""
+    previous_family_name: str = ""
+    name_prefix: str = ""
+    name_suffix: str = ""
+    phonetic_given_name: str = ""
+    phonetic_family_name: str = ""
     organization_name: str = ""
     job_title: str = ""
     department_name: str = ""
@@ -194,7 +251,16 @@ class BridgeContact:
     emails: tuple[LabeledValue, ...] = ()
     phones: tuple[LabeledValue, ...] = ()
     postal_addresses: tuple[PostalAddress, ...] = ()
+    urls: tuple[LabeledValue, ...] = ()
+    social_profiles: tuple[ServiceProfile, ...] = ()
+    instant_messages: tuple[ServiceProfile, ...] = ()
+    relations: tuple[LabeledValue, ...] = ()
+    dates: tuple[DatedValue, ...] = ()
     birthday: dict[str, int | None] | None = None
+    image_available: bool = False
+    #: Nur die **Größe** der Miniatur. Der Blob selbst wird bewusst nicht in
+    #: die Domäne getragen (siehe `sync.mapper` zur Blob-Entscheidung).
+    thumbnail_bytes: int = 0
     unified_identifier: str | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -230,6 +296,11 @@ class BridgeContact:
             given_name=str(raw.get("givenName", "")),
             middle_name=str(raw.get("middleName", "")),
             family_name=str(raw.get("familyName", "")),
+            previous_family_name=str(raw.get("previousFamilyName", "")),
+            name_prefix=str(raw.get("namePrefix", "")),
+            name_suffix=str(raw.get("nameSuffix", "")),
+            phonetic_given_name=str(raw.get("phoneticGivenName", "")),
+            phonetic_family_name=str(raw.get("phoneticFamilyName", "")),
             organization_name=str(raw.get("organizationName", "")),
             job_title=str(raw.get("jobTitle", "")),
             department_name=str(raw.get("departmentName", "")),
@@ -237,9 +308,19 @@ class BridgeContact:
             emails=_labeled(raw.get("emails")),
             phones=_labeled(raw.get("phones")),
             postal_addresses=addresses,
+            urls=_labeled(raw.get("urlAddresses")),
+            social_profiles=_profiles(raw.get("socialProfiles"), with_url=True),
+            instant_messages=_profiles(raw.get("instantMessages"), with_url=False),
+            relations=_labeled(raw.get("relations")),
+            dates=_dates(raw.get("dates")),
             birthday=bd if isinstance(bd, dict) else None,
+            image_available=bool(raw.get("imageAvailable", False)),
+            thumbnail_bytes=int(raw.get("thumbnailBytes") or 0),
             unified_identifier=raw.get("unifiedIdentifier"),
-            raw=raw,
+            # Der Miniaturbild-Blob wird hier **verworfen**: er würde sonst als
+            # S2-Rohdatum unbemerkt in jedem DTO, jeder Fehlermeldung und jedem
+            # Repr weiterreisen. Geführt wird nur seine Größe.
+            raw={k: v for k, v in raw.items() if k not in cls.BLOB_KEYS},
         )
 
 
