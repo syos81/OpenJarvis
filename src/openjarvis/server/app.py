@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import pathlib
 import time
 
@@ -381,7 +382,43 @@ def create_app(
                 headers=_NO_CACHE_HEADERS,
             )
 
+    # ── Personal Jarvis (Abweichung DEV-3, ADR-0001, 04 §4) ─────────────────
+    # Genau ein bewachter Aufruf. Standardmäßig inaktiv: ohne den ausdrücklich
+    # gesetzten Schalter ist die App byte-gleich zum Upstream-Verhalten.
+    #
+    # Fail-closed: Ist Personal aktiviert, wird ein fehlendes Paket oder ein
+    # Schema-/Ledger-Fehler NICHT verschluckt — beides bricht den Start ab.
+    # Nur bei deaktiviertem Personal ist ein fehlendes Paket zulässig.
+    _attach_personal_jarvis(app)
+
     return app
+
+
+def _attach_personal_jarvis(app: FastAPI) -> None:
+    """Hängt Personal Jarvis an, falls ausdrücklich aktiviert (DEV-3)."""
+    enable_var = "OPENJARVIS_PERSONAL_ENABLED"
+    enabled = os.environ.get(enable_var, "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    if not enabled:
+        return
+
+    try:
+        import personaljarvis
+    except ImportError as exc:
+        # Ausdrücklich aktiviert, aber nicht installiert: das ist ein Fehler,
+        # kein stiller Rückfall auf den Upstream-Betrieb.
+        raise RuntimeError(
+            f"{enable_var} ist gesetzt, aber das Paket 'personaljarvis' "
+            "ist nicht installiert"
+        ) from exc
+
+    # Kein except: Ein Migrations-, Ledger- oder Schemafehler muss den Start
+    # abbrechen (04 §1 Fail-closed-Regel).
+    personaljarvis.attach(app)
 
 
 __all__ = ["create_app"]

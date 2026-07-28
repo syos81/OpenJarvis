@@ -44,7 +44,7 @@
     "longDescription": "OpenJarvis Desktop wraps the OpenJarvis research framework in a native desktop application with real-time energy monitoring, trace debugging, learning curve visualization, and memory browsing.",
     "macOS": {
       "entitlements": "Entitlements.plist",
-      "minimumSystemVersion": "10.15",
+      "minimumSystemVersion": "12.3",
       "exceptionDomain": "",
       "frameworks": [],
       "providerShortName": null,

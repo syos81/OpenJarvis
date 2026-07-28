@@ -54,7 +54,8 @@ Verwandte DEC-Einträge: DEC-006, DEC-025, DEC-026, DEC-027, DEC-028, DEC-041
 
 - **Bereich:** Python-Abhängigkeitsauflösung des Source-Checkouts.
 - **Betroffen:** `pyproject.toml` — ausschließlich eine additive Gruppe `[dependency-groups] personal = [...]`.
-- **Umfangsgrenzen (verbindlich):** **bestehende Standard-Abhängigkeiten, Extras und das Upstream-Wheel-Packaging bleiben unverändert**; keine Änderung an `[tool.hatch.build.targets.wheel]`; der Personal-Betrieb läuft aus dem Source-Checkout (AV-29).
+- **Umfangsgrenzen (verbindlich):** **bestehende Standard-Abhängigkeiten und Extras bleiben unverändert**; das bestehende `openjarvis`-Paket bleibt im Wheel vollständig und unverändert enthalten.
+- **Präzisierung 2026-07-28 (Gate A):** Die ursprüngliche Formulierung „keine Änderung an `[tool.hatch.build.targets.wheel]`“ ging davon aus, der Personal-Betrieb liefe ausschließlich aus dem Source-Checkout. Der Eigentümer hat für Gate A ausdrücklich verlangt, dass das produktive Wheel `personaljarvis` enthält und der Import aus einer isolierten Installation **ohne** Repository-`src`-Pfad nachgewiesen wird. Umgesetzt ist deshalb die kleinstmögliche additive Änderung: `packages = ["src/openjarvis", "src/personaljarvis"]`. `force-include`, Extras und Standard-Abhängigkeiten bleiben unberührt; der Nachweis erfolgt über Wheel-Inhalts- und isolierte Importtests.
 - **Begründung:** Das Personal-Paket benötigt eigene Abhängigkeiten (u. a. Keychain-Anbindung), ohne die Auflösung oder Auslieferung von OpenJarvis zu verändern.
 - **Autorisierung:** **ADR-0015**, AV-1, DEC-041. **Test-Pflicht:** Nachweis, dass die Standard-Auflösung ohne die Personal-Gruppe unverändert bleibt. **Status:** beschlossen; noch nicht umgesetzt.
 

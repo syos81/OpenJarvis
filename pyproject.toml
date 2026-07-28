@@ -190,7 +190,9 @@ fallback_version = "0.0.0+unknown"
 openjarvis-rust = { path = "rust/crates/openjarvis-python" }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/openjarvis"]
+# `personaljarvis` ist additiv: das bestehende `openjarvis`-Paket bleibt
+# unverändert und vollständig enthalten (18 §2 DEV-5, präzisiert 2026-07-28).
+packages = ["src/openjarvis", "src/personaljarvis"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/openjarvis/agents/claude_code_runner" = "_node_modules/claude_code_runner"
@@ -238,6 +240,14 @@ select = ["E", "F", "I", "W"]
 dev = [
     "maturin>=1.12.6",
 ]
+# Additive Personal-Jarvis-Gruppe (18 §2 DEV-5, ADR-0015). Sie verändert weder
+# die Standard-Auflösung noch die Extras noch das Upstream-Wheel-Packaging.
+#
+# Gate A kommt vollständig mit der Standardbibliothek aus (sqlite3, hashlib,
+# dataclasses, …). Die Liste bleibt deshalb bewusst leer statt Abhängigkeiten
+# späterer Gates vorzuziehen — Keychain-Anbindung entsteht mit dem
+# CredentialStore, Bridge- und UI-Abhängigkeiten mit den Gates B und D.
+personal = []
 # openjarvis_rust is the native PyO3 extension, built from the local Rust
 # workspace. It lives in a uv dependency group (PEP 735) — not the published
 # `desktop` extra — so `uv sync --group desktop-native` builds it from source
