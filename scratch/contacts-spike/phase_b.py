@@ -11,23 +11,48 @@ Schutzmechanismen:
   * Alle Datensätze tragen das Präfix ZZZ-JarvisTest-.
   * Der Sidecar selbst verweigert Mutationen an anderen Datensätzen.
   * --cleanup-only entfernt ausschließlich Testdatensätze.
+
+Exitstatus (getrennt nach Ursache):
+  0  alle ausführbaren Gates bestanden (nicht durchführbare Gates sind
+     ausdrücklich KEIN Fehler)
+  1  mindestens ein fachliches Gate fehlgeschlagen
+  4  Autorisierung noch nicht entschieden
+  5  Autorisierung verweigert bzw. gesperrter Aufruf
+  7  Mutationsabbruch mit unbekanntem Ausgang
+  8  Tests liefen vollständig, nur das Schreiben der Ergebnisdatei schlug fehl
 """
 from __future__ import annotations
 
 import json
 import os
+import platform
+import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from driver import DriverError, Sidecar  # noqa: E402
+from driver import _REDACTIONS, DriverError, Sidecar  # noqa: E402
 
 PREFIX = "ZZZ-JarvisTest-"
 RESULTS: list[tuple[str, bool, str]] = []
 
-# Exitcode fuer einen Mutationsabbruch mit unbekanntem Ausgang.
-EXIT_OUTCOME_UNKNOWN = 7
+# Gates, die bewusst nicht gelaufen sind (abgebrochener Pfad), getrennt von
+# den in dieser Umgebung technisch nicht durchfuehrbaren Gates.
+SKIPPED: list[tuple[str, str]] = []
+
+# Getrennte Exitcodes: fachlicher Fehler, nicht durchfuehrbar, Harness-Fehler.
+EXIT_OK = 0                    # alle ausfuehrbaren Gates bestanden
+EXIT_GATE_FAILURE = 1          # mindestens ein fachliches Gate fehlgeschlagen
+EXIT_OUTCOME_UNKNOWN = 7       # Mutationsabbruch mit unbekanntem Ausgang
+EXIT_REPORTING_ERROR = 8       # Tests liefen, nur das Schreiben schlug fehl
+
+SCHEMA_VERSION = 1
+
+# Gates, die auf dieser Umgebung nicht ausfuehrbar sind (z. B. nur ein
+# Container). Sie sind KEIN fachlicher Fehlschlag und werden getrennt gezaehlt.
+NOT_EXECUTABLE: list[tuple[str, str]] = []
 
 # Zielverzeichnis der PII-freien Fehlerdatei. Ueber
 # JARVIS_CONTACTS_SPIKE_RESULTS_DIR umleitbar, damit das Schreiben getestet
@@ -38,6 +63,141 @@ DEFAULT_RESULTS_DIR = Path("/Users/Shared/JarvisContactsSpike/results")
 def results_dir() -> Path:
     return Path(os.environ.get("JARVIS_CONTACTS_SPIKE_RESULTS_DIR",
                                str(DEFAULT_RESULTS_DIR)))
+
+
+# ── Laufzustand fuer das Ergebnismodell ──────────────────────────────────────
+# Ausschliesslich Zahlen, Booleans und feste Zeichenketten. Es wird an keiner
+# Stelle ein Name, Identifier, Token oder Feldinhalt aufgenommen.
+RUN: dict[str, object] = {
+    "startedAt": None,
+    "completedAt": None,
+    "authorizationStatus": None,
+    "containerCount": None,
+    "allowExisting": False,
+    "cleanupAttempted": False,
+    "cleanupSucceeded": False,
+    "foreignContactsTouched": 0,
+    "preexistingTestContactsTouched": 0,
+    "mutationsOutcomeKnown": True,
+}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+# Zusaetzlich zu den Treiber-Redaktionen: alles, was nach einem opaken Token
+# oder einer Kontakt-ID aussieht. Details sind eigener Text, deshalb genuegt
+# hier die Ersetzung — es wird nichts verworfen.
+_TOKEN_PATTERN = re.compile(r"\b[A-Za-z0-9+/]{24,}={0,2}\b")
+
+
+def redact_detail(text: str) -> str:
+    """Detailtext PII- und tokenfrei machen, bevor er in die Datei geht."""
+    out = str(text)
+    for pattern, replacement in _REDACTIONS:
+        out = pattern.sub(replacement, out)
+    out = _TOKEN_PATTERN.sub("<TOKEN>", out)
+    return out[:300]
+
+
+def build_result_model() -> dict:
+    """Gehaertetes Ergebnismodell — vollstaendig, PII-frei, ohne Rohdaten."""
+    passed = sum(1 for _, c, _ in RESULTS if c)
+    failed = len(RESULTS) - passed
+    if failed:
+        overall = "failed"
+    elif NOT_EXECUTABLE:
+        overall = "passed_with_not_executable_gate"
+    else:
+        overall = "passed"
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "platform": platform.system(),
+        "architecture": platform.machine(),
+        "startedAt": RUN["startedAt"],
+        "completedAt": RUN["completedAt"],
+        "authorizationStatus": RUN["authorizationStatus"],
+        "containerCount": RUN["containerCount"],
+        "allowExisting": bool(RUN["allowExisting"]),
+        "totalGates": len(RESULTS) + len(NOT_EXECUTABLE) + len(SKIPPED),
+        "passedGates": passed,
+        "failedGates": failed,
+        "skippedGates": len(SKIPPED),
+        "notExecutableGates": len(NOT_EXECUTABLE),
+        "cleanupAttempted": bool(RUN["cleanupAttempted"]),
+        "cleanupSucceeded": bool(RUN["cleanupSucceeded"]),
+        "createdInRunCount": len(CREATED_IN_RUN),
+        "foreignContactsTouched": int(RUN["foreignContactsTouched"]),
+        "preexistingTestContactsTouched":
+            int(RUN["preexistingTestContactsTouched"]),
+        "mutationsOutcomeKnown": bool(RUN["mutationsOutcomeKnown"]),
+        "reportingStatus": "written",
+        "overallStatus": overall,
+        "reconstructed": False,
+        "reconstructionReason": None,
+        "liveRunRepeated": False,
+        "gates": [{"name": n, "pass": c, "detail": redact_detail(d)}
+                  for n, c, d in RESULTS],
+        "notExecutable": [{"name": n, "reason": redact_detail(r)}
+                          for n, r in NOT_EXECUTABLE],
+        "skipped": [{"name": n, "reason": redact_detail(r)}
+                    for n, r in SKIPPED],
+    }
+
+
+def atomic_write_json(path: Path, payload: dict) -> None:
+    """Atomar schreiben: temporaere Datei im Zielverzeichnis, fsync, os.replace.
+
+    Ein Abbruch hinterlaesst nie eine halbe Datei — entweder die alte oder die
+    vollstaendige neue. Die temporaere Datei liegt bewusst im Zielverzeichnis,
+    damit os.replace nicht ueber eine Dateisystemgrenze laeuft.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def write_results(model: dict) -> tuple[Path | None, str | None]:
+    """Ergebnisdatei schreiben. Gibt (Pfad, Fehlertext) zurueck.
+
+    Ein Schreibfehler wird NIE als fachlicher Fehlschlag ausgegeben — er
+    veraendert weder RESULTS noch overallStatus.
+    """
+    out = results_dir() / "phase-b-results.json"
+    try:
+        atomic_write_json(out, model)
+        return out, None
+    except OSError as e:
+        return None, (f"{type(e).__name__}: Ergebnisdatei nicht schreibbar "
+                      f"unter {out.parent} (errno={getattr(e, 'errno', None)})")
+
+
+def exit_code(model: dict, reporting_error: str | None) -> int:
+    """Exitstatus aus fachlichem Ergebnis und Reporting-Ergebnis ableiten.
+
+    Getrennt und in dieser Reihenfolge:
+      * fachlicher Gate-Fehler        -> EXIT_GATE_FAILURE
+      * reiner Reporting-/Harnessfehler -> EXIT_REPORTING_ERROR
+      * nicht durchfuehrbare Gates    -> KEIN Fehler (EXIT_OK)
+    """
+    if model["failedGates"]:
+        return EXIT_GATE_FAILURE
+    if reporting_error:
+        return EXIT_REPORTING_ERROR
+    return EXIT_OK
 
 
 def write_outcome_unknown(gate: str, err: DriverError,
@@ -108,10 +268,17 @@ NAECHSTER SCHRITT — ausschliesslich visuell pruefen:
   3. Pruefen, ob ein Eintrag mit dem Praefix ZZZ-JarvisTest- existiert.
   4. NICHTS loeschen und NICHTS aendern; Befund melden.
 """)
+    RUN["mutationsOutcomeKnown"] = False
     out = write_outcome_unknown(gate, err, auth_status_before)
     if out:
         print(f"  Fehlerdatei: {out}")
     sys.exit(EXIT_OUTCOME_UNKNOWN)
+
+
+def not_executable(name: str, reason: str) -> None:
+    """Gate ist in dieser Umgebung nicht durchfuehrbar — kein Fehlschlag."""
+    NOT_EXECUTABLE.append((name, reason))
+    print(f"[SKIP] {name}  nicht durchfuehrbar: {reason}")
 
 
 def check(name: str, cond: bool, detail: str = "") -> bool:
@@ -385,8 +552,9 @@ def gate_unified(sc: Sidecar, containers: list[dict],
                  auth_before: str | None) -> None:
     print("\n=== G11 Vereinheitlichte Kontakte ===")
     if len(containers) < 2:
-        check("g11-two-containers", False,
-              f"nur {len(containers)} Container — Test nicht durchfuehrbar")
+        not_executable("g11-two-containers",
+                       f"nur {len(containers)} Container vorhanden; der "
+                       "Mehrcontainer-Test braucht mindestens zwei")
         return
     c1, c2 = containers[0]["identifier"], containers[1]["identifier"]
     common = {"givenName": f"{PREFIX}Link", "familyName": f"{PREFIX}Zwilling",
@@ -439,6 +607,7 @@ def cleanup(sc: Sidecar, auth_before: str | None) -> None:
     werden nur gemeldet; ihre Entfernung erfordert eine ausdrueckliche Freigabe.
     """
     print("\n=== G13 Bereinigung (nur laufeigene Datensaetze) ===")
+    RUN["cleanupAttempted"] = True
     targets = sorted(CREATED_IN_RUN)
     print(f"In diesem Lauf erzeugt: {len(targets)}")
     failed = 0
@@ -450,6 +619,9 @@ def cleanup(sc: Sidecar, auth_before: str | None) -> None:
     leftover_own = [c for c in after if c["identifier"] in CREATED_IN_RUN]
     pre_existing = [c for c in after if is_test(c)]
     foreign = [c for c in after if not is_test(c)]
+    RUN["cleanupSucceeded"] = (len(leftover_own) == 0 and failed == 0)
+    RUN["preexistingTestContactsTouched"] = 0
+    RUN["foreignContactsTouched"] = 0
     check("cleanup-complete", len(leftover_own) == 0 and failed == 0,
           f"laufeigene Reste={len(leftover_own)} fehlgeschlagen={failed}")
     check("cleanup-preexisting-untouched", True,
@@ -464,14 +636,18 @@ def cleanup(sc: Sidecar, auth_before: str | None) -> None:
 
 def main() -> int:
     allow_existing = "--allow-existing" in sys.argv
+    RUN["startedAt"] = utc_now()
+    RUN["allowExisting"] = allow_existing
     sc = Sidecar()
     ready = sc.start()
     print(f"Sidecar bereit: Protokoll {ready['protocol']}, "
           f"Autorisierung {ready['authorizationStatus']}")
     # Autorisierungsstatus vor jeder Mutation — geht in die Fehlerdatei ein.
     auth_before = ready.get("authorizationStatus")
+    RUN["authorizationStatus"] = auth_before
     try:
         containers = preflight(sc, allow_existing)
+        RUN["containerCount"] = len(containers)
         if "--cleanup-only" in sys.argv:
             # Ein separater Lauf kennt CREATED_IN_RUN nicht. Ein Loeschen
             # anhand des Praefixes wuerde Altbestaende treffen — daher gesperrt.
@@ -490,17 +666,33 @@ def main() -> int:
     finally:
         sc.shutdown()
 
+    RUN["completedAt"] = utc_now()
+    model = build_result_model()
+
     print("\n=== Zusammenfassung Phase B ===")
-    ok_n = sum(1 for _, c, _ in RESULTS if c)
     for name, cond, detail in RESULTS:
         print(f"[{'PASS' if cond else 'FAIL'}] {name}  {detail[:120]}")
-    print(f"--- {ok_n}/{len(RESULTS)} bestanden")
-    out = Path("/Users/Shared/JarvisContactsSpike/phase-b-results.json")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(
-        [{"name": n, "pass": c, "detail": d} for n, c, d in RESULTS], indent=2))
-    print(f"Ergebnisse: {out}")
-    return 0 if ok_n == len(RESULTS) else 1
+    for name, reason in NOT_EXECUTABLE:
+        print(f"[SKIP] {name}  {reason[:120]}")
+    print(f"--- {model['passedGates']}/{model['passedGates'] + model['failedGates']}"
+          f" bestanden, {model['notExecutableGates']} nicht durchfuehrbar")
+    print(f"--- Gesamtstatus: {model['overallStatus']}")
+
+    # Das Schreiben steht bewusst NACH der fachlichen Auswertung. Ein
+    # Reporting-Fehler darf bestandene Gates nicht in einen Fehlschlag
+    # umdeuten — er bekommt einen eigenen Exitcode.
+    out, err = write_results(model)
+    if err:
+        model["reportingStatus"] = "write_failed"
+        print(f"\nREPORTING-FEHLER: {err}", file=sys.stderr)
+        print("Die fachliche Auswertung oben bleibt gueltig; nur das Schreiben "
+              "der Ergebnisdatei ist fehlgeschlagen.", file=sys.stderr)
+        print("Ein anderes Zielverzeichnis laesst sich ueber "
+              "JARVIS_CONTACTS_SPIKE_RESULTS_DIR setzen.", file=sys.stderr)
+    else:
+        print(f"Ergebnisse: {out}")
+
+    return exit_code(model, err)
 
 
 if __name__ == "__main__":
