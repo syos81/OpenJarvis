@@ -219,17 +219,54 @@ FIELD_STAGE3 = [
 ]
 
 
+# ── Laufgebundene Mutationsziele (Haertung 2026-07-28) ──────────────────────
+# BEFUND: `cleanup()` loeschte zuvor JEDEN Datensatz mit dem Testpraefix — also
+# auch Altbestaende aus frueheren Laeufen. Seit dem Enumerate-Probe-Lauf ist
+# belegt, dass das Testkonto NICHT leer ist (count=1). Deshalb gilt jetzt:
+# Es wird ausschliesslich veraendert oder geloescht, was DIESER Lauf erzeugt hat.
+CREATED_IN_RUN: set[str] = set()
+
+
+def assert_run_owned(gate: str, identifier: str | None) -> None:
+    """Fail-closed: Mutationsziel muss aus dem aktuellen Lauf stammen."""
+    if identifier is None:
+        print(f"\nABBRUCH ({gate}): Mutation ohne identifier ist unzulaessig.",
+              file=sys.stderr)
+        sys.exit(5)
+    if identifier not in CREATED_IN_RUN:
+        print(f"\nABBRUCH ({gate}): Das Mutationsziel wurde NICHT in diesem Lauf "
+              "erzeugt.", file=sys.stderr)
+        print("Bestehende Datensaetze — auch solche mit dem Testpraefix — werden "
+              "ohne ausdrueckliche Freigabe weder veraendert noch geloescht.",
+              file=sys.stderr)
+        sys.exit(5)
+
+
 def mutate(sc: Sidecar, gate: str, op: str, payload: dict,
            auth_before: str | None, timeout: float = 30.0) -> dict | None:
-    """Mutation mit fail-closed-Abbruch bei unbekanntem Ausgang."""
+    """Mutation mit fail-closed-Abbruch bei unbekanntem Ausgang.
+
+    Zusaetzlich laufgebunden: `update`, `updateViaUnified` und `delete` sind nur
+    auf Datensaetzen erlaubt, die dieser Lauf selbst angelegt hat; `create`
+    registriert die erzeugte Kennung.
+    """
+    if op in ("update", "updateViaUnified", "delete"):
+        assert_run_owned(gate, payload.get("identifier"))
     try:
-        return sc.request(op, payload, timeout=timeout)
+        r = sc.request(op, payload, timeout=timeout)
     except DriverError as e:
         if e.outcome_unknown:
             halt_outcome_unknown(gate, e, auth_before)
         # Nicht-mutationsbezogene Treiberfehler ebenfalls fail-closed melden.
         halt_outcome_unknown(gate, e, auth_before)
         return None
+    if op == "create" and r.get("ok"):
+        ident = (r.get("result") or {}).get("identifier")
+        if ident:
+            CREATED_IN_RUN.add(ident)
+    if op == "delete" and r.get("ok") and (r.get("result") or {}).get("deleted"):
+        CREATED_IN_RUN.discard(payload.get("identifier", ""))
+    return r
 
 
 def gate_crud_fields(sc: Sidecar, container_id: str | None,
@@ -395,22 +432,34 @@ def gate_unified(sc: Sidecar, containers: list[dict],
 
 # ── Bereinigung ──────────────────────────────────────────────────────────────
 def cleanup(sc: Sidecar, auth_before: str | None) -> None:
-    print("\n=== G13 Bereinigung ===")
-    items = enumerate_all(sc)
-    tests = [c for c in items if is_test(c)]
-    print(f"Zu loeschende Testdatensaetze: {len(tests)}")
+    """Bereinigung — AUSSCHLIESSLICH der in diesem Lauf erzeugten Datensaetze.
+
+    Haertung 2026-07-28: Frueher wurde jeder Datensatz mit dem Testpraefix
+    geloescht. Altbestaende aus frueheren Laeufen bleiben jetzt unberuehrt und
+    werden nur gemeldet; ihre Entfernung erfordert eine ausdrueckliche Freigabe.
+    """
+    print("\n=== G13 Bereinigung (nur laufeigene Datensaetze) ===")
+    targets = sorted(CREATED_IN_RUN)
+    print(f"In diesem Lauf erzeugt: {len(targets)}")
     failed = 0
-    for c in tests:
-        r = mutate(sc, "G13-cleanup", "delete",
-                   {"identifier": c["identifier"]}, auth_before)
-        if not (r.get("ok") and r["result"].get("deleted")):
+    for ident in targets:
+        r = mutate(sc, "G13-cleanup", "delete", {"identifier": ident}, auth_before)
+        if not (r and r.get("ok") and r["result"].get("deleted")):
             failed += 1
     after = enumerate_all(sc)
-    rest = [c for c in after if is_test(c)]
-    check("cleanup-complete", len(rest) == 0 and failed == 0,
-          f"verbleibend={len(rest)} fehlgeschlagen={failed}")
-    check("cleanup-foreign-untouched", True, f"Fremdkontakte danach: "
-          f"{len([c for c in after if not is_test(c)])}")
+    leftover_own = [c for c in after if c["identifier"] in CREATED_IN_RUN]
+    pre_existing = [c for c in after if is_test(c)]
+    foreign = [c for c in after if not is_test(c)]
+    check("cleanup-complete", len(leftover_own) == 0 and failed == 0,
+          f"laufeigene Reste={len(leftover_own)} fehlgeschlagen={failed}")
+    check("cleanup-preexisting-untouched", True,
+          f"vorbestehende Testdatensaetze unveraendert: {len(pre_existing)}")
+    check("cleanup-foreign-untouched", True,
+          f"Fremdkontakte danach: {len(foreign)}")
+    if pre_existing:
+        print(f"HINWEIS: {len(pre_existing)} vorbestehende(r) "
+              f"{PREFIX}-Datensatz/-Datensaetze wurde(n) NICHT geloescht. "
+              "Entfernung nur nach ausdruecklicher Freigabe.")
 
 
 def main() -> int:
@@ -424,7 +473,14 @@ def main() -> int:
     try:
         containers = preflight(sc, allow_existing)
         if "--cleanup-only" in sys.argv:
-            cleanup(sc, auth_before)
+            # Ein separater Lauf kennt CREATED_IN_RUN nicht. Ein Loeschen
+            # anhand des Praefixes wuerde Altbestaende treffen — daher gesperrt.
+            print("\nABBRUCH: --cleanup-only ist gesperrt.", file=sys.stderr)
+            print("Ein eigener Lauf kann nicht wissen, welche Datensaetze ein "
+                  "frueherer Lauf erzeugt hat. Eine Bereinigung vorbestehender "
+                  "Datensaetze erfordert eine ausdrueckliche Freigabe.",
+                  file=sys.stderr)
+            return 5
         else:
             cid = containers[0]["identifier"] if containers else None
             gate_crud_fields(sc, cid, auth_before)

@@ -195,7 +195,30 @@ Antwort: `{"count","complete":true,"probe":"<label>","keys":[…]}`. Die
 Stream-Zeilen melden ausschließlich Feld-**Präsenz** (`{"keysPresent":[…]}`),
 niemals Werte.
 
+## SPIKE-ONLY: `isolationSummary` (ausschließlich lesend, PII-frei)
+
+Seit 2026-07-28. Klassifiziert den Bestand, **ohne** Kontaktdaten preiszugeben,
+und **mutiert niemals** (konstruiert keinen `CNSaveRequest`).
+
+Die Klassifikation läuft bewusst **im Sidecar**: Sie benötigt Namensfelder für
+den Präfixabgleich und Identifier für Me-Card-Vergleich und
+Dublettenerkennung — beides darf die Prozessgrenze nie überschreiten.
+
+Ergebnisfelder (abschließend): `authorizationStatus`, `containerCount`,
+`containerTypes`, `totalContacts`, `prefixedTestContacts`, `foreignContacts`,
+`meCardPresent` (`true`/`false`/`"unknown"`), `meCardIncludedInEnumerate`
+(`true`/`false`/`"unknown"`), `duplicateIdentifiersDetected`, `mutationCount`
+(immer `0`), `testPrefix`.
+
+Die Me-Card wird über `unifiedMeContactWithKeysToFetch:error:` gelesen —
+ausschließlich mit `CNContactIdentifierKey`. `nil` bedeutet „keine gesetzt";
+jeder andere Fehler ergibt `"unknown"` statt einer Vermutung.
+
 ## Capability: Notizen nicht verfügbar
+
+**Live bestätigt (2026-07-28):** In `stage3-note` steht `note` in `keys`, fehlt
+aber in `keysPresent` — das Framework wirft **keine** Exception, liefert das
+Feld aber nicht aus.
 
 `CNContactNoteKey` erfordert das Entitlement
 `com.apple.developer.contacts.notes`. Der Sidecar trägt keine Entitlements;

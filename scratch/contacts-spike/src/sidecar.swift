@@ -396,6 +396,103 @@ func opEnumerate(_ id: Any) {
     }
 }
 
+// ── SPIKE-ONLY: PII-freie Isolationsprüfung (AUSSCHLIESSLICH LESEND) ────────
+// Klassifiziert den vorhandenen Bestand, OHNE Kontaktdaten preiszugeben.
+//
+// Warum im Sidecar und nicht im Host: Die Klassifikation braucht Namensfelder
+// (Präfixabgleich) und Identifier (Me-Card-Vergleich, Dublettenerkennung).
+// Beides darf die Prozessgrenze NIEMALS überschreiten. Deshalb bleibt alles
+// im Prozessspeicher; nach aussen gehen ausschliesslich Zahlen und Booleans.
+//
+// MUTATIONALLY LOCKED: Diese Funktion konstruiert keinen CNSaveRequest und
+// ruft store.execute nicht auf.
+func opIsolationSummary(_ id: Any) {
+    stage("isolation.received")
+    guard requireAuth(id) else { stage("isolation.auth_failed"); return }
+    stage("isolation.auth_ok")
+
+    // Container: nur Anzahl und Typ, keine Identifier, keine Namen.
+    var containerTypes: [String] = []
+    do {
+        for c in try store.containers(matching: nil) {
+            switch c.type {
+            case .local: containerTypes.append("local")
+            case .exchange: containerTypes.append("exchange")
+            case .cardDAV: containerTypes.append("cardDAV")
+            case .unassigned: containerTypes.append("unassigned")
+            @unknown default: containerTypes.append("unknown")
+            }
+        }
+    } catch let e as NSError {
+        stage("isolation.containers_error", error: .providerError)
+        fail(id, .providerError, "containers: \(e.domain)/\(e.code)"); return
+    }
+    stage("isolation.containers_resolved")
+
+    // Me-Card: nil = keine gesetzt (CNContactStore.h:124). Fehler = unknown.
+    // Der Identifier bleibt ausschliesslich im Prozessspeicher.
+    var meCardPresent: Any = "unknown"
+    var meIdentifier: String?
+    do {
+        let me = try store.unifiedMeContactWithKeys(
+            toFetch: [CNContactIdentifierKey as CNKeyDescriptor])
+        meIdentifier = me.identifier
+        meCardPresent = true
+    } catch let e as NSError {
+        if e.domain == CNErrorDomain && e.code == CNError.recordDoesNotExist.rawValue {
+            meCardPresent = false            // keine Me-Card gesetzt
+        } else {
+            meCardPresent = "unknown"        // kontrollierter Fehler, keine Vermutung
+            diag("meCard-Abfrage fehlgeschlagen: \(e.domain)/\(e.code)")
+        }
+    }
+    stage("isolation.mecard_checked")
+
+    // Enumeration: nur Namensfelder zur Praefixklassifikation. Werte werden
+    // ausschliesslich lokal geprueft und nie ausgegeben oder gespeichert.
+    let keys: [CNKeyDescriptor] = [
+        CNContactIdentifierKey, CNContactGivenNameKey, CNContactFamilyNameKey,
+        CNContactOrganizationNameKey,
+    ].map { $0 as CNKeyDescriptor }
+    let req = CNContactFetchRequest(keysToFetch: keys)
+    req.unifyResults = false
+    stage("isolation.request_constructed")
+
+    var total = 0, prefixed = 0, foreign = 0
+    var seen = Set<String>()
+    var duplicates = false
+    var meInEnumerate = false
+    do {
+        stage("isolation.fetch_begin")
+        try store.enumerateContacts(with: req) { c, _ in
+            total += 1
+            if !seen.insert(c.identifier).inserted { duplicates = true }
+            if let m = meIdentifier, m == c.identifier { meInEnumerate = true }
+            if isTestRecord(c) { prefixed += 1 } else { foreign += 1 }
+        }
+        stage("isolation.fetch_returned")
+    } catch let e as NSError {
+        stage("isolation.fetch_error", error: .providerError)
+        fail(id, .providerError, "isolation: \(e.domain)/\(e.code)"); return
+    }
+
+    ok(id, [
+        "authorizationStatus": authStatusText(),
+        "containerCount": containerTypes.count,
+        "containerTypes": containerTypes.sorted(),
+        "totalContacts": total,
+        "prefixedTestContacts": prefixed,
+        "foreignContacts": foreign,
+        "meCardPresent": meCardPresent,
+        "meCardIncludedInEnumerate": (meIdentifier == nil)
+            ? ("unknown" as Any) : (meInEnumerate as Any),
+        "duplicateIdentifiersDetected": duplicates,
+        "mutationCount": 0,
+        "testPrefix": kTestPrefix,
+    ])
+    stage("isolation.completed")
+}
+
 // ── SPIKE-ONLY: gestufter, AUSSCHLIESSLICH LESENDER Probe-Modus ─────────────
 // Isoliert die Absturzgrenze im enumerate-Pfad. Mutiert unter keinen Umstaenden.
 // Jede Stufe liefert genau eine eindeutige Antwort oder der Child stirbt — dann
@@ -681,6 +778,7 @@ emit([
     "keySetVersion": kKeySetVersion,
     "transactionAuthor": kTransactionAuthor,
     "caps": ["ping", "caps", "containers", "enumerate", "enumerateProbe",
+             "isolationSummary",
              "changes", "token", "get", "getUnified", "create", "update",
              "updateViaUnified", "delete", "requestAuthorization", "shutdown"],
     "limits": ["mutationsRestrictedToPrefix": kTestPrefix,
@@ -717,6 +815,7 @@ while let line = readLine(strippingNewline: true) {
     switch op {
     case "ping":             ok(id, ["pong": true])
     case "enumerateProbe":   opEnumerateProbe(id, params)
+    case "isolationSummary": opIsolationSummary(id)
     case "caps":             ok(id, ["notesSupported": false,
                                      "probeStagesSupported": true,
                                      "protocol": kProtocolVersion,

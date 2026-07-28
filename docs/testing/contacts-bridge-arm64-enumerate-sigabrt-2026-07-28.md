@@ -193,14 +193,132 @@ Alle Tests laufen gegen Fake-Sidecars, Textfixturen und Quelltextanalyse.
 `authorizationStatus` blieb im Bürobenutzer durchgehend `notDetermined` —
 **keine Contacts-Operation, kein TCC-Dialog**.
 
-## 10. Stand
+## 10. LIVE-ERGEBNIS des Probe-Laufs (2026-07-28)
 
-Der Live-Retest steht **weiterhin aus**. Weder `phase_b.py` noch
-`enumerate_probe.py` noch `authorize.py` wurden ausgeführt. Die
-Kontakteberechtigung im Testbenutzer bleibt unverändert bestehen und wurde
-nicht zurückgesetzt.
+Der Probe-Lauf wurde im Testbenutzer **genau einmal** ausgeführt:
+`JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1 python3 tools/enumerate_probe.py`
+
+**16/16 Stufen erfolgreich**, `authorizationStatus=authorized` durchgehend,
+**keine Mutation**, kein Sidecar-Abbruch, keine Fehlerfelder. Der Bericht
+`results/enumerate-probe.json` enthält nur `stage`, `params`, `result`,
+`count`, `keys`, `keysPresent`, `authorizationStatus` — ein PII-Scan auf
+E-Mails, UUIDs, Kontakt-IDs, Telefonnummern und Testkontaktnamen ist
+**sauber**.
+
+**Die alte SIGABRT-Grenze ist nicht mehr reproduzierbar.** Alle zuvor
+verdächtigen Schlüssel — einschließlich `image-available`, `image-data`,
+`thumbnail`, `birthday`, `dates`, `relations`, `social-profiles`,
+`instant-messages` und `note` — laufen jetzt fehlerfrei durch.
+
+### Zwei entscheidende Live-Befunde
+
+**(1) `count=1` — der Callback wurde tatsächlich betreten.** Damit ist der
+Widerspruch aus Abschnitt 3 B aufgelöst: Das Testkonto war **nicht** leer. Der
+Enumerationsblock lief also auch im alten Code, und dort wurde
+`imageDataAvailable` ohne angeforderten Schlüssel gelesen. Zusammen mit der
+Header-Zusage (`CNContact.h:52` → `CNContactPropertyNotFetchedException`) und
+dem beobachteten SIGABRT ist die Ursache damit **praktisch bestätigt**:
+statisch belegt, live reproduziert-und-behoben.
+
+**(2) `note` wird angefordert, aber nicht geliefert.** In `stage3-note` steht
+`note` in `keys`, fehlt aber in `keysPresent` — `isKeyAvailable` meldet false.
+Das Framework wirft also **keine** Exception, liefert das Feld aber schlicht
+nicht aus. Die fail-closed-Entscheidung `notesSupported=false` ist damit
+**live bestätigt** statt nur begründet.
+
+### Abgrenzung: verbleibende theoretische Alternativen
+
+Praktisch bestätigt ist die Ursache, nicht mathematisch bewiesen — der alte
+Binärstand wurde nicht erneut ausgeführt (das wäre ein bewusst herbeigeführter
+Absturz ohne Erkenntnisgewinn). Theoretisch weiterhin denkbar, aber ohne
+jeden Beleg: ein transienter `contactsd`-Zustand zum damaligen Zeitpunkt oder
+ein Thread-/Runloop-Effekt, der zufällig mit demselben Signal endete. Beide
+würden nicht erklären, warum exakt derselbe Pfad nach der Schlüsselkorrektur
+16-mal fehlerfrei durchläuft.
+
+## 11. Offener Punkt: Isolation des Bestands
+
+`count=1` bedeutet zugleich: **die Annahme eines leeren Testkontos gilt nicht
+mehr.** Ob dieser eine Datensatz eine „Meine Karte", ein älterer
+`ZZZ-JarvisTest-`-Kontakt oder ein fremder Kontakt ist, ist **noch nicht
+geklärt** und wird vor jeder Mutation geklärt.
+
+**PII-freier Klassifikationsplan.** Neue, ausschließlich lesende
+Sidecar-Operation `isolationSummary` plus Runner `tools/isolation_probe.py`.
+Entscheidend: Die Klassifikation läuft **vollständig im Sidecar**, weil sie
+Namensfelder (Präfixabgleich) und Identifier (Me-Card-Vergleich,
+Dublettenerkennung) benötigt — beides darf die Prozessgrenze nie überschreiten.
+Über das Protokoll gehen ausschließlich: `authorizationStatus`,
+`containerCount`/`containerTypes`, `totalContacts`, `prefixedTestContacts`,
+`foreignContacts`, `meCardPresent`, `meCardIncludedInEnumerate`,
+`duplicateIdentifiersDetected`, `mutationCount` (immer 0), `testPrefix`.
+Ein zweiter Filter im Runner verwirft jedes andere Feld.
+
+**Me-Card-Behandlung.** `unifiedMeContactWithKeysToFetch:error:`
+(`CNContactStore.h:126`, macOS 10.11+) ist sicher lesend nutzbar; laut Header
+gilt: *„If no 'me' card is set, nil is returned."* Der Sidecar holt
+ausschließlich `CNContactIdentifierKey`, vergleicht den Identifier **nur im
+Prozessspeicher** gegen die Enumeration und gibt daraus nur zwei Booleans aus.
+Bei einem anderen Fehler als `recordDoesNotExist` lautet das Ergebnis
+`meCardPresent: "unknown"` — **keine Vermutung**. Der Identifier wird nie
+protokolliert und nie nach `results/` geschrieben.
+
+## 12. Mutationsaudit von `phase_b.py`
+
+**Bereits sicher bewiesen:** `create` erzeugt ausschließlich Datensätze mit
+dem Testpräfix (Payloads in `phase_b.py` **und** Sidecar-Rail); die
+Mutationsziele in G8/G10/G11 stammen durchgehend aus
+`r["result"]["identifier"]` eines `create` **desselben Laufs**; es gibt keinen
+namensbasierten Lookup für Mutationen; nach `mutation_outcome_unknown` erfolgt
+kein Retry und kein automatisches Cleanup; der Sidecar verweigert jede
+Mutation an Datensätzen ohne Testpräfix.
+
+**Notwendige Härtung — durchgeführt.** Der Audit fand eine reale Lücke:
+`cleanup()` löschte **jeden** Datensatz mit dem Testpräfix, also auch
+Altbestände aus früheren Läufen. Bei `count=1` war das ein konkretes Risiko.
+Neu:
+
+- Registry `CREATED_IN_RUN`; `create` registriert die erzeugte Kennung.
+- `update`, `updateViaUnified` und `delete` prüfen über `assert_run_owned()`
+  fail-closed, dass das Ziel aus **diesem** Lauf stammt (sonst Exit 5).
+- `cleanup()` löscht ausschließlich `CREATED_IN_RUN`; vorbestehende
+  Testdatensätze werden gemeldet, aber **nicht** angetastet.
+- `--cleanup-only` ist **gesperrt** — ein separater Lauf kann nicht wissen,
+  was ein früherer erzeugt hat; eine Bereinigung von Altbestand erfordert eine
+  ausdrückliche Freigabe.
+
+**Offene Risiken.** `--allow-existing` toleriert weiterhin nur das
+*Vorhandensein* fremder Kontakte im Preflight und lockert die Isolation nicht;
+es bleibt aber **ohne Freigabe** und wird bis zur Klärung des einen Datensatzes
+nicht verwendet. Eine Freigabe für die Entfernung vorbestehender
+`ZZZ-JarvisTest-`-Datensätze ist **nicht** erteilt.
+
+## 13. Kontaktfreie Tests nach dieser Änderung
+
+| Suite | Ergebnis |
+|---|---|
+| `test_isolation_probe.py` (neu) | **29/29** |
+| `test_enumerate_diagnostics.py` | **38/38** |
+| `test_authorization_profiles.py` | **37/37** |
+| `test_driver_failmodes.py` | **26/26** |
+| Protokolltests | **25/25** |
+| **Summe** | **155/155** |
+
+Ein Befund aus der Testarbeit selbst, der festgehalten gehört: Das erste
+Testgerüst der Isolationsprobe patchte `driver.SIDECAR` nach dem Import —
+wirkungslos, weil `Sidecar.__init__` den Standardpfad als Default-Argument
+bereits bei der Klassendefinition bindet. Drei Prüfungen liefen dadurch
+unbemerkt leer. Der Fake wird jetzt explizit übergeben; erst danach sind die
+PII-Prüfungen tatsächlich wirksam.
+
+## 14. Stand
+
+Die **Live-Isolationsprobe wurde noch nicht ausgeführt**. `phase_b.py` wurde
+nicht ausgeführt, `authorize.py` nicht erneut ausgeführt, keine Mutation
+gesendet, kein Kontakt verändert, die Kontakteberechtigung bleibt bestehen und
+wurde nicht zurückgesetzt.
 
 Nächster Schritt (nach Freigabe, im Testbenutzer):
-`JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1 python3 tools/enumerate_probe.py`
+`JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1 python3 tools/isolation_probe.py`
 
 Keine TCC-Datenbankinhalte und keine Kontaktdaten sind Teil dieser Änderung.
