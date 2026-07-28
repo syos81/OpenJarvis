@@ -57,11 +57,74 @@ ERR_MUTATION_OUTCOME_UNKNOWN = "mutation_outcome_unknown"
 # Operationen, deren Ausgang bei einem Abbruch NICHT bekannt ist.
 MUTATING_OPS = frozenset({"create", "update", "updateViaUnified", "delete"})
 
-# Nur technische Sidecar-Marker uebernehmen; alles andere wird verworfen, damit
-# selbst bei Fehlverhalten keine PII in Logs oder Fehlerdateien gelangt.
-_STDERR_ALLOWED = re.compile(r"^\[sidecar\][^@]*$")
+# ── stderr-Sanitisierung ─────────────────────────────────────────────────────
+# BEFUND 2026-07-28: Die frühere Allowlist verwarf JEDE Zeile, die nicht mit
+# "[sidecar]" begann. Ein vollständiger SIGABRT-Dump (uncaught ObjC exception +
+# Stack) wurde dadurch zu zwanzig identischen Redaktionszeilen — der technische
+# Befund ging vollständig verloren.
+#
+# Neu: technische Crash-Information bleibt erhalten, PII wird entfernt.
 _STDERR_MAX_LINES = 20
 _STDERR_MAX_LEN = 200
+
+# Zeilen mit technischem Wert (Exception-Klasse, Signal, Framework, Symbole,
+# Assertion, Fehlercode). Alles andere wird verworfen statt durchgereicht.
+_TECHNICAL_MARKERS = re.compile(
+    r"(?ix)"
+    r"\[sidecar\]"                       # eigene Diagnosestufen
+    r"|uncaught\s+exception|terminating\s+app|NSException|NSInvalidArgument"
+    r"|CNContact\w*Exception|PropertyNotFetched|CNErrorDomain|CNErrorCode\w*"
+    r"|SIG(ABRT|SEGV|BUS|ILL|TRAP|KILL)|signal\s+\d+|Abort\s+trap"
+    r"|assert(ion)?\b|__assert|fatal\s+error|precondition"
+    r"|Contacts(Foundation)?|CoreFoundation|libobjc|libsystem|libswiftCore"
+    r"|Foundation|AddressBook|CNCoreDataStore"
+    r"|\bat\s+0x[0-9a-f]+|^\s*\d+\s+\S+\s+0x[0-9a-f]+"   # Stackframes
+    r"|throw\s+call\s+stack|Swift\s+runtime|Trace/BPT|reason:"
+)
+
+# PII-Muster — werden ERSETZT, nicht zum Verwerfen der Zeile genutzt.
+# REIHENFOLGE IST SICHERHEITSRELEVANT: spezifische Muster (UUID, Kontakt-ID)
+# stehen VOR der Telefonnummer, deren Zeichenklasse sonst UUID-Praefixe
+# anfrisst und dadurch den Rest der UUID im Klartext stehen laesst.
+_REDACTIONS: tuple[tuple[re.Pattern, str], ...] = (
+    (re.compile(r"/Users/[^/\s\"']+"), "<PFAD>"),
+    (re.compile(r"/(?:private/)?(?:var|tmp)/folders/[^\s\"']+"), "<PFAD>"),
+    (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "<EMAIL>"),
+    (re.compile(r"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}"
+                r"-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b"), "<UUID>"),
+    (re.compile(r"\S*ABPerson\S*"), "<CONTACT-ID>"),
+    (re.compile(r"ZZZ-JarvisTest-\S*"), "<TESTKONTAKT>"),
+    # Telefonnummer zuletzt und ohne Bindestrich in der Zeichenklasse, damit
+    # Hex-/UUID-Reste und Stackframe-Offsets nicht faelschlich getroffen werden.
+    (re.compile(r"(?<![0-9A-Fa-fx])\+?\d[\d\s()/]{6,}\d(?![0-9A-Fa-f-])"), "<TEL>"),
+)
+
+
+def signal_name(exit_code: int | None) -> str | None:
+    """Negativer Exitcode -> symbolischer Signalname (POSIX: -N == Signal N)."""
+    if exit_code is None or exit_code >= 0:
+        return None
+    num = -exit_code
+    names = {1: "SIGHUP", 2: "SIGINT", 3: "SIGQUIT", 4: "SIGILL", 5: "SIGTRAP",
+             6: "SIGABRT", 8: "SIGFPE", 9: "SIGKILL", 10: "SIGBUS",
+             11: "SIGSEGV", 13: "SIGPIPE", 15: "SIGTERM"}
+    return f"{names.get(num, 'SIG?')}({num})"
+
+
+def sanitize_crash_line(line: str) -> str | None:
+    """Technische Crashzeile PII-frei aufbereiten.
+
+    Rückgabe: bereinigte Zeile oder None, wenn die Zeile keinen technischen
+    Wert hat (dann wird sie verworfen, nicht als Platzhalter mitgeführt).
+    """
+    if not line or not line.strip():
+        return None
+    if not _TECHNICAL_MARKERS.search(line):
+        return None
+    out = line
+    for pattern, replacement in _REDACTIONS:
+        out = pattern.sub(replacement, out)
+    return out.strip()[:_STDERR_MAX_LEN]
 
 
 class DriverError(Exception):
@@ -154,14 +217,24 @@ class Sidecar:
 
     # ── Diagnose ─────────────────────────────────────────────────────────────
     def safe_stderr(self) -> list[str]:
-        """Begrenzte, PII-gefilterte stderr-Zeilen fuer Fehlerberichte."""
-        out = []
-        for line in self.stderr_tail[-_STDERR_MAX_LINES:]:
-            if _STDERR_ALLOWED.match(line):
-                out.append(line[:_STDERR_MAX_LEN])
-            else:
-                out.append("[redigiert: nicht-technische stderr-Zeile]")
-        return out
+        """Begrenzte, PII-freie stderr-Zeilen mit erhaltener Technik.
+
+        Zeilen ohne technischen Wert werden verworfen (nicht als Platzhalter
+        mitgefuehrt), damit ein echter Crash-Dump nicht in identischen
+        Redaktionszeilen untergeht. Rohes stderr wird nirgends gespeichert.
+        """
+        out: list[str] = []
+        dropped = 0
+        for line in self.stderr_tail[-(_STDERR_MAX_LINES * 5):]:
+            cleaned = sanitize_crash_line(line)
+            if cleaned is None:
+                dropped += 1
+                continue
+            out.append(cleaned)
+        out = out[-_STDERR_MAX_LINES:]
+        if dropped:
+            out.append(f"[{dropped} nicht-technische Zeile(n) verworfen]")
+        return out[-_STDERR_MAX_LINES:]
 
     def child_exit_code(self) -> int | None:
         return self.proc.poll() if self.proc else None
@@ -199,6 +272,7 @@ class Sidecar:
             operation=op,
             elapsed_seconds=round(time.time() - started, 3),
             child_exit_code=self.child_exit_code(),
+            child_signal=signal_name(self.child_exit_code()),
             child_alive=alive,
             stdout_eof=self.stdout_eof.is_set(),
             stderr_eof=self.stderr_eof.is_set(),

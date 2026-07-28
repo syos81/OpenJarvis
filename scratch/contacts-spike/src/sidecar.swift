@@ -183,8 +183,72 @@ let fetchKeys: [CNKeyDescriptor] = [
     CNContactNicknameKey, CNContactOrganizationNameKey, CNContactJobTitleKey,
     CNContactDepartmentNameKey, CNContactBirthdayKey,
     CNContactEmailAddressesKey, CNContactPhoneNumbersKey, CNContactPostalAddressesKey,
+    // BEFUND 2026-07-28: `imageDataAvailable` ist eine eigenstaendige Eigenschaft
+    // mit eigenem Schluessel (CNContact.h:83 bzw. :158). Sie wurde in dto()
+    // gelesen, ohne angefordert zu werden — laut CNContact.h:52 wirft das
+    // CNContactPropertyNotFetchedException; in Swift fuehrt die nicht
+    // abgefangene ObjC-Exception zu abort() (SIGABRT).
+    CNContactImageDataAvailableKey,
     CNContactThumbnailImageDataKey, CNContactTypeKey,
 ].map { $0 as CNKeyDescriptor }
+
+// ── Gestufte Keysets fuer den ausschliesslich lesenden Probe-Modus ───────────
+// Stufe 1: absolutes Minimum. Stufe 2: unkritische Gruppen einzeln.
+// Stufe 3: Kandidaten mit Entitlement- oder Exception-Risiko, jeweils EINZELN.
+let kProbeStage1: [String] = [
+    CNContactIdentifierKey, CNContactGivenNameKey, CNContactFamilyNameKey,
+]
+let kProbeStage2: [(String, [String])] = [
+    ("names-extended", [CNContactMiddleNameKey, CNContactNamePrefixKey,
+                        CNContactNameSuffixKey, CNContactNicknameKey]),
+    ("organization", [CNContactOrganizationNameKey, CNContactJobTitleKey,
+                      CNContactDepartmentNameKey]),
+    ("contact-type", [CNContactTypeKey]),
+    ("emails", [CNContactEmailAddressesKey]),
+    ("phones", [CNContactPhoneNumbersKey]),
+    ("postal", [CNContactPostalAddressesKey]),
+]
+let kProbeStage3: [(String, [String])] = [
+    ("image-available", [CNContactImageDataAvailableKey]),
+    ("thumbnail", [CNContactThumbnailImageDataKey]),
+    ("image-data", [CNContactImageDataKey]),
+    ("birthday", [CNContactBirthdayKey]),
+    ("dates", [CNContactDatesKey]),
+    ("relations", [CNContactRelationsKey]),
+    ("social-profiles", [CNContactSocialProfilesKey]),
+    ("instant-messages", [CNContactInstantMessageAddressesKey]),
+    ("note", [CNContactNoteKey]),        // erfordert ein Sonder-Entitlement
+]
+
+/// Symbolischer, PII-freier Stufenname eines Contact-Keys.
+func symbolicKeyName(_ key: String) -> String {
+    switch key {
+    case CNContactIdentifierKey:              return "identifier"
+    case CNContactGivenNameKey:               return "givenName"
+    case CNContactFamilyNameKey:              return "familyName"
+    case CNContactMiddleNameKey:              return "middleName"
+    case CNContactNamePrefixKey:              return "namePrefix"
+    case CNContactNameSuffixKey:              return "nameSuffix"
+    case CNContactNicknameKey:                return "nickname"
+    case CNContactOrganizationNameKey:        return "organizationName"
+    case CNContactJobTitleKey:                return "jobTitle"
+    case CNContactDepartmentNameKey:          return "departmentName"
+    case CNContactTypeKey:                    return "contactType"
+    case CNContactEmailAddressesKey:          return "emailAddresses"
+    case CNContactPhoneNumbersKey:            return "phoneNumbers"
+    case CNContactPostalAddressesKey:         return "postalAddresses"
+    case CNContactImageDataAvailableKey:      return "imageDataAvailable"
+    case CNContactThumbnailImageDataKey:      return "thumbnailImageData"
+    case CNContactImageDataKey:               return "imageData"
+    case CNContactBirthdayKey:                return "birthday"
+    case CNContactDatesKey:                   return "dates"
+    case CNContactRelationsKey:               return "relations"
+    case CNContactSocialProfilesKey:          return "socialProfiles"
+    case CNContactInstantMessageAddressesKey: return "instantMessageAddresses"
+    case CNContactNoteKey:                    return "note"
+    default:                                  return "unknown"
+    }
+}
 
 // ── DTO: deterministische, providerneutrale Serialisierung ────────────────────
 // Sortierte Schlüssel, explizite Nullwerte, keine locale-abhängige Formatierung.
@@ -192,38 +256,59 @@ let fetchKeys: [CNKeyDescriptor] = [
 /// JSON-tauglicher Wert oder explizites null (nie stillschweigend weglassen).
 func jn(_ v: Any?) -> Any { v ?? NSNull() }
 
+/// Liest eine Eigenschaft NUR, wenn ihr Schluessel tatsaechlich geholt wurde.
+/// CNContact.h:52 verlangt genau das: sonst wirft der Zugriff
+/// CNContactPropertyNotFetchedException — in Swift ein abort() (SIGABRT).
+/// Nicht geholte Felder werden als explizites null ausgegeben, niemals
+/// stillschweigend als Leerwert.
+func ifFetched<T>(_ c: CNContact, _ key: String, _ read: (CNContact) -> T) -> T? {
+    c.isKeyAvailable(key) ? read(c) : nil
+}
+
 func dto(_ c: CNContact) -> [String: Any] {
-    let emails: [[String: Any]] = c.emailAddresses.map {
-        ["label": jn($0.label), "value": $0.value as String]
-    }
-    let phones: [[String: Any]] = c.phoneNumbers.map {
-        ["label": jn($0.label), "value": $0.value.stringValue]
-    }
-    let addresses: [[String: Any]] = c.postalAddresses.map { lv in
-        let a = lv.value
-        return ["label": jn(lv.label), "street": a.street, "city": a.city,
-                "state": a.state, "postalCode": a.postalCode, "country": a.country,
-                "isoCountryCode": a.isoCountryCode]
-    }
+    let emails: [[String: Any]] = ifFetched(c, CNContactEmailAddressesKey) {
+        $0.emailAddresses.map { ["label": jn($0.label), "value": $0.value as String] }
+    } ?? []
+    let phones: [[String: Any]] = ifFetched(c, CNContactPhoneNumbersKey) {
+        $0.phoneNumbers.map { ["label": jn($0.label), "value": $0.value.stringValue] }
+    } ?? []
+    let addresses: [[String: Any]] = ifFetched(c, CNContactPostalAddressesKey) {
+        $0.postalAddresses.map { lv -> [String: Any] in
+            let a = lv.value
+            return ["label": jn(lv.label), "street": a.street, "city": a.city,
+                    "state": a.state, "postalCode": a.postalCode,
+                    "country": a.country, "isoCountryCode": a.isoCountryCode]
+        }
+    } ?? []
+
     var d: [String: Any] = [
         "keySetVersion": kKeySetVersion,
-        "identifier": c.identifier,
-        "contactType": c.contactType == .organization ? "organization" : "person",
-        "givenName": c.givenName, "familyName": c.familyName,
-        "middleName": c.middleName, "namePrefix": c.namePrefix,
-        "nameSuffix": c.nameSuffix, "nickname": c.nickname,
-        "organizationName": c.organizationName, "jobTitle": c.jobTitle,
-        "departmentName": c.departmentName,
+        "identifier": c.identifier,          // immer vorhanden (CNContact.h:135)
+        "contactType": jn(ifFetched(c, CNContactTypeKey) {
+            $0.contactType == .organization ? "organization" : "person" }),
+        "givenName": jn(ifFetched(c, CNContactGivenNameKey) { $0.givenName }),
+        "familyName": jn(ifFetched(c, CNContactFamilyNameKey) { $0.familyName }),
+        "middleName": jn(ifFetched(c, CNContactMiddleNameKey) { $0.middleName }),
+        "namePrefix": jn(ifFetched(c, CNContactNamePrefixKey) { $0.namePrefix }),
+        "nameSuffix": jn(ifFetched(c, CNContactNameSuffixKey) { $0.nameSuffix }),
+        "nickname": jn(ifFetched(c, CNContactNicknameKey) { $0.nickname }),
+        "organizationName": jn(ifFetched(c, CNContactOrganizationNameKey) {
+            $0.organizationName }),
+        "jobTitle": jn(ifFetched(c, CNContactJobTitleKey) { $0.jobTitle }),
+        "departmentName": jn(ifFetched(c, CNContactDepartmentNameKey) {
+            $0.departmentName }),
         "emails": emails, "phones": phones, "postalAddresses": addresses,
-        "hasThumbnail": c.imageDataAvailable,
+        "hasThumbnail": jn(ifFetched(c, CNContactImageDataAvailableKey) {
+            $0.imageDataAvailable }),
     ]
-    if let b = c.birthday {
-        let bd: [String: Any] = ["year": jn(b.year), "month": jn(b.month), "day": jn(b.day)]
-        d["birthday"] = bd
+    if let b = ifFetched(c, CNContactBirthdayKey, { $0.birthday }) ?? nil {
+        d["birthday"] = ["year": jn(b.year), "month": jn(b.month),
+                         "day": jn(b.day)] as [String: Any]
     } else {
         d["birthday"] = NSNull()
     }
-    if let t = c.thumbnailImageData {
+    if let t = ifFetched(c, CNContactThumbnailImageDataKey,
+                         { $0.thumbnailImageData }) ?? nil {
         d["thumbnailBase64"] = t.base64EncodedString()
         d["thumbnailBytes"] = t.count
     } else {
@@ -274,19 +359,111 @@ func opContainers(_ id: Any) {
 /// Eine ohne complete:true abgebrochene Enumeration ist ungültig und darf
 /// im Kern NIEMALS als Löschmenge interpretiert werden.
 func opEnumerate(_ id: Any) {
-    guard requireAuth(id) else { return }
+    stage("enumerate.received")
+    guard requireAuth(id) else { stage("enumerate.auth_failed"); return }
+    stage("enumerate.validated")
+    stage("enumerate.auth_ok")
+    stage("enumerate.container_resolved")     // Standardlauf: kein Container-Filter
+
+    stage("enumerate.keys_begin")
+    for k in fetchKeys.compactMap({ $0 as? String }) {
+        stage("enumerate.key.\(symbolicKeyName(k))")
+    }
+    stage("enumerate.keys_complete")
+
     let req = CNContactFetchRequest(keysToFetch: fetchKeys)
     req.unifyResults = false
+    stage("enumerate.request_constructed")
+
     var count = 0
     do {
+        stage("enumerate.fetch_begin")
         try store.enumerateContacts(with: req) { c, _ in
-            emit(["id": id, "stream": "item", "item": dto(c)])
+            if count == 0 { stage("enumerate.callback_entered") }
+            let item = dto(c)
+            if count == 0 { stage("enumerate.serialized") }
+            emit(["id": id, "stream": "item", "item": item])
+            if count == 0 { stage("enumerate.response_written") }
             count += 1
         }
+        stage("enumerate.fetch_returned")
         ok(id, ["count": count, "complete": true, "keySetVersion": kKeySetVersion])
+        stage("enumerate.completed")
     } catch let e as NSError {
+        stage("enumerate.fetch_error", error: .providerError)
         diag("enumerate abgebrochen nach \(count) Datensätzen")
         fail(id, .providerError, "enumerate: \(e.domain)/\(e.code)")
+    }
+}
+
+// ── SPIKE-ONLY: gestufter, AUSSCHLIESSLICH LESENDER Probe-Modus ─────────────
+// Isoliert die Absturzgrenze im enumerate-Pfad. Mutiert unter keinen Umstaenden.
+// Jede Stufe liefert genau eine eindeutige Antwort oder der Child stirbt — dann
+// zeigen die stderr-Stufen, welcher Schluessel zuletzt betreten wurde.
+func opEnumerateProbe(_ id: Any, _ params: [String: Any]) {
+    stage("enumerate.received")
+    guard requireAuth(id) else { stage("enumerate.auth_failed"); return }
+
+    let stageNum = (params["stage"] as? Int) ?? 1
+    let group = params["group"] as? String
+    var keys: [String] = kProbeStage1
+    var label = "stage1-minimal"
+
+    switch stageNum {
+    case 1:
+        break
+    case 2, 3:
+        let table = stageNum == 2 ? kProbeStage2 : kProbeStage3
+        guard let g = group else {
+            fail(id, .invalidRequest, "stage \(stageNum) erfordert 'group'"); return
+        }
+        guard let entry = table.first(where: { $0.0 == g }) else {
+            fail(id, .invalidRequest, "unbekannte group fuer stage \(stageNum)"); return
+        }
+        keys = kProbeStage1 + entry.1     // Minimum + genau eine Gruppe
+        label = "stage\(stageNum)-\(g)"
+    default:
+        fail(id, .invalidRequest, "stage muss 1, 2 oder 3 sein"); return
+    }
+    stage("enumerate.validated")
+    stage("enumerate.auth_ok")
+    stage("enumerate.container_resolved")
+
+    stage("enumerate.keys_begin")
+    for k in keys { stage("enumerate.key.\(symbolicKeyName(k))") }
+    stage("enumerate.keys_complete")
+
+    let req = CNContactFetchRequest(keysToFetch: keys.map { $0 as CNKeyDescriptor })
+    req.unifyResults = false
+    stage("enumerate.request_constructed")
+
+    var count = 0
+    var serializedFirst = false
+    do {
+        stage("enumerate.fetch_begin")
+        try store.enumerateContacts(with: req) { c, _ in
+            if count == 0 { stage("enumerate.callback_entered") }
+            // Nur Feld-PRAESENZ pruefen — niemals Werte ausgeben.
+            var present: [String] = []
+            for k in keys where c.isKeyAvailable(k) {
+                present.append(symbolicKeyName(k))
+            }
+            if !serializedFirst {
+                stage("enumerate.serialized")
+                serializedFirst = true
+                emit(["id": id, "stream": "item",
+                      "item": ["keysPresent": present.sorted()]])
+                stage("enumerate.response_written")
+            }
+            count += 1
+        }
+        stage("enumerate.fetch_returned")
+        ok(id, ["count": count, "complete": true, "probe": label,
+                "keys": keys.map { symbolicKeyName($0) }.sorted()])
+        stage("enumerate.completed")
+    } catch let e as NSError {
+        stage("enumerate.fetch_error", error: .providerError)
+        fail(id, .providerError, "enumerateProbe: \(e.domain)/\(e.code)")
     }
 }
 
@@ -503,11 +680,17 @@ emit([
     "authorizationStatus": authStatusText(),
     "keySetVersion": kKeySetVersion,
     "transactionAuthor": kTransactionAuthor,
-    "caps": ["ping", "caps", "containers", "enumerate", "changes", "token",
-             "get", "getUnified", "create", "update", "updateViaUnified",
-             "delete", "requestAuthorization", "shutdown"],
+    "caps": ["ping", "caps", "containers", "enumerate", "enumerateProbe",
+             "changes", "token", "get", "getUnified", "create", "update",
+             "updateViaUnified", "delete", "requestAuthorization", "shutdown"],
     "limits": ["mutationsRestrictedToPrefix": kTestPrefix,
-               "linkUnlinkSupported": false],   // CNSaveRequest hat keine Link-API
+               "linkUnlinkSupported": false,   // CNSaveRequest hat keine Link-API
+               // Notes-Zugriff verlangt com.apple.developer.contacts.notes.
+               // Der Sidecar traegt bewusst KEINE Entitlements — die Faehigkeit
+               // wird daher ausdruecklich als nicht verfuegbar gemeldet und der
+               // Note-Key ist nicht Teil des Standard-Fetch. Kein Leerwert.
+               "notesSupported": false,
+               "notesUnavailableReason": "missing-entitlement"],
     // SPIKE-ONLY: Verfügbarkeit der ausdrücklichen Autorisierungsanforderung.
     "requestAuthorizationSupported": true,
     "requestAuthorizationEnabled": tccGateEnabled(),
@@ -533,7 +716,10 @@ while let line = readLine(strippingNewline: true) {
 
     switch op {
     case "ping":             ok(id, ["pong": true])
-    case "caps":             ok(id, ["protocol": kProtocolVersion,
+    case "enumerateProbe":   opEnumerateProbe(id, params)
+    case "caps":             ok(id, ["notesSupported": false,
+                                     "probeStagesSupported": true,
+                                     "protocol": kProtocolVersion,
                                      "authorizationStatus": authStatusText(),
                                      "keySetVersion": kKeySetVersion,
                                      "linkUnlinkSupported": false,

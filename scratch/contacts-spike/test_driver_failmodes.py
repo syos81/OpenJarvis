@@ -126,9 +126,19 @@ time.sleep(600)
     e = expect_error("05-stderr-begrenzt", sc, "ping", driver.ERR_REQUEST_TIMEOUT)
     tail = e.fields.get("stderr_tail") if e else []
     check("05b-stderr-max-20-zeilen", len(tail) <= 20, f"{len(tail)} Zeilen")
-    check("05c-stderr-pii-redigiert",
-          not any("@" in l for l in tail) and any("redigiert" in l for l in tail),
-          "E-Mail-artige Zeile wurde redigiert")
+    # Seit 2026-07-28: Zeilen ohne technischen Wert werden VERWORFEN statt als
+    # Platzhalter mitgefuehrt (sonst ertrinkt ein echter Crash-Dump in
+    # identischen Redaktionszeilen). Die PII darf in keinem Fall auftauchen;
+    # die Verwerfung wird mit einer Zaehlzeile ausgewiesen.
+    check("05c-stderr-pii-nicht-durchgereicht",
+          not any("@" in l for l in tail),
+          "keine E-Mail-artige Zeile im Bericht")
+    check("05d-verworfene-zeilen-ausgewiesen",
+          any("verworfen" in l for l in tail),
+          f"{[l for l in tail if 'verworfen' in l][:1]}")
+    check("05e-technische-stufen-bleiben",
+          any("stage=probe" in l for l in tail),
+          "Sidecar-Stufen weiterhin sichtbar")
 
     # 6) Falsche Request-ID -> response_id_mismatch, IDs festgehalten
     p = fake(tmp, "wrongid.py", """

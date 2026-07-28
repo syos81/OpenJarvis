@@ -175,6 +175,35 @@ Sidecar gegen die Profilwerte geprüft; nach dem Start folgt ein TOCTOU-Recheck
 Sidecar-Start, kein `requestAuthorization`, Exitcode ungleich 0.
 Details: `docs/testing/contacts-bridge-platform-authorization-profile-2026-07-28.md`.
 
+## SPIKE-ONLY: `enumerateProbe` (gestuft, ausschließlich lesend)
+
+Seit 2026-07-28. Grenzt die Absturzgrenze im enumerate-Pfad ein und **mutiert
+niemals**.
+
+| Params | Bedeutung |
+|---|---|
+| `{"stage":1}` | Minimum: `identifier`, `givenName`, `familyName` |
+| `{"stage":2,"group":"<g>"}` | Minimum **plus genau eine** unkritische Gruppe |
+| `{"stage":3,"group":"<g>"}` | Minimum **plus genau einen** Risikokandidaten |
+
+Stufe-2-Gruppen: `names-extended`, `organization`, `contact-type`, `emails`,
+`phones`, `postal`. Stufe-3-Gruppen: `image-available`, `thumbnail`,
+`image-data`, `birthday`, `dates`, `relations`, `social-profiles`,
+`instant-messages`, `note`.
+
+Antwort: `{"count","complete":true,"probe":"<label>","keys":[…]}`. Die
+Stream-Zeilen melden ausschließlich Feld-**Präsenz** (`{"keysPresent":[…]}`),
+niemals Werte.
+
+## Capability: Notizen nicht verfügbar
+
+`CNContactNoteKey` erfordert das Entitlement
+`com.apple.developer.contacts.notes`. Der Sidecar trägt keine Entitlements;
+der Schlüssel ist daher **nicht** Teil des Standard-Fetch. Gemeldet wird das im
+Handshake als `limits.notesSupported=false` mit
+`notesUnavailableReason="missing-entitlement"` und in `caps` als
+`notesSupported=false`. `note` wird **nicht** als leerer Wert ausgegeben.
+
 ## SPIKE-ONLY: Diagnose-Gate (stderr, keine Protokolländerung)
 
 Aktiv ausschließlich bei exakt `JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1`. Ohne
@@ -182,6 +211,14 @@ diesen Wert erscheint **keine** zusätzliche Ausgabe und das Verhalten bleibt
 unverändert. **stdout bleibt in jedem Fall reines JSON-Lines-Protokoll** — die
 Stufen gehen ausschließlich nach `stderr` in der Form `[sidecar] stage=<name>`
 bzw. `[sidecar] stage=<name> error=<code>`.
+
+**Enumerate-Stufen (2026-07-28):** `enumerate.received` · `validated` ·
+`auth_ok` · `container_resolved` · `keys_begin` · `key.<symbolischer_name>` je
+Schlüssel · `keys_complete` · `request_constructed` · `fetch_begin` ·
+`callback_entered` · `serialized` · `response_written` · `fetch_returned` ·
+`completed` (bzw. `fetch_error`, `auth_failed`). Die Schlüsselstufe wird **vor**
+dem jeweiligen Zugriff geschrieben; ausgegeben werden nur konstante symbolische
+Namen, niemals Kontaktwerte oder Identifier.
 
 Zweck ist die Eingrenzung des auf dem Intel-Mac beobachteten `create`-Timeouts
 (siehe `docs/testing/contacts-bridge-create-timeout-diagnostics-2026-07-27.md`).
