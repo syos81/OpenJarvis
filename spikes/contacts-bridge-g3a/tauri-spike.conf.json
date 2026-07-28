@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "externalBin": ["binaries/jarvis-contacts"],
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "12.3"
+    }
+  }
+}

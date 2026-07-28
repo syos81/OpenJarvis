@@ -1,0 +1,3 @@
+# Build-Ausgaben des Spike-Sidecars (Mach-O, Objektdateien, generierte Plist).
+# Ausschliesslich dieses Verzeichnis — der Quellcode daneben bleibt versioniert.
+build/

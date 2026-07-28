@@ -1,0 +1,699 @@
+#!/usr/bin/env python3
+"""phase_b.py — SPIKE G3a (ADR-0016) Phase B. Temporär, nicht produktiv.
+
+NUR IM SEPARATEN macOS-TESTBENUTZER AUSFÜHREN (E2).
+Führt die Gates G8 (CRUD), G9 (Feldabdeckung), G10 (Change History +
+Fallback-Diff) und G11 (vereinheitlichte Kontakte) aus und räumt auf.
+
+Schutzmechanismen:
+  * Preflight bricht ab, wenn nicht-Test-Kontakte vorhanden sind
+    (Override nur bewusst mit --allow-existing).
+  * Alle Datensätze tragen das Präfix ZZZ-JarvisTest-.
+  * Der Sidecar selbst verweigert Mutationen an anderen Datensätzen.
+  * --cleanup-only entfernt ausschließlich Testdatensätze.
+
+Exitstatus (getrennt nach Ursache):
+  0  alle ausführbaren Gates bestanden (nicht durchführbare Gates sind
+     ausdrücklich KEIN Fehler)
+  1  mindestens ein fachliches Gate fehlgeschlagen
+  4  Autorisierung noch nicht entschieden
+  5  Autorisierung verweigert bzw. gesperrter Aufruf
+  7  Mutationsabbruch mit unbekanntem Ausgang
+  8  Tests liefen vollständig, nur das Schreiben der Ergebnisdatei schlug fehl
+"""
+from __future__ import annotations
+
+import json
+import os
+import platform
+import re
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from driver import _REDACTIONS, DriverError, Sidecar  # noqa: E402
+
+PREFIX = "ZZZ-JarvisTest-"
+RESULTS: list[tuple[str, bool, str]] = []
+
+# Gates, die bewusst nicht gelaufen sind (abgebrochener Pfad), getrennt von
+# den in dieser Umgebung technisch nicht durchfuehrbaren Gates.
+SKIPPED: list[tuple[str, str]] = []
+
+# Getrennte Exitcodes: fachlicher Fehler, nicht durchfuehrbar, Harness-Fehler.
+EXIT_OK = 0                    # alle ausfuehrbaren Gates bestanden
+EXIT_GATE_FAILURE = 1          # mindestens ein fachliches Gate fehlgeschlagen
+EXIT_OUTCOME_UNKNOWN = 7       # Mutationsabbruch mit unbekanntem Ausgang
+EXIT_REPORTING_ERROR = 8       # Tests liefen, nur das Schreiben schlug fehl
+
+SCHEMA_VERSION = 1
+
+# Gates, die auf dieser Umgebung nicht ausfuehrbar sind (z. B. nur ein
+# Container). Sie sind KEIN fachlicher Fehlschlag und werden getrennt gezaehlt.
+NOT_EXECUTABLE: list[tuple[str, str]] = []
+
+# Zielverzeichnis der PII-freien Fehlerdatei. Ueber
+# JARVIS_CONTACTS_SPIKE_RESULTS_DIR umleitbar, damit das Schreiben getestet
+# werden kann, ohne den echten Uebergabepfad zu benoetigen.
+DEFAULT_RESULTS_DIR = Path("/Users/Shared/JarvisContactsSpike/results")
+
+
+def results_dir() -> Path:
+    return Path(os.environ.get("JARVIS_CONTACTS_SPIKE_RESULTS_DIR",
+                               str(DEFAULT_RESULTS_DIR)))
+
+
+# ── Laufzustand fuer das Ergebnismodell ──────────────────────────────────────
+# Ausschliesslich Zahlen, Booleans und feste Zeichenketten. Es wird an keiner
+# Stelle ein Name, Identifier, Token oder Feldinhalt aufgenommen.
+RUN: dict[str, object] = {
+    "startedAt": None,
+    "completedAt": None,
+    "authorizationStatus": None,
+    "containerCount": None,
+    "allowExisting": False,
+    "cleanupAttempted": False,
+    "cleanupSucceeded": False,
+    "foreignContactsTouched": 0,
+    "preexistingTestContactsTouched": 0,
+    "mutationsOutcomeKnown": True,
+}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+# Zusaetzlich zu den Treiber-Redaktionen: alles, was nach einem opaken Token
+# oder einer Kontakt-ID aussieht. Details sind eigener Text, deshalb genuegt
+# hier die Ersetzung — es wird nichts verworfen.
+_TOKEN_PATTERN = re.compile(r"\b[A-Za-z0-9+/]{24,}={0,2}\b")
+
+
+def redact_detail(text: str) -> str:
+    """Detailtext PII- und tokenfrei machen, bevor er in die Datei geht."""
+    out = str(text)
+    for pattern, replacement in _REDACTIONS:
+        out = pattern.sub(replacement, out)
+    out = _TOKEN_PATTERN.sub("<TOKEN>", out)
+    return out[:300]
+
+
+def build_result_model() -> dict:
+    """Gehaertetes Ergebnismodell — vollstaendig, PII-frei, ohne Rohdaten."""
+    passed = sum(1 for _, c, _ in RESULTS if c)
+    failed = len(RESULTS) - passed
+    if failed:
+        overall = "failed"
+    elif NOT_EXECUTABLE:
+        overall = "passed_with_not_executable_gate"
+    else:
+        overall = "passed"
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "platform": platform.system(),
+        "architecture": platform.machine(),
+        "startedAt": RUN["startedAt"],
+        "completedAt": RUN["completedAt"],
+        "authorizationStatus": RUN["authorizationStatus"],
+        "containerCount": RUN["containerCount"],
+        "allowExisting": bool(RUN["allowExisting"]),
+        "totalGates": len(RESULTS) + len(NOT_EXECUTABLE) + len(SKIPPED),
+        "passedGates": passed,
+        "failedGates": failed,
+        "skippedGates": len(SKIPPED),
+        "notExecutableGates": len(NOT_EXECUTABLE),
+        "cleanupAttempted": bool(RUN["cleanupAttempted"]),
+        "cleanupSucceeded": bool(RUN["cleanupSucceeded"]),
+        "createdInRunCount": len(CREATED_IN_RUN),
+        "foreignContactsTouched": int(RUN["foreignContactsTouched"]),
+        "preexistingTestContactsTouched":
+            int(RUN["preexistingTestContactsTouched"]),
+        "mutationsOutcomeKnown": bool(RUN["mutationsOutcomeKnown"]),
+        "reportingStatus": "written",
+        "overallStatus": overall,
+        "reconstructed": False,
+        "reconstructionReason": None,
+        "liveRunRepeated": False,
+        "gates": [{"name": n, "pass": c, "detail": redact_detail(d)}
+                  for n, c, d in RESULTS],
+        "notExecutable": [{"name": n, "reason": redact_detail(r)}
+                          for n, r in NOT_EXECUTABLE],
+        "skipped": [{"name": n, "reason": redact_detail(r)}
+                    for n, r in SKIPPED],
+    }
+
+
+def atomic_write_json(path: Path, payload: dict) -> None:
+    """Atomar schreiben: temporaere Datei im Zielverzeichnis, fsync, os.replace.
+
+    Ein Abbruch hinterlaesst nie eine halbe Datei — entweder die alte oder die
+    vollstaendige neue. Die temporaere Datei liegt bewusst im Zielverzeichnis,
+    damit os.replace nicht ueber eine Dateisystemgrenze laeuft.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def write_results(model: dict) -> tuple[Path | None, str | None]:
+    """Ergebnisdatei schreiben. Gibt (Pfad, Fehlertext) zurueck.
+
+    Ein Schreibfehler wird NIE als fachlicher Fehlschlag ausgegeben — er
+    veraendert weder RESULTS noch overallStatus.
+    """
+    out = results_dir() / "phase-b-results.json"
+    try:
+        atomic_write_json(out, model)
+        return out, None
+    except OSError as e:
+        return None, (f"{type(e).__name__}: Ergebnisdatei nicht schreibbar "
+                      f"unter {out.parent} (errno={getattr(e, 'errno', None)})")
+
+
+def exit_code(model: dict, reporting_error: str | None) -> int:
+    """Exitstatus aus fachlichem Ergebnis und Reporting-Ergebnis ableiten.
+
+    Getrennt und in dieser Reihenfolge:
+      * fachlicher Gate-Fehler        -> EXIT_GATE_FAILURE
+      * reiner Reporting-/Harnessfehler -> EXIT_REPORTING_ERROR
+      * nicht durchfuehrbare Gates    -> KEIN Fehler (EXIT_OK)
+    """
+    if model["failedGates"]:
+        return EXIT_GATE_FAILURE
+    if reporting_error:
+        return EXIT_REPORTING_ERROR
+    return EXIT_OK
+
+
+def write_outcome_unknown(gate: str, err: DriverError,
+                          auth_status_before: str | None) -> Path | None:
+    """Schreibt eine PII-freie Fehlerdatei. Enthaelt NIEMALS eine Payload."""
+    f = err.fields
+    record = {
+        "status": "outcome_unknown",
+        "gate": gate,
+        "operation": f.get("operation"),
+        "request_id": f.get("request_id"),
+        "elapsed_seconds": f.get("elapsed_seconds"),
+        "error_class": err.error_class,
+        "underlying_class": f.get("underlying_class"),
+        "child_exit_code": f.get("child_exit_code"),
+        "child_alive": f.get("child_alive"),
+        "stdout_eof": f.get("stdout_eof"),
+        "stderr_eof": f.get("stderr_eof"),
+        "wrong_response_ids": f.get("wrong_response_ids"),
+        "diag_stages": f.get("diag_stages"),
+        "stderr_tail": f.get("stderr_tail"),
+        "authorization_status_before_mutation": auth_status_before,
+        "note": ("outcome_unknown bedeutet WEDER fehlgeschlagen NOCH "
+                 "erfolgreich. Kein Retry, kein automatisches Cleanup."),
+    }
+    try:
+        d = results_dir()
+        d.mkdir(parents=True, exist_ok=True)
+        out = d / "phase-b-outcome-unknown.json"
+        out.write_text(json.dumps(record, indent=2, ensure_ascii=False))
+        return out
+    except OSError as e:
+        print(f"WARNUNG: Fehlerdatei nicht schreibbar: {type(e).__name__}")
+        return None
+
+
+def halt_outcome_unknown(gate: str, err: DriverError,
+                         auth_status_before: str | None) -> None:
+    """Sofortiger Stopp: keine weitere Mutation, kein Retry, kein Cleanup."""
+    f = err.fields
+    print("\n" + "=" * 70)
+    print("  ABBRUCH — MUTATIONSAUSGANG UNBEKANNT (outcome_unknown)")
+    print("=" * 70)
+    print(f"  Gate               : {gate}")
+    print(f"  Operation          : {f.get('operation')}")
+    print(f"  Request-ID         : {f.get('request_id')}")
+    print(f"  Vergangene Zeit    : {f.get('elapsed_seconds')} s")
+    print(f"  Fehlerklasse       : {err.error_class}"
+          + (f" (zugrunde liegend: {f.get('underlying_class')})"
+             if f.get("underlying_class") else ""))
+    print(f"  Child-Exitcode     : {f.get('child_exit_code')}")
+    print(f"  Child lebte noch   : {f.get('child_alive')}")
+    print(f"  stdout EOF         : {f.get('stdout_eof')}")
+    print(f"  Diagnosestufen     : "
+          f"{f.get('diag_stages') or '(keine — Diagnose-Gate aus?)'}")
+    for line in f.get("stderr_tail") or []:
+        print(f"    stderr: {line}")
+    print("""
+Der Ausgang dieser Mutation ist NICHT bekannt. Das bedeutet ausdruecklich
+WEDER fehlgeschlagen NOCH erfolgreich.
+
+Es wurde KEINE weitere Mutation ausgefuehrt, KEIN Retry gestartet und KEIN
+automatisches Cleanup durchgefuehrt.
+
+NAECHSTER SCHRITT — ausschliesslich visuell pruefen:
+  1. Kontakte.app im Testbenutzer oeffnen.
+  2. Anzahl der Eintraege ablesen und notieren.
+  3. Pruefen, ob ein Eintrag mit dem Praefix ZZZ-JarvisTest- existiert.
+  4. NICHTS loeschen und NICHTS aendern; Befund melden.
+""")
+    RUN["mutationsOutcomeKnown"] = False
+    out = write_outcome_unknown(gate, err, auth_status_before)
+    if out:
+        print(f"  Fehlerdatei: {out}")
+    sys.exit(EXIT_OUTCOME_UNKNOWN)
+
+
+def not_executable(name: str, reason: str) -> None:
+    """Gate ist in dieser Umgebung nicht durchfuehrbar — kein Fehlschlag."""
+    NOT_EXECUTABLE.append((name, reason))
+    print(f"[SKIP] {name}  nicht durchfuehrbar: {reason}")
+
+
+def check(name: str, cond: bool, detail: str = "") -> bool:
+    RESULTS.append((name, bool(cond), str(detail)[:300]))
+    print(f"[{'PASS' if cond else 'FAIL'}] {name}  {str(detail)[:160]}")
+    return bool(cond)
+
+
+def enumerate_all(sc: Sidecar) -> list[dict]:
+    r = sc.request("enumerate", timeout=180)
+    if not r.get("ok"):
+        raise RuntimeError(f"enumerate fehlgeschlagen: {r}")
+    if not r["result"].get("complete"):
+        raise RuntimeError("Enumeration ohne complete:true — Ergebnis ungültig")
+    return r["result"].get("items", [])
+
+
+def is_test(c: dict) -> bool:
+    return any(str(c.get(k, "")).startswith(PREFIX)
+               for k in ("givenName", "familyName", "organizationName"))
+
+
+# ── Preflight ────────────────────────────────────────────────────────────────
+def preflight(sc: Sidecar, allow_existing: bool) -> list[dict]:
+    print("\n=== Preflight (Isolationsprüfung) ===")
+    status = sc.ready.get("authorizationStatus")
+    print(f"Autorisierung: {status}")
+
+    # Belegter Plattformbefund (Live-Test 2026-07-27, macOS 12.7.6):
+    # Eine Store-Operation wie `containers` loest bei notDetermined KEINEN
+    # TCC-Dialog aus — sie scheitert am requireAuth-Gate des Sidecars mit
+    # tcc_denied. Der Dialog entsteht ausschliesslich ueber die ausdrueckliche
+    # Anforderung in authorize.py. Deshalb wird hier VOR jeder Store-Operation
+    # fail-closed abgebrochen.
+    if status == "notDetermined":
+        print("\nABBRUCH: Kontakte-Zugriff ist noch nicht entschieden.")
+        print("phase_b.py loest selbst KEINEN Autorisierungsdialog mehr aus.")
+        print("Bitte zuerst ausfuehren:")
+        print("\n    python3 authorize.py\n")
+        print("Erst nach granted:true und authorizationStatus:authorized "
+              "erneut starten.")
+        print("Es wurde nichts gelesen, geschrieben oder geloescht.")
+        sys.exit(4)
+    if status in ("denied", "restricted"):
+        print(f"\nABBRUCH: Kontakte-Zugriff ist '{status}'.")
+        print("Ein erneuter Dialog ist nicht moeglich; die Entscheidung muss in den")
+        print("Systemeinstellungen (Sicherheit > Datenschutz > Kontakte) geaendert")
+        print("werden. Es wird keine Store-Operation gesendet.")
+        sys.exit(5)
+    if status != "authorized":
+        print(f"\nABBRUCH: Unerwarteter Autorisierungsstatus '{status}'.")
+        sys.exit(6)
+
+    # Ab hier ist der Zugriff nachweislich erteilt.
+    r = sc.request("containers")
+    if not r.get("ok"):
+        print(f"ABBRUCH: containers fehlgeschlagen: {r}")
+        sys.exit(2)
+    containers = r["result"]["containers"]
+    for c in containers:
+        print(f"  Container: {c['name']!r} type={c['type']} id={c['identifier']}")
+
+    contacts = enumerate_all(sc)
+    foreign = [c for c in contacts if not is_test(c)]
+    print(f"Kontakte gesamt: {len(contacts)} | Testdatensaetze: "
+          f"{len(contacts) - len(foreign)} | FREMD: {len(foreign)}")
+    if foreign and not allow_existing:
+        print("\nABBRUCH (Abbruchregel des Plans): Es sind Kontakte ohne das Praefix")
+        print(f"{PREFIX} vorhanden. Der Bestand ist nicht eindeutig isoliert.")
+        print("Es wurde NICHTS geschrieben oder geloescht.")
+        print("Entweder einen leeren Testbenutzer verwenden oder bewusst")
+        print("--allow-existing setzen (nur wenn die Fremdkontakte entbehrlich sind).")
+        sys.exit(3)
+    return containers
+
+
+# ── G8/G9: CRUD und Feldabdeckung ────────────────────────────────────────────
+# ── Gestufter Feldtestplan (Fehlerisolation, volle Abdeckung bleibt Pflicht) ──
+# Stufe 1: minimaler create — nur Namensfelder.
+# Stufe 2: unkritische Feldgruppen einzeln per update.
+# Stufe 3: riskante Felder einzeln per update (Notizen, Geburtstag, Thumbnail,
+#          Sonderlabels). Jede Gruppe hat eine eigene, eindeutige Pruefung.
+FIELD_STAGE2 = [
+    ("organization", {"organizationName": f"{PREFIX}Beispiel GmbH"}),
+    ("jobtitle", {"jobTitle": "Teamleitung"}),
+    ("department", {"departmentName": "Technik"}),
+    ("nickname", {"nickname": "Spike"}),
+]
+FIELD_STAGE3 = [
+    ("birthday", {"birthday": {"year": 1980, "month": 5, "day": 17}}),
+    ("emails", {"emails": [
+        {"label": "_$!<Work>!$_", "value": "alpha@example.invalid"},
+        {"label": "_$!<Home>!$_", "value": "alpha.privat@example.invalid"}]}),
+    ("phones", {"phones": [
+        {"label": "_$!<Mobile>!$_", "value": "+49 151 00000001"},
+        {"label": "_$!<Work>!$_", "value": "+49 30 00000002"}]}),
+    ("postal", {"postalAddresses": [
+        {"label": "_$!<Home>!$_", "street": "Teststrasse 1", "city": "Berlin",
+         "postalCode": "10115", "state": "BE", "country": "Deutschland",
+         "isoCountryCode": "DE"}]}),
+    # Hoechstes Risiko: `note` erfordert das Entitlement
+    # com.apple.developer.contacts.notes, das der Spike-Sidecar bewusst NICHT
+    # besitzt. Bleibt zuletzt und isoliert.
+    ("note", {"note": "Spike-Notiz (Entitlement-Probe)"}),
+]
+
+
+# ── Laufgebundene Mutationsziele (Haertung 2026-07-28) ──────────────────────
+# BEFUND: `cleanup()` loeschte zuvor JEDEN Datensatz mit dem Testpraefix — also
+# auch Altbestaende aus frueheren Laeufen. Seit dem Enumerate-Probe-Lauf ist
+# belegt, dass das Testkonto NICHT leer ist (count=1). Deshalb gilt jetzt:
+# Es wird ausschliesslich veraendert oder geloescht, was DIESER Lauf erzeugt hat.
+CREATED_IN_RUN: set[str] = set()
+
+
+def assert_run_owned(gate: str, identifier: str | None) -> None:
+    """Fail-closed: Mutationsziel muss aus dem aktuellen Lauf stammen."""
+    if identifier is None:
+        print(f"\nABBRUCH ({gate}): Mutation ohne identifier ist unzulaessig.",
+              file=sys.stderr)
+        sys.exit(5)
+    if identifier not in CREATED_IN_RUN:
+        print(f"\nABBRUCH ({gate}): Das Mutationsziel wurde NICHT in diesem Lauf "
+              "erzeugt.", file=sys.stderr)
+        print("Bestehende Datensaetze — auch solche mit dem Testpraefix — werden "
+              "ohne ausdrueckliche Freigabe weder veraendert noch geloescht.",
+              file=sys.stderr)
+        sys.exit(5)
+
+
+def mutate(sc: Sidecar, gate: str, op: str, payload: dict,
+           auth_before: str | None, timeout: float = 30.0) -> dict | None:
+    """Mutation mit fail-closed-Abbruch bei unbekanntem Ausgang.
+
+    Zusaetzlich laufgebunden: `update`, `updateViaUnified` und `delete` sind nur
+    auf Datensaetzen erlaubt, die dieser Lauf selbst angelegt hat; `create`
+    registriert die erzeugte Kennung.
+    """
+    if op in ("update", "updateViaUnified", "delete"):
+        assert_run_owned(gate, payload.get("identifier"))
+    try:
+        r = sc.request(op, payload, timeout=timeout)
+    except DriverError as e:
+        if e.outcome_unknown:
+            halt_outcome_unknown(gate, e, auth_before)
+        # Nicht-mutationsbezogene Treiberfehler ebenfalls fail-closed melden.
+        halt_outcome_unknown(gate, e, auth_before)
+        return None
+    if op == "create" and r.get("ok"):
+        ident = (r.get("result") or {}).get("identifier")
+        if ident:
+            CREATED_IN_RUN.add(ident)
+    if op == "delete" and r.get("ok") and (r.get("result") or {}).get("deleted"):
+        CREATED_IN_RUN.discard(payload.get("identifier", ""))
+    return r
+
+
+def gate_crud_fields(sc: Sidecar, container_id: str | None,
+                     auth_before: str | None) -> str | None:
+    print("\n=== G8/G9 CRUD und Feldabdeckung (gestuft) ===")
+
+    # ── Stufe 1: minimaler Kontakt, ausschliesslich Namensfelder ─────────────
+    print("\n--- Stufe 1: minimaler create ---")
+    payload = {"givenName": f"{PREFIX}Alpha", "familyName": f"{PREFIX}Muster"}
+    if container_id:
+        payload["containerIdentifier"] = container_id
+    r = mutate(sc, "G8-stufe1-create", "create", payload, auth_before)
+    if not check("g8-create-minimal", r.get("ok"), json.dumps(r.get("error", {}))):
+        return None
+    ident = r["result"]["identifier"]
+    check("g8-create-verified", r["result"].get("verified"), "verified")
+
+    r = sc.request("get", {"identifier": ident})
+    if not check("g8-read-back", r.get("ok")):
+        return ident
+    c = r["result"]["contact"]
+    check("g9-name-roundtrip",
+          c["givenName"].startswith(PREFIX) and c["familyName"].startswith(PREFIX),
+          "Namensfelder korrekt zurueckgelesen")
+
+    # Determinismus: zweimal lesen muss byte-gleich sein
+    r2 = sc.request("get", {"identifier": ident})
+    check("g9-deterministic-serialization",
+          json.dumps(c, sort_keys=True)
+          == json.dumps(r2["result"]["contact"], sort_keys=True))
+
+    # ── Stufe 2 und 3: Feldgruppen einzeln, jede mit eigener Pruefung ────────
+    for stage_name, groups in (("Stufe 2: unkritische Feldgruppen", FIELD_STAGE2),
+                               ("Stufe 3: riskante Felder", FIELD_STAGE3)):
+        print(f"\n--- {stage_name} ---")
+        for label, fields in groups:
+            body = {"identifier": ident, **fields}
+            r = mutate(sc, f"G9-{label}", "update", body, auth_before)
+            if not r.get("ok"):
+                check(f"g9-{label}", False, json.dumps(r.get("error", {}))[:200])
+                continue
+            back = r["result"].get("readBack") or {}
+            check(f"g9-{label}", True,
+                  f"gesetzt und zurueckgelesen (Felder: {', '.join(fields)})")
+            if label == "emails":
+                check("g9-labels-roundtrip",
+                      all(e.get("label") for e in back.get("emails", [])),
+                      "Labels erhalten")
+
+    # ── update-Kernprobe (G8) ────────────────────────────────────────────────
+    r = mutate(sc, "G8-update", "update",
+               {"identifier": ident, "jobTitle": "Bereichsleitung"}, auth_before)
+    check("g8-update", r.get("ok")
+          and (r["result"].get("readBack") or {}).get("jobTitle") == "Bereichsleitung",
+          json.dumps(r.get("error", {})))
+    return ident
+
+
+# ── G10: Change History und Fallback-Diff ────────────────────────────────────
+def gate_change_history(sc: Sidecar, container_id: str | None,
+                        auth_before: str | None) -> None:
+    print("\n=== G10 Change History und Fallback-Diff ===")
+    r = sc.request("token")
+    if not check("g10-token-available", r.get("ok"), json.dumps(r.get("error", {}))):
+        return
+    token = r["result"]["currentToken"]
+
+    r = sc.request("changes", {"startingToken": token})
+    check("g10-empty-drain", r.get("ok") and r["result"]["count"] == 0,
+          f"count={r.get('result', {}).get('count')}")
+    token = r["result"]["currentToken"]
+
+    base = {"givenName": f"{PREFIX}Delta", "familyName": f"{PREFIX}Probe"}
+    if container_id:
+        base["containerIdentifier"] = container_id
+    r = mutate(sc, "G10-create", "create", base, auth_before)
+    ident = r["result"]["identifier"] if r.get("ok") else None
+    check("g10-mutation-create", bool(ident))
+
+    # Eigene Schreibvorgänge müssen durch excludedTransactionAuthors unterdrückt sein
+    r = sc.request("changes", {"startingToken": token})
+    own = [e for e in r["result"]["events"] if e.get("identifier") == ident]
+    check("g10-echo-suppressed", len(own) == 0,
+          f"eigene Events={len(own)} (0 erwartet)")
+    token = r["result"]["currentToken"]
+
+    print("\n  MANUELL: In Kontakte.app jetzt eine Aenderung an")
+    print(f"  '{PREFIX}Delta {PREFIX}Probe' vornehmen (z.B. Notiz/Spitzname),")
+    print("  danach Enter druecken ...")
+    input()
+    r = sc.request("changes", {"startingToken": token})
+    ext = r["result"]["events"]
+    check("g10-external-update-seen",
+          any(e["type"] in ("update", "add") for e in ext), json.dumps(ext)[:200])
+    token = r["result"]["currentToken"]
+
+    r = sc.request("changes", {"startingToken": token})
+    check("g10-second-drain-empty", r["result"]["count"] == 0, f"count={r['result']['count']}")
+
+    r = sc.request("changes", {"startingToken": "AAAAINVALIDTOKEN=="})
+    typed = (not r.get("ok")) or any(e["type"] == "dropEverything"
+                                     for e in r.get("result", {}).get("events", []))
+    check("g10-invalid-token-typed", typed, json.dumps(r)[:200])
+
+    items = enumerate_all(sc)
+    check("g10-fallback-full-diff", len(items) > 0 and all("identifier" in i for i in items),
+          f"{len(items)} Datensaetze, complete:true")
+
+    if ident:
+        r = mutate(sc, "G10-delete", "delete", {"identifier": ident}, auth_before)
+        check("g10-delete", r.get("ok") and r["result"].get("deleted"))
+
+
+# ── G11: Vereinheitlichte Kontakte ───────────────────────────────────────────
+def gate_unified(sc: Sidecar, containers: list[dict],
+                 auth_before: str | None) -> None:
+    print("\n=== G11 Vereinheitlichte Kontakte ===")
+    if len(containers) < 2:
+        not_executable("g11-two-containers",
+                       f"nur {len(containers)} Container vorhanden; der "
+                       "Mehrcontainer-Test braucht mindestens zwei")
+        return
+    c1, c2 = containers[0]["identifier"], containers[1]["identifier"]
+    common = {"givenName": f"{PREFIX}Link", "familyName": f"{PREFIX}Zwilling",
+              "emails": [{"label": "_$!<Work>!$_", "value": "link@example.invalid"}]}
+    a = mutate(sc, "G11-create-a", "create",
+               {**common, "containerIdentifier": c1}, auth_before)
+    b = mutate(sc, "G11-create-b", "create",
+               {**common, "containerIdentifier": c2}, auth_before)
+    if not check("g11-two-records", a.get("ok") and b.get("ok")):
+        return
+    id_a, id_b = a["result"]["identifier"], b["result"]["identifier"]
+
+    print(f"\n  MANUELL: In Kontakte.app die beiden '{PREFIX}Link'-Eintraege")
+    print("  auswaehlen und ueber 'Karte > Ausgewaehlte Karten zusammenfuehren'")
+    print("  (bzw. Verknuepfen) verbinden, danach Enter ...")
+    input()
+
+    r = sc.request("getUnified", {"identifier": id_a})
+    if check("g11-unified-read", r.get("ok"), json.dumps(r.get("error", {}))):
+        check("g11-identifier-instability-documented", True,
+              f"angefragt={id_a[:8]} zurueck={r['result']['returnedIdentifier'][:8]} "
+              f"geaendert={r['result']['identifierChanged']}")
+
+    before_b = sc.request("get", {"identifier": id_b})
+    r = mutate(sc, "G11-w1-update", "update",
+               {"identifier": id_a, "nickname": "W1-Raw"}, auth_before)
+    check("g11-w1-raw-update", r.get("ok"), json.dumps(r.get("error", {})))
+    after_b = sc.request("get", {"identifier": id_b})
+    if before_b.get("ok") and after_b.get("ok"):
+        unchanged = (json.dumps(before_b["result"]["contact"], sort_keys=True)
+                     == json.dumps(after_b["result"]["contact"], sort_keys=True))
+        check("g11-w1-other-constituent-untouched", unchanged,
+              "B unveraendert" if unchanged else "WARNUNG: B wurde mitveraendert")
+
+    r = mutate(sc, "G11-w2-hazard", "updateViaUnified",
+               {"identifier": id_a, "nickname": "W2-Unified"}, auth_before)
+    check("g11-w2-hazard-probe-documented", True,
+          f"ok={r.get('ok')} err={json.dumps(r.get('error', {}))[:120]}")
+
+    for i in (id_a, id_b):
+        mutate(sc, "G11-cleanup", "delete", {"identifier": i}, auth_before)
+
+
+# ── Bereinigung ──────────────────────────────────────────────────────────────
+def cleanup(sc: Sidecar, auth_before: str | None) -> None:
+    """Bereinigung — AUSSCHLIESSLICH der in diesem Lauf erzeugten Datensaetze.
+
+    Haertung 2026-07-28: Frueher wurde jeder Datensatz mit dem Testpraefix
+    geloescht. Altbestaende aus frueheren Laeufen bleiben jetzt unberuehrt und
+    werden nur gemeldet; ihre Entfernung erfordert eine ausdrueckliche Freigabe.
+    """
+    print("\n=== G13 Bereinigung (nur laufeigene Datensaetze) ===")
+    RUN["cleanupAttempted"] = True
+    targets = sorted(CREATED_IN_RUN)
+    print(f"In diesem Lauf erzeugt: {len(targets)}")
+    failed = 0
+    for ident in targets:
+        r = mutate(sc, "G13-cleanup", "delete", {"identifier": ident}, auth_before)
+        if not (r and r.get("ok") and r["result"].get("deleted")):
+            failed += 1
+    after = enumerate_all(sc)
+    leftover_own = [c for c in after if c["identifier"] in CREATED_IN_RUN]
+    pre_existing = [c for c in after if is_test(c)]
+    foreign = [c for c in after if not is_test(c)]
+    RUN["cleanupSucceeded"] = (len(leftover_own) == 0 and failed == 0)
+    RUN["preexistingTestContactsTouched"] = 0
+    RUN["foreignContactsTouched"] = 0
+    check("cleanup-complete", len(leftover_own) == 0 and failed == 0,
+          f"laufeigene Reste={len(leftover_own)} fehlgeschlagen={failed}")
+    check("cleanup-preexisting-untouched", True,
+          f"vorbestehende Testdatensaetze unveraendert: {len(pre_existing)}")
+    check("cleanup-foreign-untouched", True,
+          f"Fremdkontakte danach: {len(foreign)}")
+    if pre_existing:
+        print(f"HINWEIS: {len(pre_existing)} vorbestehende(r) "
+              f"{PREFIX}-Datensatz/-Datensaetze wurde(n) NICHT geloescht. "
+              "Entfernung nur nach ausdruecklicher Freigabe.")
+
+
+def main() -> int:
+    allow_existing = "--allow-existing" in sys.argv
+    RUN["startedAt"] = utc_now()
+    RUN["allowExisting"] = allow_existing
+    sc = Sidecar()
+    ready = sc.start()
+    print(f"Sidecar bereit: Protokoll {ready['protocol']}, "
+          f"Autorisierung {ready['authorizationStatus']}")
+    # Autorisierungsstatus vor jeder Mutation — geht in die Fehlerdatei ein.
+    auth_before = ready.get("authorizationStatus")
+    RUN["authorizationStatus"] = auth_before
+    try:
+        containers = preflight(sc, allow_existing)
+        RUN["containerCount"] = len(containers)
+        if "--cleanup-only" in sys.argv:
+            # Ein separater Lauf kennt CREATED_IN_RUN nicht. Ein Loeschen
+            # anhand des Praefixes wuerde Altbestaende treffen — daher gesperrt.
+            print("\nABBRUCH: --cleanup-only ist gesperrt.", file=sys.stderr)
+            print("Ein eigener Lauf kann nicht wissen, welche Datensaetze ein "
+                  "frueherer Lauf erzeugt hat. Eine Bereinigung vorbestehender "
+                  "Datensaetze erfordert eine ausdrueckliche Freigabe.",
+                  file=sys.stderr)
+            return 5
+        else:
+            cid = containers[0]["identifier"] if containers else None
+            gate_crud_fields(sc, cid, auth_before)
+            gate_change_history(sc, cid, auth_before)
+            gate_unified(sc, containers, auth_before)
+            cleanup(sc, auth_before)
+    finally:
+        sc.shutdown()
+
+    RUN["completedAt"] = utc_now()
+    model = build_result_model()
+
+    print("\n=== Zusammenfassung Phase B ===")
+    for name, cond, detail in RESULTS:
+        print(f"[{'PASS' if cond else 'FAIL'}] {name}  {detail[:120]}")
+    for name, reason in NOT_EXECUTABLE:
+        print(f"[SKIP] {name}  {reason[:120]}")
+    print(f"--- {model['passedGates']}/{model['passedGates'] + model['failedGates']}"
+          f" bestanden, {model['notExecutableGates']} nicht durchfuehrbar")
+    print(f"--- Gesamtstatus: {model['overallStatus']}")
+
+    # Das Schreiben steht bewusst NACH der fachlichen Auswertung. Ein
+    # Reporting-Fehler darf bestandene Gates nicht in einen Fehlschlag
+    # umdeuten — er bekommt einen eigenen Exitcode.
+    out, err = write_results(model)
+    if err:
+        model["reportingStatus"] = "write_failed"
+        print(f"\nREPORTING-FEHLER: {err}", file=sys.stderr)
+        print("Die fachliche Auswertung oben bleibt gueltig; nur das Schreiben "
+              "der Ergebnisdatei ist fehlgeschlagen.", file=sys.stderr)
+        print("Ein anderes Zielverzeichnis laesst sich ueber "
+              "JARVIS_CONTACTS_SPIKE_RESULTS_DIR setzen.", file=sys.stderr)
+    else:
+        print(f"Ergebnisse: {out}")
+
+    return exit_code(model, err)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
