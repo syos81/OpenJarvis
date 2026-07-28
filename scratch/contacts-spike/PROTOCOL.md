@@ -147,6 +147,34 @@ unverändert.
 Der vorgesehene Aufrufweg ist ausschließlich `authorize.py`, das vor der
 Anforderung eine wörtliche manuelle Bestätigung verlangt.
 
+### Plattformprofil (seit 2026-07-28)
+
+`authorize.py` bezieht Architektur und Zertifikats-Leaf **nicht** aus dem
+Python-Code, sondern aus einem lokalen, schreibgeschützten Profil des
+Übergabepakets:
+
+```
+<HANDOFF>/tools/authorization-profile.json
+```
+
+Das Profil wird bei der administrativen Paketbereitstellung aus unabhängig
+geprüften Build- und Signaturwerten erzeugt und **niemals aus dem zu prüfenden
+Sidecar abgeleitet** — das wäre eine zirkuläre Identitätsprüfung. Der
+Sidecar-SHA-256 steht bewusst nicht im Profil; dafür bleibt der eindeutige
+Eintrag in `SHA256SUMS.txt` die einzige Quelle.
+
+Im Live-Betrieb sind Profilpfad und Erwartungswerte **weder per CLI-Argument
+noch per Umgebungsvariable** überschreibbar. Der Code ist auf arm64 und x86_64
+identisch; nur das Profil unterscheidet sich lokal. `uname` dient ausschließlich
+der Verifikation gegen den Profilwert, nie der Auswahl.
+
+Vor dem Start werden Profil (Pfad, Symlinks, Eigentümer, Schreibrechte,
+Manifest-Hash, Schema, Wertebereiche, rekonstruierte DR) und anschließend der
+Sidecar gegen die Profilwerte geprüft; nach dem Start folgt ein TOCTOU-Recheck
+über **Sidecar- und Profil-Hash**. Jede Abweichung ist fail-closed: kein
+Sidecar-Start, kein `requestAuthorization`, Exitcode ungleich 0.
+Details: `docs/testing/contacts-bridge-platform-authorization-profile-2026-07-28.md`.
+
 ## SPIKE-ONLY: Diagnose-Gate (stderr, keine Protokolländerung)
 
 Aktiv ausschließlich bei exakt `JARVIS_CONTACTS_SPIKE_DIAGNOSTICS=1`. Ohne
