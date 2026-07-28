@@ -40,6 +40,8 @@ class ContactCapabilitySet:
     unavailable_fields: tuple[str, ...] = field(default=(NOTE_FIELD,))
 
     def __post_init__(self) -> None:
+        # Defensive Kopie vor jeder Prüfung — eine Liste bliebe mutierbar.
+        object.__setattr__(self, "unavailable_fields", tuple(self.unavailable_fields))
         if self.notes_supported:
             raise CapabilityError(
                 "Notizen sind ohne besonderes Apple-Entitlement nicht zugesagt; "

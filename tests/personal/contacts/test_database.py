@@ -186,6 +186,39 @@ def test_doppelter_commit_abgelehnt(migrated_factory):
             uow.commit()
 
 
+def test_uow_schliesst_datei_verbindung_deterministisch(migrated_factory):
+    """Audit-Befund: die von der UoW geöffnete Datei-Verbindung darf nicht dem
+    Garbage Collector überlassen werden."""
+    with UnitOfWork(migrated_factory) as uow:
+        conn = uow.connection
+    with pytest.raises(sqlite3.ProgrammingError):
+        conn.execute("SELECT 1")
+
+
+def test_uow_schliesst_auch_bei_rollback(migrated_factory):
+    conn_ref = {}
+    with pytest.raises(RuntimeError):
+        with UnitOfWork(migrated_factory) as uow:
+            conn_ref["conn"] = uow.connection
+            raise RuntimeError("Abbruch")
+    with pytest.raises(sqlite3.ProgrammingError):
+        conn_ref["conn"].execute("SELECT 1")
+
+
+def test_uow_schliesst_geteilte_memory_verbindung_nicht():
+    """Die In-Memory-Verbindung gehört der Factory — Schließen würde die
+    Testdatenbank zerstören."""
+    f = ConnectionFactory(":memory:")
+    f.ensure_ready()
+    conn = f.connect()
+    conn.execute("CREATE TABLE probe (a INTEGER)")
+    with UnitOfWork(f) as uow:
+        uow.execute("INSERT INTO probe VALUES (1)")
+    # Verbindung lebt weiter und sieht die Daten.
+    assert conn.execute("SELECT count(*) FROM probe").fetchone()[0] == 1
+    f.close()
+
+
 def test_keine_stille_autocommit_semantik(migrated_factory):
     """Ohne offene UoW schreibt niemand — die Verbindung ist im Autocommit,
     aber jeder Schreibpfad des Moduls geht durch die UnitOfWork."""

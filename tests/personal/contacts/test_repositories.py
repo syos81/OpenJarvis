@@ -200,14 +200,41 @@ def test_suche_behandelt_jokerzeichen_als_text(uow):
 
 
 # ── Constraints werden der Datenbank überlassen ──────────────────────────────
-def test_doppelte_email_im_selben_kontakt_wird_abgelehnt(uow):
+def test_gleicher_email_wert_unter_zwei_labels_ist_speicherbar(uow):
+    """Apple erlaubt denselben Wert unter mehreren Labels auf einer Karte —
+    ein gültiger Provider-Zustand muss speicherbar sein (Audit-Befund 2,
+    Migration 0003)."""
     repo = SqliteContactRepository(uow)
-    a = EmailAddress(id=new_id(), position=0, value_raw="x@example.invalid",
+    a = EmailAddress(id=new_id(), position=0, label_normalized="home",
+                     value_raw="gleich@example.invalid",
                      value_normalized="gleich@example.invalid")
-    b = EmailAddress(id=new_id(), position=1, value_raw="y@example.invalid",
+    b = EmailAddress(id=new_id(), position=1, label_normalized="work",
+                     value_raw="gleich@example.invalid",
                      value_normalized="gleich@example.invalid")
-    with pytest.raises(IntegrityError):
-        repo.add(make_contact(emails=(a, b)))
+    c = make_contact(emails=(a, b))
+    repo.add(c)
+    geladen = repo.get(c.id)
+    assert [e.label_normalized for e in geladen.emails] == ["home", "work"]
+    assert {e.value_normalized for e in geladen.emails} == {"gleich@example.invalid"}
+
+
+def test_doppelte_position_wird_von_der_datenbank_abgelehnt(uow):
+    """Der Doppel-Einfügungs-Schutz bleibt: (contact_id, position) ist unique.
+
+    Die Domäne verhindert das bereits bei der Konstruktion; hier wird die
+    Datenbankschicht direkt geprüft, damit der Constraint selbst belegt ist.
+    """
+    import sqlite3
+
+    repo = SqliteContactRepository(uow)
+    c = make_contact()
+    repo.add(c)
+    with pytest.raises(sqlite3.IntegrityError):
+        uow.execute(
+            "INSERT INTO contact_emails (id, contact_id, position, value_raw, "
+            "value_normalized) VALUES (?,?,?,?,?)",
+            (new_id(), c.id, 0, "b@example.invalid", "b@example.invalid"),
+        )
 
 
 def test_doppelte_kontakt_id_wird_abgelehnt(uow):

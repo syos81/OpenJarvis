@@ -147,6 +147,29 @@ def test_app_factory_verschluckt_schemafehler_nicht(monkeypatch):
         app_module._attach_personal_jarvis(_FakeApp())
 
 
+def test_app_factory_attach_ende_zu_ende(tmp_path, monkeypatch):
+    """Audit-Befund Testqualität: der Integrationspunkt lief bisher nur mit
+    gepatchtem `attach`. Hier läuft er echt — mit realem Bootstrap, realen
+    Migrationen und einer echten Datenbank unter OPENJARVIS_HOME."""
+    from openjarvis.server import app as app_module
+
+    monkeypatch.setenv("OPENJARVIS_HOME", str(tmp_path))
+    monkeypatch.setenv(personaljarvis.ENABLE_ENV_VAR, "1")
+    app = _FakeApp()
+    app_module._attach_personal_jarvis(app)
+    try:
+        runtime = app.state.personal_runtime
+        assert runtime.contacts.migration_report is not None
+        assert runtime.contacts.migration_report.applied[0] == "0001"
+        db = tmp_path / "personal" / "jarvis.db"
+        assert db.exists()
+        import stat as stat_module
+
+        assert stat_module.S_IMODE(db.stat().st_mode) == 0o600
+    finally:
+        app.state.personal_bootstrap.stop()
+
+
 def test_integrationspunkt_ist_genau_eine_stelle():
     source = (REPO_ROOT / "src/openjarvis/server/app.py").read_text()
     assert source.count("personaljarvis.attach(app)") == 1
@@ -200,6 +223,10 @@ def test_wheel_enthaelt_personaljarvis(tmp_path):
     assert "personaljarvis/contacts/__init__.py" in names
     assert "personaljarvis/contacts/lifecycle.py" in names
     assert "personaljarvis/base/db/migrations/versions/m0002_contacts.py" in names
+    assert (
+        "personaljarvis/base/db/migrations/versions/"
+        "m0003_contacts_child_constraints.py" in names
+    )
     # Das bestehende Paket bleibt vollständig enthalten.
     assert any(n.startswith("openjarvis/") for n in names)
     assert "openjarvis/server/app.py" in names

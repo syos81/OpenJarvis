@@ -81,6 +81,23 @@ class UnitOfWork:
         return self.connection.executemany(sql, seq)
 
     # ── Abschluss ───────────────────────────────────────────────────────────
+    def _settle(self) -> None:
+        """Gemeinsamer Abschluss: Buchführung schließen und die eigene
+        Datei-Verbindung deterministisch freigeben.
+
+        Die In-Memory-Verbindung gehört der Factory (geteilt über alle
+        Aufrufer) und wird ausdrücklich **nicht** geschlossen. Für
+        Dateidatenbanken wäre ein Verlass auf den Garbage Collector keine
+        Freigabe-Garantie — ein festgehaltenes Traceback hielte Verbindung
+        und WAL-Handle beliebig lange offen.
+        """
+        self._settled = True
+        self._entered = False
+        self._factory.mark_unit_of_work_closed()
+        if self._connection is not None and not self._factory.is_memory:
+            self._connection.close()
+        self._connection = None
+
     def commit(self) -> None:
         # Reihenfolge: erst der abgeschlossene Fall, sonst meldet ein zweiter
         # Commit irreführend „ohne offene UnitOfWork".
@@ -89,17 +106,25 @@ class UnitOfWork:
         if not self._entered:
             raise TransactionError("Commit ohne offene UnitOfWork")
         assert self._connection is not None
-        self._connection.execute("COMMIT")
-        self._settled = True
-        self._entered = False
-        self._factory.mark_unit_of_work_closed()
+        try:
+            self._connection.execute("COMMIT")
+        except Exception:
+            # Ein fehlgeschlagener Commit darf keine offene Transaktion und
+            # keine offene Verbindung zurücklassen.
+            try:
+                if self._connection.in_transaction:
+                    self._connection.execute("ROLLBACK")
+            finally:
+                self._settle()
+            raise
+        self._settle()
 
     def rollback(self) -> None:
         if not self._entered:
             return
         assert self._connection is not None
-        if self._connection.in_transaction:
-            self._connection.execute("ROLLBACK")
-        self._settled = True
-        self._entered = False
-        self._factory.mark_unit_of_work_closed()
+        try:
+            if self._connection.in_transaction:
+                self._connection.execute("ROLLBACK")
+        finally:
+            self._settle()

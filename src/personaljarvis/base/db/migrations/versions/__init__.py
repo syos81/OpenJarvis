@@ -10,7 +10,10 @@ from __future__ import annotations
 from personaljarvis.base.db.migrations.ledger import Migration
 from personaljarvis.base.db.migrations.versions.m0001_base import MIGRATION as M0001
 from personaljarvis.base.db.migrations.versions.m0002_contacts import MIGRATION as M0002
+from personaljarvis.base.db.migrations.versions.m0003_contacts_child_constraints import (
+    MIGRATION as M0003,
+)
 
 __all__ = ["ALL_MIGRATIONS"]
 
-ALL_MIGRATIONS: tuple[Migration, ...] = (M0001, M0002)
+ALL_MIGRATIONS: tuple[Migration, ...] = (M0001, M0002, M0003)

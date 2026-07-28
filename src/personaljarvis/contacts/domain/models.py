@@ -369,6 +369,11 @@ class Contact:
             )
         if self.is_tombstone and self.deleted_at is None:
             raise IntegrityError("Ein Tombstone braucht deleted_at")
+        # Defensive Kopien: frozen=True schützt nur die Feldbindung, nicht den
+        # Inhalt — eine übergebene Liste bliebe mutierbar und unhashbar.
+        object.__setattr__(self, "roles", tuple(self.roles))
+        object.__setattr__(self, "field_availability", tuple(self.field_availability))
+        object.__setattr__(self, "external_ids", tuple(self.external_ids))
         # Reihenfolge stabilisieren statt der Einfügereihenfolge vertrauen.
         object.__setattr__(self, "emails", _ordered(self.emails))
         object.__setattr__(self, "phones", _ordered(self.phones))

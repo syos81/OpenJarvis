@@ -91,7 +91,7 @@ Alle Tabellen gehören dem Modul Kontakte, liegen in `personal/jarvis.db`, IDs s
 
 **Kindtabellen, normalisiert** (je PK `id`, FK `contact_id` ON DELETE RESTRICT, `position` für stabile Reihenfolge, `label_raw` und `label_normalized`):
 `contact_emails` (`value_raw`, `value_normalized`) · `contact_phones` (`value_raw`, `value_normalized_e164` NULL-fähig) · `contact_postal_addresses` (`street`, `city`, `state`, `postal_code`, `country`, `iso_country_code`) · `contact_dates` (`kind`, `year`/`month`/`day`) · `contact_url_addresses` · `contact_social_profiles` (`service`, `username`, `url`) · `contact_instant_messages` (`service`, `username`).
-Unique-Index je (`contact_id`, `kind`, `value_normalized`) gegen Duplikate innerhalb eines Kontakts; **kein** globales Unique — Dubletten über Kontakte hinweg sind ein Fachfall, kein Constraint (11 §3: nie Auto-Merge).
+Unique-Index je (`contact_id`, `position`) gegen Doppel-Einfügungen. **Korrektur 2026-07-28 (Gate-A-Audit):** Der ursprünglich vorgesehene Wert-Unique je (`contact_id`, `kind`, `value_normalized`) entfällt — Apple erlaubt denselben Wert unter mehreren Labels auf einer Karte, ein Wert-Unique machte einen gültigen Provider-Zustand unspeicherbar (im Audit reproduziert; Migration 0003). Wertgleichheit innerhalb eines Kontakts ist Fachlogik (Dubletten-Kandidaten), kein Constraint. **Kein** globales Unique — Dubletten über Kontakte hinweg sind ein Fachfall, kein Constraint (11 §3: nie Auto-Merge).
 
 **`contact_roles`** (16 §2) — (`contact_id`, `workspace_id`, `role`), PK zusammengesetzt. `role` ist die produktive Grundlage der UI-Kategorien **Privat · Arbeit · HV · Mieter · Vermieter** (§10). Rollen sind lokal, werden **nie** zum Provider gepusht.
 

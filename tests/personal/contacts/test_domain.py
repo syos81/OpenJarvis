@@ -73,6 +73,32 @@ def test_domaentypen_sind_unveraenderlich():
         c.display_name = "anders"
 
 
+def test_listen_eingaben_werden_zu_tupeln(  # Audit-Befund: scheinbare Unveränderlichkeit
+):
+    """frozen=True schützt nur die Feldbindung — Listen-Eingaben müssen kopiert
+    werden, sonst bleibt der Inhalt mutierbar und das Objekt unhashbar."""
+    rolle = ContactRole(workspace_id="ws-test", role="Privat")
+    verf = ContactFieldAvailability(
+        field_name=NOTE_FIELD,
+        state=FieldAvailabilityState.UNAVAILABLE_BY_CAPABILITY)
+    ext = ExternalIdentifier(
+        id=new_id(), provider_account_id="acc", container_identifier="c1",
+        provider_identifier="raw-1", key_set_version="v1")
+    c = make_contact(roles=[rolle], field_availability=[verf], external_ids=[ext])
+    assert isinstance(c.roles, tuple)
+    assert isinstance(c.field_availability, tuple)
+    assert isinstance(c.external_ids, tuple)
+    with pytest.raises(AttributeError):
+        c.roles.append(rolle)  # type: ignore[attr-defined]
+    hash(c)  # hashbar, weil vollständig aus Tupeln
+
+
+def test_capability_set_koerziert_listen():
+    caps = ContactCapabilitySet(unavailable_fields=["note"])
+    assert isinstance(caps.unavailable_fields, tuple)
+    hash(caps)
+
+
 # ── Deterministische Reihenfolge ─────────────────────────────────────────────
 def test_reihenfolge_kommt_aus_position_nicht_aus_der_eingabe():
     zweite = EmailAddress(id=new_id(), position=1, value_raw="b@example.invalid",

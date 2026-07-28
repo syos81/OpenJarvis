@@ -28,7 +28,7 @@ ERWARTETE_INDIZES = {
     "ix_contacts_workspace", "ix_contacts_display_name", "ix_contacts_updated_at",
     "ix_contacts_sync_state", "ix_field_availability_state",
     "ux_external_provider_identity", "ix_external_contact", "ix_external_container",
-    "ix_contact_roles_role", "ux_contact_emails_value", "ux_contact_emails_position",
+    "ix_contact_roles_role", "ux_contact_emails_position",
     "ix_contact_emails_normalized", "ux_contact_phones_position",
     "ix_contact_phones_e164", "ux_contact_postal_position",
     "ux_contact_dates_position", "ux_contact_urls_position",
@@ -61,8 +61,8 @@ def _indizes(conn) -> set[str]:
 # ── Lauf auf leerer Datenbank ────────────────────────────────────────────────
 def test_leere_datenbank_wird_vollstaendig_migriert(factory):
     report = MigrationRunner(factory, ALL_MIGRATIONS).run()
-    assert report.applied == ("0001", "0002")
-    assert report.schema_version == 2
+    assert report.applied == ("0001", "0002", "0003")
+    assert report.schema_version == 3
     conn = factory.connect()
     assert ERWARTETE_TABELLEN <= _tabellen(conn)
     assert LEDGER_TABLE in _tabellen(conn)
@@ -79,7 +79,7 @@ def test_wiederholter_lauf_ist_idempotent(factory):
     runner.run()
     zweiter = runner.run()
     assert zweiter.applied == ()
-    assert zweiter.already_applied == ("0001", "0002")
+    assert zweiter.already_applied == ("0001", "0002", "0003")
 
 
 def test_ledger_speichert_pflichtfelder(migrated_factory):
@@ -96,7 +96,7 @@ def test_ledger_speichert_pflichtfelder(migrated_factory):
 def test_ledger_und_schema_sind_konsistent(migrated_factory):
     conn = migrated_factory.connect()
     ledger = read_ledger(conn)
-    assert set(ledger) == {"0001", "0002"}
+    assert set(ledger) == {"0001", "0002", "0003"}
     for migration in ALL_MIGRATIONS:
         assert ledger[migration.migration_id].checksum == migration.checksum
 
@@ -297,7 +297,11 @@ def test_unique_constraint_auf_idempotenzschluessel(migrated_factory):
                 conn.execute(sql)
 
 
-def test_loeschregel_cascade_bei_kinddatensaetzen(migrated_factory):
+def test_loeschregel_restrict_bei_kinddatensaetzen(migrated_factory):
+    """Plan §5.1: harter Löschversuch am Elternkontakt scheitert fail-closed,
+    solange Kinddaten existieren (Migration 0003, Audit-Befund 1)."""
+    import sqlite3
+
     conn = migrated_factory.connect()
     cid = "88888888-8888-4888-8888-888888888888"
     conn.execute(
@@ -312,8 +316,38 @@ def test_loeschregel_cascade_bei_kinddatensaetzen(migrated_factory):
         ("99999999-9999-4999-8999-999999999999", cid, 0, "a@example.invalid",
          "a@example.invalid"),
     )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("DELETE FROM contacts WHERE id = ?", (cid,))
+    # Nach ausdrücklicher Kind-Löschung ist der Eltern-Löschpfad frei.
+    conn.execute("DELETE FROM contact_emails WHERE contact_id = ?", (cid,))
     conn.execute("DELETE FROM contacts WHERE id = ?", (cid,))
-    assert conn.execute("SELECT count(*) FROM contact_emails").fetchone()[0] == 0
+    assert conn.execute("SELECT count(*) FROM contacts").fetchone()[0] == 0
+
+
+def test_migration_0003_uebernimmt_bestandsdaten(factory):
+    """Der Neuaufbau in 0003 kopiert vorhandene Kinddaten verlustfrei."""
+    runner_bis_0002 = MigrationRunner(factory, ALL_MIGRATIONS[:2])
+    runner_bis_0002.run()
+    conn = factory.connect()
+    cid = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    conn.execute(
+        "INSERT INTO contacts (id, workspace_id, contact_type, display_name, "
+        "created_at, updated_at) VALUES (?,?,?,?,?,?)",
+        (cid, "ws", "person", "X", "2026-01-01T00:00:00+00:00",
+         "2026-01-01T00:00:00+00:00"),
+    )
+    conn.execute(
+        "INSERT INTO contact_emails (id, contact_id, position, label_raw, "
+        "value_raw, value_normalized) VALUES (?,?,?,?,?,?)",
+        ("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", cid, 0, "_$!<Home>!$_",
+         "x@example.invalid", "x@example.invalid"),
+    )
+    MigrationRunner(factory, ALL_MIGRATIONS).run()
+    row = factory.connect().execute(
+        "SELECT label_raw, value_raw FROM contact_emails WHERE contact_id = ?",
+        (cid,)).fetchone()
+    assert row["label_raw"] == "_$!<Home>!$_"
+    assert row["value_raw"] == "x@example.invalid"
 
 
 def test_kein_note_feld_in_der_kontakttabelle(migrated_factory):
