@@ -71,4 +71,4 @@ Der nach ADR-0016 Punkt 2 verpflichtende Spike G3a ist auf Apple Silicon arm64 *
 
 ## §5 Modulunterlagen (Konvention)
 
-Je Modul entsteht mit seiner Umsetzung `docs/personal-jarvis/modules/<modul>.md` (Pflichtinhalt: 19). Verlinkung: Modulkarte (dieses Dokument), betroffene Verträge (08), Risikoklassifizierung (10), Egress-Labels (12), Testnachweise (15), Live-Abnahme-Protokoll. Das Verzeichnis wird erst mit dem ersten Modul angelegt.
+Je Modul entsteht mit seiner Umsetzung `docs/personal-jarvis/modules/<modul>.md` (Pflichtinhalt: 19). Verlinkung: Modulkarte (dieses Dokument), betroffene Verträge (08), Risikoklassifizierung (10), Egress-Labels (12), Testnachweise (15), Live-Abnahme-Protokoll. Das Verzeichnis wurde mit dem ersten Modul angelegt; die Unterlage des Kontakte-Moduls liegt unter [`modules/contacts.md`](modules/contacts.md) (Implementierungsplan, 2026-07-28).
