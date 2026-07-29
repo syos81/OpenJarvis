@@ -97,7 +97,15 @@ class MutationState:
     FAILED = "failed"
 
     #: Endzustände. Ein zweiter Send findet nie statt.
-    TERMINAL = frozenset({SUCCEEDED, REJECTED, EXPIRED, CANCELLED, FAILED})
+    #:
+    #: `FAILED_BEFORE_SEND` ist bewusst terminal (Audit-Befund Gate C):
+    #: es wurde nachweislich nichts gesendet, aber der Vorgang samt Vorschau
+    #: und Freigabe ist verbraucht. Ein neuer Versuch ist eine **neue**
+    #: freigabepflichtige Mutation — kein Retry desselben Vorgangs. Ohne
+    #: diese Regel bliebe der Zustand ein Zombie: nicht terminal, nicht
+    #: ausführbar, und sein Outbox-Eintrag stünde dauerhaft als fällig.
+    TERMINAL = frozenset({SUCCEEDED, REJECTED, EXPIRED, CANCELLED, FAILED,
+                          FAILED_BEFORE_SEND})
     #: Zustände, aus denen nur der Abgleich weiterführt.
     NEEDS_RECONCILE = frozenset({OUTCOME_UNKNOWN, RECONCILE_REQUIRED})
 
@@ -274,9 +282,13 @@ class ContactsMutationService:
                 code = type(exc).__name__
                 outbox.mark_failed_before_send(eintrag.outbox_id, token,
                                                error_code=code)
+                # Terminal: der Eintrag darf nie wieder als faellig gelistet
+                # werden — ein neuer Versuch ist eine neue Mutation.
+                outbox.abandon(eintrag.outbox_id, error_code=code)
                 self._set_state(uow, mutation_id,
                                 MutationState.FAILED_BEFORE_SEND,
-                                error_code=code)
+                                outcome="failed", error_code=code,
+                                completed=True)
                 audit.record(AuditStage.FAILED_BEFORE_SEND,
                              subject_type=SUBJECT_TYPE, subject_id=mutation_id,
                              facts={"errorCode": code, "sent": False})
@@ -320,6 +332,53 @@ class ContactsMutationService:
             return self._settle(uow, outbox, audit, mutation_id, outbox_id,
                                 token, antwort, versuche)
 
+    # ── Erholung nach Prozessabbruch ────────────────────────────────────────
+    def recover_interrupted(self) -> tuple[str, ...]:
+        """Löst verwaiste Ausführungen nach einem Prozessabbruch auf.
+
+        Eine Mutation in `executing` mit beanspruchtem Outbox-Eintrag ist die
+        Spur eines Abbruchs zwischen Phase A und Phase C. Ob der Provider den
+        Schreibaufruf noch erhalten hat, ist **nicht feststellbar** — die
+        Audit-Stufe `provider_send_started` wurde vor dem Aufruf festgeschrieben.
+        Deshalb gilt fail-closed: jeder solche Vorgang wird `outcome_unknown`
+        und wartet auf den Abgleich. **Nie** wird er erneut gesendet, und nie
+        wird er als `failed_before_send` eingestuft (unbekannte Phase ist nie
+        „nichts gesendet").
+
+        Ausdrücklicher Verwaltungsaufruf: darf nur laufen, wenn kein Executor
+        aktiv ist (im Serve-Betrieb sichert das die Prozesssperre). Es gibt
+        keinen Timer und keinen automatischen Aufruf.
+        """
+        erholt: list[str] = []
+        with self._persistence.unit_of_work() as uow:
+            rows = uow.execute(
+                "SELECT m.mutation_id, m.outbox_id, o.state AS outbox_state, "
+                "o.claim_token FROM contacts_mutations m "
+                "JOIN personal_external_action_outbox o "
+                "ON o.outbox_id = m.outbox_id WHERE m.state = ? "
+                "ORDER BY m.created_at, m.mutation_id",
+                (MutationState.EXECUTING,)).fetchall()
+            outbox = ExternalActionOutbox(uow)
+            audit = AuditTrail(uow, module=MODULE)
+            for row in rows:
+                if row["outbox_state"] != OutboxState.CLAIMED                         or row["claim_token"] is None:
+                    continue
+                outbox.mark_outcome_unknown(row["outbox_id"],
+                                            row["claim_token"],
+                                            error_code="interrupted")
+                self._set_state(uow, row["mutation_id"],
+                                MutationState.OUTCOME_UNKNOWN,
+                                outcome="outcome_unknown",
+                                error_code="interrupted")
+                audit.record(AuditStage.OUTCOME_UNKNOWN,
+                             subject_type=SUBJECT_TYPE,
+                             subject_id=row["mutation_id"],
+                             facts={"errorCode": "interrupted",
+                                    "recovered": True,
+                                    "automaticRetry": False})
+                erholt.append(row["mutation_id"])
+        return tuple(erholt)
+
     # ── Ergebnisverarbeitung ────────────────────────────────────────────────
     def _settle(self, uow, outbox, audit, mutation_id, outbox_id, token,
                 antwort, versuche) -> ExecutionResult:
@@ -342,9 +401,12 @@ class ContactsMutationService:
                                ProviderOutcome.CONFLICT):
             code = antwort.error_code or antwort.outcome
             outbox.mark_failed_before_send(outbox_id, token, error_code=code)
+            # Terminal — siehe MutationState.TERMINAL.
+            outbox.abandon(outbox_id, error_code=code)
             self._set_state(uow, mutation_id,
                             MutationState.FAILED_BEFORE_SEND,
-                            outcome="failed", error_code=code)
+                            outcome="failed", error_code=code,
+                            completed=True)
             audit.record(AuditStage.FAILED_BEFORE_SEND,
                          subject_type=SUBJECT_TYPE, subject_id=mutation_id,
                          facts={"errorCode": code, "sent": False})

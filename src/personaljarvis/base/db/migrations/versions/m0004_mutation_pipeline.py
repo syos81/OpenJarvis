@@ -29,8 +29,17 @@ prepared → awaiting_approval → approved → executing → succeeded
 
 `failed_before_send` und `outcome_unknown` sind bewusst **getrennt**:
 Ersteres heißt „nachweislich nichts gesendet", Letzteres „möglicherweise
-gesendet". Nur die erste Klasse ist gefahrlos wiederholbar; aus
-`outcome_unknown` führt **kein** automatischer Weg zurück in die Ausführung.
+gesendet". **Beide sind ohne automatischen Rückweg:** `failed_before_send`
+ist terminal (ein neuer Versuch ist eine neue freigabepflichtige Mutation),
+und aus `outcome_unknown` führt ausschließlich der Abgleich weiter.
+
+**Bekannte, dokumentierte Grenze der Datenübernahme:** Enthielte eine
+Vor-0004-Datenbank einen `create`-Vorgang, schlüge der Übertrag am neuen
+CHECK (`create` verlangt einen Container) **fail-closed** fehl — die gesamte
+Migration rollt atomar zurück, nichts wird beschädigt. Produktiv kann ein
+solcher Bestand nicht existieren (bis 0004 gab es keinen Schreibpfad für
+Mutationen außerhalb temporärer Testdatenbanken); die Behebung wäre eine
+Wiederherstellung bzw. manuelle Bereinigung vor dem Upgrade.
 
 **Zur Ablage der Nutzlast:** `contacts_mutations.payload_json` hält die zur
 Ausführung nötige Nutzlast (bei `update` den ausdrücklichen Patch). Ohne sie

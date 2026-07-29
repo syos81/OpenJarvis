@@ -512,6 +512,7 @@ class ContactMutation:
         return self.state in (
             MutationState.SUCCEEDED,
             MutationState.FAILED,
+            MutationState.FAILED_BEFORE_SEND,
             MutationState.REJECTED,
             MutationState.EXPIRED,
             MutationState.CANCELLED,
@@ -526,7 +527,11 @@ class ContactMutation:
 
     @property
     def may_retry_automatically(self) -> bool:
-        """Immer `False` bei unbekanntem Ausgang — kein automatischer Retry."""
-        # Nur der nachweislich ungesendete Fehlschlag ist wiederholbar.
-        return (not self.requires_reconcile
-                and self.state is MutationState.FAILED_BEFORE_SEND)
+        """Immer `False` — es gibt keinen automatischen Mutationsretry.
+
+        Auch `failed_before_send` ist terminal (Gate-C-Audit): dort wurde zwar
+        nachweislich nichts gesendet, aber Vorschau und Freigabe des Vorgangs
+        sind verbraucht. Ein neuer Versuch ist eine **neue** freigabepflichtige
+        Mutation — nie eine Wiederholung desselben Vorgangs.
+        """
+        return False

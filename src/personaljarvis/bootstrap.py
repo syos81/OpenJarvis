@@ -89,7 +89,18 @@ class PersonalBootstrap:
 
         # Schritt 1 (04 §1): exklusive Sperre. Ein zweiter Schreibprozess wird
         # ausgeschlossen — auch im CLI-In-Process-Modus (07 §5).
-        lock = ProcessLock(self._lock_path)
+        #
+        # Gate-C-Audit: Die Sperre folgt der Datenbank. Wer einen Datenbank-
+        # pfad injiziert (Tests, Zweitinstallationen), bekommt die Sperre im
+        # SELBEN Verzeichnis — niemals stillschweigend am globalen
+        # Standardpfad. Sonst wuerde ein Testlauf das echte Home anfassen und
+        # mit einem laufenden Serve-Prozess um dessen Sperre konkurrieren.
+        lock_path = self._lock_path
+        if lock_path is None and self._database_path is not None:
+            from personaljarvis.base.process_lock import LOCK_FILENAME
+
+            lock_path = Path(self._database_path).parent / LOCK_FILENAME
+        lock = ProcessLock(lock_path)
         lock.acquire()
         self._lock = lock
 

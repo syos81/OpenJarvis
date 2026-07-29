@@ -309,10 +309,19 @@ def test_outcome_unknown_erlaubt_keinen_automatischen_retry():
         assert _mutation(state).may_retry_automatically is False
 
 
-def test_ungesendeter_fehlschlag_ist_wiederholbar():
-    """Nur `failed_before_send` ist gefahrlos wiederholbar."""
+def test_kein_zustand_erlaubt_automatischen_retry():
+    """Es gibt keinen automatischen Mutationsretry — in keinem Zustand.
+
+    Auch `failed_before_send` ist terminal (Gate-C-Audit): ein neuer Versuch
+    ist eine neue freigabepflichtige Mutation.
+    """
+    for state in MutationState:
+        assert _mutation(state).may_retry_automatically is False, state
+
+
+def test_failed_before_send_ist_abgeschlossen():
     m = _mutation(MutationState.FAILED_BEFORE_SEND)
-    assert m.may_retry_automatically is True
+    assert m.is_settled is True
 
 
 def test_endgueltiger_fehlschlag_ist_abgeschlossen_und_nicht_wiederholbar():
