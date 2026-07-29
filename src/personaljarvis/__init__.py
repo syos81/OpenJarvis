@@ -84,8 +84,9 @@ def attach(app: Any, *, database_path: str | None = None,
       dieselbe Sperre.
     * ``app.state.personal_bootstrap`` bleibt die Eigentümerreferenz; genau
       **ein** Shutdown-Hook stoppt sie und gibt die Sperre frei.
-    * In Gate B wird weiterhin **keine Route** registriert und **kein**
-      Sidecar gestartet.
+    * Seit Gate D wird der Kontakte-Router registriert — erst **nachdem** der
+      Bootstrap durchgelaufen ist, damit keine Anfrage eine halb geöffnete
+      Datenbank sieht. Ein **Sidecar startet weiterhin nicht**.
 
     Gibt die Laufzeit zurück, damit Aufrufer ohne FastAPI sie ebenfalls
     benutzen können.
@@ -109,4 +110,13 @@ def attach(app: Any, *, database_path: str | None = None,
         state.personal_bootstrap = bootstrap
         state.personal_runtime = runtime
     _register_shutdown_hook(app, bootstrap)
+
+    # Router registrieren (Gate D). Bewusst tolerant gegenueber Objekten ohne
+    # `include_router`: Tests reichen leichte App-Attrappen herein, und ein
+    # fehlender Router darf den Bootstrap nicht scheitern lassen, nachdem
+    # Datenbank und Sperre bereits stehen.
+    if hasattr(app, "include_router"):
+        from personaljarvis.contacts.api import create_contacts_router
+
+        app.include_router(create_contacts_router(runtime.contacts))
     return runtime

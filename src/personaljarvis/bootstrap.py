@@ -66,6 +66,7 @@ class PersonalBootstrap:
         self._bundle_dir = bundle_dir
         self._runtime: PersonalRuntime | None = None
         self._lock: ProcessLock | None = None
+        self._recovered: tuple[str, ...] = ()
 
     @property
     def runtime(self) -> PersonalRuntime | None:
@@ -118,8 +119,29 @@ class PersonalBootstrap:
             self._runtime = None
             raise
 
+        # Gate-C-Auflage: Erholung verwaister Ausfuehrungen — **nach** dem
+        # Erwerb der Sperre (erst dann ist bewiesen, dass kein Executor
+        # laeuft) und **vor** der Annahme mutierender Requests. Sie fuehrt
+        # keine Provideroperation aus: verwaiste `executing`-Vorgaenge werden
+        # ausschliesslich nach `outcome_unknown` ueberfuehrt und warten dort
+        # auf den Abgleich. Mehrfacher Start ist idempotent, weil ein
+        # zweiter Lauf nichts mehr in `executing` findet.
+        try:
+            self._recovered = contacts.mutation_service().recover_interrupted()
+        except Exception:
+            contacts.stop()
+            lock.release()
+            self._lock = None
+            self._runtime = None
+            raise
+
         self._runtime = PersonalRuntime(contacts=contacts)
         return self._runtime
+
+    @property
+    def recovered_mutations(self) -> tuple[str, ...]:
+        """Beim letzten Start erholte Vorgänge (Gate-C-Auflage)."""
+        return self._recovered
 
     def stop(self) -> None:
         """Fährt herunter und gibt die Sperre frei. Mehrfacher Aufruf ist harmlos."""

@@ -1,0 +1,1037 @@
+// Kontakte — Übersicht, Detail, Freigabe-Board und Mutationsstatus.
+//
+// Der vertikale Fluss ist bewusst durchgehend: suchen → öffnen → ändern →
+// Vorschau → Freigabe → Status. Kein Schritt löst eine Provideroperation aus;
+// die Ausführung ist ein getrennter Vorgang, den diese Oberfläche nicht
+// anbietet.
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft, ChevronRight, Loader2, Plus, RefreshCw, Search, Trash2, X,
+} from 'lucide-react';
+import * as api from './api';
+import type {
+  Approval, Capabilities, ContactDetail, ContactSummary, Mutation,
+  MutationDetail, PreparedMutation, RoleCount,
+} from './api';
+import {
+  ChangeTable, Chip, COMMAND_LABELS, EmptyState, ErrorState, FieldStateBadge,
+  LoadingState, Modal, MUTATION_LABELS, StateChip, availabilityOf,
+} from './components';
+
+type Tab = 'contacts' | 'approvals' | 'mutations';
+
+function neueId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random()}`;
+}
+
+function meldung(e: unknown): string {
+  return e instanceof Error ? e.message : 'Unbekannter Fehler';
+}
+
+// ═══ Übersicht ══════════════════════════════════════════════════════════════
+function ContactList({ onOpen, onCreate }: {
+  onOpen: (id: string) => void; onCreate: () => void;
+}) {
+  const [items, setItems] = useState<ContactSummary[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [suche, setSuche] = useState('');
+  const [rolle, setRolle] = useState<string | null>(null);
+  const [kategorien, setKategorien] = useState<RoleCount[]>([]);
+  const [laedt, setLaedt] = useState(true);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const laden = useCallback(async (anhaengen = false, c?: string | null) => {
+    setLaedt(true);
+    setFehler(null);
+    try {
+      const seite = await api.listContacts({
+        search: suche || undefined,
+        role: rolle ?? undefined,
+        cursor: anhaengen ? (c ?? undefined) : undefined,
+      });
+      setItems((alt) => (anhaengen ? [...alt, ...seite.items] : seite.items));
+      setCursor(seite.next_cursor);
+      setHasMore(seite.has_more);
+    } catch (e) {
+      setFehler(meldung(e));
+    } finally {
+      setLaedt(false);
+    }
+  }, [suche, rolle]);
+
+  useEffect(() => { void laden(false); }, [laden]);
+  useEffect(() => { api.listCategories().then(setKategorien).catch(() => setKategorien([])); }, []);
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1" style={{ minWidth: '16rem' }}>
+          <Search
+            size={15} aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--color-text-muted)' }}
+          />
+          <input
+            type="search"
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+            placeholder="Name, Organisation, E-Mail oder Nummer"
+            aria-label="Kontakte durchsuchen"
+            className="w-full rounded-md border py-1.5 pl-8 pr-3 text-sm"
+            style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+          />
+        </div>
+        <button
+          type="button" onClick={onCreate}
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+          style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+        >
+          <Plus size={15} aria-hidden="true" /> Kontakt anlegen
+        </button>
+      </div>
+
+      {kategorien.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Nach Kategorie filtern">
+          <button
+            type="button" onClick={() => setRolle(null)} aria-pressed={rolle === null}
+            className="rounded-full border px-2.5 py-0.5 text-xs"
+            style={{
+              borderColor: rolle === null ? 'var(--color-accent)' : 'var(--color-border, rgba(127,127,127,0.3))',
+              color: rolle === null ? 'var(--color-accent)' : undefined,
+            }}
+          >
+            Alle
+          </button>
+          {kategorien.map((k) => (
+            <button
+              key={k.role} type="button" aria-pressed={rolle === k.role}
+              onClick={() => setRolle(rolle === k.role ? null : k.role)}
+              className="rounded-full border px-2.5 py-0.5 text-xs"
+              style={{
+                borderColor: rolle === k.role ? 'var(--color-accent)' : 'var(--color-border, rgba(127,127,127,0.3))',
+                color: rolle === k.role ? 'var(--color-accent)' : undefined,
+              }}
+            >
+              {k.role} ({k.count})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {fehler && <ErrorState message={fehler} onRetry={() => void laden(false)} />}
+      {laedt && items.length === 0 && <LoadingState label="Kontakte werden geladen" />}
+
+      {!laedt && !fehler && items.length === 0 && (
+        <EmptyState
+          title="Keine Kontakte gefunden"
+          hint={suche || rolle
+            ? 'Suche oder Filter liefern kein Ergebnis.'
+            : 'Es ist noch kein Kontakt synchronisiert. Der erste Import läuft über die Kontakte-Bridge.'}
+        />
+      )}
+
+      {items.length > 0 && (
+        <ul className="divide-y" style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.2))' }}>
+          {items.map((k) => (
+            <li key={k.id}>
+              <button
+                type="button" onClick={() => onOpen(k.id)}
+                className="flex w-full items-center gap-3 py-2.5 text-left"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{k.display_name}</span>
+                    {k.is_me_card && <Chip tone="info" title="Diese Karte gehört dir. Sie ist schreibgeschützt.">Meine Karte</Chip>}
+                    {k.conflict_state && <Chip tone="warn">Konflikt</Chip>}
+                    {k.field_completeness === 'partial' && <Chip tone="warn">unvollständig</Chip>}
+                    {k.has_unavailable_fields && <Chip title="Mindestens ein Feld ist nicht lesbar.">nicht lesbare Felder</Chip>}
+                  </span>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs"
+                        style={{ color: 'var(--color-text-muted)' }}>
+                    {k.organization_name && <span className="truncate">{k.organization_name}</span>}
+                    <span>{k.email_count} E-Mail · {k.phone_count} Telefon · {k.address_count} Adresse</span>
+                    {k.provider_account_ids.map((p) => <span key={p}>{p}</span>)}
+                    {k.roles.map((r) => <Chip key={r}>{r}</Chip>)}
+                  </span>
+                </span>
+                <ChevronRight size={16} aria-hidden="true" style={{ color: 'var(--color-text-muted)' }} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {hasMore && (
+        <div className="mt-4 text-center">
+          <button
+            type="button" disabled={laedt}
+            onClick={() => void laden(true, cursor)}
+            className="rounded-md border px-3 py-1.5 text-sm"
+            style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+          >
+            {laedt ? 'Wird geladen…' : 'Weitere laden'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══ Detail ═════════════════════════════════════════════════════════════════
+function Werteliste({ titel, werte }: {
+  titel: string; werte: { id: string; label_normalized: string | null; value: string | null }[];
+}) {
+  if (werte.length === 0) return null;
+  return (
+    <section className="mt-4">
+      <h3 className="text-xs font-medium uppercase tracking-wide"
+          style={{ color: 'var(--color-text-muted)' }}>{titel}</h3>
+      <ul className="mt-1 space-y-0.5 text-sm">
+        {werte.map((w) => (
+          <li key={w.id} className="flex gap-2">
+            {w.label_normalized && (
+              <span className="shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+                {w.label_normalized}
+              </span>
+            )}
+            <span className="break-all">{w.value ?? '—'}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ContactDetailView({ id, onBack, onPrepared }: {
+  id: string; onBack: () => void; onPrepared: (m: PreparedMutation) => void;
+}) {
+  const [kontakt, setKontakt] = useState<ContactDetail | null>(null);
+  const [caps, setCaps] = useState<Capabilities | null>(null);
+  const [laedt, setLaedt] = useState(true);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [neueRolle, setNeueRolle] = useState('');
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const [loeschen, setLoeschen] = useState(false);
+
+  const laden = useCallback(async () => {
+    setLaedt(true); setFehler(null);
+    try {
+      setKontakt(await api.getContact(id));
+    } catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+  }, [id]);
+
+  useEffect(() => { void laden(); }, [laden]);
+  useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
+
+  const notizZustand = kontakt ? availabilityOf(kontakt.field_availability, 'note') : null;
+
+  if (laedt) return <LoadingState label="Kontakt wird geladen" />;
+  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (!kontakt) return <EmptyState title="Kontakt nicht gefunden" />;
+
+  const schreibbar = !kontakt.is_me_card && Boolean(kontakt.write_target);
+
+  return (
+    <div>
+      <button type="button" onClick={onBack}
+              className="mb-3 inline-flex items-center gap-1 text-sm"
+              style={{ color: 'var(--color-text-muted)' }}>
+        <ArrowLeft size={14} aria-hidden="true" /> Zurück zur Übersicht
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">{kontakt.display_name}</h2>
+          <p className="mt-0.5 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {[kontakt.job_title, kontakt.department_name, kontakt.organization_name]
+              .filter(Boolean).join(' · ') || 'Ohne Organisation'}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {kontakt.is_me_card && (
+              <Chip tone="info" title="Die eigene Karte ist in dieser Version schreibgeschützt.">
+                Meine Karte · schreibgeschützt
+              </Chip>
+            )}
+            {kontakt.unified_read_only && (
+              <Chip title="Verknüpfte Karten werden nur gelesen. Geschrieben wird immer der Rohdatensatz.">
+                verknüpfte Ansicht nur lesend
+              </Chip>
+            )}
+            {kontakt.conflict_state && <Chip tone="warn">Konflikt: {kontakt.conflict_state}</Chip>}
+            {kontakt.provider_accounts.map((p) => <Chip key={p}>{p}</Chip>)}
+          </div>
+        </div>
+        {schreibbar && (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setBearbeiten(true)}
+                    className="rounded-md border px-3 py-1.5 text-sm"
+                    style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+              Ändern
+            </button>
+            <button type="button" onClick={() => setLoeschen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+                    style={{ borderColor: 'var(--color-danger, #b91c1c)', color: 'var(--color-danger, #b91c1c)' }}>
+              <Trash2 size={14} aria-hidden="true" /> Löschen
+            </button>
+          </div>
+        )}
+      </div>
+
+      {kontakt.is_me_card && (
+        <p className="mt-3 rounded-md border p-3 text-sm"
+           style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))',
+                    color: 'var(--color-text-muted)' }}>
+          Die eigene Karte wird in dieser Version nicht verändert. Es gibt
+          deshalb keine Schaltfläche zum Ändern oder Löschen.
+        </p>
+      )}
+
+      <Werteliste titel="E-Mail" werte={kontakt.emails} />
+      <Werteliste titel="Telefon" werte={kontakt.phones} />
+      <Werteliste titel="Web" werte={kontakt.urls} />
+
+      {kontakt.postal_addresses.length > 0 && (
+        <section className="mt-4">
+          <h3 className="text-xs font-medium uppercase tracking-wide"
+              style={{ color: 'var(--color-text-muted)' }}>Adresse</h3>
+          <ul className="mt-1 space-y-1 text-sm">
+            {kontakt.postal_addresses.map((a) => (
+              <li key={a.id}>
+                {[a.extra.street, a.extra.postal_code, a.extra.city, a.extra.country]
+                  .filter(Boolean).join(', ') || '—'}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {kontakt.relations.length > 0 && (
+        <section className="mt-4">
+          <h3 className="text-xs font-medium uppercase tracking-wide"
+              style={{ color: 'var(--color-text-muted)' }}>Beziehungen</h3>
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {kontakt.relations.map((r) => (
+              <li key={r.id}>
+                {String(r.extra.relation_type ?? 'Beziehung')}:{' '}
+                {String(r.extra.target_name_raw ?? '—')}
+                {!r.extra.to_contact_id && (
+                  <span className="ml-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    (nicht zugeordnet)
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Notizen: nur zeigen, wenn wirklich lesbar. */}
+      <section className="mt-4">
+        <h3 className="text-xs font-medium uppercase tracking-wide"
+            style={{ color: 'var(--color-text-muted)' }}>Notiz</h3>
+        <p className="mt-1 flex items-center gap-2 text-sm">
+          {notizZustand === 'unavailable_by_capability' ? (
+            <>
+              <FieldStateBadge state="unavailable_by_capability" />
+              <span style={{ color: 'var(--color-text-muted)' }}>
+                Notizen benötigen eine besondere Apple-Berechtigung, die dieses
+                Programm nicht hat. Ob eine Notiz vorhanden ist, lässt sich
+                nicht feststellen — sie wird auch nie überschrieben.
+              </span>
+            </>
+          ) : notizZustand === 'absent' ? (
+            <FieldStateBadge state="absent" />
+          ) : (
+            <span style={{ color: 'var(--color-text-muted)' }}>—</span>
+          )}
+        </p>
+      </section>
+
+      {/* Lokale Kategorien */}
+      <section className="mt-6">
+        <h3 className="text-xs font-medium uppercase tracking-wide"
+            style={{ color: 'var(--color-text-muted)' }}>
+          Kategorien (nur lokal)
+        </h3>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {kontakt.roles.map((r) => (
+            <span key={r}
+                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+              {r}
+              <button type="button" aria-label={`Kategorie ${r} entfernen`}
+                      onClick={async () => {
+                        try {
+                          const neu = await api.removeRole(kontakt.id, r);
+                          setKontakt({ ...kontakt, roles: neu.roles });
+                        } catch (e) { setFehler(meldung(e)); }
+                      }}>
+                <X size={11} aria-hidden="true" />
+              </button>
+            </span>
+          ))}
+          <form
+            className="flex items-center gap-1"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!neueRolle.trim()) return;
+              try {
+                const neu = await api.assignRole(kontakt.id, neueRolle.trim());
+                setKontakt({ ...kontakt, roles: neu.roles });
+                setNeueRolle('');
+              } catch (err) { setFehler(meldung(err)); }
+            }}
+          >
+            <input
+              value={neueRolle} onChange={(e) => setNeueRolle(e.target.value)}
+              placeholder="Privat, Arbeit, HV, Mieter, Vermieter…"
+              aria-label="Neue Kategorie"
+              className="rounded-md border px-2 py-0.5 text-xs"
+              style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))', minWidth: '14rem' }}
+            />
+            <button type="submit" className="rounded-md border px-2 py-0.5 text-xs"
+                    style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+              Hinzufügen
+            </button>
+          </form>
+        </div>
+        <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Kategorien bleiben auf diesem Mac. Sie werden nicht zu Apple Kontakte übertragen.
+        </p>
+      </section>
+
+      {bearbeiten && (
+        <UpdateDialog
+          kontakt={kontakt} caps={caps}
+          onClose={() => setBearbeiten(false)}
+          onPrepared={(m) => { setBearbeiten(false); onPrepared(m); }}
+        />
+      )}
+      {loeschen && (
+        <DeleteDialog
+          kontakt={kontakt} caps={caps}
+          onClose={() => setLoeschen(false)}
+          onPrepared={(m) => { setLoeschen(false); onPrepared(m); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══ Dialoge für Create / Update / Delete ═══════════════════════════════════
+const PATCHBARE_FELDER = [
+  { key: 'given_name', label: 'Vorname' },
+  { key: 'family_name', label: 'Nachname' },
+  { key: 'nickname', label: 'Spitzname' },
+  { key: 'organization_name', label: 'Organisation' },
+  { key: 'department_name', label: 'Abteilung' },
+  { key: 'job_title', label: 'Position' },
+];
+
+function CapabilityHinweis({ caps }: { caps: Capabilities | null }) {
+  if (!caps || caps.mutations_available) return null;
+  return (
+    <p className="mb-3 rounded-md border p-3 text-sm"
+       style={{ borderColor: 'var(--color-warning, #b45309)' }}>
+      Änderungen an Apple Kontakte sind noch nicht freigeschaltet. Der Vorgang
+      wird vorbereitet und lässt sich freigeben, aber noch nicht ausführen.
+    </p>
+  );
+}
+
+function UpdateDialog({ kontakt, caps, onClose, onPrepared }: {
+  kontakt: ContactDetail; caps: Capabilities | null;
+  onClose: () => void; onPrepared: (m: PreparedMutation) => void;
+}) {
+  const start = useMemo(() => {
+    const w: Record<string, string> = {};
+    for (const f of PATCHBARE_FELDER) {
+      w[f.key] = (kontakt as unknown as Record<string, string | null>)[f.key] ?? '';
+    }
+    return w;
+  }, [kontakt]);
+  const [werte, setWerte] = useState<Record<string, string>>(start);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [sendet, setSendet] = useState(false);
+
+  const geaendert = useMemo(() => {
+    const d: Record<string, string> = {};
+    for (const [k, v] of Object.entries(werte)) if (v !== start[k]) d[k] = v;
+    return d;
+  }, [werte, start]);
+
+  const absenden = async () => {
+    setSendet(true); setFehler(null);
+    try {
+      onPrepared(await api.prepareUpdate(kontakt.id, {
+        idempotencyKey: neueId(),
+        correlationId: neueId(),
+        providerAccountId: kontakt.provider_accounts[0] ?? '',
+        targetProviderIdentifier: kontakt.write_target ?? '',
+        expectedRevision: String(kontakt.local_revision),
+        fields: geaendert,
+      }));
+    } catch (e) { setFehler(meldung(e)); } finally { setSendet(false); }
+  };
+
+  return (
+    <Modal
+      open onClose={onClose} title="Kontakt ändern"
+      description="Es werden nur die Felder übertragen, die du tatsächlich änderst. Die Änderung wird vorbereitet und braucht danach deine Freigabe."
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-md border px-3 py-1.5 text-sm"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+            Abbrechen
+          </button>
+          <button type="button" onClick={absenden}
+                  disabled={sendet || Object.keys(geaendert).length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff', opacity: Object.keys(geaendert).length === 0 ? 0.5 : 1 }}>
+            {sendet && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            Änderung vorbereiten
+          </button>
+        </>
+      }
+    >
+      <CapabilityHinweis caps={caps} />
+      {fehler && <ErrorState message={fehler} />}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {PATCHBARE_FELDER.map((f) => (
+          <label key={f.key} className="text-sm">
+            <span className="block" style={{ color: 'var(--color-text-muted)' }}>{f.label}</span>
+            <input
+              value={werte[f.key] ?? ''}
+              onChange={(e) => setWerte({ ...werte, [f.key]: e.target.value })}
+              className="mt-1 w-full rounded-md border px-2 py-1"
+              style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+            />
+          </label>
+        ))}
+      </div>
+      <p className="mt-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        Erwartete Version: {kontakt.local_revision}. Hat sich der Kontakt
+        zwischenzeitlich geändert, wird der Vorgang abgelehnt statt zu
+        überschreiben.
+      </p>
+    </Modal>
+  );
+}
+
+function DeleteDialog({ kontakt, caps, onClose, onPrepared }: {
+  kontakt: ContactDetail; caps: Capabilities | null;
+  onClose: () => void; onPrepared: (m: PreparedMutation) => void;
+}) {
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [sendet, setSendet] = useState(false);
+
+  const absenden = async () => {
+    setSendet(true); setFehler(null);
+    try {
+      onPrepared(await api.prepareDelete(kontakt.id, {
+        idempotencyKey: neueId(),
+        correlationId: neueId(),
+        providerAccountId: kontakt.provider_accounts[0] ?? '',
+        targetProviderIdentifier: kontakt.write_target ?? '',
+        expectedRevision: String(kontakt.local_revision),
+      }));
+    } catch (e) { setFehler(meldung(e)); } finally { setSendet(false); }
+  };
+
+  return (
+    <Modal
+      open onClose={onClose} title="Kontakt löschen"
+      description="Das Löschen wird vorbereitet und braucht danach deine Freigabe."
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-md border px-3 py-1.5 text-sm"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+            Abbrechen
+          </button>
+          <button type="button" onClick={absenden} disabled={sendet}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
+                  style={{ backgroundColor: 'var(--color-danger, #b91c1c)', color: '#fff' }}>
+            {sendet && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            Löschen vorbereiten
+          </button>
+        </>
+      }
+    >
+      <CapabilityHinweis caps={caps} />
+      {fehler && <ErrorState message={fehler} />}
+      <p className="text-sm">
+        Zielkontakt: <strong>{kontakt.display_name}</strong>
+      </p>
+      <p className="mt-2 text-sm" style={{ color: 'var(--color-danger, #b91c1c)' }}>
+        Nach der Freigabe wird der Datensatz bei Apple Kontakte gelöscht. Das
+        lässt sich von hier aus nicht rückgängig machen.
+      </p>
+      <p className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        Das Ziel wird über seine feste Kennung angesprochen, nicht über den
+        Namen — es kann kein anderer Kontakt getroffen werden.
+      </p>
+    </Modal>
+  );
+}
+
+function CreateDialog({ onClose, onPrepared }: {
+  onClose: () => void; onPrepared: (m: PreparedMutation) => void;
+}) {
+  const [werte, setWerte] = useState<Record<string, string>>({});
+  const [konto, setKonto] = useState('');
+  const [container, setContainer] = useState('');
+  const [caps, setCaps] = useState<Capabilities | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [sendet, setSendet] = useState(false);
+
+  useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
+
+  const gefuellt = Object.entries(werte).filter(([, v]) => v.trim() !== '');
+
+  const absenden = async () => {
+    setSendet(true); setFehler(null);
+    try {
+      onPrepared(await api.prepareCreate({
+        idempotencyKey: neueId(),
+        correlationId: neueId(),
+        providerAccountId: konto.trim(),
+        containerIdentifier: container.trim(),
+        fields: Object.fromEntries(gefuellt),
+      }));
+    } catch (e) { setFehler(meldung(e)); } finally { setSendet(false); }
+  };
+
+  return (
+    <Modal
+      open onClose={onClose} title="Kontakt anlegen"
+      description="Der Kontakt wird vorbereitet und braucht danach deine Freigabe."
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-md border px-3 py-1.5 text-sm"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+            Abbrechen
+          </button>
+          <button type="button" onClick={absenden}
+                  disabled={sendet || gefuellt.length === 0 || !konto.trim() || !container.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
+                  style={{
+                    backgroundColor: 'var(--color-accent)', color: '#fff',
+                    opacity: gefuellt.length === 0 || !konto.trim() || !container.trim() ? 0.5 : 1,
+                  }}>
+            {sendet && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            Anlage vorbereiten
+          </button>
+        </>
+      }
+    >
+      <CapabilityHinweis caps={caps} />
+      {fehler && <ErrorState message={fehler} />}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          <span className="block" style={{ color: 'var(--color-text-muted)' }}>Konto</span>
+          <input value={konto} onChange={(e) => setKonto(e.target.value)}
+                 className="mt-1 w-full rounded-md border px-2 py-1"
+                 style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
+        </label>
+        <label className="text-sm">
+          <span className="block" style={{ color: 'var(--color-text-muted)' }}>Ablageort</span>
+          <input value={container} onChange={(e) => setContainer(e.target.value)}
+                 className="mt-1 w-full rounded-md border px-2 py-1"
+                 style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
+        </label>
+        {PATCHBARE_FELDER.map((f) => (
+          <label key={f.key} className="text-sm">
+            <span className="block" style={{ color: 'var(--color-text-muted)' }}>{f.label}</span>
+            <input value={werte[f.key] ?? ''}
+                   onChange={(e) => setWerte({ ...werte, [f.key]: e.target.value })}
+                   className="mt-1 w-full rounded-md border px-2 py-1"
+                   style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
+          </label>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function PreviewDialog({ vorgang, onClose, onEntschieden }: {
+  vorgang: PreparedMutation; onClose: () => void; onEntschieden: () => void;
+}) {
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+
+  const entscheiden = async (fn: () => Promise<unknown>) => {
+    setLaeuft(true); setFehler(null);
+    try { await fn(); onEntschieden(); }
+    catch (e) { setFehler(meldung(e)); }
+    finally { setLaeuft(false); }
+  };
+
+  return (
+    <Modal
+      open onClose={onClose} title="Änderung prüfen und freigeben"
+      description="Nichts wird übertragen, bevor du freigibst."
+      footer={
+        <>
+          <button type="button" disabled={laeuft} onClick={onClose}
+                  className="rounded-md border px-3 py-1.5 text-sm"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+            Später entscheiden
+          </button>
+          <button type="button" disabled={laeuft}
+                  onClick={() => void entscheiden(() => api.rejectMutation(vorgang.mutation_id, 'lukas'))}
+                  className="rounded-md border px-3 py-1.5 text-sm"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+            Ablehnen
+          </button>
+          <button type="button" disabled={laeuft}
+                  onClick={() => void entscheiden(() => api.approveMutation(vorgang.mutation_id, 'lukas'))}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+            {laeuft && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            Freigeben
+          </button>
+        </>
+      }
+    >
+      {fehler && <ErrorState message={fehler} />}
+      {vorgang.reused && (
+        <p className="mb-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          Dieser Vorgang war bereits vorbereitet. Es wurde kein zweiter angelegt.
+        </p>
+      )}
+      <p className="text-sm">
+        <strong>{COMMAND_LABELS[vorgang.command] ?? vorgang.command}</strong>
+        {vorgang.target_label && <> · {vorgang.target_label}</>}
+      </p>
+      {vorgang.warnings.map((w) => (
+        <p key={w} className="mt-2 text-sm" style={{ color: 'var(--color-danger, #b91c1c)' }}>{w}</p>
+      ))}
+      <div className="mt-3"><ChangeTable changes={vorgang.changes} /></div>
+    </Modal>
+  );
+}
+
+// ═══ Freigabe-Board ═════════════════════════════════════════════════════════
+function ApprovalBoard({ onOpenMutation }: { onOpenMutation: (id: string) => void }) {
+  const [eintraege, setEintraege] = useState<Approval[]>([]);
+  const [laedt, setLaedt] = useState(true);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const laden = useCallback(async () => {
+    setLaedt(true); setFehler(null);
+    try { setEintraege(await api.listApprovals()); }
+    catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+  }, []);
+  useEffect(() => { void laden(); }, [laden]);
+
+  const handeln = async (fn: () => Promise<unknown>) => {
+    try { await fn(); await laden(); } catch (e) { setFehler(meldung(e)); }
+  };
+
+  if (laedt) return <LoadingState label="Freigaben werden geladen" />;
+  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (eintraege.length === 0) {
+    return <EmptyState title="Keine Vorgänge"
+                       hint="Sobald du eine Änderung vorbereitest, erscheint sie hier." />;
+  }
+
+  return (
+    <ul className="divide-y" style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.2))' }}>
+      {eintraege.map((a) => {
+        const wartet = a.state === 'awaiting_approval';
+        return (
+          <li key={a.approval_id} className="py-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {COMMAND_LABELS[a.command] ?? a.command}
+                  <button type="button" onClick={() => onOpenMutation(a.mutation_id)}
+                          className="ml-2 text-sm underline"
+                          style={{ color: 'var(--color-accent)' }}>
+                    Vorgang öffnen
+                  </button>
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs"
+                   style={{ color: 'var(--color-text-muted)' }}>
+                  <span>Ausgelöst von {a.actor} ({a.initiation_context})</span>
+                  <span>angefragt {a.requested_at}</span>
+                  <span>gültig bis {a.expires_at}</span>
+                  {a.is_expired
+                    ? <Chip tone="warn">abgelaufen</Chip>
+                    : <Chip>{a.state}</Chip>}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {wartet && !a.is_expired && (
+                  <>
+                    <button type="button"
+                            onClick={() => void handeln(() => api.approveMutation(a.mutation_id, 'lukas'))}
+                            className="rounded-md px-3 py-1 text-sm"
+                            style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                      Freigeben
+                    </button>
+                    <button type="button"
+                            onClick={() => void handeln(() => api.rejectMutation(a.mutation_id, 'lukas'))}
+                            className="rounded-md border px-3 py-1 text-sm"
+                            style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+                      Ablehnen
+                    </button>
+                    <button type="button"
+                            onClick={() => void handeln(() => api.cancelMutation(a.mutation_id, 'lukas'))}
+                            className="rounded-md border px-3 py-1 text-sm"
+                            style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+                      Abbrechen
+                    </button>
+                  </>
+                )}
+                {wartet && a.is_expired && (
+                  <button type="button"
+                          onClick={() => void handeln(() => api.expireMutation(a.mutation_id))}
+                          className="rounded-md border px-3 py-1 text-sm"
+                          style={{ borderColor: 'var(--color-warning, #b45309)' }}>
+                    Als abgelaufen markieren
+                  </button>
+                )}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ═══ Mutationsstatus ════════════════════════════════════════════════════════
+function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) {
+  const [m, setM] = useState<MutationDetail | null>(null);
+  const [laedt, setLaedt] = useState(true);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [gleichtAb, setGleichtAb] = useState(false);
+
+  const laden = useCallback(async () => {
+    setLaedt(true); setFehler(null);
+    try { setM(await api.getMutation(id)); }
+    catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+  }, [id]);
+  useEffect(() => { void laden(); }, [laden]);
+
+  if (laedt) return <LoadingState label="Vorgang wird geladen" />;
+  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (!m) return <EmptyState title="Vorgang nicht gefunden" />;
+
+  return (
+    <div>
+      <button type="button" onClick={onBack} className="mb-3 inline-flex items-center gap-1 text-sm"
+              style={{ color: 'var(--color-text-muted)' }}>
+        <ArrowLeft size={14} aria-hidden="true" /> Zurück
+      </button>
+
+      <h2 className="text-lg font-semibold">
+        {COMMAND_LABELS[m.command] ?? m.command}
+        {m.target_display_name && <> · {m.target_display_name}</>}
+      </h2>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <StateChip state={m.state} />
+        {m.last_error_code && <Chip tone="warn">{m.last_error_code}</Chip>}
+        <Chip>Versuche: {m.attempt_count}</Chip>
+      </div>
+
+      {m.state === 'outcome_unknown' && (
+        <div className="mt-4 rounded-md border p-4" role="alert"
+             style={{ borderColor: 'var(--color-warning, #b45309)' }}>
+          <p className="text-sm font-medium">Der Ausgang ist unbekannt.</p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Die Änderung wurde möglicherweise schon ausgeführt — oder auch
+            nicht. Ein zweiter Versuch könnte sie doppelt anwenden. Deshalb
+            gibt es hier kein „erneut senden": Der einzige sichere Weg ist der
+            Abgleich mit Apple Kontakte.
+          </p>
+          <button
+            type="button" disabled={gleichtAb}
+            onClick={async () => {
+              setGleichtAb(true); setFehler(null);
+              try { await api.reconcileMutation(m.mutation_id); await laden(); }
+              catch (e) { setFehler(meldung(e)); }
+              finally { setGleichtAb(false); }
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+            style={{ borderColor: 'var(--color-warning, #b45309)' }}
+          >
+            {gleichtAb
+              ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              : <RefreshCw size={14} aria-hidden="true" />}
+            Zustand abgleichen
+          </button>
+        </div>
+      )}
+
+      {m.state === 'manual_decision_required' && (
+        <div className="mt-4 rounded-md border p-4" role="alert"
+             style={{ borderColor: 'var(--color-warning, #b45309)' }}>
+          <p className="text-sm font-medium">Der Abgleich war nicht eindeutig.</p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Der beobachtete Zustand passt weder eindeutig zur erwarteten
+            Änderung noch eindeutig dagegen. Automatisch wird hier nichts
+            entschieden — bitte in Apple Kontakte nachsehen und danach
+            entscheiden, ob ein neuer Vorgang nötig ist.
+          </p>
+          <dl className="mt-3 grid gap-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            <div className="flex gap-2">
+              <dt>Erwartet:</dt>
+              <dd>{m.changes.length} Feldänderung(en)</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt>Letzter technischer Code:</dt>
+              <dd>{m.last_error_code ?? '—'}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
+
+      {m.state === 'failed_before_send' && (
+        <p className="mt-4 rounded-md border p-4 text-sm"
+           style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+          Es wurde nachweislich nichts übertragen. Der Vorgang ist damit
+          abgeschlossen; ein neuer Versuch ist eine neue Änderung mit eigener
+          Freigabe.
+        </p>
+      )}
+
+      <section className="mt-5">
+        <h3 className="text-xs font-medium uppercase tracking-wide"
+            style={{ color: 'var(--color-text-muted)' }}>Geplante Änderung</h3>
+        <div className="mt-2"><ChangeTable changes={m.changes} /></div>
+      </section>
+
+      <dl className="mt-5 grid gap-1.5 text-sm sm:grid-cols-2">
+        {[
+          ['Ausgelöst von', `${m.actor} (${m.initiation_context})`],
+          ['Angelegt', m.created_at],
+          ['Freigegeben', m.approved_at ?? '—'],
+          ['Abgeschlossen', m.completed_at ?? '—'],
+          ['Erwartete Version', m.expected_revision ?? '—'],
+          ['Freigabe', m.approval_state ?? '—'],
+        ].map(([k, v]) => (
+          <div key={k} className="flex gap-2">
+            <dt style={{ color: 'var(--color-text-muted)' }}>{k}:</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function MutationList({ onOpen }: { onOpen: (id: string) => void }) {
+  const [items, setItems] = useState<Mutation[]>([]);
+  const [laedt, setLaedt] = useState(true);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const laden = useCallback(async () => {
+    setLaedt(true); setFehler(null);
+    try { setItems(await api.listMutations()); }
+    catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+  }, []);
+  useEffect(() => { void laden(); }, [laden]);
+
+  if (laedt) return <LoadingState label="Vorgänge werden geladen" />;
+  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (items.length === 0) return <EmptyState title="Noch keine Vorgänge" />;
+
+  return (
+    <ul className="divide-y" style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.2))' }}>
+      {items.map((m) => (
+        <li key={m.mutation_id}>
+          <button type="button" onClick={() => onOpen(m.mutation_id)}
+                  className="flex w-full items-center gap-3 py-2.5 text-left">
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{COMMAND_LABELS[m.command] ?? m.command}</span>
+                {m.target_display_name && <span className="truncate">{m.target_display_name}</span>}
+                <StateChip state={m.state} />
+              </span>
+              <span className="mt-0.5 block text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {m.created_at} · {m.actor}
+              </span>
+            </span>
+            <ChevronRight size={16} aria-hidden="true" style={{ color: 'var(--color-text-muted)' }} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ═══ Seite ══════════════════════════════════════════════════════════════════
+export default function ContactsPage() {
+  const [tab, setTab] = useState<Tab>('contacts');
+  const [kontaktId, setKontaktId] = useState<string | null>(null);
+  const [mutationId, setMutationId] = useState<string | null>(null);
+  const [anlegen, setAnlegen] = useState(false);
+  const [vorschau, setVorschau] = useState<PreparedMutation | null>(null);
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'contacts', label: 'Kontakte' },
+    { key: 'approvals', label: 'Freigaben' },
+    { key: 'mutations', label: 'Vorgänge' },
+  ];
+
+  return (
+    <div className="mx-auto w-full max-w-5xl p-6">
+      <h1 className="text-xl font-semibold">Kontakte</h1>
+      <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        Änderungen werden immer erst vorbereitet und von dir freigegeben.
+        Nichts wird ungefragt übertragen.
+      </p>
+
+      <div className="mt-4 flex gap-1 border-b"
+           style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.2))' }}
+           role="tablist" aria-label="Bereiche">
+        {tabs.map((t) => (
+          <button
+            key={t.key} type="button" role="tab" id={`tab-${t.key}`}
+            aria-selected={tab === t.key} aria-controls={`panel-${t.key}`}
+            onClick={() => { setTab(t.key); setKontaktId(null); setMutationId(null); }}
+            className="border-b-2 px-3 py-2 text-sm"
+            style={{
+              borderColor: tab === t.key ? 'var(--color-accent)' : 'transparent',
+              color: tab === t.key ? 'var(--color-accent)' : 'var(--color-text-muted)',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="mt-5">
+        {tab === 'contacts' && (
+          kontaktId
+            ? <ContactDetailView id={kontaktId} onBack={() => setKontaktId(null)}
+                                 onPrepared={setVorschau} />
+            : <ContactList onOpen={setKontaktId} onCreate={() => setAnlegen(true)} />
+        )}
+        {tab === 'approvals' && (
+          mutationId
+            ? <MutationDetailView id={mutationId} onBack={() => setMutationId(null)} />
+            : <ApprovalBoard onOpenMutation={setMutationId} />
+        )}
+        {tab === 'mutations' && (
+          mutationId
+            ? <MutationDetailView id={mutationId} onBack={() => setMutationId(null)} />
+            : <MutationList onOpen={setMutationId} />
+        )}
+      </div>
+
+      {anlegen && (
+        <CreateDialog onClose={() => setAnlegen(false)}
+                      onPrepared={(m) => { setAnlegen(false); setVorschau(m); }} />
+      )}
+      {vorschau && (
+        <PreviewDialog vorgang={vorschau} onClose={() => setVorschau(null)}
+                       onEntschieden={() => { setVorschau(null); setTab('approvals'); }} />
+      )}
+    </div>
+  );
+}
