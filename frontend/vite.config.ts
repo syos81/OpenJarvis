@@ -59,4 +59,12 @@ export default defineConfig({
       '/api': process.env.VITE_API_URL || 'http://localhost:8000',
     },
   },
+  // Vitest bleibt der einzige Runner. Die Standardumgebung ist weiterhin
+  // `node`, damit die bestehenden Tests unverändert laufen; Dateien, die
+  // ein DOM brauchen, fordern es per Docblock `@vitest-environment jsdom`
+  // einzeln an.
+  test: {
+    environment: 'node',
+    setupFiles: ['./src/test-setup.ts'],
+  },
 });

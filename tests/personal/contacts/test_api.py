@@ -638,10 +638,31 @@ def _routenpfade(module) -> list[str]:
 
 
 def test_router_bietet_keinen_ausfuehrungsendpunkt(module):
+    """Keine Route führt eine vorbereitete Mutation aus.
+
+    `authorization` steht bewusst nicht mehr auf der Verbotsliste: die Route
+    existiert seit dem Lese-Livegang und ist ausdrücklich erlaubt. Verboten
+    bleibt, was einen Vorgang zum Provider schickt.
+    """
     pfade = _routenpfade(module)
-    for verboten in ("execute", "send", "authorization", "requestAuthorization",
-                     "enumerate", "containers", "changes"):
+    for verboten in ("execute", "send", "retry", "resend", "commit"):
         assert not any(verboten in p for p in pfade), verboten
+
+
+def test_nur_drei_routen_beruehren_apple_kontakte(module):
+    """Die Live-Fläche ist abgeschlossen und namentlich fixiert.
+
+    Alles andere arbeitet ausschliesslich auf der lokalen Datenbank. Käme
+    eine vierte Route hinzu, die den Store berührt, fiele das hier auf.
+    """
+    pfade = set(_routenpfade(module))
+    live = {f"{PREFIX}/authorization", f"{PREFIX}/authorization/request",
+            f"{PREFIX}/sync"}
+    assert live <= pfade
+    # Kein weiterer Pfad benennt eine Store-Operation.
+    rest = pfade - live
+    for verboten in ("enumerate", "containers", "changes", "authorization"):
+        assert not any(verboten in p for p in rest), verboten
 
 
 def test_routen_liegen_unter_v1_personal(module):

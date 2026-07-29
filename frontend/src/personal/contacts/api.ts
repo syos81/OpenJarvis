@@ -179,6 +179,52 @@ export interface Capabilities {
   mutations_available: boolean;
 }
 
+export type AuthorizationState =
+  | 'notDetermined' | 'restricted' | 'denied' | 'authorized' | 'unknown';
+
+export interface Authorization {
+  status: AuthorizationState;
+  can_request: boolean;
+  bridge_available: boolean;
+  reason: string;
+}
+
+/** Ergebnis eines Laufs — ausschliesslich aggregiert, nie ein Kontaktwert. */
+export interface SyncRun {
+  mode: 'initial_import' | 'full_diff' | 'delta';
+  succeeded: boolean;
+  containers: number;
+  read: number;
+  imported: number;
+  updated: number;
+  tombstoned: number;
+  unchanged: number;
+  events_processed: number;
+  cursor_present: boolean;
+  cursor_advanced: boolean;
+  requires_full_diff: boolean;
+  error_class: string | null;
+  retryable: boolean;
+  detail: string;
+  completed_at: string;
+}
+
+/**
+ * Sync-Zustand, wie ihn die Oberfläche braucht.
+ *
+ * Der Server liefert mehr Felder — Konto- und Containerkennung,
+ * `key_set_version`, `circuit_state`. Sie werden hier bewusst **nicht**
+ * typisiert und damit auch nicht benutzt: was nicht im Typ steht, landet
+ * nicht im UI-State und kann nicht versehentlich angezeigt werden.
+ */
+export interface SyncStatus {
+  mode: string;
+  has_cursor: boolean;
+  cursor_taken_at: string | null;
+  last_full_diff_at: string | null;
+  updated_at: string;
+}
+
 export interface ReconcileResult {
   mutation_id: string;
   verdict: string;
@@ -270,6 +316,39 @@ export function listCategories(): Promise<RoleCount[]> {
 
 export function getCapabilities(): Promise<Capabilities> {
   return request<Capabilities>('/capabilities');
+}
+
+// ── Autorisierung und manueller Lese-Sync ──────────────────────────────────
+//
+// Diese drei Funktionen sind die einzigen im Client, die serverseitig einen
+// Sidecar starten können. Keine wird beim Laden der Seite aufgerufen — der
+// Statusabruf ist lesend und löst keinen Systemdialog aus, die beiden anderen
+// hängen an einem Knopfdruck.
+
+/** Liest den Berechtigungsstatus. Löst **keinen** macOS-Dialog aus. */
+export function getAuthorization(): Promise<Authorization> {
+  return request<Authorization>('/authorization');
+}
+
+/**
+ * Fordert die Berechtigung an — ausschliesslich auf ausdrückliche
+ * Nutzeraktion. `user_initiated` ist serverseitig Pflicht und muss `true`
+ * sein; es gibt keinen Aufruf ohne Körper.
+ */
+export function requestAuthorization(): Promise<Authorization> {
+  return request<Authorization>('/authorization/request', {
+    method: 'POST',
+    body: JSON.stringify({ user_initiated: true }),
+  });
+}
+
+/** Ein ausdrücklich ausgelöster, ausschliesslich lesender Lauf. */
+export function runSync(): Promise<SyncRun> {
+  return request<SyncRun>('/sync', { method: 'POST' });
+}
+
+export function getSyncStatus(): Promise<SyncStatus[]> {
+  return request<SyncStatus[]>('/sync/status');
 }
 
 // ── Lokale Kategorien (R0, rein lokal) ─────────────────────────────────────

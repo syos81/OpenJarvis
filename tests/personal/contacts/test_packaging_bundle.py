@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -242,11 +243,79 @@ def test_keine_neue_tauri_capability_fuer_contacts():
         assert verboten not in text, verboten
 
 
-def test_lib_rs_kennt_keinen_contacts_pfad():
-    """Kein zweiter fachlicher Ausführungsweg im Tauri-Hauptprozess."""
-    text = (_TAURI / "src" / "lib.rs").read_text()
-    for verboten in ("jarvis-contacts", "contacts-bridge", "requestAuthorization"):
-        assert verboten not in text, verboten
+def _rust_ohne_kommentare(pfad: Path) -> str:
+    """Rust-Quelltext ohne Kommentare.
+
+    Notwendig, weil sonst der erklärende Kommentar neben einer Zeile die
+    Prüfung auslöst — der Test würde dann die Dokumentation bestrafen.
+    """
+    text = pfad.read_text()
+    ohne_block = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return "\n".join(z.split("//", 1)[0] for z in ohne_block.splitlines())
+
+
+def test_lib_rs_spricht_das_bridge_protokoll_nicht():
+    """Kein zweiter fachlicher Ausführungsweg im Tauri-Hauptprozess.
+
+    Der Hauptprozess **darf** den gebündelten Sidecar finden und seinen Pfad
+    an den Python-Prozess durchreichen — das ist Paketierung, nicht Fachlogik.
+    Er darf ihn nicht starten, nicht mit ihm sprechen und keine
+    Kontakte-Operation auslösen. Genau das wird hier geprüft, statt ein Wort
+    zu verbieten: die frühere Fassung untersagte den blossen String
+    `jarvis-contacts` und hätte damit auch die Pfadauflösung verboten, die
+    für den Betrieb aus der gepackten App notwendig ist.
+    """
+    code = _rust_ohne_kommentare(_TAURI / "src" / "lib.rs")
+
+    # Keine Kontakte-Operation und kein Protokollverkehr.
+    for verboten in ("requestAuthorization", "authorizationStatus",
+                     "enumerate", "containers", "changes",
+                     "CNContact", "protocolVersion", '"op"'):
+        assert verboten not in code, verboten
+
+    # Der Sidecar wird nirgends gestartet: sein Pfad taucht ausschliesslich
+    # in der Auflösung und in der Env-Übergabe auf, nie in einem Command.
+    for zeile in code.splitlines():
+        if "jarvis-contacts" in zeile:
+            assert "Command::new" not in zeile, zeile
+            assert ".spawn(" not in zeile, zeile
+
+    # Und er wird nie über PATH gesucht.
+    assert "resolve_bin(\"jarvis-contacts\")" not in code.replace(" ", "")
+
+
+def test_lib_rs_uebergibt_den_sidecar_nur_als_umgebungsvariable():
+    """Der Python-Resolver bleibt die einzige Stelle, die prüft.
+
+    Rust reicht den Pfad durch; Architektur-, Symlink- und Signaturprüfung
+    macht ausschliesslich `resolve_sidecar`.
+    """
+    code = _rust_ohne_kommentare(_TAURI / "src" / "lib.rs")
+    assert 'cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR"' in code
+    assert 'cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1")' in code
+
+
+def test_personal_jarvis_wird_nur_mit_vorhandenem_sidecar_aktiviert():
+    """DEV-3 bleibt gewahrt: ohne Sidecar keine Verhaltensänderung.
+
+    Ein Upstream-Build trägt kein `jarvis-contacts`; dort bleibt der Schalter
+    ungesetzt und die App verhält sich unverändert.
+    """
+    code = _rust_ohne_kommentare(_TAURI / "src" / "lib.rs")
+    stelle = code.index('cmd.env("OPENJARVIS_PERSONAL_ENABLED"')
+    umfeld = code[max(0, stelle - 400):stelle]
+    assert "bundled_contacts_sidecar()" in umfeld, (
+        "Der Schalter muss an das Vorhandensein des Sidecars gebunden sein")
+
+
+def test_sidecar_wird_nur_neben_der_ausfuehrbaren_datei_gesucht():
+    """Kein PATH-Lookup — sonst wäre das Binary austauschbar."""
+    code = _rust_ohne_kommentare(_TAURI / "src" / "lib.rs")
+    start = code.index("fn bundled_contacts_sidecar")
+    rumpf = code[start:start + 400]
+    assert "current_exe()" in rumpf
+    for verboten in ("PATH", "resolve_bin", "which"):
+        assert verboten not in rumpf, verboten
 
 
 # ── Resolver im nachgebildeten Bundle-Layout ────────────────────────────────

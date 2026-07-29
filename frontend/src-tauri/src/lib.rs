@@ -267,6 +267,22 @@ fn resolve_bin(name: &str) -> String {
 }
 
 /// Find the OpenJarvis project root (contains pyproject.toml).
+/// Locate the bundled Contacts sidecar next to the running executable.
+///
+/// Tauri's `externalBin` places `binaries/jarvis-contacts-<triple>` into
+/// `Contents/MacOS/jarvis-contacts` (the triple suffix is stripped), so
+/// `current_exe()`'s directory is the only place we look. PATH is
+/// deliberately not searched: a sidecar picked up from PATH would bypass the
+/// architecture and signature checks the Python resolver performs.
+///
+/// Returns `None` when the binary is absent — which is the normal case for an
+/// upstream build without the Personal Jarvis sidecar.
+fn bundled_contacts_sidecar() -> Option<std::path::PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let candidate = dir.join("jarvis-contacts");
+    candidate.is_file().then_some(candidate)
+}
+
 /// Checks OPENJARVIS_ROOT env var, walks up from the executable, then
 /// probes common clone locations.
 fn find_project_root() -> Option<std::path::PathBuf> {
@@ -1430,6 +1446,21 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     for (key, value) in read_cloud_keys() {
         cmd.env(&key, &value);
     }
+
+    // Personal Jarvis is enabled exactly when its signed sidecar shipped in
+    // this bundle. That keeps DEV-3's promise for upstream builds — no
+    // sidecar, no flag, behaviour unchanged — while making the module
+    // reachable in a build that actually carries it. Enabling it
+    // unconditionally would switch on a module whose bridge cannot resolve.
+    //
+    // Note this only makes the module *reachable*. It performs no Apple
+    // Contacts operation on its own: authorization and sync each require an
+    // explicit click in the UI.
+    if let Some(sidecar) = bundled_contacts_sidecar() {
+        cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1");
+        cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR", &sidecar);
+    }
+
     let jarvis_child = cmd.spawn();
 
     match jarvis_child {

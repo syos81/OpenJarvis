@@ -37,6 +37,9 @@ __all__ = [
     "ApprovalDecisionIn",
     "ReconcileOut",
     "SyncStatusOut",
+    "AuthorizationOut",
+    "AuthorizationRequestIn",
+    "SyncRunOut",
     "CapabilitiesOut",
     "ErrorOut",
 ]
@@ -266,6 +269,50 @@ class SyncStatusOut(_Strict):
     cursor_taken_at: str | None = None
     last_full_diff_at: str | None = None
     updated_at: str
+
+
+class AuthorizationOut(_Strict):
+    """Autorisierungszustand. `status` wird gelesen, nie geraten."""
+
+    status: Literal["notDetermined", "restricted", "denied", "authorized",
+                    "unknown"]
+    can_request: bool
+    bridge_available: bool
+    reason: str = ""
+
+
+class AuthorizationRequestIn(_Strict):
+    """Ausdrückliche Nutzeraktion.
+
+    Das Feld ist Pflicht und muss `True` sein: ein Aufrufer kann den Dialog
+    nicht versehentlich auslösen, indem er den Körper weglässt.
+    """
+
+    user_initiated: Literal[True]
+
+
+class SyncRunOut(_Strict):
+    """Ergebnis eines Laufs — ausschließlich aggregierte Werte.
+
+    Kein Cursor, kein Token, kein Provider-Identifier, kein Kontaktwert.
+    """
+
+    mode: Literal["initial_import", "full_diff", "delta"]
+    succeeded: bool
+    containers: int
+    read: int
+    imported: int
+    updated: int
+    tombstoned: int
+    unchanged: int
+    events_processed: int
+    cursor_present: bool
+    cursor_advanced: bool
+    requires_full_diff: bool
+    error_class: str | None = None
+    retryable: bool = False
+    detail: str = ""
+    completed_at: str
 
 
 class CapabilitiesOut(_Strict):

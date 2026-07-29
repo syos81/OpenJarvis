@@ -51,6 +51,13 @@ from personaljarvis.contacts.application.errors import (
     TargetBindingError,
     UnifiedIdentifierNotWritable,
 )
+from personaljarvis.contacts.application.live import (
+    ContactsLiveService,
+    LiveError,
+    SyncBusy,
+    SyncNotAuthorized,
+    SyncUnavailable,
+)
 from personaljarvis.contacts.application.queries import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
@@ -91,6 +98,27 @@ _ERROR_MAP: tuple[tuple[type, int, str], ...] = (
 )
 
 
+#: Live-Fehler tragen ihre Wiederholbarkeit selbst; sie werden nie zu 500.
+_LIVE_ERROR_MAP: tuple[tuple[type, int, str], ...] = (
+    (SyncBusy, 409, "conflict"),
+    (SyncNotAuthorized, 403, "forbidden"),
+    (SyncUnavailable, 503, "unavailable"),
+)
+
+
+def _live_error(exc: "LiveError") -> HTTPException:
+    for typ, status, code in _LIVE_ERROR_MAP:
+        if isinstance(exc, typ):
+            return HTTPException(
+                status_code=status,
+                detail={"code": code, "message": str(exc),
+                        "retryable": bool(getattr(exc, "retryable", False))})
+    return HTTPException(
+        status_code=500,
+        detail={"code": "internal", "message": type(exc).__name__,
+                "retryable": False})
+
+
 def _http_error(exc: Exception) -> HTTPException:
     for typ, status, code in _ERROR_MAP:
         if isinstance(exc, typ):
@@ -120,6 +148,19 @@ def create_contacts_router(module) -> APIRouter:
     def _mutation_service():
         # Fake-Provider bleibt Sache der Komposition. Die Route führt nie aus.
         return module.mutation_service()
+
+    def _live() -> ContactsLiveService:
+        """Der Live-Dienst wird **einmal** gebaut und gehalten.
+
+        Der Riegel gegen parallele Läufe lebt in der Instanz — ein neuer
+        Dienst je Anfrage hätte einen neuen Riegel und damit gar keinen.
+        Tests dürfen ihn über `module.live_service` ersetzen.
+        """
+        vorhanden = getattr(module, "live_service", None)
+        if vorhanden is not None:
+            return vorhanden
+        module.live_service = ContactsLiveService(module)
+        return module.live_service
 
     # ── Kontakte lesen ──────────────────────────────────────────────────────
     @router.get("", response_model=S.ContactPageOut)
@@ -171,6 +212,46 @@ def create_contacts_router(module) -> APIRouter:
         return [S.SyncStatusOut(**vars(s))
                 for s in queries.sync_status(
                     provider_account_id=provider_account_id)]
+
+    # ── Autorisierung und manueller Lese-Sync ───────────────────────────────
+    #
+    # Diese drei Routen sind die **einzigen**, die überhaupt einen Sidecar
+    # starten können. Alle drei sind ausschließlich lesend, und keine wird
+    # automatisch ausgelöst: `GET /authorization` liest nur den Status,
+    # `POST /authorization/request` verlangt eine ausdrückliche Nutzeraktion
+    # im Körper, und `POST /sync` läuft nur auf Knopfdruck.
+    @router.get("/authorization", response_model=S.AuthorizationOut)
+    def authorization() -> Any:
+        """Liest den Status. Löst **keinen** Systemdialog aus."""
+        sicht = _live().authorization()
+        return S.AuthorizationOut(**vars(sicht))
+
+    @router.post("/authorization/request", response_model=S.AuthorizationOut)
+    def request_authorization(body: S.AuthorizationRequestIn) -> Any:
+        """Fordert die Berechtigung an — nur auf ausdrückliche Nutzeraktion.
+
+        Es gibt bewusst keinen automatischen Wiederholungsversuch: nach einer
+        Ablehnung ändert das nur der Nutzer selbst in den Systemeinstellungen.
+        """
+        try:
+            sicht = _live().request_authorization(
+                user_initiated=body.user_initiated)
+        except LiveError as exc:
+            raise _live_error(exc) from exc
+        return S.AuthorizationOut(**vars(sicht))
+
+    @router.post("/sync", response_model=S.SyncRunOut)
+    def run_sync(request: Request) -> Any:
+        """Ein ausdrücklich ausgelöster, ausschließlich lesender Lauf.
+
+        Zwei gleichzeitige Läufe desselben Workspace sind ausgeschlossen; der
+        zweite bekommt 409 statt eines halben Bestands.
+        """
+        try:
+            lauf = _live().sync(workspace_id=workspace(request))
+        except LiveError as exc:
+            raise _live_error(exc) from exc
+        return S.SyncRunOut(**vars(lauf))
 
     # ── Mutationen und Freigaben (vor {contact_id}, sonst schluckt der
     #    Pfadparameter diese Routen) ───────────────────────────────────────

@@ -176,17 +176,60 @@ describe('Chip', () => {
 // Diese Prüfungen ersetzen nicht, was nur mit einem DOM prüfbar wäre. Sie
 // sichern die Eigenschaften, die überhaupt nicht verletzt werden dürfen —
 // und die in einem Renderlauf gar nicht sichtbar würden.
+/**
+ * Entfernt Kommentare, damit Verbotsprüfungen echten Code treffen.
+ *
+ * Ohne das schlägt jede Prüfung an, die den verbotenen Begriff im
+ * erklärenden Kommentar daneben stehen hat — der Test würde dann die
+ * Dokumentation bestrafen statt die Implementierung zu prüfen.
+ */
+function nurCode(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((z) => z.replace(/(^|[^:])\/\/.*$/, '$1'))
+    .join('\n');
+}
+
 describe('Seitencode', () => {
-  const seite = quelle('ContactsPage.tsx');
-  const klient = quelle('api.ts');
+  const seite = nurCode(quelle('ContactsPage.tsx'));
+  const klient = nurCode(quelle('api.ts'));
 
   it('ruft keinen Provider, Sidecar oder Store direkt auf', () => {
+    // `requestAuthorization` steht bewusst NICHT mehr auf dieser Liste: die
+    // Seite ruft es inzwischen legitim auf — ausschliesslich aus einem
+    // Klickhandler. Dass es nie automatisch geschieht, belegen die
+    // Interaktionstests, nicht ein Wortverbot.
     for (const verboten of [
       'fetch(', 'invoke(', 'tauri', 'sidecar', 'jarvis-contacts',
-      'CNContact', 'requestAuthorization', 'AddressBook',
+      'CNContact', 'CNContactStore', 'AddressBook',
     ]) {
       expect(seite.toLowerCase()).not.toContain(verboten.toLowerCase());
     }
+  });
+
+  it('fordert die Berechtigung nur aus einem Klickhandler an', () => {
+    // Statische Ergänzung zu den Interaktionstests: der Aufruf darf nirgends
+    // in einem `useEffect` stehen. Genau dort entstünde ein Dialog beim
+    // blossen Öffnen der Seite.
+    const zeilen = seite.split('\n');
+    const treffer = zeilen
+      .map((z, i) => [z, i] as const)
+      .filter(([z]) => z.includes('api.requestAuthorization'));
+    expect(treffer).toHaveLength(1);
+
+    // Rückwärts bis zur umschliessenden Deklaration laufen. Ein fester
+    // Zeilenabstand wäre willkürlich und würde fremde Blöcke einfangen.
+    const [, index] = treffer[0];
+    let umschliessend = '';
+    for (let i = index; i >= 0; i -= 1) {
+      if (/^\s{2}(const \w+ = async|useEffect\(|function )/.test(zeilen[i])) {
+        umschliessend = zeilen[i].trim();
+        break;
+      }
+    }
+    expect(umschliessend).toMatch(/^const \w+ = async/);
+    expect(umschliessend).not.toContain('useEffect');
   });
 
   it('haelt Synchronisationstoken vollstaendig aus der Oberflaeche heraus', () => {

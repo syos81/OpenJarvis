@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Ergänzungen zur von Tauri erzeugten Info.plist. Tauri liest diese Datei
+  automatisch, weil sie neben tauri.conf.json liegt, und mischt die Schlüssel
+  in das App-Bundle (tauri-bundler, macos/app.rs).
+
+  NSContactsUsageDescription ist ohne Alternative: ohne diesen Schlüssel zeigt
+  macOS keinen Berechtigungsdialog, und der Kontakte-Zugriff schlägt fehl
+  statt nachzufragen. Der Text erscheint dem Nutzer wörtlich im Dialog, also
+  sagt er, was tatsächlich passiert — und benennt ausdrücklich, dass diese
+  Version nur liest.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSContactsUsageDescription</key>
+  <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Es werden keine Kontakte verändert und keine Daten übertragen.</string>
+</dict>
+</plist>

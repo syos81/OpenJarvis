@@ -11,8 +11,9 @@ import {
 } from 'lucide-react';
 import * as api from './api';
 import type {
-  Approval, Capabilities, ContactDetail, ContactSummary, Mutation,
-  MutationDetail, PreparedMutation, RoleCount,
+  Approval, Authorization, AuthorizationState, Capabilities, ContactDetail,
+  ContactSummary, Mutation, MutationDetail, PreparedMutation, RoleCount,
+  SyncRun, SyncStatus,
 } from './api';
 import {
   ChangeTable, Chip, COMMAND_LABELS, EmptyState, ErrorState, FieldStateBadge,
@@ -29,9 +30,221 @@ function meldung(e: unknown): string {
   return e instanceof Error ? e.message : 'Unbekannter Fehler';
 }
 
+// ═══ Berechtigung und manueller Abgleich ════════════════════════════════════
+//
+// Diese Fläche ist der einzige Ort, von dem aus überhaupt eine Live-Operation
+// gegen Apple Kontakte ausgelöst werden kann — und immer nur durch einen
+// bewussten Klick. Beim Öffnen der Seite wird ausschliesslich der Status
+// **gelesen**; ein Systemdialog erscheint nie von selbst.
+
+const AUTH_TEXT: Record<AuthorizationState, { titel: string; hinweis: string }> = {
+  notDetermined: {
+    titel: 'Noch nicht entschieden',
+    hinweis: 'Personal Jarvis hat noch nie auf deine Kontakte zugegriffen. '
+      + 'Du entscheidest gleich selbst im macOS-Dialog.',
+  },
+  authorized: {
+    titel: 'Zugriff erlaubt',
+    hinweis: 'Kontakte können gelesen werden. Geändert wird nichts — '
+      + 'diese Version liest ausschliesslich.',
+  },
+  denied: {
+    titel: 'Zugriff abgelehnt',
+    hinweis: 'Du hast den Zugriff abgelehnt. Ändern lässt sich das nur in den '
+      + 'Systemeinstellungen unter Datenschutz & Sicherheit → Kontakte.',
+  },
+  restricted: {
+    titel: 'Zugriff eingeschränkt',
+    hinweis: 'Der Zugriff ist auf diesem Mac durch eine Richtlinie gesperrt. '
+      + 'Eine Anfrage würde daran nichts ändern.',
+  },
+  unknown: {
+    titel: 'Status unbekannt',
+    hinweis: 'Der Status konnte nicht gelesen werden. Er wird nicht geraten.',
+  },
+};
+
+const SYNC_MODUS: Record<string, string> = {
+  initial_import: 'Erstimport',
+  full_diff: 'Vollabgleich',
+  delta: 'Änderungsabgleich',
+};
+
+function SyncPanel({ onSynced }: { onSynced: () => void }) {
+  const [auth, setAuth] = useState<Authorization | null>(null);
+  const [status, setStatus] = useState<SyncStatus[]>([]);
+  const [lauf, setLauf] = useState<SyncRun | null>(null);
+  const [laedt, setLaedt] = useState(true);
+  const [fragt, setFragt] = useState(false);
+  const [synct, setSynct] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const statusLaden = useCallback(async () => {
+    setFehler(null);
+    try {
+      // Ausschliesslich lesend. Kein `requestAuthorization`, kein Sync.
+      const [a, s] = await Promise.all([
+        api.getAuthorization(), api.getSyncStatus(),
+      ]);
+      setAuth(a);
+      setStatus(s);
+    } catch (e) {
+      setFehler(meldung(e));
+    } finally {
+      setLaedt(false);
+    }
+  }, []);
+
+  useEffect(() => { void statusLaden(); }, [statusLaden]);
+
+  // Doppelklickschutz: solange eine Anfrage läuft, ist der Knopf deaktiviert
+  // **und** der Handler kehrt sofort zurück. Ein zweiter Dialog oder ein
+  // zweiter Lauf entstünde sonst allein durch schnelles Klicken.
+  const erlauben = async () => {
+    if (fragt || synct) return;
+    setFragt(true);
+    setFehler(null);
+    try {
+      setAuth(await api.requestAuthorization());
+    } catch (e) {
+      setFehler(meldung(e));
+    } finally {
+      setFragt(false);
+    }
+  };
+
+  const abgleichen = async () => {
+    if (synct || fragt) return;
+    setSynct(true);
+    setFehler(null);
+    try {
+      const ergebnis = await api.runSync();
+      setLauf(ergebnis);
+      if (ergebnis.succeeded) {
+        onSynced();
+        setStatus(await api.getSyncStatus());
+      }
+    } catch (e) {
+      setFehler(meldung(e));
+    } finally {
+      setSynct(false);
+    }
+  };
+
+  if (laedt) return <LoadingState label="Berechtigung wird geprüft" />;
+
+  const text = AUTH_TEXT[auth?.status ?? 'unknown'];
+  const autorisiert = auth?.status === 'authorized';
+  const letzterAbgleich = status
+    .map((s) => s.updated_at)
+    .sort()
+    .slice(-1)[0];
+
+  return (
+    <section
+      className="mb-5 rounded-md border p-4"
+      style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+      aria-labelledby="pj-sync-titel"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex-1" style={{ minWidth: '18rem' }}>
+          <h2 id="pj-sync-titel" className="text-sm font-medium">
+            Apple Kontakte
+          </h2>
+          <p className="mt-0.5 text-sm" data-testid="auth-status">
+            {text.titel}
+          </p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {text.hinweis}
+          </p>
+          {auth && !auth.bridge_available && (
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-warning, #b45309)' }}>
+              Die Kontakte-Brücke ist nicht verfügbar.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {auth?.can_request && (
+            <button
+              type="button" onClick={erlauben} disabled={fragt || synct}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+              style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}
+            >
+              {fragt && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+              Zugriff auf Kontakte erlauben
+            </button>
+          )}
+          {autorisiert && (
+            <button
+              type="button" onClick={abgleichen} disabled={synct || fragt}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+              style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+            >
+              {synct
+                ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                : <RefreshCw size={14} aria-hidden="true" />}
+              Kontakte synchronisieren
+            </button>
+          )}
+        </div>
+      </div>
+
+      {fragt && (
+        <p className="mt-3 text-sm" role="status" style={{ color: 'var(--color-text-muted)' }}>
+          Warte auf deine Entscheidung im macOS-Dialog…
+        </p>
+      )}
+      {synct && (
+        <p className="mt-3 text-sm" role="status" style={{ color: 'var(--color-text-muted)' }}>
+          Kontakte werden gelesen…
+        </p>
+      )}
+
+      {fehler && <ErrorState message={fehler} onRetry={() => void statusLaden()} />}
+
+      {lauf && !fehler && (
+        <div className="mt-3 rounded-md border p-3 text-sm" data-testid="sync-ergebnis"
+             style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.2))' }}
+             role="status">
+          {lauf.succeeded ? (
+            <>
+              <p className="font-medium">
+                {SYNC_MODUS[lauf.mode] ?? lauf.mode} abgeschlossen
+              </p>
+              <p className="mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                {lauf.containers} Container · {lauf.read} gelesen ·{' '}
+                {lauf.imported} neu · {lauf.updated} aktualisiert ·{' '}
+                {lauf.tombstoned} entfernt · {lauf.unchanged} unverändert
+              </p>
+              {lauf.requires_full_diff && (
+                <p className="mt-1" style={{ color: 'var(--color-warning, #b45309)' }}>
+                  Beim nächsten Mal ist ein Vollabgleich nötig.
+                </p>
+              )}
+            </>
+          ) : (
+            <p style={{ color: 'var(--color-warning, #b45309)' }}>
+              Der Abgleich ist fehlgeschlagen
+              {lauf.error_class ? ` (${lauf.error_class})` : ''}.
+              {lauf.retryable && ' Ein erneuter Versuch ist sinnvoll.'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {letzterAbgleich && (
+        <p className="mt-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Zuletzt abgeglichen: {new Date(letzterAbgleich).toLocaleString('de-DE')}
+        </p>
+      )}
+    </section>
+  );
+}
+
 // ═══ Übersicht ══════════════════════════════════════════════════════════════
-function ContactList({ onOpen, onCreate }: {
-  onOpen: (id: string) => void; onCreate: () => void;
+function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
+  onOpen: (id: string) => void; onCreate: () => void; reloadKey?: number;
 }) {
   const [items, setItems] = useState<ContactSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -61,8 +274,12 @@ function ContactList({ onOpen, onCreate }: {
     }
   }, [suche, rolle]);
 
-  useEffect(() => { void laden(false); }, [laden]);
-  useEffect(() => { api.listCategories().then(setKategorien).catch(() => setKategorien([])); }, []);
+  // `reloadKey` ist die Nachladeschleuse nach einem erfolgreichen Abgleich:
+  // die Liste zeigt sonst weiter den Stand von vor dem Import.
+  useEffect(() => { void laden(false); }, [laden, reloadKey]);
+  useEffect(() => {
+    api.listCategories().then(setKategorien).catch(() => setKategorien([]));
+  }, [reloadKey]);
 
   return (
     <div>
@@ -152,7 +369,14 @@ function ContactList({ onOpen, onCreate }: {
                         style={{ color: 'var(--color-text-muted)' }}>
                     {k.organization_name && <span className="truncate">{k.organization_name}</span>}
                     <span>{k.email_count} E-Mail · {k.phone_count} Telefon · {k.address_count} Adresse</span>
-                    {k.provider_account_ids.map((p) => <span key={p}>{p}</span>)}
+                    {/* Bewusst ohne Kontokennung: `apple-local` ist ein
+                        Provider-Identifier und hat in der Oberfläche nichts
+                        verloren. Die Anzahl sagt dem Nutzer alles, was ihn
+                        betrifft — nämlich ob ein Kontakt aus mehreren Quellen
+                        stammt. */}
+                    {k.provider_account_ids.length > 1 && (
+                      <span>aus {k.provider_account_ids.length} Quellen</span>
+                    )}
                     {k.roles.map((r) => <Chip key={r}>{r}</Chip>)}
                   </span>
                 </span>
@@ -260,7 +484,14 @@ function ContactDetailView({ id, onBack, onPrepared }: {
               </Chip>
             )}
             {kontakt.conflict_state && <Chip tone="warn">Konflikt: {kontakt.conflict_state}</Chip>}
-            {kontakt.provider_accounts.map((p) => <Chip key={p}>{p}</Chip>)}
+            {/* Kein Provider-Identifier in der Oberfläche. Dass ein Kontakt
+                aus mehreren Konten stammt, ist die einzige Aussage, die den
+                Nutzer hier betrifft. */}
+            {kontakt.provider_accounts.length > 1 && (
+              <Chip title="Dieser Kontakt stammt aus mehreren Konten.">
+                {kontakt.provider_accounts.length} Quellen
+              </Chip>
+            )}
           </div>
         </div>
         {schreibbar && (
@@ -733,7 +964,9 @@ function ApprovalBoard({ onOpenMutation }: { onOpenMutation: (id: string) => voi
   if (laedt) return <LoadingState label="Freigaben werden geladen" />;
   if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
   if (eintraege.length === 0) {
-    return <EmptyState title="Keine Vorgänge"
+    // Auf der Freigabetafel ist „Keine Vorgänge" zweideutig — es könnte auch
+    // heissen, dass Vorgänge existieren, aber nicht angezeigt werden.
+    return <EmptyState title="Keine offenen Freigaben"
                        hint="Sobald du eine Änderung vorbereitest, erscheint sie hier." />;
   }
 
@@ -971,6 +1204,7 @@ export default function ContactsPage() {
   const [mutationId, setMutationId] = useState<string | null>(null);
   const [anlegen, setAnlegen] = useState(false);
   const [vorschau, setVorschau] = useState<PreparedMutation | null>(null);
+  const [nachladen, setNachladen] = useState(0);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'contacts', label: 'Kontakte' },
@@ -1010,7 +1244,13 @@ export default function ContactsPage() {
           kontaktId
             ? <ContactDetailView id={kontaktId} onBack={() => setKontaktId(null)}
                                  onPrepared={setVorschau} />
-            : <ContactList onOpen={setKontaktId} onCreate={() => setAnlegen(true)} />
+            : (
+              <>
+                <SyncPanel onSynced={() => setNachladen((n) => n + 1)} />
+                <ContactList onOpen={setKontaktId} onCreate={() => setAnlegen(true)}
+                             reloadKey={nachladen} />
+              </>
+            )
         )}
         {tab === 'approvals' && (
           mutationId

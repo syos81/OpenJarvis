@@ -174,12 +174,18 @@ export function Modal({ open, onClose, title, description, children, footer }: {
     if (!open) return undefined;
     vorher.current = document.activeElement as HTMLElement | null;
     const knoten = panel.current;
+    // Sichtbarkeit bewusst NICHT über `offsetParent` prüfen: die Eigenschaft
+    // ist in Testumgebungen ohne Layout immer `null`, wodurch die Liste leer
+    // bliebe und die Fokusfalle unbemerkt wirkungslos wäre. Geprüft wird
+    // stattdessen, was der Dialog selbst kontrolliert.
     const fokussierbare = () =>
       Array.from(
         knoten?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ) ?? [],
-      ).filter((e) => e.offsetParent !== null);
+      ).filter((e) => !e.hidden
+        && e.getAttribute('aria-hidden') !== 'true'
+        && e.closest('[hidden]') === null);
 
     fokussierbare()[0]?.focus();
 

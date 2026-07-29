@@ -51,8 +51,12 @@ cat > "$PLIST" <<'PLIST_EOF'
   <string>1.0.0</string>
   <key>CFBundleVersion</key>
   <string>1</string>
+  <!-- Der Text erscheint dem Nutzer woertlich im Systemdialog. Er sagt
+       deshalb genau, was diese Version tut: sie liest. Der Sidecar enthaelt
+       keinen Schreibpfad (kein CNSaveRequest), und ein Versprechen von
+       "verwalten" waere schlicht falsch. -->
   <key>NSContactsUsageDescription</key>
-  <string>Personal Jarvis liest und verwaltet deine Kontakte lokal auf diesem Mac.</string>
+  <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Es werden keine Kontakte veraendert und keine Daten uebertragen.</string>
 </dict>
 PLIST_EOF
 echo '</plist>' >> "$PLIST"
