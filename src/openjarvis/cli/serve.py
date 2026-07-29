@@ -154,14 +154,25 @@ def serve(
         model_name or config.server.model or config.intelligence.default_model or None
     )
     resolved = get_engine(config, engine_key, model=selection_model)
+    # A missing engine degrades the capabilities that need a model — it does not
+    # take down the server. Health, telemetry, memory browsing and the Personal
+    # Jarvis modules need no inference at all, and refusing to start would take
+    # every one of them down over one optional dependency. Completion requests
+    # fail per request with a clear message instead (see UnavailableEngine).
+    engine_available = resolved is not None
     if resolved is None:
-        console.print(
-            "[red bold]No inference engine available.[/red bold]\n\n"
-            "Make sure an engine is running."
-        )
-        sys.exit(1)
+        from openjarvis.engine.unavailable import UnavailableEngine
 
-    engine_name, engine = resolved
+        console.print(
+            "[yellow bold]No inference engine available.[/yellow bold]\n"
+            "  Chat, agents and anything else needing a model stay unavailable.\n"
+            "  The API server starts; everything that needs no model works.\n"
+            "  Start an engine (e.g. [cyan]ollama serve[/cyan]) and restart to "
+            "enable inference."
+        )
+        engine_name, engine = "unavailable", UnavailableEngine()
+    else:
+        engine_name, engine = resolved
 
     # Apply security guardrails
     from openjarvis.security import setup_security
@@ -255,7 +266,10 @@ def serve(
             "[yellow]Configured model "
             f"{configured_model!r} is not reachable; using {model_name!r}.[/yellow]"
         )
-    if not model_name:
+    if not model_name and engine_available:
+        # An engine that answers but serves nothing is a real misconfiguration:
+        # something is running, it just has no model. That still warrants a hard
+        # stop. With no engine at all we already reported it above and continue.
         console.print(
             "[red]No model available on any reachable engine.[/red]\n\n"
             "Start an inference backend and make sure it lists at least one model.\n"

@@ -66,13 +66,50 @@ class TestCLI:
         result = CliRunner().invoke(cli, ["ask"])
         assert result.exit_code != 0
 
-    def test_serve_needs_engine(self) -> None:
-        """Serve requires a running engine; exits with error when none available."""
+    def test_serve_survives_a_missing_engine(self, tmp_path, monkeypatch) -> None:
+        """A missing engine degrades inference — it does not stop the server.
+
+        The server also carries capabilities that need no model at all, so
+        exiting here would take those down with it. Detailed coverage lives in
+        ``test_serve_without_engine.py``; this asserts the CLI-level contract.
+
+        ``uvicorn.run`` is stubbed and ``OPENJARVIS_HOME`` redirected on
+        purpose: the previous version of this test invoked the real ``serve``
+        with neither, so on a host that *did* have a working engine it would
+        have bound a real port and never returned.
+        """
+        import importlib
+
+        import uvicorn
+
+        serve_mod = importlib.import_module("openjarvis.cli.serve")
+        heim = tmp_path / "openjarvis-home"
+        heim.mkdir()
+        (heim / "config.toml").write_text(
+            "[telemetry]\nenabled = false\n"
+            "[agent_manager]\nenabled = false\n"
+            "[channel]\nenabled = false\n"
+            "[sessions]\nenabled = false\n"
+            "[traces]\nenabled = false\n"
+            "[memory]\nenabled = false\n"
+            "[agent]\ncontext_from_memory = false\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("OPENJARVIS_HOME", str(heim))
+        monkeypatch.setattr(serve_mod, "get_engine", lambda *a, **k: None)
+        monkeypatch.setattr(serve_mod, "discover_engines", lambda cfg: [])
+        monkeypatch.setattr(serve_mod, "discover_models", lambda engines: {})
+        gestartet: list = []
+        monkeypatch.setattr(uvicorn, "run", lambda app, **kw: gestartet.append(app))
+
         result = CliRunner().invoke(cli, ["serve"])
-        # Either exits with error (no engine) or succeeds (deps missing)
-        # Both are valid states for testing
+
         out = result.output.lower()
-        assert result.exit_code != 0 or "not installed" in out or "no inference" in out
+        if "not installed" in out:  # server extra absent — nothing to assert
+            return
+        assert result.exit_code == 0, result.output
+        assert "no inference engine" in out
+        assert gestartet, "der Server haette starten muessen"
 
     def test_model_subcommands_exist(self) -> None:
         result = CliRunner().invoke(cli, ["model", "--help"])

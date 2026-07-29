@@ -23,11 +23,16 @@ from personaljarvis.contacts.bridge.resolver import (
     binary_architectures,
     host_architecture,
     resolve_sidecar,
+    tauri_triple,
 )
 
 _REPO = Path(__file__).resolve().parents[3]
-_BUNDLE = (_REPO / "frontend/src-tauri/target/aarch64-apple-darwin/release"
-           / "bundle/macos/OpenJarvis.app")
+#: Der Zielordner heisst nach dem **Rust-Triple des Hosts** — beide macOS-
+#: Architekturen sind gleichwertige Produktionsziele (DEC-042, ADR-0018).
+#: Ein fest verdrahtetes Triple hiesse: auf der jeweils anderen Architektur
+#: findet diese Datei kein Bundle und überspringt lautlos alle Nachweise.
+_BUNDLE = (_REPO / "frontend/src-tauri/target" / tauri_triple()
+           / "release/bundle/macos/OpenJarvis.app")
 
 #: Produktive Kennungen. Eine Spike-Identität im Bundle wäre ein Fehler.
 APP_IDENTIFIER = "com.openjarvis.desktop"
@@ -73,8 +78,14 @@ def test_sidecar_traegt_kein_ziel_triple_im_namen():
     assert not any(n.startswith(f"{BINARY_NAME}-") for n in dateien)
 
 
-def test_sidecar_ist_arm64():
-    assert binary_architectures(_sidecar()) == ("arm64",)
+def test_sidecar_ist_nativ_fuer_diesen_host():
+    """Nativ heisst: genau **eine** Architektur, und zwar die des Hosts.
+
+    Die Abnahme erfolgt je Architektur auf echter Hardware (ADR-0018 §5).
+    Ein Cross-Build oder ein Universal-Binary wäre hier kein Nachweis — und
+    ein arm64-Binary auf Intel liesse sich nicht einmal starten.
+    """
+    assert binary_architectures(_sidecar()) == (host_architecture(),)
 
 
 def test_sidecar_ist_ausfuehrbar():

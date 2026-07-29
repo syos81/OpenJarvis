@@ -4205,7 +4205,6 @@ dashboard = [
 ]
 desktop = [
     { name = "fastapi" },
-    { name = "faster-whisper" },
     { name = "pydantic" },
     { name = "python-multipart" },
     { name = "uvicorn" },
@@ -4365,7 +4364,6 @@ requires-dist = [
     { name = "faiss-cpu", marker = "extra == 'memory-faiss'", specifier = ">=1.7" },
     { name = "fastapi", marker = "extra == 'desktop'", specifier = ">=0.110" },
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.110" },
-    { name = "faster-whisper", marker = "extra == 'desktop'", specifier = ">=1.0" },
     { name = "faster-whisper", marker = "extra == 'speech'", specifier = ">=1.0" },
     { name = "gepa", marker = "extra == 'learning-gepa'", specifier = ">=0.1" },
     { name = "google-api-python-client", marker = "extra == 'channel-gmail'", specifier = ">=2.0" },

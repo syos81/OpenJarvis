@@ -85,12 +85,25 @@ server = [
     "pydantic>=2.0",
     "python-multipart>=0.0.9",
 ]
+# The desktop app's own runtime needs. Speech-to-text is deliberately NOT here:
+# it lives in the `speech` extra and is opted into.
+#
+# `faster-whisper` pulls `onnxruntime`, whose wheels start at
+# `macosx_14_0_arm64` — there is no macOS x86_64 wheel at all and no sdist. That
+# made `--extra desktop` uninstallable on every Intel Mac, and on any Apple
+# Silicon Mac below macOS 14, while this project supports macOS 12.3 upward
+# (ADR-0018). An extra that cannot be installed on a supported platform is
+# broken, and a platform marker here would only hide that behind a
+# per-architecture exception.
+#
+# Speech therefore stays a capability extra (`--extra speech`): available where
+# its wheels exist, an explicit choice everywhere, and never a precondition for
+# starting the desktop app.
 desktop = [
     "fastapi>=0.110",
     "uvicorn>=0.30",
     "pydantic>=2.0",
     "python-multipart>=0.0.9",
-    "faster-whisper>=1.0",
 ]
 openhands = ["openhands-sdk>=1.0; python_version >= '3.12'"]
 gpu-metrics = ["pynvml>=12.0"]

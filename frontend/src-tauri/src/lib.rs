@@ -8,8 +8,38 @@ use tokio::sync::Mutex;
 
 const OLLAMA_PORT: u16 = 11434;
 const JARVIS_PORT: u16 = 8000;
-const DESKTOP_UV_SYNC_COMMAND: &str =
-    "uv sync --extra desktop --extra inference-cloud --extra inference-google --group desktop-native";
+/// The extras the desktop app always needs: its own runtime plus the natively
+/// built Rust extension. Speech is not here — it is a capability extra, and its
+/// `onnxruntime` dependency has no wheel for the macOS versions this project
+/// supports (see the `desktop` extra in pyproject.toml).
+const DESKTOP_BASE_SYNC_ARGS: &[&str] =
+    &["sync", "--extra", "desktop", "--group", "desktop-native"];
+
+/// Cloud provider SDKs. Synced only when inference is actually configured —
+/// installing a provider SDK for a provider nobody selected is work and disk
+/// for nothing, and on a platform where one of its wheels is missing it turns
+/// a working degraded start into a hard failure.
+const INFERENCE_SYNC_ARGS: &[&str] =
+    &["--extra", "inference-cloud", "--extra", "inference-google"];
+
+/// Build the `uv sync` argument list for this launch.
+///
+/// `inference_configured` is true when the user has actually chosen an engine
+/// (an inference config exists) or has cloud keys stored. Without either, the
+/// app starts degraded — no engine — and then has no reason to install
+/// inference dependencies at all.
+fn uv_sync_args(inference_configured: bool) -> Vec<String> {
+    let mut args: Vec<String> = DESKTOP_BASE_SYNC_ARGS.iter().map(|a| a.to_string()).collect();
+    if inference_configured {
+        args.extend(INFERENCE_SYNC_ARGS.iter().map(|a| a.to_string()));
+    }
+    args
+}
+
+/// The same list rendered as a copy-pasteable command for error messages.
+fn uv_sync_command_hint(inference_configured: bool) -> String {
+    format!("uv {}", uv_sync_args(inference_configured).join(" "))
+}
 
 /// Small, fast model used when startup needs a default Ollama tag.
 const STARTUP_MODEL: &str = "qwen3.5:4b";
@@ -283,6 +313,30 @@ fn bundled_contacts_sidecar() -> Option<std::path::PathBuf> {
     candidate.is_file().then_some(candidate)
 }
 
+/// How far up from the executable to look for `pyproject.toml`.
+///
+/// See the walk comment in `find_project_root` for where the number comes from.
+const MAX_ROOT_WALK_DEPTH: usize = 14;
+
+/// Walk up from `start`, returning the first ancestor holding `pyproject.toml`.
+///
+/// Split out from `find_project_root` so the depth can be asserted against a
+/// real directory layout instead of only against the running executable.
+fn walk_up_for_project_root(
+    start: &std::path::Path,
+    max_depth: usize,
+) -> Option<std::path::PathBuf> {
+    let mut dir = Some(start.to_path_buf());
+    for _ in 0..max_depth {
+        let d = dir?;
+        if d.join("pyproject.toml").exists() {
+            return Some(d);
+        }
+        dir = d.parent().map(|p| p.to_path_buf());
+    }
+    None
+}
+
 /// Checks OPENJARVIS_ROOT env var, walks up from the executable, then
 /// probes common clone locations.
 fn find_project_root() -> Option<std::path::PathBuf> {
@@ -294,15 +348,25 @@ fn find_project_root() -> Option<std::path::PathBuf> {
         }
     }
 
-    // 2. Walk up from the running executable (works in dev and .app bundle)
+    // 2. Walk up from the running executable (works in dev and .app bundle).
+    //
+    // The depth has to cover a bundle built *inside* the repo, which is exactly
+    // where `tauri build` puts it. From the executable up to the repo root that
+    // is eleven levels:
+    //
+    //   Contents/MacOS → Contents → OpenJarvis.app → macos → bundle →
+    //   release → <target-triple> → target → src-tauri → frontend → <repo>
+    //
+    // The former limit of 8 stopped at `target`, so a packaged app could not
+    // find the repository it had just been built from. It then fell through to
+    // the well-known-path list below — which only matches a clone literally
+    // named `OpenJarvis`. A repo under any other name was therefore
+    // unreachable and the backend never started at all. 14 keeps headroom for
+    // a build without `--target` (one level fewer) and for deeper layouts.
     if let Ok(exe) = std::env::current_exe() {
-        let mut dir = exe.parent().map(|p| p.to_path_buf());
-        for _ in 0..8 {
-            if let Some(ref d) = dir {
-                if d.join("pyproject.toml").exists() {
-                    return Some(d.clone());
-                }
-                dir = d.parent().map(|p| p.to_path_buf());
+        if let Some(start) = exe.parent() {
+            if let Some(found) = walk_up_for_project_root(start, MAX_ROOT_WALK_DEPTH) {
+                return Some(found);
             }
         }
     }
@@ -745,6 +809,7 @@ fn format_uv_sync_failure(
     root: &std::path::Path,
     exit_code: Option<i32>,
     stderr: &str,
+    sync_hint: &str,
 ) -> String {
     let code = exit_code
         .map(|c| c.to_string())
@@ -762,7 +827,7 @@ fn format_uv_sync_failure(
         root.display(),
         code,
         tail,
-        DESKTOP_UV_SYNC_COMMAND,
+        sync_hint,
         rust_hint,
     )
 }
@@ -842,7 +907,11 @@ fn format_missing_rust_toolchain() -> String {
     )
 }
 
-fn format_extension_import_failure(root: &std::path::Path, stderr: &str) -> String {
+fn format_extension_import_failure(
+    root: &std::path::Path,
+    stderr: &str,
+    sync_hint: &str,
+) -> String {
     let tail = uv_sync_stderr_tail(stderr, 4000);
     format!(
         "`openjarvis_rust` is still not importable after building. Last output:\n\n{}\n\n\
@@ -856,7 +925,7 @@ fn format_extension_import_failure(root: &std::path::Path, stderr: &str) -> Stri
             &tail
         },
         root.display(),
-        DESKTOP_UV_SYNC_COMMAND,
+        sync_hint,
     )
 }
 
@@ -878,6 +947,7 @@ fn add_cargo_bin_to_path(cmd: &mut tokio::process::Command) {
 async fn verify_openjarvis_rust_extension(
     root: &std::path::Path,
     uv_bin: &str,
+    sync_hint: &str,
 ) -> Result<(), String> {
     let mut cmd = tokio::process::Command::new(uv_bin);
     cmd.args(["run", "python", "-c", "import openjarvis_rust"])
@@ -891,7 +961,7 @@ async fn verify_openjarvis_rust_extension(
         Ok(out) if out.status.success() => Ok(()),
         Ok(out) => {
             let stderr = String::from_utf8_lossy(&out.stderr);
-            Err(format_extension_import_failure(root, &stderr))
+            Err(format_extension_import_failure(root, &stderr, sync_hint))
         }
         Err(e) => Err(format!(
             "Could not verify `openjarvis_rust`: {}. Verify uv is installed at `{}`.",
@@ -950,159 +1020,182 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     // it instead of the originally-planned tag. None on the custom path.
     let mut serve_model_override: Option<String> = None;
 
-    if plan.launch_ollama {
-        // Phase 1: Start Ollama
-        {
-            let mut s = status.lock().await;
-            s.phase = "ollama".into();
-            s.detail = "Starting inference engine...".into();
-        }
-
-        // Try the bundled sidecar first, fall back to system ollama
-        let ollama_child = {
-            let ollama_bin = resolve_bin("ollama");
-            let mut sidecar_cmd = tokio::process::Command::new(&ollama_bin);
-            sidecar_cmd
-                .arg("serve")
-                .env("OLLAMA_HOST", format!("127.0.0.1:{}", OLLAMA_PORT))
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null());
-            // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
-            prepare_subprocess_for_appimage(&mut sidecar_cmd);
-            match sidecar_cmd.spawn() {
-                Ok(child) => Some(child),
-                Err(_) => None,
-            }
-        };
-
-        if let Some(child) = ollama_child {
-            backend.lock().await.ollama = Some(ChildHandle { child });
-        }
-
-        let ollama_url = format!("http://127.0.0.1:{}/api/tags", OLLAMA_PORT);
-        if !wait_for_url(&ollama_url, Duration::from_secs(30)).await {
-            let mut s = status.lock().await;
-            s.error = Some("Could not start Ollama. Install it from https://ollama.com".into());
-            return;
-        }
-
-        {
-            let mut s = status.lock().await;
-            s.ollama_ready = true;
-            s.detail = "Inference engine ready.".into();
-        }
-
-        // Phase 2: Resolve one model to serve. Prefer an installed model on
-        // first run so startup does not depend on a download succeeding.
-        let model = plan
-            .model_to_pull
-            .clone()
-            .unwrap_or_else(|| STARTUP_MODEL.to_string());
-        {
-            let mut s = status.lock().await;
-            s.phase = "model".into();
-            s.detail = format!("Checking for {}...", model);
-        }
-
-        let installed_models = ollama_model_names().await;
-        let resolved_model = if let Some(installed) = startup_installed_model(&model, &installed_models) {
-            installed
-        } else {
+    // Die Inferenzphase ist **optional**. Der API-Server traegt Module, die
+    // ueberhaupt kein Modell brauchen — Personal Jarvis (Kontakte), Telemetrie,
+    // Speicher. Faellt die Engine aus, sollen genau die Faehigkeiten fehlen,
+    // die von ihr abhaengen, und nicht der ganze Server.
+    //
+    // `s.error` bleibt deshalb ungesetzt: der Start ist nicht gescheitert. Was
+    // fehlt, steht in `s.detail`; der Server meldet die Engine als nicht
+    // verfuegbar und antwortet auf Vervollstaendigungen mit einem klaren
+    // Fehler statt gar nicht zu starten.
+    'inference: {
+        if plan.launch_ollama {
+            // Phase 1: Start Ollama
             {
                 let mut s = status.lock().await;
-                s.detail = format!("Downloading {}... (this may take a minute)", model);
+                s.phase = "ollama".into();
+                s.detail = "Starting inference engine...".into();
             }
-            match pull_model(&model).await {
-                Ok(()) => model.clone(),
-                Err(e) => {
-                    eprintln!("Warning: failed to pull {}: {}", model, e);
 
-                    // If a local model appeared while pulling, use it instead of
-                    // making startup depend on another network pull.
-                    if let Some(installed) = preferred_installed_model(&ollama_model_names().await) {
-                        installed
-                    } else if ollama_has_model(FALLBACK_MODEL).await {
-                        FALLBACK_MODEL.to_string()
-                    } else {
-                        {
-                            let mut s = status.lock().await;
-                            s.detail = format!("Downloading {}...", FALLBACK_MODEL);
-                        }
-                        if let Err(e2) = pull_model(FALLBACK_MODEL).await {
-                            if let Some(installed) =
-                                preferred_installed_model(&ollama_model_names().await)
-                            {
-                                installed
-                            } else {
-                                let mut s = status.lock().await;
-                                s.error = Some(format!("Failed to download model: {}", e2));
-                                return;
-                            }
-                        } else {
+            // Try the bundled sidecar first, fall back to system ollama
+            let ollama_child = {
+                let ollama_bin = resolve_bin("ollama");
+                let mut sidecar_cmd = tokio::process::Command::new(&ollama_bin);
+                sidecar_cmd
+                    .arg("serve")
+                    .env("OLLAMA_HOST", format!("127.0.0.1:{}", OLLAMA_PORT))
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null());
+                // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
+                prepare_subprocess_for_appimage(&mut sidecar_cmd);
+                match sidecar_cmd.spawn() {
+                    Ok(child) => Some(child),
+                    Err(_) => None,
+                }
+            };
+
+            if let Some(child) = ollama_child {
+                backend.lock().await.ollama = Some(ChildHandle { child });
+            }
+
+            let ollama_url = format!("http://127.0.0.1:{}/api/tags", OLLAMA_PORT);
+            if !wait_for_url(&ollama_url, Duration::from_secs(30)).await {
+                let mut s = status.lock().await;
+                s.detail = "No inference engine: Ollama is not reachable. \
+                     Chat and agents stay unavailable; everything that needs no \
+                     model continues. Install it from https://ollama.com."
+                    .into();
+                break 'inference;
+            }
+
+            {
+                let mut s = status.lock().await;
+                s.ollama_ready = true;
+                s.detail = "Inference engine ready.".into();
+            }
+
+            // Phase 2: Resolve one model to serve. Prefer an installed model on
+            // first run so startup does not depend on a download succeeding.
+            let model = plan
+                .model_to_pull
+                .clone()
+                .unwrap_or_else(|| STARTUP_MODEL.to_string());
+            {
+                let mut s = status.lock().await;
+                s.phase = "model".into();
+                s.detail = format!("Checking for {}...", model);
+            }
+
+            let installed_models = ollama_model_names().await;
+            let resolved_model = if let Some(installed) = startup_installed_model(&model, &installed_models) {
+                installed
+            } else {
+                {
+                    let mut s = status.lock().await;
+                    s.detail = format!("Downloading {}... (this may take a minute)", model);
+                }
+                match pull_model(&model).await {
+                    Ok(()) => model.clone(),
+                    Err(e) => {
+                        eprintln!("Warning: failed to pull {}: {}", model, e);
+
+                        // If a local model appeared while pulling, use it instead of
+                        // making startup depend on another network pull.
+                        if let Some(installed) = preferred_installed_model(&ollama_model_names().await) {
+                            installed
+                        } else if ollama_has_model(FALLBACK_MODEL).await {
                             FALLBACK_MODEL.to_string()
+                        } else {
+                            {
+                                let mut s = status.lock().await;
+                                s.detail = format!("Downloading {}...", FALLBACK_MODEL);
+                            }
+                            if let Err(e2) = pull_model(FALLBACK_MODEL).await {
+                                if let Some(installed) =
+                                    preferred_installed_model(&ollama_model_names().await)
+                                {
+                                    installed
+                                } else {
+                                    let mut s = status.lock().await;
+                                    s.detail = format!(
+                                        "No model available ({}). Chat stays \
+                                         unavailable; the server starts anyway.",
+                                        e2
+                                    );
+                                    break 'inference;
+                                }
+                            } else {
+                                FALLBACK_MODEL.to_string()
+                            }
                         }
                     }
                 }
-            }
-        };
+            };
 
-        if resolved_model != model {
-            let mut s = status.lock().await;
-            s.detail = format!("Using installed model {}.", resolved_model);
-        }
-
-        serve_model_override = Some(resolved_model.clone());
-
-        // Persist only first-run/default resolution. If the user explicitly
-        // configured a model, do not overwrite that choice with a temporary
-        // fallback selected just to keep startup nonfatal.
-        if should_persist_resolved_model(&cfg) {
-            let mut persisted = cfg.clone();
-            persisted.model = Some(resolved_model);
-            let _ = write_inference_config(&persisted);
-        }
-
-        {
-            let mut s = status.lock().await;
-            s.model_ready = true;
-            s.detail = "Model ready.".into();
-        }
-    } else {
-        // Custom OpenAI-compatible endpoint: never start Ollama, never download.
-        let host = plan
-            .engine_host
-            .as_ref()
-            .map(|(_, v)| v.clone())
-            .unwrap_or_default();
-        {
-            let mut s = status.lock().await;
-            s.phase = "model".into();
-            s.detail = format!("Connecting to {}...", host);
-        }
-        if host.is_empty() || !endpoint_reachable(&host, Duration::from_secs(15)).await {
-            let mut s = status.lock().await;
-            s.error = Some(format!(
-                "Could not reach your custom inference server at {}. \
-                 Start the server (e.g. LM Studio) and check the URL in Settings, then relaunch.",
-                if host.is_empty() { "(no URL set)" } else { host.as_str() }
-            ));
-            return;
-        }
-        // Point `jarvis serve` at the user's endpoint by writing the engine
-        // host into ~/.openjarvis/config.toml (the env var alone is shadowed by
-        // the engine's non-empty default host in the Python layer).
-        if let Some((engine, host)) = &plan.engine_host {
-            if let Err(e) = set_engine_host_in_config(engine, host) {
+            if resolved_model != model {
                 let mut s = status.lock().await;
-                s.error = Some(format!("Could not write engine config: {}", e));
-                return;
+                s.detail = format!("Using installed model {}.", resolved_model);
             }
-        }
-        {
-            let mut s = status.lock().await;
-            s.ollama_ready = true;
-            s.model_ready = true;
-            s.detail = "Connected to custom endpoint.".into();
+
+            serve_model_override = Some(resolved_model.clone());
+
+            // Persist only first-run/default resolution. If the user explicitly
+            // configured a model, do not overwrite that choice with a temporary
+            // fallback selected just to keep startup nonfatal.
+            if should_persist_resolved_model(&cfg) {
+                let mut persisted = cfg.clone();
+                persisted.model = Some(resolved_model);
+                let _ = write_inference_config(&persisted);
+            }
+
+            {
+                let mut s = status.lock().await;
+                s.model_ready = true;
+                s.detail = "Model ready.".into();
+            }
+        } else {
+            // Custom OpenAI-compatible endpoint: never start Ollama, never download.
+            let host = plan
+                .engine_host
+                .as_ref()
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default();
+            {
+                let mut s = status.lock().await;
+                s.phase = "model".into();
+                s.detail = format!("Connecting to {}...", host);
+            }
+            if host.is_empty() || !endpoint_reachable(&host, Duration::from_secs(15)).await {
+                let mut s = status.lock().await;
+                s.detail = format!(
+                    "No inference engine: {} is not reachable. Chat and agents \
+                     stay unavailable; everything that needs no model continues. \
+                     Check the URL in Settings.",
+                    if host.is_empty() { "(no URL set)" } else { host.as_str() }
+                );
+                break 'inference;
+            }
+            // Point `jarvis serve` at the user's endpoint by writing the engine
+            // host into ~/.openjarvis/config.toml (the env var alone is shadowed by
+            // the engine's non-empty default host in the Python layer).
+            if let Some((engine, host)) = &plan.engine_host {
+                if let Err(e) = set_engine_host_in_config(engine, host) {
+                    let mut s = status.lock().await;
+                    s.detail = format!(
+                        "Could not write engine config ({}); continuing without \
+                         a configured engine.",
+                        e
+                    );
+                    break 'inference;
+                }
+            }
+            {
+                let mut s = status.lock().await;
+                s.ollama_ready = true;
+                s.model_ready = true;
+                s.detail = "Connected to custom endpoint.".into();
+            }
         }
     }
 
@@ -1299,14 +1392,20 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 }
             }
             Ok(resp) if resp.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE => {
+                // A running OpenJarvis server without a reachable engine. It
+                // still serves everything that needs no model, and spawning a
+                // second one would only collide on this port. Attach to it and
+                // name what is missing — same reasoning as the 503 branch in
+                // the spawn path below.
                 let mut s = status.lock().await;
-                s.error = Some(format!(
-                    "An API server is already running on port {} but its \
-                     inference engine isn't ready (HTTP 503). If this is your \
-                     `jarvis serve`, wait for it to finish loading and relaunch. \
-                     Otherwise, stop that service or change the port.",
+                s.phase = "ready".into();
+                s.detail = format!(
+                    "Connected to the API server on port {}; its inference \
+                     engine is unavailable. Chat and agents stay unavailable; \
+                     everything that needs no model works.",
                     JARVIS_PORT,
-                ));
+                );
+                s.server_ready = true;
                 return;
             }
             Ok(resp) => {
@@ -1359,21 +1458,30 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     // to the user BEFORE the long server-start wait. The status detail
     // message also indicates this can take a couple of minutes on first
     // boot so users don't restart the app thinking it's stuck.
+    // Inference dependencies are installed only when inference is actually
+    // configured. Without a configured engine the app starts degraded, so
+    // pulling provider SDKs would install packages nothing will use — and on a
+    // platform missing one of their wheels it would turn a working degraded
+    // start into a hard failure.
+    let inference_configured = inference_is_configured();
+    let sync_args = uv_sync_args(inference_configured);
+    let sync_hint = uv_sync_command_hint(inference_configured);
     {
         let mut s = status.lock().await;
-        s.detail = "Installing dependencies (uv sync — may take 1-2 min on first boot)...".into();
+        s.detail = if inference_configured {
+            "Installing dependencies (uv sync — may take 1-2 min on first boot)...".into()
+        } else {
+            "Installing dependencies without inference extras \
+             (no engine configured)..."
+                .to_string()
+        };
     }
     let mut sync_cmd = tokio::process::Command::new(&uv_bin);
+    // `--group desktop-native` builds openjarvis_rust from the local workspace;
+    // it is a uv dependency group rather than part of the published `desktop`
+    // extra so pip installs from PyPI don't require it (#584).
     sync_cmd
-        .args([
-            "sync",
-            "--extra", "desktop",
-            "--extra", "inference-cloud",
-            "--extra", "inference-google",
-            // openjarvis_rust lives in a uv dependency group (not the published
-            // `desktop` extra) so pip installs from PyPI don't require it (#584).
-            "--group", "desktop-native",
-        ])
+        .args(&sync_args)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .current_dir(root);
@@ -1385,7 +1493,8 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         Ok(out) if !out.status.success() => {
             let stderr = String::from_utf8_lossy(&out.stderr);
             let mut s = status.lock().await;
-            s.error = Some(format_uv_sync_failure(root, out.status.code(), &stderr));
+            s.error = Some(format_uv_sync_failure(
+                root, out.status.code(), &stderr, &sync_hint));
             return;
         }
         Err(e) => {
@@ -1400,7 +1509,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         let mut s = status.lock().await;
         s.detail = "Verifying Rust extension (openjarvis_rust)...".into();
     }
-    if let Err(err) = verify_openjarvis_rust_extension(root, &uv_bin).await {
+    if let Err(err) = verify_openjarvis_rust_extension(root, &uv_bin, &sync_hint).await {
         let mut s = status.lock().await;
         s.error = Some(err);
         return;
@@ -1491,16 +1600,28 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     }
 
     let server_url = format!("http://127.0.0.1:{}/health", JARVIS_PORT);
+    // Set when the server answers but its inference engine does not, so the
+    // final "ready" message below stays truthful instead of claiming that all
+    // systems are up.
+    let mut inference_notice: Option<String> = None;
     match wait_for_jarvis_health(&server_url, Duration::from_secs(600), &backend).await {
         JarvisStartResult::Ready => {}
         JarvisStartResult::ServiceUnavailable(body) => {
-            let mut s = status.lock().await;
-            s.error = Some(format!(
-                "Jarvis server is running but the inference engine is not available \
-                 (HTTP 503). This usually means the configured model couldn't be loaded.\n\n\
-                 Check the server logs, or run 'uv run jarvis serve --port {}{}' \
-                 from {} to see the engine error.\n\n\
-                 Server response:\n{}",
+            // 503 on /health means exactly one thing: the server is up and the
+            // inference engine is not — it is the only condition the health
+            // route raises it for. That is a degraded server, not a dead one.
+            // Modules that need no model (Personal Jarvis contacts, telemetry,
+            // memory browsing) are fully usable, so failing here would withhold
+            // working features because one optional one is missing.
+            //
+            // The app therefore continues and says what is unavailable.
+            // Anything that needs inference fails per request with its own
+            // message.
+            inference_notice = Some(format!(
+                "Server running, inference engine unavailable. Chat and agents \
+                 stay unavailable; everything that needs no model works. For the \
+                 engine error run 'uv run jarvis serve --port {}{}' from {}. \
+                 Server response: {}",
                 JARVIS_PORT,
                 // Show the args actually passed (after `serve --port <port>`),
                 // including any post-fallback `--model` override.
@@ -1511,7 +1632,6 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 root.display(),
                 body.trim(),
             ));
-            return;
         }
         JarvisStartResult::EarlyExit { code, stderr } => {
             // `None` here means the OS didn't expose an exit code — on
@@ -1567,7 +1687,9 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         let mut s = status.lock().await;
         s.server_ready = true;
         s.phase = "ready".into();
-        s.detail = "All systems ready.".into();
+        // "All systems ready" would be false when the engine is missing. Say
+        // which part is not there instead.
+        s.detail = inference_notice.unwrap_or_else(|| "All systems ready.".into());
     }
 
     // Phase 4: done. We intentionally do NOT auto-pull the rest of the
@@ -2286,6 +2408,16 @@ struct InferenceConfig {
 }
 
 /// Path to the inference-source config (~/.openjarvis/inference.json).
+/// Whether the user has actually configured inference.
+///
+/// `read_inference_config()` falls back to a default (Ollama) when the file is
+/// absent, so it can never answer this question — a default is not a choice.
+/// Cloud keys count too: if a provider key is stored, its SDK is genuinely
+/// needed.
+fn inference_is_configured() -> bool {
+    inference_config_path().exists() || !read_cloud_keys().is_empty()
+}
+
 fn inference_config_path() -> std::path::PathBuf {
     std::path::PathBuf::from(home_dir())
         .join(".openjarvis")
@@ -2904,9 +3036,87 @@ mod tests {
         format_uv_sync_spawn_error, matching_installed_model, model_names_match, normalize_host,
         parse_inference_config, parse_ollama_model_names, preferred_installed_model,
         should_persist_resolved_model, startup_installed_model, upsert_engine_host,
-        uv_sync_stderr_tail, InferenceConfig, SourceKind, DESKTOP_UV_SYNC_COMMAND,
+        uv_sync_args, uv_sync_command_hint, uv_sync_stderr_tail,
+        walk_up_for_project_root, InferenceConfig, SourceKind, MAX_ROOT_WALK_DEPTH,
     };
     use std::path::Path;
+
+    /// The directory layout `tauri build --target <triple>` produces inside the
+    /// repository, from the repo root down to the executable's directory.
+    const BUNDLE_LAYOUT: &str = "frontend/src-tauri/target/x86_64-apple-darwin/\
+release/bundle/macos/OpenJarvis.app/Contents/MacOS";
+
+    fn bundle_layout_in(base: &Path) -> std::path::PathBuf {
+        let exe_dir = base.join(BUNDLE_LAYOUT);
+        std::fs::create_dir_all(&exe_dir).unwrap();
+        std::fs::write(base.join("pyproject.toml"), "[project]\n").unwrap();
+        exe_dir
+    }
+
+    fn scratch_dir(name: &str) -> std::path::PathBuf {
+        // No dev-dependency on tempfile — a named dir under the OS temp dir is
+        // enough, and it is removed at the end of each test.
+        let dir = std::env::temp_dir().join(format!("openjarvis-root-walk-{name}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn walk_finds_the_repo_a_bundle_was_built_in() {
+        // The regression this guards: a packaged app could not locate the
+        // repository it came from, so the backend never started.
+        let base = scratch_dir("finds");
+        let exe_dir = bundle_layout_in(&base);
+
+        let found = walk_up_for_project_root(&exe_dir, MAX_ROOT_WALK_DEPTH);
+
+        assert_eq!(
+            found.map(|p| std::fs::canonicalize(p).unwrap()),
+            Some(std::fs::canonicalize(&base).unwrap())
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn finding_the_repo_prevents_the_automatic_clone() {
+        // Findet der Aufwaertslauf das Repository, wird der Zweig "kein
+        // Projekt gefunden" nie erreicht — und damit auch nicht der
+        // automatische `git clone` nach $HOME/OpenJarvis. Genau das ist
+        // einmal passiert: 145 MB Fremdrepository im Heimatverzeichnis,
+        // ohne dass jemand darum gebeten hatte.
+        let base = scratch_dir("no-clone");
+        let exe_dir = bundle_layout_in(&base);
+
+        assert!(
+            walk_up_for_project_root(&exe_dir, MAX_ROOT_WALK_DEPTH).is_some(),
+            "ohne gefundenes Repo klont der Startpfad eines"
+        );
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn the_old_depth_of_eight_was_too_shallow() {
+        // Documents *why* the constant changed: eight levels stop at `target`.
+        let base = scratch_dir("too-shallow");
+        let exe_dir = bundle_layout_in(&base);
+
+        assert!(walk_up_for_project_root(&exe_dir, 8).is_none());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn walk_returns_none_without_a_project_file() {
+        let base = scratch_dir("none");
+        let exe_dir = base.join(BUNDLE_LAYOUT);
+        std::fs::create_dir_all(&exe_dir).unwrap();
+
+        assert!(walk_up_for_project_root(&exe_dir, MAX_ROOT_WALK_DEPTH).is_none());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 
     #[test]
     fn tail_returns_whole_string_when_shorter_than_limit() {
@@ -2938,23 +3148,69 @@ mod tests {
         assert!(tail.chars().all(|c| c == 'é'));
     }
 
+    // ── Abhaengigkeitsauswahl beim Start ───────────────────────────────────
+    #[test]
+    fn degraded_start_syncs_no_inference_extras() {
+        // Ohne konfigurierte Engine hat der Start keinen Grund, Provider-SDKs
+        // zu installieren — und darf daran erst gar nicht scheitern koennen.
+        let args = uv_sync_args(false);
+        assert_eq!(args, vec!["sync", "--extra", "desktop", "--group", "desktop-native"]);
+        assert!(!args.iter().any(|a| a.starts_with("inference-")));
+    }
+
+    #[test]
+    fn configured_inference_keeps_its_extras() {
+        // Der bestehende Pfad bleibt unveraendert: wer eine Engine konfiguriert
+        // hat, bekommt deren Abhaengigkeiten weiterhin.
+        let args = uv_sync_args(true);
+        assert!(args.contains(&"inference-cloud".to_string()));
+        assert!(args.contains(&"inference-google".to_string()));
+        assert!(args.contains(&"desktop".to_string()));
+        assert!(args.contains(&"desktop-native".to_string()));
+    }
+
+    #[test]
+    fn no_sync_path_requests_the_speech_extra() {
+        // `speech` zieht `onnxruntime`, das fuer macOS x86_64 kein Wheel hat.
+        // Kein Startpfad darf es anfordern.
+        for konfiguriert in [false, true] {
+            let args = uv_sync_args(konfiguriert);
+            assert!(!args.iter().any(|a| a == "speech"), "{args:?}");
+        }
+    }
+
+    #[test]
+    fn sync_hint_matches_the_command_that_ran() {
+        for konfiguriert in [false, true] {
+            let hint = uv_sync_command_hint(konfiguriert);
+            let args = uv_sync_args(konfiguriert);
+            assert_eq!(hint, format!("uv {}", args.join(" ")));
+            assert!(hint.starts_with("uv sync "));
+        }
+    }
+
     #[test]
     fn failure_message_includes_exit_code_and_tail_and_hint() {
+        let hint = uv_sync_command_hint(false);
         let msg = format_uv_sync_failure(
             Path::new("/home/u/.openjarvis/src"),
             Some(2),
             "error: failed to resolve numpy==2.1.3",
+            &hint,
         );
         assert!(msg.contains("exit 2"));
         assert!(msg.contains("/home/u/.openjarvis/src"));
         assert!(msg.contains("failed to resolve numpy==2.1.3"));
-        assert!(msg.contains(DESKTOP_UV_SYNC_COMMAND)); // actionable next step
+        // The hint must be the command that actually ran, not a fixed string —
+        // otherwise it tells the user to run something else than what failed.
+        assert!(msg.contains(&hint));
     }
 
     #[test]
     fn failure_message_renders_missing_exit_code_as_unknown() {
         // Process killed by signal → no exit code. Must not show a misleading -1.
-        let msg = format_uv_sync_failure(Path::new("/x"), None, "boom");
+        let msg = format_uv_sync_failure(
+            Path::new("/x"), None, "boom", &uv_sync_command_hint(false));
         assert!(msg.contains("exit unknown"));
         assert!(!msg.contains("exit -1"));
     }
@@ -2986,6 +3242,7 @@ mod tests {
             Path::new("C:\\Users\\me\\OpenJarvis"),
             Some(1),
             "maturin failed: linker `link.exe` not found while building openjarvis-rust",
+            &uv_sync_command_hint(true),
         );
         assert!(msg.contains("exit 1"));
         assert!(msg.contains("link.exe"));
@@ -2995,12 +3252,14 @@ mod tests {
 
     #[test]
     fn extension_import_failure_names_verification_command() {
+        let hint = uv_sync_command_hint(false);
         let msg = format_extension_import_failure(
             Path::new("C:\\Users\\me\\OpenJarvis"),
             "ModuleNotFoundError: No module named 'openjarvis_rust'",
+            &hint,
         );
         assert!(msg.contains("openjarvis_rust"));
-        assert!(msg.contains(DESKTOP_UV_SYNC_COMMAND));
+        assert!(msg.contains(&hint));
         assert!(msg.contains("uv run python -c \"import openjarvis_rust\""));
         assert!(msg.contains("ModuleNotFoundError"));
     }
