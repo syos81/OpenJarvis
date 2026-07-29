@@ -174,10 +174,26 @@ def test_modul_meldet_niemals_ready(tmp_path):
 
 
 def _native_sidecar() -> Path | None:
-    from personaljarvis.contacts.bridge.resolver import BINARY_NAME, host_architecture
+    """Ein gebautes Artefakt der Hostarchitektur — es wird nie gebaut.
+
+    Vorrang hat das Tauri-Paketartefakt `binaries/jarvis-contacts-<triple>`;
+    danach die Build-Verzeichnisse beider Aufrufwege (`build.sh` direkt bzw.
+    `scripts/build-contacts-sidecar.sh`).
+    """
+    from personaljarvis.contacts.bridge.resolver import (
+        BINARY_NAME, binary_architectures, host_architecture, tauri_triple,
+    )
 
     repo = Path(__file__).resolve().parents[3]
     base = repo / "native" / "contacts-bridge"
-    path = (base / "build" / BINARY_NAME if host_architecture() == "x86_64"
-            else base / "build-arm64" / BINARY_NAME)
-    return path if path.exists() else None
+    arch = host_architecture()
+    triple = tauri_triple(arch)
+    for cand in (
+        repo / "frontend" / "src-tauri" / "binaries" / f"{BINARY_NAME}-{triple}",
+        base / f"build-{triple}" / BINARY_NAME,
+        base / f"build-{arch}" / BINARY_NAME,
+        base / "build" / BINARY_NAME,
+    ):
+        if cand.exists() and arch in binary_architectures(cand):
+            return cand
+    return None

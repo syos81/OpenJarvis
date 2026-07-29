@@ -316,7 +316,7 @@ Legende: **N** neu · **Ä** vorhandene Datei ändern · **W** unverändert wied
 
 | Datei / Verzeichnis | Art | Gate | Zweck | Abhängig von | Tests | Risiko |
 |---|---|---|---|---|---|---|
-| `frontend/src-tauri/tauri.conf.json` | Ä | A | `minimumSystemVersion` → `12.3`; später `externalBin` | — | `minos`-Assertion, Desktop-Build | mittel — Build-Auswirkung |
+| `frontend/src-tauri/tauri.conf.json` | Ä | A/B | `minimumSystemVersion` → `12.3` (Gate A); `externalBin: ["binaries/jarvis-contacts"]` (Gate B) | — | `minos`-Assertion, externalBin-Tests, Desktop-Build | mittel — Build-Auswirkung |
 | `pyproject.toml` | Ä | A | additive `[dependency-groups] personal`; **`[tool.hatch.build.targets.wheel]` unberührt** | — | Auflösungstest DEV-5 | niedrig |
 | `src/personaljarvis/__init__.py` | N | A | `attach(app)` als einziger Integrationspunkt | — | Personal an/aus | niedrig |
 | `src/personaljarvis/bootstrap.py` | N | A | PersonalCompositionRoot, Startreihenfolge 04 §1 | — | fail-closed-Test | hoch — Reihenfolge sicherheitsrelevant |
@@ -339,7 +339,7 @@ Legende: **N** neu · **Ä** vorhandene Datei ändern · **W** unverändert wied
 | `native/contacts-bridge/.gitignore` | N | B | `build/` — keine Mach-O im Repo | — | — | niedrig |
 | `frontend/src-tauri/scripts/build-contacts-sidecar.sh` | N | B/E | Sidecar je Triple nach `binaries/` | build.sh | Packaging-Test | mittel |
 | `frontend/src-tauri/binaries/.gitignore` | Ä | B | `jarvis-contacts-*` ergänzen | — | — | niedrig |
-| `frontend/src-tauri/capabilities/default.json` | Ä | B | Sidecar-Scope für `binaries/jarvis-contacts`; **Verengung** der pauschalen Shell-Rechte gehört zu DEV-2 und wird dort geführt | — | Capability-Regressionstest | hoch — Sicherheitsfläche |
+| `frontend/src-tauri/capabilities/default.json` | W | B | **unverändert.** Korrektur 2026-07-29: Der Sidecar wird vom **Python-Backend** gestartet (`bridge/process.py`, `subprocess.Popen`), nicht von Tauri. Ein `shell:allow-execute`-Scope gilt der **Webview** — er gäbe der SPA einen zweiten fachlichen Ausführungspfad und verstieße gegen AV-35 und DEV-4. Es wird deshalb **kein** Contacts-Scope hinzugefügt. Die Verengung der pauschalen Shell-Rechte bleibt DEV-2/ADR-0014 | — | Capability-Regressionstest (Abwesenheit geprüft) | hoch — Sicherheitsfläche |
 | `frontend/src-tauri/src/lib.rs` | Ä | D | **nur** Session-Token-Kommando (DEV-4) | — | Kommandoflächen-Test | mittel |
 | `frontend/src/App.tsx` | Ä | D | eine readiness-gesteuerte Route | Modul-UI | Sichtbarkeitstest | niedrig |
 | `frontend/src/components/Sidebar/Sidebar.tsx` | Ä | D | ein Navigationseintrag | dito | Sichtbarkeitstest | niedrig |
@@ -397,6 +397,8 @@ Legende: **N** neu · **Ä** vorhandene Datei ändern · **W** unverändert wied
 ## §15 Risiken und offene Punkte
 
 **Blockiert den Implementierungsbeginn:** keines.
+
+**Befund 2026-07-29 (Gate B, dokumentiert, nicht korrigiert):** `.github/workflows/desktop.yml:256` setzt beim Release-Build `TAURI_CONFIG` mit `{"bundle":{"externalBin":["binaries/ollama"]}}`. Dieser Wert **ersetzt** das `externalBin`-Array aus `tauri.conf.json` — ein CI-Release würde den Contacts-Sidecar damit **nicht** bündeln. Die Korrektur berührt einen Upstream-Workflow und ist nach 02 §3 nicht ohne gesonderte Freigabe zulässig; sie ist **vor dem ersten produktiven Desktop-Release** fällig. Lokale Builds sind nicht betroffen.
 
 **Kann innerhalb eines Gates entschieden werden:**
 

@@ -1,3 +1,7 @@
-# Downloaded sidecar binaries — platform-specific, not committed
+# Sidecar binaries — platform-specific, never committed.
+# `ollama-*` is downloaded (scripts/download-ollama.sh);
+# `jarvis-contacts-*` is built from native/contacts-bridge/
+# (scripts/build-contacts-sidecar.sh, ADR-0016).
 ollama-*
+jarvis-contacts-*
 !.gitignore

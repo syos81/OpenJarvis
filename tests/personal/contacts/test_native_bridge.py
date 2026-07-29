@@ -23,12 +23,12 @@ from personaljarvis.contacts.bridge.resolver import (
     binary_architectures,
     host_architecture,
     resolve_sidecar,
+    tauri_triple,
 )
 
 _REPO = Path(__file__).resolve().parents[3]
 _NATIVE = _REPO / "native" / "contacts-bridge"
-_X86 = _NATIVE / "build" / BINARY_NAME
-_ARM = _NATIVE / "build-arm64" / BINARY_NAME
+_BINARIES = _REPO / "frontend" / "src-tauri" / "binaries"
 
 
 def _min_os(path: Path) -> str | None:
@@ -48,16 +48,39 @@ def _embedded_plist(path: Path) -> str:
                           capture_output=True, text=True).stdout
 
 
+#: Alle Orte, an denen ein gebautes Sidecar-Artefakt liegen kann. Vorrang hat
+#: das Tauri-Paketartefakt `binaries/jarvis-contacts-<triple>` — das ist der
+#: Stand, der tatsaechlich gebuendelt wird. Danach die Build-Verzeichnisse der
+#: beiden Aufrufwege (`build.sh` direkt bzw. `build-contacts-sidecar.sh`).
+def _artifact_candidates(arch: str) -> tuple[Path, ...]:
+    triple = tauri_triple(arch)
+    return (
+        _BINARIES / f"{BINARY_NAME}-{triple}",
+        _NATIVE / f"build-{triple}" / BINARY_NAME,
+        _NATIVE / f"build-{arch}" / BINARY_NAME,
+        _NATIVE / "build" / BINARY_NAME,
+    )
+
+
+def _artifact(arch: str) -> Path | None:
+    """Ein bereits gebautes Binary der Architektur — es wird nie gebaut."""
+    for cand in _artifact_candidates(arch):
+        if cand.exists() and arch in binary_architectures(cand):
+            return cand
+    return None
+
+
 def _native() -> Path:
-    path = _X86 if host_architecture() == "x86_64" else _ARM
-    if not path.exists():
+    path = _artifact(host_architecture())
+    if path is None:
         pytest.skip("nativer Sidecar nicht gebaut")
     return path
 
 
 def _foreign() -> Path:
-    path = _ARM if host_architecture() == "x86_64" else _X86
-    if not path.exists():
+    other = "arm64" if host_architecture() == "x86_64" else "x86_64"
+    path = _artifact(other)
+    if path is None:
         pytest.skip("Cross-Build nicht vorhanden")
     return path
 

@@ -30,6 +30,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/jarvis-contacts"
+    ],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
@@ -66,7 +69,9 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["openjarvis"]
+        "schemes": [
+          "openjarvis"
+        ]
       }
     }
   }

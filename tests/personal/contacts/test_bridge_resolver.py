@@ -25,16 +25,32 @@ from personaljarvis.contacts.bridge.resolver import (
 
 _REPO = Path(__file__).resolve().parents[3]
 _NATIVE = _REPO / "native" / "contacts-bridge"
+_BINARIES = _REPO / "frontend" / "src-tauri" / "binaries"
 
 
-def _built(arch: str) -> Path | None:
-    """Ein bereits gebautes Binary, falls vorhanden — es wird nie gebaut."""
-    candidates = {
-        "x86_64": _NATIVE / "build" / BINARY_NAME,
-        "arm64": _NATIVE / "build-arm64" / BINARY_NAME,
-    }
-    path = candidates[arch]
-    return path if path.exists() else None
+#: Alle Orte, an denen ein gebautes Sidecar-Artefakt liegen kann. Vorrang hat
+#: das Tauri-Paketartefakt `binaries/jarvis-contacts-<triple>` — das ist der
+#: Stand, der tatsaechlich gebuendelt wird. Danach die Build-Verzeichnisse der
+#: beiden Aufrufwege (`build.sh` direkt bzw. `build-contacts-sidecar.sh`).
+def _artifact_candidates(arch: str) -> tuple[Path, ...]:
+    triple = tauri_triple(arch)
+    return (
+        _BINARIES / f"{BINARY_NAME}-{triple}",
+        _NATIVE / f"build-{triple}" / BINARY_NAME,
+        _NATIVE / f"build-{arch}" / BINARY_NAME,
+        _NATIVE / "build" / BINARY_NAME,
+    )
+
+
+def _artifact(arch: str) -> Path | None:
+    """Ein bereits gebautes Binary der Architektur — es wird nie gebaut."""
+    for cand in _artifact_candidates(arch):
+        if cand.exists() and arch in binary_architectures(cand):
+            return cand
+    return None
+
+
+_built = _artifact
 
 
 # ── Architektur- und Namenskonventionen ─────────────────────────────────────
