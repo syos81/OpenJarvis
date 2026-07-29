@@ -13,7 +13,10 @@ from personaljarvis.base.db.migrations.versions.m0002_contacts import MIGRATION 
 from personaljarvis.base.db.migrations.versions.m0003_contacts_child_constraints import (
     MIGRATION as M0003,
 )
+from personaljarvis.base.db.migrations.versions.m0004_mutation_pipeline import (
+    MIGRATION as M0004,
+)
 
 __all__ = ["ALL_MIGRATIONS"]
 
-ALL_MIGRATIONS: tuple[Migration, ...] = (M0001, M0002, M0003)
+ALL_MIGRATIONS: tuple[Migration, ...] = (M0001, M0002, M0003, M0004)

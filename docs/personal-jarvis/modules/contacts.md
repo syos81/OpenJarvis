@@ -159,15 +159,23 @@ Jede Mutation trägt: eine **`mutation_id`**, einen **`idempotency_key`**, eine 
 
 ### §7.2 Zustandsmaschine je Mutation
 
+**Präzisierung 2026-07-29 (Gate C, verbindlich).** Der Zustandsvorrat ist gegenüber dem ursprünglichen Entwurf geschärft und wortgleich mit dem CHECK-Constraint der Tabelle `contacts_mutations` (Migration 0004) — es gibt genau **eine** Wahrheit:
+
 ```
-draft → validated → previewed → pending_approval → approved
-      → executing → verifying → completed
-                              ↘ failed
-                              ↘ outcome_unknown → reconcile_required → completed | failed | manual_decision_required
-denied | expired | aborted  (Endzustände ohne Wirkung)
+prepared → awaiting_approval → approved → executing → succeeded
+                             ↘ rejected                ↘ failed_before_send
+                             ↘ expired                 ↘ outcome_unknown
+                             ↘ cancelled                     ↓
+                                                      reconcile_required
+                                                        ↙       ↓        ↘
+                                                 succeeded   failed   manual_decision_required
 ```
 
-**`outcome_unknown` ist weder Erfolg noch Fehlschlag.** Der Übergang nach `reconcile_required` löst **zuerst einen Lesevorgang** aus (Read/Reconcile gegen den Store), bevor irgendetwas anderes geschieht. Bleibt der Ausgang danach unklar, endet der Vorgang in `manual_decision_required` mit `attention_required` in der UI — **niemals** in einer automatischen Wiederholung.
+Alte Namen des Entwurfs bilden sich ab als: `draft`/`validated`/`previewed` → `prepared` · `pending_approval` → `awaiting_approval` · `verifying` → `executing` · `completed` → `succeeded` · `denied` → `rejected` · `aborted` → `cancelled`.
+
+**Die sicherheitsrelevante Neuerung ist die Trennung von `failed_before_send` und `outcome_unknown`.** Der Entwurf kannte nur `failed` und konnte damit „nachweislich nichts gesendet" nicht von „möglicherweise gesendet" unterscheiden. Nur der erste Fall ist gefahrlos wiederholbar.
+
+**`outcome_unknown` ist weder Erfolg noch Fehlschlag.** Der Übergang nach `reconcile_required` löst **zuerst einen Lesevorgang** aus (Read/Reconcile gegen den Store), bevor irgendetwas anderes geschieht. Bleibt der Ausgang danach unklar, endet der Vorgang in `manual_decision_required` mit `attention_required` in der UI — **niemals** in einer automatischen Wiederholung. `failed` entsteht ausschließlich **nach** einem eindeutigen Abgleich; eine Wiederholung ist dann eine **neue freigabepflichtige Mutation**, kein Retry.
 
 ### §7.3 Konfliktfälle und ihre definierte Behandlung
 

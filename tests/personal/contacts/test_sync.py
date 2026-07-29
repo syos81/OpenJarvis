@@ -523,7 +523,7 @@ def test_echo_ledger_kennt_nur_laufende_vorgaenge():
         target_provider_identifier="pid-1")
     abgeschlossen = ContactMutation(
         mutation_id=new_id(), command="update", idempotency_key="k2",
-        state=MutationState.COMPLETED,
+        state=MutationState.SUCCEEDED,
         initiation_context=InitiationContext.USER_DIRECT,
         target_provider_identifier="pid-2")
 

@@ -73,27 +73,32 @@ class FieldCompleteness(_StrEnum):
 
 
 class MutationState(_StrEnum):
-    """Zustandsmaschine aus contacts.md §7.2.
+    """Zustandsmaschine der Mutationspipeline (contacts.md §7.2, Migration 0004).
 
-    `OUTCOME_UNKNOWN` ist **weder** Erfolg **noch** Fehlschlag. Von dort führt
-    genau ein Weg weiter: `RECONCILE_REQUIRED` — also zuerst lesen.
+    Wortgleich mit dem CHECK-Constraint der Tabelle `contacts_mutations` — es
+    gibt genau **eine** Wahrheit über den Zustandsvorrat.
+
+    Zwei Zustände sind bewusst getrennt und dürfen nie zusammenfallen:
+
+    * `FAILED_BEFORE_SEND` — nachweislich **nichts** gesendet, gefahrlos.
+    * `OUTCOME_UNKNOWN` — **möglicherweise** gesendet. Weder Erfolg noch
+      Fehlschlag; von dort führt genau ein Weg weiter, und der heißt
+      `RECONCILE_REQUIRED` — also zuerst lesen, nie wiederholen.
     """
 
-    DRAFT = "draft"
-    VALIDATED = "validated"
-    PREVIEWED = "previewed"
-    PENDING_APPROVAL = "pending_approval"
+    PREPARED = "prepared"
+    AWAITING_APPROVAL = "awaiting_approval"
     APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
     EXECUTING = "executing"
-    VERIFYING = "verifying"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    SUCCEEDED = "succeeded"
+    FAILED_BEFORE_SEND = "failed_before_send"
     OUTCOME_UNKNOWN = "outcome_unknown"
     RECONCILE_REQUIRED = "reconcile_required"
     MANUAL_DECISION_REQUIRED = "manual_decision_required"
-    DENIED = "denied"
-    EXPIRED = "expired"
-    ABORTED = "aborted"
+    FAILED = "failed"
 
 
 class MutationOutcome(_StrEnum):

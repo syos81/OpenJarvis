@@ -479,7 +479,22 @@ class ContactMutation:
     expected_revision: str | None = None
     outcome: MutationOutcome | None = None
     created_at: str = field(default_factory=utc_now)
-    settled_at: str | None = None
+    #: Seit Migration 0004 heisst der Abschlusszeitpunkt `completed_at`;
+    #: `settled_at` bleibt als Lesename erhalten, damit bestehende Aufrufer
+    #: nicht brechen — es gibt aber nur **eine** Spalte.
+    completed_at: str | None = None
+    correlation_id: str | None = None
+    actor: str | None = None
+    workspace_id: str | None = None
+    container_identifier: str | None = None
+    outbox_id: str | None = None
+    audit_id: str | None = None
+    attempt_count: int = 0
+    last_error_code: str | None = None
+
+    @property
+    def settled_at(self) -> str | None:
+        return self.completed_at
 
     def __post_init__(self) -> None:
         _require_uuid(self.mutation_id, "mutation_id")
@@ -495,11 +510,11 @@ class ContactMutation:
     def is_settled(self) -> bool:
         """`OUTCOME_UNKNOWN` gilt ausdrücklich **nicht** als abgeschlossen."""
         return self.state in (
-            MutationState.COMPLETED,
+            MutationState.SUCCEEDED,
             MutationState.FAILED,
-            MutationState.DENIED,
+            MutationState.REJECTED,
             MutationState.EXPIRED,
-            MutationState.ABORTED,
+            MutationState.CANCELLED,
         )
 
     @property
@@ -512,4 +527,6 @@ class ContactMutation:
     @property
     def may_retry_automatically(self) -> bool:
         """Immer `False` bei unbekanntem Ausgang — kein automatischer Retry."""
-        return not self.requires_reconcile and self.state is MutationState.FAILED
+        # Nur der nachweislich ungesendete Fehlschlag ist wiederholbar.
+        return (not self.requires_reconcile
+                and self.state is MutationState.FAILED_BEFORE_SEND)

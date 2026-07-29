@@ -571,10 +571,14 @@ class SqliteMutationRepository(_Base):
         try:
             self._conn.execute(
                 "INSERT INTO contacts_mutations (mutation_id, command, "
-                "target_contact_id, target_provider_identifier, provider_account_id, "
-                "idempotency_key, approval_id, expected_revision, state, outcome, "
-                "initiation_context, created_at, settled_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "correlation_id, actor, initiation_context, workspace_id, "
+                "provider_account_id, container_identifier, target_contact_id, "
+                "target_provider_identifier, expected_revision, "
+                "idempotency_key, approval_id, outbox_id, audit_id, "
+                "transaction_author, payload_json, payload_digest, "
+                "preview_digest, state, outcome, attempt_count, "
+                "last_error_code, created_at, completed_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 self._row(mutation),
             )
         except sqlite3.IntegrityError as exc:
@@ -582,11 +586,12 @@ class SqliteMutationRepository(_Base):
 
     def update_state(self, mutation: ContactMutation) -> None:
         cursor = self._conn.execute(
-            "UPDATE contacts_mutations SET state = ?, outcome = ?, settled_at = ? "
-            "WHERE mutation_id = ?",
+            "UPDATE contacts_mutations SET state = ?, outcome = ?, "
+            "completed_at = ?, last_error_code = ? WHERE mutation_id = ?",
             (mutation.state.value,
              mutation.outcome.value if mutation.outcome else None,
-             mutation.settled_at, mutation.mutation_id),
+             mutation.completed_at, mutation.last_error_code,
+             mutation.mutation_id),
         )
         if cursor.rowcount == 0:
             raise IntegrityError("Mutation existiert nicht")
@@ -606,17 +611,31 @@ class SqliteMutationRepository(_Base):
     def list_requiring_reconcile(self) -> tuple[ContactMutation, ...]:
         rows = self._conn.execute(
             "SELECT * FROM contacts_mutations WHERE state IN "
-            "('outcome_unknown','reconcile_required') ORDER BY created_at, mutation_id"
+            "('outcome_unknown','reconcile_required') "
+            "ORDER BY created_at, mutation_id"
         ).fetchall()
         return tuple(self._hydrate(r) for r in rows)
 
-    @staticmethod
-    def _row(m: ContactMutation) -> tuple:
-        return (m.mutation_id, m.command, m.target_contact_id,
-                m.target_provider_identifier, m.provider_account_id,
-                m.idempotency_key, m.approval_id, m.expected_revision,
+    #: Fallwerte fuer Felder, die eine Mutation aus der Domaene nicht traegt.
+    #: Die Application-Schicht setzt sie; ein direkter Repository-Aufruf ist
+    #: der Testweg und bekommt technisch eindeutige Platzhalter.
+    _AUTOR = "de.kluender.jarvis.contacts-bridge"
+
+    @classmethod
+    def _row(cls, m: ContactMutation) -> tuple:
+        return (m.mutation_id, m.command,
+                m.correlation_id or m.mutation_id,
+                m.actor or "repository",
+                m.initiation_context.value,
+                m.workspace_id or "unbekannt",
+                m.provider_account_id or "unbekannt",
+                m.container_identifier, m.target_contact_id,
+                m.target_provider_identifier, m.expected_revision,
+                m.idempotency_key, m.approval_id, m.outbox_id, m.audit_id,
+                cls._AUTOR, "{}", "ohne-digest", "ohne-digest",
                 m.state.value, m.outcome.value if m.outcome else None,
-                m.initiation_context.value, m.created_at, m.settled_at)
+                m.attempt_count, m.last_error_code, m.created_at,
+                m.completed_at)
 
     @staticmethod
     def _hydrate(r: sqlite3.Row) -> ContactMutation:
@@ -629,7 +648,13 @@ class SqliteMutationRepository(_Base):
             provider_account_id=r["provider_account_id"],
             approval_id=r["approval_id"], expected_revision=r["expected_revision"],
             outcome=MutationOutcome(r["outcome"]) if r["outcome"] else None,
-            created_at=r["created_at"], settled_at=r["settled_at"])
+            created_at=r["created_at"], completed_at=r["completed_at"],
+            correlation_id=r["correlation_id"], actor=r["actor"],
+            workspace_id=r["workspace_id"],
+            container_identifier=r["container_identifier"],
+            outbox_id=r["outbox_id"], audit_id=r["audit_id"],
+            attempt_count=r["attempt_count"],
+            last_error_code=r["last_error_code"])
 
 
 # ── Organisationen ───────────────────────────────────────────────────────────

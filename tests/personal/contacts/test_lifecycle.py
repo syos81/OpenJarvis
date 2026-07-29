@@ -55,7 +55,7 @@ def test_start_migriert_und_meldet_configuration_required(db_path):
     m = ContactsModule(db_path)
     report = m.start()
     try:
-        assert report.applied == ("0001", "0002", "0003")
+        assert report.applied == ("0001", "0002", "0003", "0004")
         # Ohne ProviderAccount und Binding ist das Modul nicht `ready` (14 §4).
         assert m.state is ModuleState.CONFIGURATION_REQUIRED
         assert m.capabilities.notes_supported is False
@@ -69,7 +69,7 @@ def test_mehrfacher_start_ist_idempotent(db_path):
     zweiter = m.start()
     try:
         assert erster is zweiter
-        assert zweiter.applied == ("0001", "0002", "0003")
+        assert zweiter.applied == ("0001", "0002", "0003", "0004")
     finally:
         m.stop()
 

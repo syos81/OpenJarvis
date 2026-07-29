@@ -357,7 +357,7 @@ def test_doppelter_tombstone_wird_abgelehnt(uow):
 # ── Mutationen ───────────────────────────────────────────────────────────────
 def _mutation(**kw) -> ContactMutation:
     defaults = dict(mutation_id=new_id(), command="update",
-                    idempotency_key=new_id(), state=MutationState.DRAFT,
+                    idempotency_key=new_id(), state=MutationState.PREPARED,
                     initiation_context=InitiationContext.USER_DIRECT,
                     target_provider_identifier="raw-1")
     defaults.update(kw)
@@ -370,7 +370,7 @@ def test_mutation_roundtrip(uow):
     repo.add(m)
     geladen = repo.get(m.mutation_id)
     assert geladen.command == "update"
-    assert geladen.state is MutationState.DRAFT
+    assert geladen.state is MutationState.PREPARED
     assert geladen.initiation_context is InitiationContext.USER_DIRECT
 
 
@@ -394,7 +394,7 @@ def test_outcome_unknown_erscheint_in_der_reconcile_liste(uow):
     repo = SqliteMutationRepository(uow)
     offen = _mutation(state=MutationState.OUTCOME_UNKNOWN,
                       outcome=MutationOutcome.OUTCOME_UNKNOWN)
-    fertig = _mutation(state=MutationState.COMPLETED,
+    fertig = _mutation(state=MutationState.SUCCEEDED,
                        outcome=MutationOutcome.SUCCEEDED)
     repo.add(offen); repo.add(fertig)
     ids = [m.mutation_id for m in repo.list_requiring_reconcile()]
@@ -408,10 +408,10 @@ def test_zustandswechsel_wird_gespeichert(uow):
     import dataclasses
 
     reconciled = dataclasses.replace(
-        m, state=MutationState.COMPLETED, outcome=MutationOutcome.SUCCEEDED,
-        settled_at="2026-07-28T00:00:00+00:00")
+        m, state=MutationState.SUCCEEDED, outcome=MutationOutcome.SUCCEEDED,
+        completed_at="2026-07-28T00:00:00+00:00")
     repo.update_state(reconciled)
-    assert repo.get(m.mutation_id).state is MutationState.COMPLETED
+    assert repo.get(m.mutation_id).state is MutationState.SUCCEEDED
     assert repo.list_requiring_reconcile() == ()
 
 

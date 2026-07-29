@@ -279,14 +279,14 @@ def test_beziehung_mit_rohnamen_bleibt_erhalten():
 def test_mutation_ohne_ziel_wird_abgelehnt():
     with pytest.raises(IntegrityError, match="ausdrückliches Ziel"):
         ContactMutation(mutation_id=new_id(), command="update",
-                        idempotency_key="k", state=MutationState.DRAFT,
+                        idempotency_key="k", state=MutationState.PREPARED,
                         initiation_context=InitiationContext.USER_DIRECT)
 
 
 def test_mutation_ohne_idempotenzschluessel_wird_abgelehnt():
     with pytest.raises(IntegrityError, match="idempotency_key"):
         ContactMutation(mutation_id=new_id(), command="update",
-                        idempotency_key="", state=MutationState.DRAFT,
+                        idempotency_key="", state=MutationState.PREPARED,
                         initiation_context=InitiationContext.USER_DIRECT,
                         target_provider_identifier="raw-1")
 
@@ -309,10 +309,17 @@ def test_outcome_unknown_erlaubt_keinen_automatischen_retry():
         assert _mutation(state).may_retry_automatically is False
 
 
-def test_fehlschlag_ist_abgeschlossen_und_retryfaehig():
+def test_ungesendeter_fehlschlag_ist_wiederholbar():
+    """Nur `failed_before_send` ist gefahrlos wiederholbar."""
+    m = _mutation(MutationState.FAILED_BEFORE_SEND)
+    assert m.may_retry_automatically is True
+
+
+def test_endgueltiger_fehlschlag_ist_abgeschlossen_und_nicht_wiederholbar():
+    """`failed` entsteht erst nach dem Abgleich — es ist ein Endzustand."""
     m = _mutation(MutationState.FAILED)
     assert m.is_settled is True
-    assert m.may_retry_automatically is True
+    assert m.may_retry_automatically is False
 
 
 def test_alle_geforderten_mutationszustaende_existieren():

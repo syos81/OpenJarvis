@@ -37,7 +37,6 @@ __all__ = ["EchoSuppressionLedger", "MutationLookup", "IN_FLIGHT_STATES"]
 #: „nicht geschrieben", und ein Ereignis dazu wäre möglicherweise das eigene.
 IN_FLIGHT_STATES: frozenset[MutationState] = frozenset({
     MutationState.EXECUTING,
-    MutationState.VERIFYING,
     MutationState.OUTCOME_UNKNOWN,
     MutationState.RECONCILE_REQUIRED,
 })

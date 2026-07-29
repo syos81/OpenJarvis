@@ -20,6 +20,8 @@ ERWARTETE_TABELLEN = {
     "contact_social_profiles", "contact_instant_messages", "contact_relations",
     "organizations", "organization_memberships", "contacts_sync_state",
     "contacts_tombstones", "contacts_mutations",
+    # Basis (0004)
+    "personal_approvals", "personal_external_action_outbox",
 }
 
 ERWARTETE_INDIZES = {
@@ -61,8 +63,8 @@ def _indizes(conn) -> set[str]:
 # ── Lauf auf leerer Datenbank ────────────────────────────────────────────────
 def test_leere_datenbank_wird_vollstaendig_migriert(factory):
     report = MigrationRunner(factory, ALL_MIGRATIONS).run()
-    assert report.applied == ("0001", "0002", "0003")
-    assert report.schema_version == 3
+    assert report.applied == ("0001", "0002", "0003", "0004")
+    assert report.schema_version == 4
     conn = factory.connect()
     assert ERWARTETE_TABELLEN <= _tabellen(conn)
     assert LEDGER_TABLE in _tabellen(conn)
@@ -79,7 +81,7 @@ def test_wiederholter_lauf_ist_idempotent(factory):
     runner.run()
     zweiter = runner.run()
     assert zweiter.applied == ()
-    assert zweiter.already_applied == ("0001", "0002", "0003")
+    assert zweiter.already_applied == ("0001", "0002", "0003", "0004")
 
 
 def test_ledger_speichert_pflichtfelder(migrated_factory):
@@ -96,7 +98,7 @@ def test_ledger_speichert_pflichtfelder(migrated_factory):
 def test_ledger_und_schema_sind_konsistent(migrated_factory):
     conn = migrated_factory.connect()
     ledger = read_ledger(conn)
-    assert set(ledger) == {"0001", "0002", "0003"}
+    assert set(ledger) == {"0001", "0002", "0003", "0004"}
     for migration in ALL_MIGRATIONS:
         assert ledger[migration.migration_id].checksum == migration.checksum
 
@@ -271,9 +273,12 @@ def test_check_constraint_erzwingt_mutationsziel(migrated_factory):
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO contacts_mutations (mutation_id, command, "
-            "idempotency_key, state, initiation_context, created_at) VALUES "
-            "('55555555-5555-4555-8555-555555555555','create','k','draft',"
-            "'user_direct','2026-01-01T00:00:00+00:00')"
+            "correlation_id, actor, initiation_context, workspace_id, "
+            "provider_account_id, idempotency_key, transaction_author, "
+            "payload_json, payload_digest, preview_digest, state, created_at) "
+            "VALUES ('55555555-5555-4555-8555-555555555555','create','c','t',"
+            "'user_direct','ws','konto-a','k','autor','{}','d','d',"
+            "'prepared','2026-01-01T00:00:00+00:00')"
         )
 
 
@@ -284,11 +289,14 @@ def test_unique_constraint_auf_idempotenzschluessel(migrated_factory):
     for i in (6, 7):
         sql = (
             "INSERT INTO contacts_mutations (mutation_id, command, "
-            "target_provider_identifier, idempotency_key, state, "
-            "initiation_context, created_at) VALUES "
+            "correlation_id, actor, initiation_context, workspace_id, "
+            "provider_account_id, container_identifier, idempotency_key, "
+            "transaction_author, payload_json, payload_digest, "
+            "preview_digest, state, created_at) VALUES "
             f"('{i}{i}{i}{i}{i}{i}{i}{i}-{i}{i}{i}{i}-4{i}{i}{i}-8{i}{i}{i}-"
-            f"{i}{i}{i}{i}{i}{i}{i}{i}{i}{i}{i}{i}','create','abc','derselbe',"
-            "'draft','user_direct','2026-01-01T00:00:00+00:00')"
+            f"{i}{i}{i}{i}{i}{i}{i}{i}{i}{i}{i}{i}','create','corr','tester',"
+            "'user_direct','ws','konto-a','container-1','derselbe','autor',"
+            "'{}','d','d','prepared','2026-01-01T00:00:00+00:00')"
         )
         if i == 6:
             conn.execute(sql)

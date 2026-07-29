@@ -105,6 +105,9 @@ class ContactsModule:
         self._report: MigrationReport | None = None
         self._capabilities: ContactCapabilitySet | None = None
         self._started = False
+        self._command_bus = None
+        self._mutation_service = None
+        self._approval_service = None
         # Bridge-Konfiguration — es wird beim Konstruieren NICHTS aufgelöst
         # und kein Prozess gestartet.
         self._sidecar_path = sidecar_path
@@ -232,6 +235,9 @@ class ContactsModule:
         self._factory.close()
         self._started = False
         self._capabilities = None
+        self._command_bus = None
+        self._mutation_service = None
+        self._approval_service = None
         self._bridge_status = None
         self._state = ModuleState.NOT_INSTALLED
 
@@ -255,6 +261,85 @@ class ContactsModule:
         return ContactsSyncService(client, self, workspace_id=workspace_id,
                                    provider_account_id=provider_account_id)
 
+    # ── Mutationspipeline (Gate C) ──────────────────────────────────────────
+    # Alle folgenden Methoden **stellen bereit** und starten nichts: kein
+    # Hintergrundexecutor, kein Timer, keine Mutation beim Modulstart, keine
+    # Route, keine TCC-Anfrage. Jede Ausführung ist ein ausdrücklicher Aufruf.
+
+    def command_bus(self) -> "ApplicationCommandBus":
+        """Der eine Schreibpfad, mit den Kontakte-Commands verdrahtet (AV-35).
+
+        Die registrierten Handler **bereiten vor**; sie senden nichts. Ein
+        Dispatch aus UI, CLI oder Chat kann deshalb strukturell keine Mutation
+        absenden — dafür braucht es die getrennte Freigabe und `execute()`.
+        """
+        if not self._started:
+            raise PersonalJarvisError("Modul ist nicht gestartet")
+        if self._command_bus is None:
+            from personaljarvis.base.command_bus import ApplicationCommandBus
+            from personaljarvis.contacts.application.command_bus import (
+                register_contacts_commands,
+            )
+
+            bus = ApplicationCommandBus()
+            register_contacts_commands(bus, self.mutation_service())
+            self._command_bus = bus
+        return self._command_bus
+
+    def mutation_service(self, provider=None) -> "ContactsMutationService":
+        """Mutationsdienst. Ohne Provider ist keine Ausführung möglich.
+
+        Der Provider ist in Gate C ausschließlich eine Fake-Bridge; der echte
+        Sidecar liefert weiterhin `not_implemented` und wird für
+        Store-Schreibzugriffe **nicht** freigeschaltet.
+        """
+        if not self._started:
+            raise PersonalJarvisError("Modul ist nicht gestartet")
+        from personaljarvis.contacts.application.mutation_service import (
+            ContactsMutationService,
+        )
+
+        if provider is not None:
+            return ContactsMutationService(self, provider,
+                                           capabilities=self._capabilities)
+        if self._mutation_service is None:
+            self._mutation_service = ContactsMutationService(
+                self, _UnavailableProvider(), capabilities=self._capabilities)
+        return self._mutation_service
+
+    def approval_service(self) -> "ContactsApprovalService":
+        if not self._started:
+            raise PersonalJarvisError("Modul ist nicht gestartet")
+        if self._approval_service is None:
+            from personaljarvis.contacts.application.approvals import (
+                ContactsApprovalService,
+            )
+
+            self._approval_service = ContactsApprovalService(self)
+        return self._approval_service
+
+    def reconcile_service(self, reader) -> "ContactsReconcileService":
+        """Abgleichdienst. Der Leser ist ausschliesslich lesend."""
+        if not self._started:
+            raise PersonalJarvisError("Modul ist nicht gestartet")
+        from personaljarvis.contacts.application.reconcile import (
+            ContactsReconcileService,
+        )
+
+        return ContactsReconcileService(self, reader)
+
+    def outbox(self, uow: UnitOfWork):
+        """Die ExternalActionOutbox über derselben UnitOfWork."""
+        from personaljarvis.base.outbox import ExternalActionOutbox
+
+        return ExternalActionOutbox(uow)
+
+    def audit_trail(self, uow: UnitOfWork):
+        """Der Audit-Schreiber über derselben UnitOfWork."""
+        from personaljarvis.base.audit import AuditTrail
+
+        return AuditTrail(uow, module="contacts")
+
     # ── Arbeitseinheiten ────────────────────────────────────────────────────
     def unit_of_work(self) -> UnitOfWork:
         if not self._started:
@@ -273,3 +358,22 @@ class ContactsModule:
             mutations=SqliteMutationRepository(uow),
             organizations=SqliteOrganizationRepository(uow),
         )
+
+
+class _UnavailableProvider:
+    """Standard-Provider: es gibt in Gate C keinen echten Schreibpfad.
+
+    Wer ohne ausdrücklich übergebenen Provider auszuführen versucht, bekommt
+    einen typisierten Fehler statt eines stillen Fehlversuchs. Der Aufruf ist
+    nachweislich **vor** jedem Send.
+    """
+
+    def apply(self, payload, *, mutation_id: str, idempotency_key: str,
+              approval_id: str):
+        from personaljarvis.contacts.application.models import ProviderOutcome
+        from personaljarvis.contacts.application.mutation_service import (
+            ProviderResponse,
+        )
+
+        return ProviderResponse(ProviderOutcome.FAILED_BEFORE_SEND,
+                                error_code="not_implemented")
