@@ -1570,22 +1570,6 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     if let Some(sidecar) = bundled_contacts_sidecar() {
         cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1");
         cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR", &sidecar);
-        // The .app this backend belongs to. macOS attributes a TCC prompt to
-        // the *responsible* process, which for a spawned child resolves up the
-        // parent chain to this bundle — the one that carries
-        // NSContactsUsageDescription and can actually put a window on screen.
-        //
-        // A backend started from a terminal has a different chain: the
-        // responsible process is the terminal, which has no usage description.
-        // requestAccess then fails with an opaque provider error and no prompt
-        // ever appears. Setting this only on the spawn path lets the backend
-        // refuse the prompt with a precise reason instead of producing that
-        // opaque failure — see `request_authorization` in live.py.
-        if let Some(app) = sidecar.parent().and_then(|p| p.parent())
-            .and_then(|p| p.parent())
-        {
-            cmd.env("PERSONAL_JARVIS_HOST_BUNDLE", app);
-        }
     }
 
     let jarvis_child = cmd.spawn();
@@ -3207,30 +3191,6 @@ release/bundle/macos/OpenJarvis.app/Contents/MacOS";
     }
 
     // ── Abhaengigkeitsauswahl beim Start ───────────────────────────────────
-    #[test]
-    fn the_spawn_path_passes_the_host_bundle() {
-        // Ohne diesen Marker weiss das Backend nicht, dass es aus der App
-        // stammt — und verweigert dann die Berechtigungsanfrage, statt sie
-        // in einem undurchsichtigen Providerfehler enden zu lassen.
-        let quelle = include_str!("lib.rs");
-        let marker = quelle
-            .find("cmd.env(\"PERSONAL_JARVIS_HOST_BUNDLE\"")
-            .expect("host bundle marker is not passed to the backend");
-        let sidecar = quelle
-            .find("if let Some(sidecar) = bundled_contacts_sidecar()")
-            .expect("sidecar resolution is missing");
-        assert!(
-            sidecar < marker,
-            "the marker must sit inside the bundled-sidecar branch"
-        );
-        // Zwischen beiden darf keine neue Funktion beginnen — sonst stuende
-        // der Marker ausserhalb des Zweigs.
-        assert!(
-            !quelle[sidecar..marker].contains("\nfn "),
-            "the marker escaped the bundled-sidecar branch"
-        );
-    }
-
     #[test]
     fn degraded_start_syncs_no_inference_extras() {
         // Ohne konfigurierte Engine hat der Start keinen Grund, Provider-SDKs

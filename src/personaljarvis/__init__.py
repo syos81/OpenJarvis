@@ -22,6 +22,11 @@ __all__ = ["attach", "is_enabled", "ENABLE_ENV_VAR", "PersonalNotEnabled",
 #: keinen stillen Aktivierungsweg — ohne diese Variable passiert nichts.
 ENABLE_ENV_VAR = "OPENJARVIS_PERSONAL_ENABLED"
 
+#: Derselbe Standard-Workspace wie in den Routen — ein zweiter Wert
+#: hier hiesse, dass Reparatur und Abgleich auf verschiedene Bestaende
+#: zeigen.
+DEFAULT_WORKSPACE = "default"
+
 _TRUTHY = ("1", "true", "yes", "on")
 
 
@@ -115,8 +120,51 @@ def attach(app: Any, *, database_path: str | None = None,
     # `include_router`: Tests reichen leichte App-Attrappen herein, und ein
     # fehlender Router darf den Bootstrap nicht scheitern lassen, nachdem
     # Datenbank und Sperre bereits stehen.
+    _register_recovery_service(runtime.contacts, sidecar_path, bundle_dir)
+
     if hasattr(app, "include_router"):
         from personaljarvis.contacts.api import create_contacts_router
 
         app.include_router(create_contacts_router(runtime.contacts))
     return runtime
+
+
+def _register_recovery_service(module: Any, sidecar_path: str | None,
+                               bundle_dir: str | None) -> None:
+    """Verdrahtet die Wiederherstellung — und löst dabei nichts aus.
+
+    Sie beantwortet einen konkret erkannten Fehlerzustand (lokal getombstonete
+    Kontakte, die der Provider unverändert kennt). Registriert wird nur ein
+    Einstiegspunkt; Sidecar, Autorisierung, Enumeration und Reparatur passieren
+    ausschliesslich auf ausdrücklichen Aufruf.
+
+    Ist die Bridge strukturell nicht vorhanden — kein Binary, falsche
+    Architektur —, bleibt `recovery_service` ungesetzt und der Endpunkt
+    antwortet kontrolliert mit 503. Ein Fake- oder Rückfallprovider wird
+    ausdrücklich **nicht** eingesetzt: eine Reparatur auf erfundenen Daten wäre
+    schlimmer als keine.
+
+    Die Prüfung selbst ist nebenwirkungsfrei: `resolve_sidecar` sieht auf die
+    Datei, startet aber keinen Prozess.
+    """
+    from personaljarvis.contacts.application.live import (
+        APPLE_PROVIDER_ACCOUNT,
+        ContactsLiveService,
+        ContactsRecoveryEntrypoint,
+    )
+    from personaljarvis.contacts.bridge.errors import BridgeConfigurationError
+    from personaljarvis.contacts.bridge.resolver import resolve_sidecar
+
+    try:
+        resolve_sidecar(sidecar_path, bundle_dir=bundle_dir)
+    except BridgeConfigurationError:
+        return
+
+    live = getattr(module, "live_service", None)
+    if live is None:
+        live = ContactsLiveService(module, sidecar_path=sidecar_path,
+                                   bundle_dir=bundle_dir)
+        module.live_service = live
+    module.recovery_service = ContactsRecoveryEntrypoint(
+        live, module, workspace_id=DEFAULT_WORKSPACE,
+        provider_account_id=APPLE_PROVIDER_ACCOUNT)

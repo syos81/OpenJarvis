@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements des Contacts-Sidecars — vollständig und abschliessend.
+
+  Genau ein Eintrag. Der Sidecar liest Kontakte und tut sonst nichts: er öffnet
+  keine Verbindung, wählt keine Datei aus, führt keinen erzeugten Code aus und
+  lädt keine fremde Bibliothek.
+
+  Ausdrücklich **nicht** enthalten und warum:
+
+    app-sandbox           die App ist nicht sandboxed; ein eigenes Profil im
+                          Kind wäre ein zweites, konkurrierendes Profil
+    inherit               setzt eine sandboxed Elternapp voraus — hier gibt es
+                          keine, das Kind bekäme ein leeres Profil
+    allow-jit             der Sidecar erzeugt keinen Code
+    allow-unsigned-…      er führt keinen unsignierten Speicher aus
+    disable-library-…     er lädt keine fremden Bibliotheken; die Prüfung
+                          abzuschalten wäre eine Lockerung ohne Anlass
+    network.*             er spricht ausschliesslich über stdin/stdout
+    files.user-selected   er öffnet keinen Dateidialog
+
+  Diese fünf letzten erbte er vor der Umstellung von der App, weil
+  `tauri build` jedes Mach-O im Bundle mit den App-Entitlements signiert. Ein
+  ungenutztes Recht bleibt ein gewährtes Recht — deshalb der eigene Vertrag und
+  das Reseal (scripts/reseal-contacts-sidecar.sh).
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.personal-information.addressbook</key>
+    <true/>
+</dict>
+</plist>

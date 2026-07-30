@@ -10,6 +10,7 @@ keine Route je eine Schreiboperation auslöst.
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -21,12 +22,10 @@ from personaljarvis.contacts.api.routes import (
     create_contacts_router,
 )
 from personaljarvis.contacts.application.live import (
-    HOST_BUNDLE_ENV,
     ContactsLiveService,
     SyncBusy,
     SyncNotAuthorized,
     SyncUnavailable,
-    host_bundle,
     technischer_code,
 )
 from personaljarvis.contacts.bridge.errors import (
@@ -37,6 +36,10 @@ from personaljarvis.contacts.bridge.models import AuthorizationStatus, Container
 from personaljarvis.contacts.sync.state import CursorState, SyncRunKind, SyncRunResult
 
 from .conftest import WORKSPACE
+
+#: Die Live-Schicht als Datei — fuer den Quelltextnachweis weiter unten.
+_REPO_LIVE = (Path(__file__).resolve().parents[3]
+              / "src/personaljarvis/contacts/application/live.py")
 
 #: Jede Operation, die den Kontakte-Store berührt. Kein Test dieser Datei darf
 #: eine davon auslösen, solange nicht `authorized` gilt.
@@ -119,12 +122,24 @@ def _lauf(kind=SyncRunKind.INITIAL_IMPORT, **kw) -> SyncRunResult:
 class SyncAttrappe:
     """Ersetzt den Sync-Dienst. Läuft nie gegen einen echten Store."""
 
-    def __init__(self, ergebnisse=None) -> None:
+    def __init__(self, ergebnisse=None, *, offen=()) -> None:
         self.ergebnisse = list(ergebnisse or [_lauf()])
         self.calls = 0
+        #: Container, die einen Voll-Diff brauchen. Leer = Delta-Pfad.
+        self.offen = tuple(offen)
+        self.konto_laeufe: list[tuple[str, ...]] = []
 
     def inventory_containers(self):
         return (ContainerInfo(identifier="con-1", name="", type="local"),)
+
+    def pending_full_diff(self, container_identifiers):
+        return tuple(k for k in container_identifiers if k in self.offen)
+
+    def full_diff_account(self, container_identifiers, *, confirm_empty=False):
+        """Der kontoweite Pfad — der einzige, der loeschen darf."""
+        self.konto_laeufe.append(tuple(container_identifiers))
+        self.calls += 1
+        return self.ergebnisse[min(self.calls - 1, len(self.ergebnisse) - 1)]
 
     def sync(self, container_identifier: str):
         self.calls += 1
@@ -138,13 +153,21 @@ def kopf() -> dict:
 
 @pytest.fixture
 def in_der_app(monkeypatch):
-    """Prozesskette wie beim Start durch die gepackte App."""
-    monkeypatch.setenv(HOST_BUNDLE_ENV, "/Anwendungen/OpenJarvis.app")
+    """Frueher: Prozesskette wie beim Start durch die gepackte App.
+
+    Die Herkunft des Backends spielt fuer die Berechtigung keine Rolle mehr.
+    Seit der Dialog im Tauri-Hauptprozess liegt, verweist der Server jeden
+    Anfrageversuch unabhaengig von seiner Startumgebung auf die App. Die
+    Fixture bleibt als Name an den Tests stehen, die den Fall benennen, und
+    setzt bewusst **nichts** mehr — sie darf das Ergebnis nicht beeinflussen.
+    """
+    monkeypatch.delenv("PERSONAL_JARVIS_HOST_BUNDLE", raising=False)
 
 
 @pytest.fixture
 def ohne_app(monkeypatch):
-    monkeypatch.delenv(HOST_BUNDLE_ENV, raising=False)
+    """Gegenstueck: ebenfalls ohne Umgebungsmarker, gleiches Ergebnis."""
+    monkeypatch.delenv("PERSONAL_JARVIS_HOST_BUNDLE", raising=False)
 
 
 def _client_mit(module, live) -> TestClient:
@@ -849,25 +872,31 @@ def test_statuslesen_braucht_die_app_nicht(module, ohne_app):
     assert bridge.ops == ["authorizationStatus"]
 
 
-def test_host_bundle_wird_nur_aus_der_umgebung_gelesen(monkeypatch):
-    monkeypatch.setenv(HOST_BUNDLE_ENV, "  /A/B.app  ")
-    assert host_bundle() == "/A/B.app"
-    monkeypatch.setenv(HOST_BUNDLE_ENV, "   ")
-    assert host_bundle() == ""
+def test_die_grenze_haengt_an_keiner_umgebungsvariablen(module, monkeypatch):
+    """Der Server verweist **immer** auf die App — egal, wie er gestartet wurde.
+
+    Frueher entschied `PERSONAL_JARVIS_HOST_BUNDLE` darueber, ob der Server
+    die Anfrage selbst versuchte. Seit der Dialog im App-Prozess liegt, gibt
+    es diesen Versuch nicht mehr; eine Variable, die nichts mehr steuert, waere
+    tote Sicherheitslogik und wird deshalb nicht mehr gelesen.
+    """
+    for wert in (None, "/Anwendungen/Jarvis.app", ""):
+        if wert is None:
+            monkeypatch.delenv("PERSONAL_JARVIS_HOST_BUNDLE", raising=False)
+        else:
+            monkeypatch.setenv("PERSONAL_JARVIS_HOST_BUNDLE", wert)
+        bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
+        with pytest.raises(SyncUnavailable) as exc:
+            LiveAttrappe(module, bridge).request_authorization(user_initiated=True)
+        assert exc.value.technical_code == "tcc_prompt_unavailable:handled_by_app"
+        assert bridge.starts == 0
 
 
-
-# ═══ Der Sidecar bleibt für Lesen zuständig ═════════════════════════════════
-#
-# Die Architekturkorrektur verschiebt **nur** den Berechtigungsdialog in den
-# App-Prozess. Statusabruf und alle Leseoperationen bleiben beim Sidecar —
-# das war nie das Problem und funktioniert belegt.
-def test_statuslesen_laeuft_weiter_ueber_den_sidecar(module):
-    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
-    sicht = LiveAttrappe(module, bridge).authorization()
-    assert sicht.status == "notDetermined"
-    assert bridge.ops == ["authorizationStatus"]
-    assert bridge.starts == 1 and bridge.stops == 1
+def test_die_live_schicht_liest_keine_prozessumgebung():
+    """Belegt an der Quelle: kein `os.environ` mehr in dieser Schicht."""
+    quelle = (_REPO_LIVE).read_text(encoding="utf-8")
+    assert "os.environ" not in quelle
+    assert "HOST_BUNDLE" not in quelle
 
 
 def test_der_lese_sync_laeuft_weiter_ueber_den_sidecar(module):

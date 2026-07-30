@@ -815,13 +815,13 @@ describe('Berechtigungsfehler', () => {
     mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
       503, 'unavailable',
       'Der Berechtigungsdialog kann nur aus der Anwendung selbst angefordert werden.',
-      true, 'tcc_prompt_unavailable:no_host_bundle'));
+      true, 'tcc_prompt_unavailable:handled_by_app'));
 
     await u.click(screen.getByRole('button', { name: /erlauben/i }));
     expect(await screen.findByText(/nur aus der Anwendung selbst/i))
       .toBeInTheDocument();
     expect(screen.getByTestId('fehler-kennung'))
-      .toHaveTextContent('no_host_bundle');
+      .toHaveTextContent('handled_by_app');
   });
 
   it('wiederholt nach einem Fehlschlag nichts von selbst', async () => {
@@ -858,7 +858,7 @@ describe('Berechtigungsfehler', () => {
     await notDetermined();
     mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
       503, 'unavailable', 'Der Dialog kann nur aus der Anwendung kommen.',
-      true, 'tcc_prompt_unavailable:no_host_bundle'));
+      true, 'tcc_prompt_unavailable:handled_by_app'));
     await u.click(screen.getByRole('button', { name: /erlauben/i }));
     await screen.findByTestId('fehler-kennung');
     const text = document.body.textContent ?? '';

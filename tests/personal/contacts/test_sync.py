@@ -160,8 +160,11 @@ def bridge():
 
 @pytest.fixture
 def service(module, bridge):
+    # Die Gegenprobe-Pause wird ausgenullt: geprüft wird ihre Wirkung,
+    # nicht das Warten.
     return ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
-                               provider_account_id=ACCOUNT)
+                               provider_account_id=ACCOUNT,
+                               empty_recheck_pause=0.0)
 
 
 def kontakte(module):
@@ -264,7 +267,8 @@ def test_abweichende_zaehlung_verwirft_den_lauf(service, module, bridge):
 def test_ohne_autorisierung_wird_nichts_gelesen(module, bridge):
     bridge.status = AuthorizationStatus.NOT_DETERMINED
     dienst = ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
-                                 provider_account_id=ACCOUNT)
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
     ergebnis = dienst.initial_import(CONTAINER)
 
     assert not ergebnis.succeeded and ergebnis.error_class == "AuthorizationRequired"
@@ -393,7 +397,8 @@ def test_unbekanntes_ereignis_bricht_fail_closed_ab(service, module, bridge):
 def test_nicht_zuordenbares_ereignis_bei_mehreren_containern(module, bridge):
     bridge.container_ids = (CONTAINER, "icloud")
     dienst = ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
-                                 provider_account_id=ACCOUNT)
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
     dienst.initial_import(CONTAINER)
     bridge.kontakte["pid-9"] = roh_kontakt("pid-9", given="Fremd")
     bridge.ereignisse = [ChangeEvent(type=ChangeEventType.ADD,
@@ -422,13 +427,30 @@ def test_sync_waehlt_nach_dem_persistierten_zustand(service, module, bridge):
 
 
 # ── Voll-Diff ────────────────────────────────────────────────────────────────
+def test_voll_diff_je_container_loescht_nicht(service, module, bridge):
+    """Ein Container allein traegt keine Loeschmenge.
+
+    Die Abwesenheit eines Datensatzes in *einem* Container beweist nichts —
+    er koennte in einem anderen liegen. Geloescht wird nur kontoweit.
+    """
+    bridge.kontakte["pid-2"] = roh_kontakt("pid-2", given="Zwei")
+    service.initial_import(CONTAINER)
+    bridge.kontakte.pop("pid-2")
+
+    ergebnis = service.full_diff(CONTAINER)
+
+    assert ergebnis.succeeded and ergebnis.tombstoned == 0
+    assert tombstones(module) == ()
+    assert len(kontakte(module)) == 2, "nichts wurde weich geloescht"
+
+
 def test_voll_diff_setzt_tombstone_fuer_fehlenden_datensatz(service, module, bridge):
     bridge.kontakte["pid-2"] = roh_kontakt("pid-2", given="Zwei")
     service.initial_import(CONTAINER)
     assert len(kontakte(module)) == 2
 
     bridge.kontakte.pop("pid-2")
-    ergebnis = service.full_diff(CONTAINER)
+    ergebnis = service.full_diff_account([CONTAINER])
 
     assert ergebnis.tombstoned == 1 and ergebnis.unchanged == 1
     (grab,) = tombstones(module)
@@ -443,7 +465,7 @@ def test_voll_diff_ohne_vollstaendigkeit_erzeugt_keine_loeschung(service, module
     bridge.kontakte.clear()
     bridge.enumeration_vollstaendig = False
 
-    ergebnis = service.full_diff(CONTAINER)
+    ergebnis = service.full_diff_account([CONTAINER])
 
     assert not ergebnis.succeeded
     assert tombstones(module) == () and len(kontakte(module)) == 1
@@ -452,11 +474,13 @@ def test_voll_diff_ohne_vollstaendigkeit_erzeugt_keine_loeschung(service, module
 def test_wiederauftauchen_nach_tombstone_wird_neu_importiert(service, module, bridge):
     service.initial_import(CONTAINER)
     bridge.kontakte.clear()
-    service.full_diff(CONTAINER)
+    # Ein leer gewordener Container braucht die ausdrueckliche Bestaetigung —
+    # sonst ist das Null-Ergebnis kein Loeschbeleg.
+    service.full_diff_account([CONTAINER], confirm_empty=True)
     assert kontakte(module) == ()
 
     bridge.kontakte["pid-1"] = roh_kontakt("pid-1")
-    ergebnis = service.full_diff(CONTAINER)
+    ergebnis = service.full_diff_account([CONTAINER])
 
     assert ergebnis.imported == 1
     (kontakt,) = kontakte(module)
@@ -501,7 +525,8 @@ def test_nachweislich_leeres_feld_wird_geleert(service, module, bridge):
 def test_me_karte_wird_nie_ueberschrieben(module, bridge):
     bridge.kontakte = {"pid-me": roh_kontakt("pid-me", given="Ich", me_card=True)}
     dienst = ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
-                                 provider_account_id=ACCOUNT)
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
     dienst.initial_import(CONTAINER)
 
     bridge.kontakte["pid-me"] = roh_kontakt("pid-me", given="Fremdgeaendert",
@@ -625,7 +650,8 @@ def test_form_der_live_abnahme_laeuft_durch(module):
         ChangeEvent(type=ChangeEventType.DROP_EVERYTHING),
     ]
     dienst = ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
-                                 provider_account_id=ACCOUNT)
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
 
     # Der Initialimport verwirft die Basisereignisse und nimmt nur den Cursor.
     erst = dienst.initial_import(CONTAINER)
@@ -653,3 +679,240 @@ def test_dienst_ohne_gestartetes_modul_wird_abgelehnt(db_path, bridge):
     with pytest.raises(PersonalJarvisError):
         ContactsModule(db_path).sync_service(bridge, workspace_id=WORKSPACE,
                                              provider_account_id=ACCOUNT)
+
+
+# ═══ Löschbasis — die Lehre aus dem Vorfall vom 2026-07-30 ══════════════════
+#
+# Ein Voll-Diff hat damals 116 Kontakte lokal auf gelöscht gesetzt, weil eine
+# Enumeration `count=0, complete=true` lieferte. Beides — ein echt geleertes
+# Adressbuch und ein Provider, der geantwortet, aber nichts geliefert hat —
+# sieht an der Antwort identisch aus. Die Auflösung ist nicht mehr Raten,
+# sondern fail-closed: ein widersprüchliches Null-Ergebnis ist kein Löschbeleg.
+def test_leere_enumeration_loescht_keinen_gefuellten_bestand(service, module,
+                                                              bridge):
+    """Der Vorfall selbst, im Kleinen: vorher gefüllt, jetzt 0."""
+    bridge.kontakte["pid-2"] = roh_kontakt("pid-2", given="Zwei")
+    service.initial_import(CONTAINER)
+    assert len(kontakte(module)) == 2
+
+    bridge.kontakte.clear()          # complete=true, count=0
+    ergebnis = service.full_diff_account([CONTAINER])
+
+    assert not ergebnis.succeeded
+    assert ergebnis.error_class == "SuspiciousEmptyEnumeration"
+    assert ergebnis.tombstoned == 0
+    assert tombstones(module) == ()
+    assert len(kontakte(module)) == 2, "der Bestand bleibt sichtbar"
+
+
+def test_auch_ein_einziger_kontakt_wird_so_geschuetzt(service, module, bridge):
+    """Die Regel hängt nicht an einer Mindestmenge."""
+    service.initial_import(CONTAINER)
+    bridge.kontakte.clear()
+
+    ergebnis = service.full_diff_account([CONTAINER])
+
+    assert ergebnis.error_class == "SuspiciousEmptyEnumeration"
+    assert len(kontakte(module)) == 1
+
+
+def test_der_cursor_bleibt_bei_verdaechtigem_null_ergebnis_unveraendert(
+        service, module, bridge):
+    """Kein Fortschritt auf einer Grundlage, die niemand belegen kann."""
+    service.initial_import(CONTAINER)
+    vorher = zustand(module)
+    bridge.token = "tok-neu"
+    bridge.kontakte.clear()
+
+    ergebnis = service.full_diff_account([CONTAINER])
+
+    nachher = zustand(module)
+    assert not ergebnis.cursor_advanced
+    assert nachher.cursor_token == vorher.cursor_token
+    assert nachher.last_full_diff_at == vorher.last_full_diff_at
+
+
+def test_leerer_provider_beim_echten_erstimport_bleibt_erlaubt(module, bridge):
+    """Ein von Anfang an leeres Adressbuch ist kein Verdachtsfall."""
+    bridge.kontakte.clear()
+    dienst = ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
+
+    ergebnis = dienst.full_diff_account([CONTAINER])
+
+    assert ergebnis.succeeded and ergebnis.tombstoned == 0
+    assert kontakte(module) == ()
+
+
+def test_geleertes_adressbuch_braucht_die_ausdrueckliche_bestaetigung(
+        service, module, bridge):
+    """Abbildbar bleibt es — aber nur als Entscheidung, nicht als Nebenwirkung."""
+    service.initial_import(CONTAINER)
+    bridge.kontakte.clear()
+
+    assert not service.full_diff_account([CONTAINER]).succeeded
+
+    ergebnis = service.full_diff_account([CONTAINER], confirm_empty=True)
+
+    assert ergebnis.succeeded and ergebnis.tombstoned == 1
+    assert "sync.delete_basis.confirmed_empty" in ergebnis.audit_events
+    assert len(tombstones(module)) == 1
+
+
+def test_ein_verdaechtiger_container_stoppt_das_ganze_konto(module):
+    """Zwei Container, einer leer: **keiner** von beiden wird geleert.
+
+    Genau diese Kopplung fehlte: die Abwesenheit eines Datensatzes ist erst
+    dann bewiesen, wenn jeder Container des Kontos vollständig gesprochen hat.
+    """
+    class ZweiContainer(AttrappenBridge):
+        """Jeder Container hat seinen eigenen Datensatz."""
+
+        def __init__(self):
+            super().__init__(container=("con-a", "con-b"))
+            self.je_container = {"con-a": (roh_kontakt("pid-a"),),
+                                 "con-b": (roh_kontakt("pid-b", given="Zwei"),)}
+            self.leer_ab = None
+
+        def enumerate(self, *, container_identifier=None, timeout=300.0):
+            self.aufrufe.append("enumerate")
+            werte = (() if container_identifier == self.leer_ab
+                     else self.je_container.get(container_identifier, ()))
+            return EnumerationResult(contacts=werte, count=len(werte),
+                                     complete=True, key_set_version=1)
+
+    bridge = ZweiContainer()
+    dienst = ContactsSyncService(bridge, module, workspace_id=WORKSPACE,
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
+    dienst.initial_import("con-a")
+    dienst.initial_import("con-b")
+    assert len(kontakte(module)) == 2
+
+    bridge.leer_ab = "con-b"
+    ergebnis = dienst.full_diff_account(["con-a", "con-b"])
+
+    assert not ergebnis.succeeded
+    assert tombstones(module) == ()
+    assert len(kontakte(module)) == 2, "auch con-a bleibt unangetastet"
+
+
+def test_ein_fehlender_container_erzeugt_keine_loeschmenge(service, module,
+                                                            bridge):
+    """Fällt die Enumeration eines Containers aus, fehlt die Löschbasis."""
+    service.initial_import(CONTAINER)
+
+    def bricht_ab(*a, **k):
+        raise BridgeOperationError(ErrorCode.PROVIDER_ERROR, "Container weg")
+
+    bridge.enumerate = bricht_ab
+    ergebnis = service.full_diff_account([CONTAINER, "con-fehlt"])
+
+    assert not ergebnis.succeeded and ergebnis.tombstoned == 0
+    assert tombstones(module) == ()
+
+
+def test_leeres_inventar_loescht_nichts(service, module):
+    """Kein Container heisst: keine Aussage, nicht 'alles weg'."""
+    service.initial_import(CONTAINER)
+
+    ergebnis = service.full_diff_account([])
+
+    assert not ergebnis.succeeded
+    assert ergebnis.error_class == "DeleteBasisInvalid"
+    assert len(kontakte(module)) == 1
+
+
+def test_unvollstaendige_enumeration_erzeugt_keine_loeschmenge(service, module,
+                                                               bridge):
+    service.initial_import(CONTAINER)
+    bridge.enumeration_vollstaendig = False
+
+    ergebnis = service.full_diff_account([CONTAINER])
+
+    assert ergebnis.error_class == "IncompleteEnumeration"
+    assert tombstones(module) == () and len(kontakte(module)) == 1
+
+
+def test_abweichende_zaehlung_erzeugt_keine_loeschmenge(service, module, bridge):
+    service.initial_import(CONTAINER)
+    bridge.enumeration_count_override = 99
+
+    ergebnis = service.full_diff_account([CONTAINER])
+
+    assert ergebnis.error_class == "IncompleteEnumeration"
+    assert tombstones(module) == ()
+
+
+def test_bridge_abbruch_nach_dem_inventar_loescht_nichts(service, module, bridge):
+    """Der Abbruch liegt hinter `containers` und vor dem Schreiben."""
+    service.initial_import(CONTAINER)
+
+    def bricht_ab(*a, **k):
+        raise BridgeOperationError(ErrorCode.INTERNAL, "weg")
+
+    bridge.changes = bricht_ab
+    ergebnis = service.full_diff_account([CONTAINER])
+
+    assert not ergebnis.succeeded and tombstones(module) == ()
+    assert len(kontakte(module)) == 1
+
+
+def test_der_ganze_lauf_wird_zurueckgerollt(service, module, bridge):
+    """Kein Teil-Commit: der zweite Container scheitert, der erste bleibt aus.
+
+    Geprüft am Bestand — nach dem Lauf darf kein einziger neuer Datensatz
+    aus diesem Lauf in der Datenbank stehen.
+    """
+    class ZweiContainer(AttrappenBridge):
+        def __init__(self):
+            super().__init__(kontakte=(roh_kontakt("pid-neu"),),
+                             container=("con-a", "con-b"))
+
+        def enumerate(self, *, container_identifier=None, timeout=300.0):
+            if container_identifier == "con-b":
+                raise BridgeOperationError(ErrorCode.PROVIDER_ERROR, "weg")
+            return EnumerationResult(contacts=tuple(self.kontakte.values()),
+                                     count=len(self.kontakte), complete=True,
+                                     key_set_version=1)
+
+    bridge2 = ZweiContainer()
+    dienst = ContactsSyncService(bridge2, module, workspace_id=WORKSPACE,
+                                 provider_account_id=ACCOUNT,
+                                 empty_recheck_pause=0.0)
+
+    ergebnis = dienst.full_diff_account(["con-a", "con-b"])
+
+    assert not ergebnis.succeeded
+    assert kontakte(module) == (), "con-a haette nicht geschrieben werden duerfen"
+
+
+def test_lokale_rollen_ueberleben_den_schutzfall(service, module, bridge):
+    """Lokale Kategorien gehören dem Bestand, nicht dem Provider."""
+    from personaljarvis.contacts.domain.models import ContactRole
+
+    service.initial_import(CONTAINER)
+    (kontakt,) = kontakte(module)
+    with module.unit_of_work() as uow:
+        module.repositories(uow).roles.set_roles(
+            kontakt.id, (ContactRole(workspace_id=WORKSPACE, role="Privat"),))
+
+    bridge.kontakte.clear()
+    service.full_diff_account([CONTAINER])
+
+    with module.unit_of_work() as uow:
+        rollen = module.repositories(uow).roles.list_for_contact(kontakt.id)
+    assert [r.role for r in rollen] == ["Privat"]
+
+
+def test_der_schutzfall_traegt_keine_personenbezogenen_daten(service, bridge):
+    """Fehlerklasse und Auditspur bleiben technisch."""
+    service.initial_import(CONTAINER)
+    bridge.kontakte.clear()
+
+    ergebnis = service.full_diff_account([CONTAINER])
+    text = repr(ergebnis.as_dict()) + " ".join(ergebnis.audit_events)
+
+    for verboten in ("pid-1", "Erfunden", "eins@example.invalid", bridge.token):
+        assert verboten not in text, verboten

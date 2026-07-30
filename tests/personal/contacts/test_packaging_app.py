@@ -225,21 +225,6 @@ def test_sidecar_hat_hardened_runtime():
     assert "runtime" in ausgabe, "Hardened Runtime fehlt"
 
 
-def test_sidecar_traegt_keine_entitlements():
-    """Ohne Sandbox braucht der Kontakte-Zugriff kein Entitlement. Was nicht
-    nötig ist, wird nicht gewährt."""
-    ausgabe = _codesign("-d", "--entitlements", "-", str(_sidecar()))
-    for verboten in ("com.apple.security.personal-information",
-                     "com.apple.security.app-sandbox",
-                     "addressbook"):
-        assert verboten not in ausgabe.lower(), verboten
-
-
-def test_app_entitlements_bleiben_unveraendert():
-    """Diese Aufgabe erweitert die Rechte der App nicht."""
-    ausgabe = _codesign("-d", "--entitlements", "-", str(_erforderlich()))
-    assert "com.apple.security.personal-information" not in ausgabe.lower()
-    assert "addressbook" not in ausgabe.lower()
 
 
 # ── Nichts Verbotenes im Paket ──────────────────────────────────────────────
@@ -258,17 +243,19 @@ def test_kein_binary_ist_im_git_diff():
 #
 # Festgelegtes Modell, hier fixiert damit es nicht unbemerkt driftet:
 #
-#   Die App ist **nicht** sandboxed (`com.apple.security.app-sandbox = false`).
-#   Der Kontaktezugriff wird deshalb allein von TCC geregelt, nicht von einem
-#   Sandbox-Profil. `com.apple.security.personal-information.addressbook` ist
-#   ein **Sandbox**-Entitlement: es gewährt eine Ausnahme innerhalb eines
-#   Sandbox-Profils. Ohne Sandbox gibt es kein Profil, in dem es wirken
-#   könnte — es wäre wirkungslos.
+#   Die App ist **nicht** sandboxed (`com.apple.security.app-sandbox = false`)
+#   und trägt trotzdem `com.apple.security.personal-information.addressbook`.
+#   Die frühere Fassung dieser Datei behauptete das Gegenteil — das Entitlement
+#   sei ohne Sandbox wirkungslos und daher wegzulassen. Das ist zu eng
+#   gedacht: das Entitlement ist Teil der signierten Absichtserklärung eines
+#   Codeobjekts und benennt gegenüber dem System, dass dieses Binary Kontakte
+#   anfassen will. Ohne es kann eine Anfrage vor dem Dialog abgewiesen werden.
 #
-#   Der Sidecar erbt entsprechend **keine** Sandbox und trägt selbst keine
-#   Entitlements. `com.apple.security.inherit` setzt eine sandboxed Elternapp
-#   voraus; im Kind einer nicht-sandboxed App würde es ein leeres,
-#   konkurrierendes Profil erzeugen und den Sidecar aussperren.
+#   Der Sidecar trägt **genau dasselbe eine** Entitlement und sonst keines.
+#   Nicht die Sandbox: die Elternapp hat keine. Nicht `inherit`: das setzt eine
+#   sandboxed Elternapp voraus und erzeugte im Kind ein leeres, konkurrierendes
+#   Profil. Nicht Netz, nicht Dateiauswahl, keine Hardened-Runtime-Ausnahmen —
+#   er spricht über stdin/stdout und liest Kontakte, mehr nicht.
 def _entitlements(pfad: Path) -> dict:
     import plistlib
     import re
@@ -288,20 +275,36 @@ def test_die_app_ist_bewusst_nicht_sandboxed():
     assert _entitlements(_erforderlich()).get(SANDBOX) is False
 
 
-def test_ohne_sandbox_kein_addressbook_entitlement():
-    """Ein Sandbox-Entitlement ohne Sandbox wäre wirkungsloser Ballast.
+def test_die_app_traegt_das_address_book_entitlement():
+    """Unabhängig von der Sandbox — es ist die signierte Absichtserklärung."""
+    assert _entitlements(_erforderlich()).get(ADDRESSBOOK) is True
 
-    Die Zusicherung läuft in beide Richtungen: wer die Sandbox einschaltet,
-    **muss** das Address-Book-Entitlement mitliefern — sonst verliert die App
-    den Kontaktezugriff. Wer sie aus lässt, darf es nicht mitschleppen.
-    """
-    ent = _entitlements(_erforderlich())
-    if ent.get(SANDBOX) is True:
-        assert ent.get(ADDRESSBOOK) is True, (
-            "sandboxed App ohne Address-Book-Entitlement kann keine Kontakte lesen")
-    else:
-        assert ADDRESSBOOK not in ent, (
-            "Sandbox-Entitlement ohne Sandbox — wirkungslos, also weglassen")
+
+def test_die_app_traegt_kein_inherit():
+    """`inherit` ohne sandboxed Elternprozess erzeugt ein leeres Profil."""
+    assert INHERIT not in _entitlements(_erforderlich())
+
+
+def test_der_sidecar_traegt_genau_das_address_book_entitlement():
+    """Genau eines. Ein ungenutztes Recht bleibt ein gewährtes Recht."""
+    ent = _entitlements(_sidecar())
+    assert ent == {ADDRESSBOOK: True}, ent
+
+
+def test_der_sidecar_traegt_keine_netz_oder_dateirechte():
+    """Er spricht über stdin/stdout und öffnet keinen Dateidialog."""
+    ent = _entitlements(_sidecar())
+    for verboten in ("com.apple.security.network.client",
+                     "com.apple.security.network.server",
+                     "com.apple.security.files.user-selected.read-write"):
+        assert verboten not in ent, verboten
+
+
+def test_app_und_sidecar_teilen_die_kontaktefaehigkeit():
+    """Beide Codeobjekte sagen dasselbe — sonst hinge der Zugriff davon ab,
+    welchem von beiden TCC die Anfrage gerade zurechnet."""
+    assert _entitlements(_erforderlich()).get(ADDRESSBOOK) is True
+    assert _entitlements(_sidecar()).get(ADDRESSBOOK) is True
 
 
 def test_der_sidecar_traegt_kein_konkurrierendes_sandbox_profil():
@@ -322,20 +325,44 @@ def test_der_sidecar_hat_keine_hardened_runtime_ausnahmen():
         assert verboten not in ent, verboten
 
 
-def test_der_reseal_entfernt_keine_kontaktefaehigkeit():
-    """Was der Reseal wegnimmt, sind ausschliesslich die geerbten
-    App-Entitlements — und darunter war nie eine Kontaktefähigkeit.
+def test_der_reseal_erhaelt_die_kontaktefaehigkeit():
+    """Der Reseal nimmt die geerbten App-Rechte weg und setzt genau eines.
 
-    Belegt gegen die Quelle: `Entitlements.plist` der App enthält kein
-    Address-Book-Entitlement, also kann der Reseal auch keines entfernt
-    haben.
+    Belegt gegen beide Quelldateien: die App erklärt die Kontaktefähigkeit,
+    und der Sidecar-Vertrag enthält sie ebenfalls — sie geht beim Nachsignieren
+    also nicht verloren.
     """
     import plistlib
 
-    quelle = plistlib.loads(
+    app = plistlib.loads(
         (_REPO / "frontend/src-tauri/Entitlements.plist").read_bytes())
-    assert ADDRESSBOOK not in quelle
-    assert quelle.get(SANDBOX) is False
+    assert app.get(ADDRESSBOOK) is True
+    assert app.get(SANDBOX) is False
+    assert INHERIT not in app
+
+    sidecar = plistlib.loads(
+        (_REPO / "frontend/src-tauri/ContactsSidecar.entitlements").read_bytes())
+    assert sidecar == {ADDRESSBOOK: True}, sidecar
+
+
+def test_das_reseal_skript_verwendet_den_eigenen_vertrag():
+    """Keine pauschale Übernahme der App-Entitlements — geprüft am Skript.
+
+    Das Bundle allein könnte auch von Hand richtig signiert worden sein; der
+    Nachweis muss am reproduzierbaren Weg hängen.
+    """
+    skript = (_REPO / "frontend/src-tauri/scripts"
+              / "reseal-contacts-sidecar.sh").read_text(encoding="utf-8")
+    # Die Variable zeigt auf den eigenen Vertrag …
+    assert 'SIDECAR_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"' in skript
+    # … und der Sidecar-Block benutzt genau sie, nicht die der App.
+    sidecar_teil = skript.split("Re-sign sidecar", 1)[1].split(
+        "Re-sign the enclosing app", 1)[0]
+    assert '--entitlements "$SIDECAR_ENTITLEMENTS"' in sidecar_teil
+    assert '"$ENTITLEMENTS"' not in sidecar_teil, (
+        "der Sidecar wuerde mit den App-Entitlements signiert")
+    # Ohne die Datei bricht das Skript ab, statt auf die App zurueckzufallen.
+    assert "refusing to fall back" in skript
 
 
 def test_usage_description_ueberlebt_den_reseal():

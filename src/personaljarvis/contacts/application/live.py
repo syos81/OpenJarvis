@@ -27,7 +27,6 @@ anderes: zwei gleichzeitige Läufe **innerhalb** desselben Prozesses.
 
 from __future__ import annotations
 
-import os
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -46,6 +45,7 @@ from personaljarvis.contacts.sync.state import CursorState, SyncRunKind
 
 __all__ = [
     "AuthorizationView",
+    "ContactsRecoveryEntrypoint",
     "ContactsLiveService",
     "SyncBusy",
     "SyncNotAuthorized",
@@ -56,22 +56,6 @@ __all__ = [
 #: Kontenschlüssel des Apple-Systemkontos. Ein Konto je Anbieter genügt für
 #: den Lesepfad; Mehrkontenbetrieb ist eine spätere, eigene Entscheidung.
 APPLE_PROVIDER_ACCOUNT = "apple-local"
-
-#: Pfad der .app, aus deren Prozesskette dieses Backend stammt. Wird
-#: ausschliesslich vom Tauri-Hauptprozess beim Start gesetzt.
-HOST_BUNDLE_ENV = "PERSONAL_JARVIS_HOST_BUNDLE"
-
-
-def host_bundle() -> str:
-    """Die .app, der macOS eine Berechtigungsanfrage zurechnen wuerde.
-
-    Leer, wenn das Backend nicht von der App gestartet wurde — etwa aus einem
-    Terminal. Dann ist der *verantwortliche Prozess* im Sinne von TCC nicht
-    die App, sondern das Terminal: es traegt keine
-    `NSContactsUsageDescription` und kann keinen Dialog anzeigen.
-    """
-    return os.environ.get(HOST_BUNDLE_ENV, "").strip()
-
 
 #: Übersetzung der Bridge-Fehlerantwort in den stabilen Live-Vertrag.
 #:
@@ -353,10 +337,20 @@ class ContactsLiveService:
                 provider_account_id=self._provider_account_id)
 
             container = dienst.inventory_containers()
+            kennungen = [c.identifier for c in container]
+
+            # Braucht auch nur ein Container einen Voll-Diff, laeuft das ganze
+            # Konto ueber den kontoweiten Pfad. Nur dort entsteht eine
+            # Loeschmenge, und nur dann, wenn **jeder** Container vollstaendig
+            # und unverdaechtig aufgezaehlt wurde. Ein Voll-Diff je Container
+            # loescht nichts mehr: die Abwesenheit eines Datensatzes in einem
+            # Container beweist nichts ueber die anderen.
             gesamt = _Summe()
-            for eintrag in container:
-                ergebnis = dienst.sync(eintrag.identifier)
-                gesamt.add(ergebnis)
+            if dienst.pending_full_diff(kennungen):
+                gesamt.add(dienst.full_diff_account(kennungen))
+            else:
+                for kennung in kennungen:
+                    gesamt.add(dienst.sync(kennung))
             return gesamt.view(len(container))
         except (BridgeError, SyncError) as exc:
             # Timeout, Protokollbruch, abgestürzter Sidecar: der Lauf endet
@@ -425,3 +419,55 @@ class _Summe:
             retryable=bool(self.error_class),
             detail="" if self.ok else "Mindestens ein Container schlug fehl.",
             completed_at=_jetzt())
+
+
+class ContactsRecoveryEntrypoint:
+    """Produktiver Einstieg in die Wiederherstellung.
+
+    Er hält **keinen** eigenen Zustand und keine zweite Datenbankverbindung: er
+    benutzt dieselbe Persistenz, denselben Workspace, dasselbe Providerkonto,
+    dieselbe Sidecar-Auflösung und dieselbe validierte Enumeration wie der
+    Lese-Sync.
+
+    Die Reihenfolge ist der Punkt: **zuerst die lokalen Vorbedingungen, dann
+    erst der Sidecar.** Eine Reparatur, deren Voraussetzungen nicht stimmen,
+    soll den Kontakte-Store gar nicht erst berühren.
+
+    Das Konstruieren löst nichts aus — kein Prozess, keine Transaktion, keine
+    Berechtigungsabfrage.
+    """
+
+    def __init__(self, live: "ContactsLiveService", module, *,
+                 workspace_id: str,
+                 provider_account_id: str = APPLE_PROVIDER_ACCOUNT) -> None:
+        self._live = live
+        self._module = module
+        self._workspace_id = workspace_id
+        self._provider_account_id = provider_account_id
+
+    def _recovery(self, sync_service):
+        from personaljarvis.contacts.sync.recovery import ContactsRecoveryService
+
+        return ContactsRecoveryService(
+            sync_service, self._module, workspace_id=self._workspace_id,
+            provider_account_id=self._provider_account_id)
+
+    def check_preconditions(self, *, sync_running: bool = False) -> int:
+        """Rein lokal — ohne Bridge, ohne Sidecar."""
+        return self._recovery(None).check_preconditions(sync_running=sync_running)
+
+    def recover(self, *, sync_running: bool = False):
+        """Ein Lauf, ausdrücklich ausgelöst."""
+        # Vorprüfung **vor** dem Sidecar. Schlägt sie fehl, bleibt der Store
+        # unberührt und der Aufrufer bekommt eine stabile Kennung.
+        self.check_preconditions(sync_running=sync_running)
+
+        client, process = self._live._client()
+        try:
+            dienst = self._module.sync_service(
+                client, workspace_id=self._workspace_id,
+                provider_account_id=self._provider_account_id)
+            return self._recovery(dienst).recover(sync_running=sync_running)
+        finally:
+            # Auf jedem Pfad — wie im Lese-Sync.
+            process.stop()

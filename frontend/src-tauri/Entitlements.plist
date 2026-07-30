@@ -1,9 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements der Haupt-App.
+
+  `com.apple.security.personal-information.addressbook` steht hier, obwohl die
+  App nicht sandboxed ist. Der frühere Schluss — „ein Sandbox-Entitlement ohne
+  Sandbox ist wirkungslos, also weglassen" — greift zu kurz: das Entitlement
+  ist Teil der signierten Absichtserklärung eines Codeobjekts. Es benennt
+  gegenüber dem System, dass dieses Binary Kontakte anfassen will, und ist
+  damit auch ohne aktives Sandbox-Profil nicht bedeutungslos.
+
+  `com.apple.security.inherit` steht ausdrücklich **nicht** hier: es setzt eine
+  sandboxed Elternapp voraus und erzeugte im Kind einer nicht-sandboxed App ein
+  leeres, konkurrierendes Profil.
+
+  Die übrigen Einträge bleiben unverändert. Der Sidecar bekommt sie
+  **nicht** — er trägt seinen eigenen, minimalen Vertrag
+  (ContactsSidecar.entitlements).
+-->
 <plist version="1.0">
 <dict>
     <key>com.apple.security.app-sandbox</key>
     <false/>
+    <key>com.apple.security.personal-information.addressbook</key>
+    <true/>
     <key>com.apple.security.network.client</key>
     <true/>
     <key>com.apple.security.network.server</key>

@@ -8,14 +8,23 @@ Gate B ausschliesslich über einen ausdrücklichen Aufruf von
 
 from __future__ import annotations
 
+from personaljarvis.contacts.sync.audit import (
+    ContainerAudit,
+    SyncAuditRecord,
+    SyncAuditWriter,
+    container_ref,
+)
 from personaljarvis.contacts.sync.echo import EchoSuppressionLedger
 from personaljarvis.contacts.sync.errors import (
     AuthorizationRequired,
     CursorRejected,
+    DeleteBasisInvalid,
     FullDiffRequired,
     IncompleteEnumeration,
     KeySetVersionChanged,
+    SuspiciousEmptyEnumeration,
     SyncError,
+    TransientEmptySnapshot,
     UnknownChangeEvent,
 )
 from personaljarvis.contacts.sync.mapper import (
@@ -24,6 +33,10 @@ from personaljarvis.contacts.sync.mapper import (
     content_equals,
     map_bridge_contact,
     merge_into_existing,
+)
+from personaljarvis.contacts.sync.recovery import (
+    ContactsRecoveryService,
+    RecoveryResult,
 )
 from personaljarvis.contacts.sync.service import (
     TOMBSTONE_REASON_ABSENT,
@@ -52,6 +65,15 @@ __all__ = [
     "content_equals",
     "EchoSuppressionLedger",
     "SyncError",
+    "TransientEmptySnapshot",
+    "SuspiciousEmptyEnumeration",
+    "DeleteBasisInvalid",
+    "ContactsRecoveryService",
+    "RecoveryResult",
+    "SyncAuditRecord",
+    "ContainerAudit",
+    "SyncAuditWriter",
+    "container_ref",
     "AuthorizationRequired",
     "IncompleteEnumeration",
     "KeySetVersionChanged",

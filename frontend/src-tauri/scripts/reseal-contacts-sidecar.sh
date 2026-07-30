@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 #
-# Re-seal the bundled Contacts sidecar with the entitlements it actually needs
-# — namely none — and then re-seal the enclosing .app.
+# Re-seal the bundled Contacts sidecar with exactly the entitlements it needs
+# — one — and then re-seal the enclosing .app.
 #
 # Why this exists
 # ---------------
 # `tauri build` signs every Mach-O inside the bundle with the *application's*
 # Entitlements.plist. For the main binary that is correct; for the sidecar it
 # is not. The sidecar would otherwise inherit `allow-jit`,
-# `allow-unsigned-executable-memory` and `disable-library-validation` — three
-# relaxations of the Hardened Runtime that a small, single-purpose read-only
-# process has no use for. Entitlements are a grant, and an unused grant is
-# still a grant.
+# `allow-unsigned-executable-memory`, `disable-library-validation` and both
+# network rights — relaxations and grants that a small, single-purpose
+# read-only process has no use for. An unused grant is still a grant.
 #
-# The sidecar needs no entitlement for Contacts access: the app is not
-# sandboxed (Entitlements.plist sets app-sandbox=false), so TCC governs the
-# access, not an entitlement.
+# The sidecar carries `com.apple.security.personal-information.addressbook`
+# and nothing else (ContactsSidecar.entitlements). The entitlement is the
+# signed statement that this binary means to touch Contacts; the actual
+# decision stays with TCC.
 #
 # Order matters: nested code is sealed into the outer signature, so re-signing
 # the sidecar invalidates the .app. The app is therefore re-signed afterwards,
@@ -33,6 +33,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 APP="${1:-}"
 IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 ENTITLEMENTS="$HERE/../Entitlements.plist"
+SIDECAR_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"
 SIDECAR_IDENTIFIER="de.kluender.jarvis.contacts-bridge"
 
 if [ -z "$APP" ] || [ ! -d "$APP" ]; then
@@ -52,10 +53,17 @@ if [ ! -f "$SIDECAR" ]; then
     exit 4
 fi
 
-echo "== 1/4 Re-sign sidecar without entitlements =="
+if [ ! -f "$SIDECAR_ENTITLEMENTS" ]; then
+    echo "Missing $SIDECAR_ENTITLEMENTS — refusing to fall back to the app's" >&2
+    echo "entitlements, which is exactly what this script exists to prevent." >&2
+    exit 5
+fi
+
+echo "== 1/4 Re-sign sidecar with its own minimal entitlements =="
 codesign --force --sign "$IDENTITY" \
     --identifier "$SIDECAR_IDENTIFIER" \
     --options runtime --timestamp=none \
+    --entitlements "$SIDECAR_ENTITLEMENTS" \
     "$SIDECAR"
 
 echo "== 2/4 Re-sign the enclosing app =="
@@ -69,8 +77,8 @@ codesign --verify --strict --verbose=2 "$SIDECAR"
 codesign --verify --strict --deep --verbose=2 "$APP"
 
 echo "== 4/4 Evidence =="
-echo "-- Sidecar entitlements (expected: none) --"
-codesign -d --entitlements - "$SIDECAR" 2>&1 | tail -n +2
+echo "-- Sidecar entitlements (expected: address book only) --"
+codesign -d --entitlements :- "$SIDECAR" 2>&1 | tail -n +2
 echo "-- Sidecar designated requirement --"
 codesign -d -r- "$SIDECAR" 2>&1 | grep designated
 echo "RESEAL OK"

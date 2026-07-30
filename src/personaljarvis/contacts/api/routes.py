@@ -63,6 +63,10 @@ from personaljarvis.contacts.application.queries import (
 from personaljarvis.contacts.application.roles import ContactsRoleService
 from personaljarvis.contacts.domain.enums import InitiationContext
 from personaljarvis.contacts.domain.models import Contact
+from personaljarvis.contacts.sync.recovery import (
+    RecoveryBusy,
+    RecoveryNotApplicable,
+)
 
 __all__ = ["PREFIX", "create_contacts_router", "DEFAULT_WORKSPACE_HEADER"]
 
@@ -261,6 +265,58 @@ def create_contacts_router(module) -> APIRouter:
         except LiveError as exc:
             raise _live_error(exc) from exc
         return S.SyncRunOut(**vars(lauf))
+
+    # ── Wiederherstellung nach dem Vorfall vom 2026-07-30 ───────────────────
+    #
+    # Eng begrenzt und ausdrücklich **keine** gewöhnliche Nutzeraktion: die
+    # Route beantwortet einen konkret erkannten Fehlerzustand — lokal
+    # getombstonete Kontakte, die der Provider unverändert kennt. Sie ist kein
+    # Reparatur-, SQL- oder Adminendpunkt und löst nichts anderes aus als den
+    # bereits geprüften `ContactsRecoveryService`.
+    #
+    # Kein Start, kein Seitenaufruf, kein Folgesync, kein Agent kann sie
+    # auslösen: zwei Pflichtbestätigungen im Körper und keine Schaltfläche in
+    # der Oberfläche.
+    @router.post("/recovery/suspicious-empty", response_model=S.RecoveryRunOut)
+    def recover_suspicious_empty(body: S.RecoveryRunIn, request: Request) -> Any:
+        """Reaktiviert fälschlich getombstonete Kontakte. Ein Lauf, ein Klick."""
+        del body          # validiert; die Werte selbst werden nicht gebraucht
+        dienst = getattr(module, "recovery_service", None)
+        if dienst is None:
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "unsupported",
+                        "message": "Kein Wiederherstellungsdienst konfiguriert",
+                        "retryable": False})
+        live = getattr(module, "live_service", None)
+        laeuft = bool(live and live.is_running(workspace(request)))
+        try:
+            ergebnis = dienst.recover(sync_running=laeuft)
+        except RecoveryBusy as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "conflict", "message": str(exc),
+                        "retryable": True}) from exc
+        except RecoveryNotApplicable as exc:
+            # Fail-closed **vor** jedem Store-Zugriff: kein Sidecar, keine
+            # Enumeration, keine Datenbankaenderung.
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "conflict", "message": str(exc),
+                        "technical_code": exc.technical_code,
+                        "retryable": False}) from exc
+        return S.RecoveryRunOut(
+            status="recovered" if ergebnis.succeeded else "failed",
+            containers_checked=ergebnis.containers,
+            contacts_received=ergebnis.examined,
+            reactivated=ergebnis.reactivated,
+            tombstones_reconciled=ergebnis.tombstones_reconciled,
+            still_absent=ergebnis.still_absent,
+            local_ids_preserved=True, full_diff_required=True,
+            cursor_present=False, mutations_performed=False,
+            completed_at=ergebnis.completed_at,
+            technical_code=ergebnis.error_class or "",
+            retryable=not ergebnis.succeeded)
 
     # ── Mutationen und Freigaben (vor {contact_id}, sonst schluckt der
     #    Pfadparameter diese Routen) ───────────────────────────────────────

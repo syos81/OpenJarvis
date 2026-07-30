@@ -12,8 +12,13 @@ from pathlib import Path
 import pytest
 
 from personaljarvis.bootstrap import PersonalBootstrap
+from personaljarvis.base.db.migrations import ALL_MIGRATIONS
 from personaljarvis.contacts.lifecycle import ContactsModule, ModuleState
 from personaljarvis.errors import LedgerError, PersonalJarvisError
+
+#: Aus der Registrierung abgeleitet — eine neue Migration soll diese Datei
+#: nicht anfassen muessen.
+_ERWARTETE_IDS = tuple(m.migration_id for m in ALL_MIGRATIONS)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 QUELLEN = REPO_ROOT / "src/personaljarvis"
@@ -55,7 +60,7 @@ def test_start_migriert_und_meldet_configuration_required(db_path):
     m = ContactsModule(db_path)
     report = m.start()
     try:
-        assert report.applied == ("0001", "0002", "0003", "0004")
+        assert report.applied == _ERWARTETE_IDS
         # Ohne ProviderAccount und Binding ist das Modul nicht `ready` (14 §4).
         assert m.state is ModuleState.CONFIGURATION_REQUIRED
         assert m.capabilities.notes_supported is False
@@ -69,7 +74,7 @@ def test_mehrfacher_start_ist_idempotent(db_path):
     zweiter = m.start()
     try:
         assert erster is zweiter
-        assert zweiter.applied == ("0001", "0002", "0003", "0004")
+        assert zweiter.applied == _ERWARTETE_IDS
     finally:
         m.stop()
 

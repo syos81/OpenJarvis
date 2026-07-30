@@ -24,6 +24,7 @@ Doppelt anwenden ist folgenlos, verlieren nicht.
 
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 from typing import Protocol, Sequence
 
@@ -50,14 +51,25 @@ from personaljarvis.contacts.domain.models import (
     ContactTombstone,
     utc_now,
 )
+from personaljarvis.contacts.sync.audit import (
+    OUTCOME_ABORTED,
+    OUTCOME_COMMITTED,
+    ContainerAudit,
+    SyncAuditRecord,
+    SyncAuditWriter,
+    container_ref,
+)
 from personaljarvis.contacts.sync.echo import EchoSuppressionLedger
 from personaljarvis.contacts.sync.errors import (
     AuthorizationRequired,
     CursorRejected,
+    DeleteBasisInvalid,
     FullDiffRequired,
     IncompleteEnumeration,
     KeySetVersionChanged,
+    SuspiciousEmptyEnumeration,
     SyncError,
+    TransientEmptySnapshot,
     UnknownChangeEvent,
 )
 from personaljarvis.contacts.sync.mapper import (
@@ -88,6 +100,11 @@ TOMBSTONE_REASON_EVENT = "provider_delete_event"
 #: Ergebnis eines einzelnen Schreibvorgangs.
 IMPORTED, UPDATED, UNCHANGED = "imported", "updated", "unchanged"
 
+#: Pause vor der einen erlaubten Gegenprobe. Kurz genug, um den Aufruf nicht zu
+#: sprengen; lang genug, damit ein Provider, der gerade neu aufbaut, zu Ende
+#: kommen kann. Kein Timer, keine Schleife — sie liegt in genau diesem Aufruf.
+EMPTY_RECHECK_PAUSE_SECONDS = 2.0
+
 
 class SyncPersistence(Protocol):
     """Der Ausschnitt des Modullebenszyklus, den der Dienst braucht.
@@ -106,11 +123,15 @@ class ContactsSyncService:
     """Initialimport, Delta-Sync und Voll-Diff für **einen** Providerzugang."""
 
     def __init__(self, client: ContactsBridgeClient, persistence: SyncPersistence,
-                 *, workspace_id: str, provider_account_id: str) -> None:
+                 *, workspace_id: str, provider_account_id: str,
+                 empty_recheck_pause: float = EMPTY_RECHECK_PAUSE_SECONDS) -> None:
         self._client = client
         self._persistence = persistence
         self._workspace_id = workspace_id
         self._provider_account_id = provider_account_id
+        #: Nur für Tests kürzbar. Produktiv bleibt die Pause die Konstante —
+        #: sie ist der ganze Sinn der Gegenprobe.
+        self._empty_recheck_pause = empty_recheck_pause
 
     # ── Vorbedingungen ──────────────────────────────────────────────────────
     def _require_started(self) -> None:
@@ -166,13 +187,184 @@ class ContactsSyncService:
         return self._snapshot_run(container_identifier, SyncRunKind.INITIAL_IMPORT)
 
     def full_diff(self, container_identifier: str) -> SyncRunResult:
-        """Vollabgleich inklusive Löschmenge — der einzige Weg zu Tombstones
-        aus Abwesenheit."""
-        return self._snapshot_run(container_identifier, SyncRunKind.FULL_DIFF)
+        """Vollabgleich **eines** Containers — ohne Löschmenge.
+
+        Er frischt auf und setzt den Cursor neu. Tombstones entstehen hier
+        ausdrücklich nicht: die Abwesenheit eines Datensatzes in *einem*
+        Container beweist nichts, solange die übrigen Container des Kontos
+        nicht ebenso vollständig aufgezählt sind — der Datensatz könnte dort
+        liegen. Die Löschmenge entsteht allein in `full_diff_account`.
+        """
+        return self._snapshot_run(container_identifier, SyncRunKind.FULL_DIFF,
+                                  delete_basis=False)
+
+    def pending_full_diff(self, container_identifiers) -> tuple[str, ...]:
+        """Welche Container brauchen einen Voll-Diff?
+
+        Der Aufrufer entscheidet damit **einmal** für das ganze Konto: sobald
+        einer davon betroffen ist, gehört der Lauf auf den kontoweiten Pfad —
+        sonst entstünde eine Löschmenge aus einem halb geprüften Konto.
+        """
+        offen = []
+        for kennung in container_identifiers:
+            zustand = self._load_state(kennung)
+            if (zustand is None
+                    or derive_cursor_state(zustand) is not CursorState.ACTIVE):
+                offen.append(kennung)
+        return tuple(offen)
+
+    # ── Kontoweiter Voll-Diff: der einzige Weg zu Tombstones ────────────────
+    def full_diff_account(self, container_identifiers: Sequence[str], *,
+                          confirm_empty: bool = False) -> SyncRunResult:
+        """Vollabgleich über **alle** Container eines Providerkontos.
+
+        Zwei Phasen, und die Reihenfolge ist der ganze Punkt:
+
+        1. **Lesen und prüfen** — jeder Container wird aufgezählt und einzeln
+           validiert. Erst wenn *alle* bestanden haben, existiert überhaupt
+           eine Löschbasis.
+        2. **Schreiben** — in einer Transaktion, für alle Container zusammen.
+
+        Fällt ein Container aus oder liefert er ein verdächtiges Null-Ergebnis,
+        endet der Lauf ohne jede Löschung. Das ist teurer als das frühere
+        Verhalten und genau deshalb richtig: am 2026-07-30 hat ein einzelnes
+        `count=0, complete=true` 116 Kontakte lokal gelöscht.
+
+        `confirm_empty=True` ist der ausdrückliche Weg für ein tatsächlich
+        geleertes Adressbuch. Er kommt nie aus einem gewöhnlichen Lauf.
+        """
+        audit: list[str] = ["sync.full_diff_account.started"]
+        container = tuple(container_identifiers)
+        spur = SyncAuditRecord(workspace_id=self._workspace_id,
+                               provider_account_id=self._provider_account_id,
+                               mode="full_diff_account",
+                               container_count=len(container))
+        if not container:
+            return self._account_failed(
+                DeleteBasisInvalid("Kein Container im Inventar"), audit, "",
+                spur)
+
+        gelesen: list[tuple[str, EnumerationResult, str | None, int]] = []
+        try:
+            self._require_authorized()
+            for kennung in container:
+                baseline_token, key_set_version = self._baseline(audit)
+                spur.cursor_before_present |= bool(baseline_token)
+                enumeration = self._client.enumerate(container_identifier=kennung)
+                if key_set_version is None:
+                    key_set_version = enumeration.key_set_version
+                enumeration = self._validate_delete_basis(
+                    kennung, enumeration, confirm_empty=confirm_empty, spur=spur)
+                gelesen.append((kennung, enumeration, baseline_token,
+                                key_set_version))
+            audit.append("sync.delete_basis.complete")
+        except (SyncError, BridgeError) as exc:
+            # **Kein** Container wird geschrieben — auch die bereits gelesenen
+            # nicht. Ein Teilbestand wäre eine halbe Wahrheit über den Provider.
+            return self._account_failed(exc, audit, container[0], spur)
+
+        return self._persist_account(gelesen, audit, spur,
+                                     confirm_empty=confirm_empty)
+
+    def _baseline(self, audit: list[str]) -> tuple[str | None, int | None]:
+        """Cursor zuerst — Ereignisse dazwischen werden erneut angewandt."""
+        if not self._client.capabilities.change_history_supported:
+            audit.append("sync.cursor.unavailable")
+            return None, None
+        baseline = self._client.changes()
+        audit.append("sync.cursor.baseline_taken")
+        return baseline.current_token or None, baseline.key_set_version
+
+    def enumerate_validated(self, container_identifier: str, *,
+                            spur: SyncAuditRecord,
+                            confirm_empty: bool = False) -> EnumerationResult:
+        """Aufzählen **und** prüfen — inklusive Null-Gegenprobe.
+
+        Öffentlich, damit die Wiederherstellung dieselben Schutzregeln benutzt
+        statt sie nachzubauen. Eine zweite Umsetzung derselben Regel ist eine
+        Regel, die irgendwann auseinanderläuft.
+        """
+        self._require_authorized()
+        enumeration = self._client.enumerate(
+            container_identifier=container_identifier)
+        return self._validate_delete_basis(container_identifier, enumeration,
+                                           confirm_empty=confirm_empty,
+                                           spur=spur)
+
+    def _local_count(self, container_identifier: str) -> int:
+        """Wie viele aktive Datensätze der Container lokal hat."""
+        with self._persistence.unit_of_work() as uow:
+            repos = self._persistence.repositories(uow)
+            return len(self._local_index(repos, container_identifier))
+
+    def _pruefe(self, container_identifier: str, enumeration: EnumerationResult,
+                *, versuch: int, vorher: int) -> ContainerAudit:
+        return ContainerAudit(
+            container_ref=container_ref(container_identifier), attempt=versuch,
+            reported_count=enumeration.count,
+            received_count=len(enumeration.contacts),
+            complete=enumeration.complete,
+            count_consistent=enumeration.count == len(enumeration.contacts),
+            duplicate_identifiers=(
+                len(enumeration.contacts)
+                - len({c.provider_identifier for c in enumeration.contacts})),
+            previous_count=vorher)
+
+    def _validate_delete_basis(self, container_identifier: str,
+                               enumeration: EnumerationResult, *,
+                               confirm_empty: bool,
+                               spur: SyncAuditRecord) -> EnumerationResult:
+        """Darf diese Enumeration eine Löschmenge tragen?
+
+        Drei Stufen, alle fail-closed:
+
+        1. Vollständigkeit und Zählung müssen stimmen.
+        2. Ein Null-Ergebnis auf einem zuvor gefüllten Container bekommt
+           **genau eine** Gegenprobe. Das erste Ergebnis wird dabei verworfen —
+           nicht gemittelt, nicht bevorzugt.
+        3. Bleibt auch die Gegenprobe bei null, ist das immer noch kein
+           Löschbeleg, sondern ein Fall für den ausdrücklichen Bestätigungsweg.
+
+        Die Gegenprobe ist auf einen Versuch begrenzt und läuft ohne Timer und
+        ohne Hintergrundschleife: sie ist Teil dieses einen Aufrufs.
+        """
+        vorher = self._local_count(container_identifier)
+        spur.add_container(self._pruefe(container_identifier, enumeration,
+                                        versuch=1, vorher=vorher))
+        if not enumeration.usable_as_delete_basis:
+            raise IncompleteEnumeration(
+                "Enumeration ist unvollständig oder die Zählung weicht ab")
+
+        if not (vorher > 0 and enumeration.count == 0) or confirm_empty:
+            return enumeration
+
+        # Null auf gefülltem Container: erstes Ergebnis verwerfen und **einmal**
+        # nachfassen. Am 2026-07-30 war der Nullbefund nicht reproduzierbar —
+        # eine einzige Gegenprobe hätte den Bestand gerettet.
+        del enumeration
+        time.sleep(self._empty_recheck_pause)
+        zweite = self._client.enumerate(container_identifier=container_identifier)
+        spur.add_container(self._pruefe(container_identifier, zweite,
+                                        versuch=2, vorher=vorher))
+        if not zweite.usable_as_delete_basis:
+            raise IncompleteEnumeration(
+                "Die Gegenprobe war unvollständig oder wich in der Zählung ab")
+        if zweite.count == 0:
+            spur.suspicious_empty = True
+            raise SuspiciousEmptyEnumeration(
+                f"Container war zuvor gefüllt ({vorher}) und liefert auch in "
+                "der Gegenprobe 0; das ist kein Löschbeleg")
+
+        # Der erste Lauf war ein Augenblickszustand. Der laufende Sync wird
+        # **nicht** still fortgesetzt: er endet, und der nächste ausdrückliche
+        # Lauf arbeitet auf einer Grundlage, die niemand anzweifeln muss.
+        raise TransientEmptySnapshot(
+            f"Erste Enumeration war leer, die Gegenprobe lieferte "
+            f"{zweite.count}; der Lauf wird verworfen")
 
     # ── Vollaufnahme (Initialimport und Voll-Diff teilen den Ablauf) ────────
-    def _snapshot_run(self, container_identifier: str,
-                      kind: SyncRunKind) -> SyncRunResult:
+    def _snapshot_run(self, container_identifier: str, kind: SyncRunKind, *,
+                      delete_basis: bool = False) -> SyncRunResult:
         audit: list[str] = [f"sync.{kind.value}.started"]
         try:
             self._require_authorized()
@@ -209,12 +401,14 @@ class ContactsSyncService:
 
         # 3. Schreiben — genau eine Transaktion, genau ein Abschluss.
         return self._persist_snapshot(container_identifier, kind, enumeration,
-                                      baseline_token, key_set_version, audit)
+                                      baseline_token, key_set_version, audit,
+                                      delete_basis=delete_basis)
 
     def _persist_snapshot(self, container_identifier: str, kind: SyncRunKind,
                           enumeration: EnumerationResult,
                           baseline_token: str | None, key_set_version: int,
-                          audit: list[str]) -> SyncRunResult:
+                          audit: list[str], *,
+                          delete_basis: bool = False) -> SyncRunResult:
         jetzt = utc_now()
         imported = updated = unchanged = tombstoned = 0
 
@@ -235,13 +429,19 @@ class ContactsSyncService:
                 else:
                     unchanged += 1
 
-            # Löschmenge — **nur** aus einer vollständigen Enumeration.
-            for pid, contact_id in lokal.items():
-                if pid in gesehen:
-                    continue
-                self._tombstone(repos, contact_id, pid, TOMBSTONE_REASON_ABSENT,
-                                jetzt)
-                tombstoned += 1
+            # Löschmenge — nur wenn dieser Lauf sie überhaupt tragen darf.
+            # Ohne `delete_basis` ist die Abwesenheit eines Datensatzes kein
+            # Beweis: er kann in einem Container liegen, der hier nicht geprüft
+            # wurde.
+            if delete_basis:
+                for pid, contact_id in lokal.items():
+                    if pid in gesehen:
+                        continue
+                    self._tombstone(repos, contact_id, pid,
+                                    TOMBSTONE_REASON_ABSENT, jetzt)
+                    tombstoned += 1
+            else:
+                audit.append("sync.delete_basis.absent")
 
             if tombstoned:
                 audit.append("sync.tombstones.created")
@@ -270,6 +470,98 @@ class ContactsSyncService:
             requires_full_diff=not baseline_token,
             audit_events=tuple(audit),
         )
+
+    def _persist_account(self, gelesen, audit: list[str],
+                         spur: SyncAuditRecord, *,
+                         confirm_empty: bool) -> SyncRunResult:
+        """Schreibt alle Container in **einer** Transaktion.
+
+        Erst hier entsteht die Löschmenge — nachdem jeder Container die
+        Prüfung bestanden hat.
+        """
+        jetzt = utc_now()
+        imported = updated = unchanged = tombstoned = 0
+
+        with self._persistence.unit_of_work() as uow:
+            repos = self._persistence.repositories(uow)
+            for kennung, enumeration, token, key_set_version in gelesen:
+                lokal = self._local_index(repos, kennung)
+                gesehen: set[str] = set()
+                for roh in enumeration.contacts:
+                    gesehen.add(roh.provider_identifier)
+                    ergebnis, _ = self._write_contact(
+                        repos, roh, kennung,
+                        lokal.get(roh.provider_identifier), jetzt)
+                    if ergebnis == IMPORTED:
+                        imported += 1
+                    elif ergebnis == UPDATED:
+                        updated += 1
+                    else:
+                        unchanged += 1
+                for pid, contact_id in lokal.items():
+                    if pid in gesehen:
+                        continue
+                    self._tombstone(repos, contact_id, pid,
+                                    TOMBSTONE_REASON_ABSENT, jetzt)
+                    tombstoned += 1
+                self._upsert_state(
+                    repos, kennung, cursor_token=token,
+                    cursor_taken_at=jetzt if token else None,
+                    last_full_diff_at=jetzt,
+                    key_set_version=str(key_set_version),
+                    mode=(SyncMode.DELTA if token else SyncMode.FULL_DIFF_REQUIRED),
+                    circuit_state=CircuitState.CLOSED, updated_at=jetzt)
+            # Die Spur gehoert in dieselbe Transaktion: rollt der Lauf zurueck,
+            # verschwindet sie mit ihm statt einen Lauf zu behaupten.
+            spur.imported, spur.updated = imported, updated
+            spur.unchanged, spur.tombstoned = unchanged, tombstoned
+            spur.cursor_after_present = all(t for _, _, t, _ in gelesen)
+            spur.full_diff_required = not spur.cursor_after_present
+            SyncAuditWriter(uow).write(spur.finish(OUTCOME_COMMITTED))
+
+        if tombstoned:
+            audit.append("sync.tombstones.created")
+        if confirm_empty:
+            audit.append("sync.delete_basis.confirmed_empty")
+        audit.append("sync.full_diff_account.succeeded")
+        alle_token = all(t for _, _, t, _ in gelesen)
+        return SyncRunResult(
+            kind=SyncRunKind.FULL_DIFF, succeeded=True,
+            cursor_state=(CursorState.ACTIVE if alle_token
+                          else CursorState.FULL_DIFF_REQUIRED),
+            provider_account_id=self._provider_account_id,
+            container_identifier=gelesen[0][0],
+            imported=imported, updated=updated, unchanged=unchanged,
+            tombstoned=tombstoned, cursor_advanced=alle_token,
+            requires_full_diff=not alle_token, audit_events=tuple(audit))
+
+    def _account_failed(self, exc: Exception, audit: list[str],
+                        container_identifier: str,
+                        spur: SyncAuditRecord) -> SyncRunResult:
+        """Kontoweiter Abbruch: kein Schreibvorgang, kein Cursorfortschritt.
+
+        Der Modus bleibt `full_diff_required` — der nächste Versuch ist wieder
+        ein ausdrücklicher Voll-Diff, kein Delta auf einem Cursor, den niemand
+        mehr belegen kann.
+        """
+        audit.append("sync.full_diff_account.failed")
+        audit.append("sync.delete_basis.rejected")
+        spur.error_class = type(exc).__name__
+        spur.error_code = self._safe_detail(exc)
+        spur.full_diff_required = True
+        # Eigene, kurze Transaktion: der Lauf hat nichts geschrieben, aber
+        # **dass** er abbrach, ist genau die Information, die am 2026-07-30
+        # gefehlt hat.
+        with self._persistence.unit_of_work() as uow:
+            SyncAuditWriter(uow).write(spur.finish(OUTCOME_ABORTED))
+        return SyncRunResult(
+            kind=SyncRunKind.FULL_DIFF, succeeded=False,
+            cursor_state=CursorState.FAILED,
+            provider_account_id=self._provider_account_id,
+            container_identifier=container_identifier,
+            cursor_advanced=False, requires_full_diff=True,
+            error_class=type(exc).__name__, detail=self._safe_detail(exc),
+            audit_events=tuple(audit))
 
     # ── Delta ───────────────────────────────────────────────────────────────
     def delta_sync(self, container_identifier: str) -> SyncRunResult:

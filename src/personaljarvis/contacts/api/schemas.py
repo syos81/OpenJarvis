@@ -40,6 +40,8 @@ __all__ = [
     "AuthorizationOut",
     "AuthorizationRequestIn",
     "SyncRunOut",
+    "RecoveryRunIn",
+    "RecoveryRunOut",
     "CapabilitiesOut",
     "ErrorOut",
 ]
@@ -316,6 +318,40 @@ class SyncRunOut(_Strict):
     retryable: bool = False
     detail: str = ""
     completed_at: str
+
+
+class RecoveryRunIn(_Strict):
+    """Zwei ausdrückliche Bestätigungen, beide Pflicht.
+
+    Die Wiederherstellung greift in den kanonischen Bestand ein. Sie darf
+    weder durch einen leeren Körper noch durch einen versehentlichen Aufruf
+    auslösbar sein — deshalb `Literal[True]` statt `bool`.
+    """
+
+    user_initiated: Literal[True]
+    confirm_reactivation: Literal[True]
+
+
+class RecoveryRunOut(_Strict):
+    """Ergebnis — ausschliesslich aggregiert.
+
+    Kein Name, kein Provider-Identifier, keine Containerkennung, kein Cursor,
+    kein Pfad, kein Kontaktwert.
+    """
+
+    status: Literal["recovered", "not_applicable", "failed"]
+    containers_checked: int = 0
+    contacts_received: int = 0
+    reactivated: int = 0
+    tombstones_reconciled: int = 0
+    still_absent: int = 0
+    local_ids_preserved: bool = True
+    full_diff_required: bool = True
+    cursor_present: bool = False
+    mutations_performed: bool = False
+    completed_at: str = ""
+    technical_code: str = ""
+    retryable: bool = False
 
 
 class CapabilitiesOut(_Strict):

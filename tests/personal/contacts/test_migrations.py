@@ -9,6 +9,11 @@ from personaljarvis.base.db.migrations.ledger import Migration, read_ledger
 from personaljarvis.base.db.migrations.runner import MigrationRunner
 from personaljarvis.errors import LedgerError, MigrationError
 
+#: Die erwartete Reihenfolge kommt aus der Registrierung selbst. Eine neue
+#: Migration soll diese Datei nicht anfassen muessen — geprueft wird, dass
+#: Lauf, Ledger und Schemaversion zueinander passen, nicht eine Zahl.
+ERWARTETE_IDS = tuple(m.migration_id for m in ALL_MIGRATIONS)
+
 ERWARTETE_TABELLEN = {
     # Basis (0001)
     "personal_resource_identity", "personal_resource_link",
@@ -63,8 +68,8 @@ def _indizes(conn) -> set[str]:
 # ── Lauf auf leerer Datenbank ────────────────────────────────────────────────
 def test_leere_datenbank_wird_vollstaendig_migriert(factory):
     report = MigrationRunner(factory, ALL_MIGRATIONS).run()
-    assert report.applied == ("0001", "0002", "0003", "0004")
-    assert report.schema_version == 4
+    assert report.applied == ERWARTETE_IDS
+    assert report.schema_version == ALL_MIGRATIONS[-1].schema_version
     conn = factory.connect()
     assert ERWARTETE_TABELLEN <= _tabellen(conn)
     assert LEDGER_TABLE in _tabellen(conn)
@@ -81,7 +86,7 @@ def test_wiederholter_lauf_ist_idempotent(factory):
     runner.run()
     zweiter = runner.run()
     assert zweiter.applied == ()
-    assert zweiter.already_applied == ("0001", "0002", "0003", "0004")
+    assert zweiter.already_applied == ERWARTETE_IDS
 
 
 def test_ledger_speichert_pflichtfelder(migrated_factory):
@@ -98,7 +103,7 @@ def test_ledger_speichert_pflichtfelder(migrated_factory):
 def test_ledger_und_schema_sind_konsistent(migrated_factory):
     conn = migrated_factory.connect()
     ledger = read_ledger(conn)
-    assert set(ledger) == {"0001", "0002", "0003", "0004"}
+    assert set(ledger) == set(ERWARTETE_IDS)
     for migration in ALL_MIGRATIONS:
         assert ledger[migration.migration_id].checksum == migration.checksum
 
