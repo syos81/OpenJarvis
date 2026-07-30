@@ -10,7 +10,7 @@
 // überhaupt herauskommt — sie ist Pflicht, weil sonst nur über einen Namen
 // gezielt werden könnte, und genau das ist verboten.
 
-import { getBase, authHeaders } from '../../lib/api';
+import { getBase, authHeaders, isTauri } from '../../lib/api';
 
 const PREFIX = '/v1/personal/contacts';
 
@@ -186,7 +186,10 @@ export interface Authorization {
   status: AuthorizationState;
   can_request: boolean;
   bridge_available: boolean;
+  /** Satz für den Menschen — nie ein Klassenname. */
   reason: string;
+  /** Stabile Vertragskennung; leer, wenn nichts schiefging. */
+  technical_code: string;
 }
 
 /** Ergebnis eines Laufs — ausschliesslich aggregiert, nie ein Kontaktwert. */
@@ -237,13 +240,17 @@ export class ContactsApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly retryable: boolean;
+  /** Stabile, PII-freie Vertragskennung des Fehlerbildes. Nie ein Pfad. */
+  readonly technicalCode: string;
 
-  constructor(status: number, code: string, message: string, retryable = false) {
+  constructor(status: number, code: string, message: string, retryable = false,
+              technicalCode = '') {
     super(message);
     this.name = 'ContactsApiError';
     this.status = status;
     this.code = code;
     this.retryable = retryable;
+    this.technicalCode = technicalCode;
   }
 }
 
@@ -266,8 +273,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!response.ok) {
     let code = 'internal';
-    let message = `HTTP ${response.status}`;
-    let retryable = false;
+    // Fallback ohne Serverangabe: eine Statuszeile ist wenig, aber sie ist
+    // ehrlich — und sie ist kein Klassenname aus dem Serverinneren.
+    let message = `Der Server hat mit HTTP ${response.status} geantwortet.`;
+    let retryable = response.status >= 500;
+    let technicalCode = `http_${response.status}`;
     try {
       const body = await response.json();
       const detail = body?.detail ?? body;
@@ -275,11 +285,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
         code = detail.code ?? code;
         message = detail.message ?? message;
         retryable = Boolean(detail.retryable);
+        technicalCode = detail.technical_code ?? code;
       }
     } catch {
       // Antwort ohne JSON-Körper: die Statuszeile bleibt die Aussage.
     }
-    throw new ContactsApiError(response.status, code, message, retryable);
+    throw new ContactsApiError(response.status, code, message, retryable,
+                               technicalCode);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -331,15 +343,98 @@ export function getAuthorization(): Promise<Authorization> {
 }
 
 /**
- * Fordert die Berechtigung an — ausschliesslich auf ausdrückliche
- * Nutzeraktion. `user_initiated` ist serverseitig Pflicht und muss `true`
- * sein; es gibt keinen Aufruf ohne Körper.
+ * Rohes Ergebnis des nativen App-Kommandos, inklusive PII-armer
+ * Laufzeitdiagnostik.
+ *
+ * Die Zusatzfelder sind kein Beiwerk: `CNErrorDomain/100` allein sagt nicht,
+ * ob der Aufruf auf dem Main Thread lief, ob die App im Vordergrund war, ob
+ * das Bundle die Usage Description trägt und welche TCC-Identität der Prozess
+ * hatte. Genau diese vier Angaben unterscheiden die Fehlerbilder.
  */
-export function requestAuthorization(): Promise<Authorization> {
-  return request<Authorization>('/authorization/request', {
-    method: 'POST',
-    body: JSON.stringify({ user_initiated: true }),
-  });
+interface NativeAuthOutcome {
+  status: AuthorizationState;
+  granted: boolean;
+  prompt_attempted: boolean;
+  error_domain: string | null;
+  error_code: number | null;
+  bundle_identifier: string;
+  has_usage_description: boolean;
+  app_active: boolean;
+  called_on_main_thread: boolean;
+  entity_type: number;
+  status_before: AuthorizationState;
+  callback_ran: boolean;
+  callback_count: number;
+}
+
+/** Verdichtet die Diagnostik zu einer PII-armen Kennung. */
+function diagnoseKennung(o: NativeAuthOutcome): string {
+  return [
+    `bundle=${o.bundle_identifier || 'unbekannt'}`,
+    `usage=${o.has_usage_description}`,
+    `active=${o.app_active}`,
+    `mainthread=${o.called_on_main_thread}`,
+    `entity=${o.entity_type}`,
+    `vorher=${o.status_before}`,
+    `callback=${o.callback_ran}/${o.callback_count}`,
+    `nachher=${o.status}`,
+  ].join(' ');
+}
+
+/**
+ * Fordert die Berechtigung an — **aus dem App-Prozess**, nicht über den Server.
+ *
+ * Der Weg über den Sidecar war architektonisch falsch: macOS rechnet einen
+ * TCC-Dialog dem verantwortlichen Prozess zu, und der Sidecar wird über `uv`
+ * und `python` erreicht — beides ohne App-Bundle. `requestAccess` kam von dort
+ * mit `CNErrorDomain/100` zurück, ohne dass je ein Dialog erschien.
+ *
+ * Jetzt ruft der Tauri-Hauptprozess selbst — er *ist* OpenJarvis.app, trägt
+ * die Usage Description und steht im Vordergrund. Aufgerufen wird das nur aus
+ * einem Klickhandler; es gibt keinen zweiten Aufrufer und keine Wiederholung.
+ *
+ * Ausserhalb der App (reiner Browser) gibt es keinen Prozess, dem ein Dialog
+ * zugeordnet werden könnte. Dann wird das ehrlich gesagt, statt einen Aufruf
+ * abzusetzen, der nur wieder undurchsichtig scheitern würde.
+ */
+export async function requestAuthorization(): Promise<Authorization> {
+  if (!isTauri()) {
+    throw new ContactsApiError(
+      503, 'unavailable',
+      'Der Berechtigungsdialog kann nur in der Personal-Jarvis-App angefordert '
+      + 'werden. Im Browser gibt es keinen Prozess, dem macOS ihn zuordnen könnte.',
+      false, 'tcc_prompt_unavailable:requires_desktop_app');
+  }
+  let roh: NativeAuthOutcome;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    roh = await invoke<NativeAuthOutcome>('personal_contacts_request_authorization');
+  } catch (e) {
+    throw new ContactsApiError(
+      503, 'unavailable',
+      'Der Berechtigungsdialog konnte nicht geöffnet werden.',
+      true, 'tcc_prompt_unavailable:ipc_failed');
+  }
+
+  if (roh.error_domain) {
+    const grund = roh.error_domain === 'timeout'
+      ? 'authorization_request:request_timeout'
+      : `authorization_request:tcc_request_rejected:${roh.error_domain}/${roh.error_code}`;
+    throw new ContactsApiError(
+      503, 'unavailable',
+      roh.error_domain === 'timeout'
+        ? 'Die Entscheidung im Systemdialog blieb aus.'
+        : 'Das System hat die Berechtigungsanfrage abgelehnt.',
+      true, `${grund} · ${diagnoseKennung(roh)}`);
+  }
+
+  return {
+    status: roh.status,
+    can_request: roh.status === 'notDetermined',
+    bridge_available: true,
+    reason: '',
+    technical_code: '',
+  };
 }
 
 /** Ein ausdrücklich ausgelöster, ausschliesslich lesender Lauf. */

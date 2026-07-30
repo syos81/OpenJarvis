@@ -10,6 +10,7 @@ import {
   ArrowLeft, ChevronRight, Loader2, Plus, RefreshCw, Search, Trash2, X,
 } from 'lucide-react';
 import * as api from './api';
+import { ContactsApiError } from './api';
 import type {
   Approval, Authorization, AuthorizationState, Capabilities, ContactDetail,
   ContactSummary, Mutation, MutationDetail, PreparedMutation, RoleCount,
@@ -26,8 +27,39 @@ function neueId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random()}`;
 }
 
-function meldung(e: unknown): string {
-  return e instanceof Error ? e.message : 'Unbekannter Fehler';
+/**
+ * Vollstaendiges Fehlerbild statt nur einer Zeichenkette.
+ *
+ * Der Server liefert Satz, Kategorie, stabile Kennung und Wiederholbarkeit
+ * getrennt. Wer davon nur `message` weiterreicht, wirft genau die Angaben
+ * weg, die der Nutzer braucht — und landet im schlimmsten Fall bei einem
+ * nackten Ausnahmeklassennamen auf dem Bildschirm.
+ */
+export interface Fehlerbild {
+  message: string;
+  code?: string;
+  technicalCode?: string;
+  retryable?: boolean;
+}
+
+function fehlerbild(e: unknown): Fehlerbild {
+  if (e instanceof ContactsApiError) {
+    return {
+      message: e.message,
+      code: e.code,
+      technicalCode: e.technicalCode,
+      retryable: e.retryable,
+    };
+  }
+  if (e instanceof Error) {
+    // Netzwerkabbruch o. ae.: der Server hat nie geantwortet.
+    return {
+      message: 'Der lokale Server war nicht erreichbar.',
+      technicalCode: 'network_unreachable',
+      retryable: true,
+    };
+  }
+  return { message: 'Unbekannter Fehler.', technicalCode: 'unknown' };
 }
 
 // ═══ Berechtigung und manueller Abgleich ════════════════════════════════════
@@ -77,7 +109,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
   const [laedt, setLaedt] = useState(true);
   const [fragt, setFragt] = useState(false);
   const [synct, setSynct] = useState(false);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
 
   const statusLaden = useCallback(async () => {
     setFehler(null);
@@ -89,7 +121,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
       setAuth(a);
       setStatus(s);
     } catch (e) {
-      setFehler(meldung(e));
+      setFehler(fehlerbild(e));
     } finally {
       setLaedt(false);
     }
@@ -107,7 +139,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
     try {
       setAuth(await api.requestAuthorization());
     } catch (e) {
-      setFehler(meldung(e));
+      setFehler(fehlerbild(e));
     } finally {
       setFragt(false);
     }
@@ -125,7 +157,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
         setStatus(await api.getSyncStatus());
       }
     } catch (e) {
-      setFehler(meldung(e));
+      setFehler(fehlerbild(e));
     } finally {
       setSynct(false);
     }
@@ -158,9 +190,14 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
             {text.hinweis}
           </p>
           {auth && !auth.bridge_available && (
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-warning, #b45309)' }}>
-              Die Kontakte-Brücke ist nicht verfügbar.
-            </p>
+            <div className="mt-1 text-sm" style={{ color: 'var(--color-warning, #b45309)' }}>
+              <p>{auth.reason || 'Die Kontakte-Brücke ist nicht verfügbar.'}</p>
+              {auth.technical_code && (
+                <p className="mt-1 font-mono text-xs" data-testid="auth-kennung">
+                  Code: {auth.technical_code}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -201,7 +238,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
         </p>
       )}
 
-      {fehler && <ErrorState message={fehler} onRetry={() => void statusLaden()} />}
+      {fehler && <ErrorState {...fehler} onRetry={() => void statusLaden()} />}
 
       {lauf && !fehler && (
         <div className="mt-3 rounded-md border p-3 text-sm" data-testid="sync-ergebnis"
@@ -252,8 +289,9 @@ function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
   const [suche, setSuche] = useState('');
   const [rolle, setRolle] = useState<string | null>(null);
   const [kategorien, setKategorien] = useState<RoleCount[]>([]);
+  const [caps, setCaps] = useState<Capabilities | null>(null);
   const [laedt, setLaedt] = useState(true);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
 
   const laden = useCallback(async (anhaengen = false, c?: string | null) => {
     setLaedt(true);
@@ -268,7 +306,7 @@ function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
       setCursor(seite.next_cursor);
       setHasMore(seite.has_more);
     } catch (e) {
-      setFehler(meldung(e));
+      setFehler(fehlerbild(e));
     } finally {
       setLaedt(false);
     }
@@ -280,6 +318,10 @@ function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
   useEffect(() => {
     api.listCategories().then(setKategorien).catch(() => setKategorien([]));
   }, [reloadKey]);
+  // Fail-closed: solange die Capabilities unbekannt sind, gilt "nicht
+  // verfuegbar". Ein Knopf, der eine nicht implementierte Operation
+  // verspricht, ist schlimmer als gar keiner.
+  useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
 
   return (
     <div>
@@ -300,13 +342,21 @@ function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
             style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
           />
         </div>
-        <button
-          type="button" onClick={onCreate}
-          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
-          style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
-        >
-          <Plus size={15} aria-hidden="true" /> Kontakt anlegen
-        </button>
+        {/* Produktive Provider-Mutationen sind in dieser Phase geschlossen:
+            der Sidecar antwortet auf create/update/delete mit
+            `not_implemented`. Ein sichtbarer, klickbarer "Kontakt anlegen"
+            waere daher ein Versprechen, das das System nicht halten kann.
+            Der Knopf erscheint erst, wenn der Server die Faehigkeit
+            tatsaechlich meldet. */}
+        {caps?.create_supported && (
+          <button
+            type="button" onClick={onCreate}
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+            style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+          >
+            <Plus size={15} aria-hidden="true" /> Kontakt anlegen
+          </button>
+        )}
       </div>
 
       {kategorien.length > 0 && (
@@ -337,7 +387,7 @@ function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
         </div>
       )}
 
-      {fehler && <ErrorState message={fehler} onRetry={() => void laden(false)} />}
+      {fehler && <ErrorState {...fehler} onRetry={() => void laden(false)} />}
       {laedt && items.length === 0 && <LoadingState label="Kontakte werden geladen" />}
 
       {!laedt && !fehler && items.length === 0 && (
@@ -434,7 +484,7 @@ function ContactDetailView({ id, onBack, onPrepared }: {
   const [kontakt, setKontakt] = useState<ContactDetail | null>(null);
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [laedt, setLaedt] = useState(true);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [neueRolle, setNeueRolle] = useState('');
   const [bearbeiten, setBearbeiten] = useState(false);
   const [loeschen, setLoeschen] = useState(false);
@@ -443,7 +493,7 @@ function ContactDetailView({ id, onBack, onPrepared }: {
     setLaedt(true); setFehler(null);
     try {
       setKontakt(await api.getContact(id));
-    } catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+    } catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
   }, [id]);
 
   useEffect(() => { void laden(); }, [laden]);
@@ -452,10 +502,17 @@ function ContactDetailView({ id, onBack, onPrepared }: {
   const notizZustand = kontakt ? availabilityOf(kontakt.field_availability, 'note') : null;
 
   if (laedt) return <LoadingState label="Kontakt wird geladen" />;
-  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (fehler) return <ErrorState {...fehler} onRetry={() => void laden()} />;
   if (!kontakt) return <EmptyState title="Kontakt nicht gefunden" />;
 
-  const schreibbar = !kontakt.is_me_card && Boolean(kontakt.write_target);
+  // Drei Bedingungen, alle notwendig: die Karte darf beschreibbar sein, ein
+  // Schreibziel muss feststehen, und der Provider muss die Operation
+  // ueberhaupt koennen. Die dritte fehlte — Aendern und Loeschen waren
+  // sichtbar, obwohl produktive Mutationen geschlossen sind.
+  const aenderbar = !kontakt.is_me_card && Boolean(kontakt.write_target)
+    && Boolean(caps?.update_supported);
+  const loeschbar = !kontakt.is_me_card && Boolean(kontakt.write_target)
+    && Boolean(caps?.delete_supported);
 
   return (
     <div>
@@ -494,21 +551,34 @@ function ContactDetailView({ id, onBack, onPrepared }: {
             )}
           </div>
         </div>
-        {schreibbar && (
+        {(aenderbar || loeschbar) && (
           <div className="flex gap-2">
-            <button type="button" onClick={() => setBearbeiten(true)}
-                    className="rounded-md border px-3 py-1.5 text-sm"
-                    style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
-              Ändern
-            </button>
-            <button type="button" onClick={() => setLoeschen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
-                    style={{ borderColor: 'var(--color-danger, #b91c1c)', color: 'var(--color-danger, #b91c1c)' }}>
-              <Trash2 size={14} aria-hidden="true" /> Löschen
-            </button>
+            {aenderbar && (
+              <button type="button" onClick={() => setBearbeiten(true)}
+                      className="rounded-md border px-3 py-1.5 text-sm"
+                      style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+                Ändern
+              </button>
+            )}
+            {loeschbar && (
+              <button type="button" onClick={() => setLoeschen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+                      style={{ borderColor: 'var(--color-danger, #b91c1c)', color: 'var(--color-danger, #b91c1c)' }}>
+                <Trash2 size={14} aria-hidden="true" /> Löschen
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {!kontakt.is_me_card && !caps?.mutations_available && (
+        <p className="mt-3 rounded-md border p-3 text-sm" data-testid="mutationen-gesperrt"
+           style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))',
+                    color: 'var(--color-text-muted)' }}>
+          Diese Version liest Kontakte ausschliesslich. Ändern und Löschen sind
+          noch nicht freigeschaltet und werden deshalb nicht angeboten.
+        </p>
+      )}
 
       {kontakt.is_me_card && (
         <p className="mt-3 rounded-md border p-3 text-sm"
@@ -597,7 +667,7 @@ function ContactDetailView({ id, onBack, onPrepared }: {
                         try {
                           const neu = await api.removeRole(kontakt.id, r);
                           setKontakt({ ...kontakt, roles: neu.roles });
-                        } catch (e) { setFehler(meldung(e)); }
+                        } catch (e) { setFehler(fehlerbild(e)); }
                       }}>
                 <X size={11} aria-hidden="true" />
               </button>
@@ -612,7 +682,7 @@ function ContactDetailView({ id, onBack, onPrepared }: {
                 const neu = await api.assignRole(kontakt.id, neueRolle.trim());
                 setKontakt({ ...kontakt, roles: neu.roles });
                 setNeueRolle('');
-              } catch (err) { setFehler(meldung(err)); }
+              } catch (err) { setFehler(fehlerbild(err)); }
             }}
           >
             <input
@@ -684,7 +754,7 @@ function UpdateDialog({ kontakt, caps, onClose, onPrepared }: {
     return w;
   }, [kontakt]);
   const [werte, setWerte] = useState<Record<string, string>>(start);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [sendet, setSendet] = useState(false);
 
   const geaendert = useMemo(() => {
@@ -704,7 +774,7 @@ function UpdateDialog({ kontakt, caps, onClose, onPrepared }: {
         expectedRevision: String(kontakt.local_revision),
         fields: geaendert,
       }));
-    } catch (e) { setFehler(meldung(e)); } finally { setSendet(false); }
+    } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
   };
 
   return (
@@ -728,7 +798,7 @@ function UpdateDialog({ kontakt, caps, onClose, onPrepared }: {
       }
     >
       <CapabilityHinweis caps={caps} />
-      {fehler && <ErrorState message={fehler} />}
+      {fehler && <ErrorState {...fehler} />}
       <div className="grid gap-3 sm:grid-cols-2">
         {PATCHBARE_FELDER.map((f) => (
           <label key={f.key} className="text-sm">
@@ -755,7 +825,7 @@ function DeleteDialog({ kontakt, caps, onClose, onPrepared }: {
   kontakt: ContactDetail; caps: Capabilities | null;
   onClose: () => void; onPrepared: (m: PreparedMutation) => void;
 }) {
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [sendet, setSendet] = useState(false);
 
   const absenden = async () => {
@@ -768,7 +838,7 @@ function DeleteDialog({ kontakt, caps, onClose, onPrepared }: {
         targetProviderIdentifier: kontakt.write_target ?? '',
         expectedRevision: String(kontakt.local_revision),
       }));
-    } catch (e) { setFehler(meldung(e)); } finally { setSendet(false); }
+    } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
   };
 
   return (
@@ -791,7 +861,7 @@ function DeleteDialog({ kontakt, caps, onClose, onPrepared }: {
       }
     >
       <CapabilityHinweis caps={caps} />
-      {fehler && <ErrorState message={fehler} />}
+      {fehler && <ErrorState {...fehler} />}
       <p className="text-sm">
         Zielkontakt: <strong>{kontakt.display_name}</strong>
       </p>
@@ -814,7 +884,7 @@ function CreateDialog({ onClose, onPrepared }: {
   const [konto, setKonto] = useState('');
   const [container, setContainer] = useState('');
   const [caps, setCaps] = useState<Capabilities | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [sendet, setSendet] = useState(false);
 
   useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
@@ -831,7 +901,7 @@ function CreateDialog({ onClose, onPrepared }: {
         containerIdentifier: container.trim(),
         fields: Object.fromEntries(gefuellt),
       }));
-    } catch (e) { setFehler(meldung(e)); } finally { setSendet(false); }
+    } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
   };
 
   return (
@@ -858,7 +928,7 @@ function CreateDialog({ onClose, onPrepared }: {
       }
     >
       <CapabilityHinweis caps={caps} />
-      {fehler && <ErrorState message={fehler} />}
+      {fehler && <ErrorState {...fehler} />}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">
           <span className="block" style={{ color: 'var(--color-text-muted)' }}>Konto</span>
@@ -889,13 +959,13 @@ function CreateDialog({ onClose, onPrepared }: {
 function PreviewDialog({ vorgang, onClose, onEntschieden }: {
   vorgang: PreparedMutation; onClose: () => void; onEntschieden: () => void;
 }) {
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [laeuft, setLaeuft] = useState(false);
 
   const entscheiden = async (fn: () => Promise<unknown>) => {
     setLaeuft(true); setFehler(null);
     try { await fn(); onEntschieden(); }
-    catch (e) { setFehler(meldung(e)); }
+    catch (e) { setFehler(fehlerbild(e)); }
     finally { setLaeuft(false); }
   };
 
@@ -926,7 +996,7 @@ function PreviewDialog({ vorgang, onClose, onEntschieden }: {
         </>
       }
     >
-      {fehler && <ErrorState message={fehler} />}
+      {fehler && <ErrorState {...fehler} />}
       {vorgang.reused && (
         <p className="mb-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
           Dieser Vorgang war bereits vorbereitet. Es wurde kein zweiter angelegt.
@@ -948,21 +1018,21 @@ function PreviewDialog({ vorgang, onClose, onEntschieden }: {
 function ApprovalBoard({ onOpenMutation }: { onOpenMutation: (id: string) => void }) {
   const [eintraege, setEintraege] = useState<Approval[]>([]);
   const [laedt, setLaedt] = useState(true);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
 
   const laden = useCallback(async () => {
     setLaedt(true); setFehler(null);
     try { setEintraege(await api.listApprovals()); }
-    catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+    catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
   }, []);
   useEffect(() => { void laden(); }, [laden]);
 
   const handeln = async (fn: () => Promise<unknown>) => {
-    try { await fn(); await laden(); } catch (e) { setFehler(meldung(e)); }
+    try { await fn(); await laden(); } catch (e) { setFehler(fehlerbild(e)); }
   };
 
   if (laedt) return <LoadingState label="Freigaben werden geladen" />;
-  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (fehler) return <ErrorState {...fehler} onRetry={() => void laden()} />;
   if (eintraege.length === 0) {
     // Auf der Freigabetafel ist „Keine Vorgänge" zweideutig — es könnte auch
     // heissen, dass Vorgänge existieren, aber nicht angezeigt werden.
@@ -1040,18 +1110,18 @@ function ApprovalBoard({ onOpenMutation }: { onOpenMutation: (id: string) => voi
 function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [m, setM] = useState<MutationDetail | null>(null);
   const [laedt, setLaedt] = useState(true);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [gleichtAb, setGleichtAb] = useState(false);
 
   const laden = useCallback(async () => {
     setLaedt(true); setFehler(null);
     try { setM(await api.getMutation(id)); }
-    catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+    catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
   }, [id]);
   useEffect(() => { void laden(); }, [laden]);
 
   if (laedt) return <LoadingState label="Vorgang wird geladen" />;
-  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (fehler) return <ErrorState {...fehler} onRetry={() => void laden()} />;
   if (!m) return <EmptyState title="Vorgang nicht gefunden" />;
 
   return (
@@ -1086,7 +1156,7 @@ function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             onClick={async () => {
               setGleichtAb(true); setFehler(null);
               try { await api.reconcileMutation(m.mutation_id); await laden(); }
-              catch (e) { setFehler(meldung(e)); }
+              catch (e) { setFehler(fehlerbild(e)); }
               finally { setGleichtAb(false); }
             }}
             className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
@@ -1160,17 +1230,17 @@ function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 function MutationList({ onOpen }: { onOpen: (id: string) => void }) {
   const [items, setItems] = useState<Mutation[]>([]);
   const [laedt, setLaedt] = useState(true);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<Fehlerbild | null>(null);
 
   const laden = useCallback(async () => {
     setLaedt(true); setFehler(null);
     try { setItems(await api.listMutations()); }
-    catch (e) { setFehler(meldung(e)); } finally { setLaedt(false); }
+    catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
   }, []);
   useEffect(() => { void laden(); }, [laden]);
 
   if (laedt) return <LoadingState label="Vorgänge werden geladen" />;
-  if (fehler) return <ErrorState message={fehler} onRetry={() => void laden()} />;
+  if (fehler) return <ErrorState {...fehler} onRetry={() => void laden()} />;
   if (items.length === 0) return <EmptyState title="Noch keine Vorgänge" />;
 
   return (

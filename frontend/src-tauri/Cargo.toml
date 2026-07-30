@@ -33,6 +33,13 @@ objc = "0.2"
 dispatch = "0.2"
 keyring = { version = "3", features = ["apple-native"] }
 
+# Der Kontakte-Berechtigungsaufruf liegt in einem Objective-C-Shim (objc/),
+# nicht in roher Nachrichtenuebermittlung aus Rust. Rust bindet ihn ueber eine
+# schmale C-ABI an — dafuer braucht es keine objc-Kiste zur Laufzeit, nur einen
+# Compiler beim Bauen.
+[target.'cfg(target_os = "macos")'.build-dependencies]
+cc = "1"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
 

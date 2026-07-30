@@ -311,13 +311,17 @@ describe('Berechtigung', () => {
   });
 
   it('rät den Status nie, wenn die Brücke fehlt', async () => {
+    // Seit dem Fehlervertrag zeigt die Seite den Satz des Servers statt
+    // eines pauschalen „nicht verfügbar" — das sagt mehr und ist genauso
+    // PII-frei.
     mock.getAuthorization.mockResolvedValue({
       status: 'unknown', can_request: false, bridge_available: false,
-      reason: 'kein Binary',
+      reason: 'Die Kontakte-Bruecke wurde nicht gefunden.',
+      technical_code: 'bridge_not_found',
     });
     await seiteRendern();
     expect(screen.getByTestId('auth-status')).toHaveTextContent(/Status unbekannt/);
-    expect(screen.getByText(/nicht verfügbar/i)).toBeInTheDocument();
+    expect(screen.getByText(/wurde nicht gefunden/i)).toBeInTheDocument();
   });
 
   it('sperrt den Knopf während der laufenden Anfrage', async () => {
@@ -669,5 +673,196 @@ describe('Grenzen', () => {
     const text = document.body.textContent ?? '';
     expect(text).not.toContain('raw-1');
     expect(text).not.toContain('apple-local');
+  });
+});
+
+// ═══ Regression: Fehlerdarstellung und geschlossene Mutationen ══════════════
+//
+// Beide Befunde stammen aus dem gescheiterten arm64-Livetest:
+//   1. Die Oberfläche zeigte wörtlich „BridgeOperationError" — einen
+//      Ausnahmeklassennamen, der dem Nutzer nichts sagt.
+//   2. „Kontakt anlegen" war klickbar, obwohl produktive Provider-Mutationen
+//      geschlossen sind und der Sidecar `not_implemented` antwortet.
+describe('Fehlerdarstellung', () => {
+  it('zeigt den Satz des Servers, nicht den Ausnahmeklassennamen', async () => {
+    mock.listContacts.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable',
+      'Die Kontakte-Bruecke liess sich nicht starten.', true,
+      'bridge_start_failed:BridgeOperationError'));
+    render(<ContactsPage />);
+    const alarm = await screen.findByRole('alert');
+    expect(alarm).toHaveTextContent(/liess sich nicht starten/);
+    // Der Klassenname darf nur in der technischen Kennung stehen …
+    const kennung = within(alarm).getByTestId('fehler-kennung');
+    expect(kennung).toHaveTextContent(/bridge_start_failed/);
+    // … und nie als die eigentliche Aussage.
+    expect(alarm.querySelector('.font-medium')?.textContent)
+      .not.toMatch(/BridgeOperationError/);
+  });
+
+  it('sagt, ob ein zweiter Versuch etwas bringt', async () => {
+    mock.listContacts.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable', 'Brücke weg.', true, 'bridge_not_found'));
+    render(<ContactsPage />);
+    expect(await screen.findByText(/erneuter Versuch kann helfen/i))
+      .toBeInTheDocument();
+  });
+
+  it('sagt auch, wenn ein zweiter Versuch nichts bringt', async () => {
+    mock.listContacts.mockRejectedValue(new ContactsApiError(
+      403, 'forbidden', 'Keine Berechtigung.', false, 'not_authorized:denied'));
+    render(<ContactsPage />);
+    expect(await screen.findByText(/ändert daran nichts/i)).toBeInTheDocument();
+  });
+
+  it('zeigt Kategorie und technische Kennung, aber keinen Pfad', async () => {
+    mock.listContacts.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable', 'Brücke nicht gefunden.', true, 'bridge_not_found'));
+    render(<ContactsPage />);
+    const kennung = await screen.findByTestId('fehler-kennung');
+    expect(kennung).toHaveTextContent('unavailable');
+    expect(kennung).toHaveTextContent('bridge_not_found');
+    expect(kennung.textContent).not.toMatch(/\//);
+  });
+
+  it('bleibt auch ohne Serverantwort verständlich', async () => {
+    mock.listContacts.mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<ContactsPage />);
+    expect(await screen.findByText(/Server war nicht erreichbar/i))
+      .toBeInTheDocument();
+  });
+
+  it('nennt beim Brückenausfall den Grund und die Kennung', async () => {
+    mock.getAuthorization.mockResolvedValue({
+      status: 'unknown', can_request: false, bridge_available: false,
+      reason: 'Die Kontakte-Bruecke wurde nicht gefunden.',
+      technical_code: 'bridge_not_found',
+    });
+    await seiteRendern();
+    expect(screen.getByText(/wurde nicht gefunden/)).toBeInTheDocument();
+    expect(screen.getByTestId('auth-kennung')).toHaveTextContent('bridge_not_found');
+  });
+});
+
+describe('Geschlossene Provider-Mutationen', () => {
+  it('bietet „Kontakt anlegen" nicht an, solange Mutationen zu sind', async () => {
+    await seiteRendern();
+    expect(screen.queryByRole('button', { name: /Kontakt anlegen/i })).toBeNull();
+  });
+
+  it('bietet es an, sobald der Server die Fähigkeit meldet', async () => {
+    mock.getCapabilities.mockResolvedValue({
+      ...CAPS, create_supported: true, mutations_available: true,
+    });
+    await seiteRendern();
+    expect(await screen.findByRole('button', { name: /Kontakt anlegen/i }))
+      .toBeInTheDocument();
+  });
+
+  it('bietet weder Ändern noch Löschen an', async () => {
+    const u = nutzer();
+    await seiteRendern();
+    await u.click(screen.getByRole('button', { name: /Alpha Test/ }));
+    await screen.findByRole('button', { name: /Zurück/i });
+    expect(screen.queryByRole('button', { name: /^Ändern$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Löschen$/i })).toBeNull();
+  });
+
+  it('erklärt, warum nicht — statt nur nichts anzuzeigen', async () => {
+    const u = nutzer();
+    await seiteRendern();
+    await u.click(screen.getByRole('button', { name: /Alpha Test/ }));
+    const hinweis = await screen.findByTestId('mutationen-gesperrt');
+    expect(hinweis).toHaveTextContent(/liest Kontakte ausschliesslich/i);
+  });
+
+  it('bleibt fail-closed, wenn die Fähigkeiten unbekannt sind', async () => {
+    // Der Capability-Abruf scheitert: dann gilt „nicht verfügbar", nicht
+    // „vermutlich schon".
+    mock.getCapabilities.mockRejectedValue(new Error('weg'));
+    await seiteRendern();
+    expect(screen.queryByRole('button', { name: /Kontakt anlegen/i })).toBeNull();
+  });
+});
+
+// ═══ Regression: Apple-Fehlercode bleibt sichtbar ══════════════════════════
+describe('Berechtigungsfehler', () => {
+  async function notDetermined() {
+    mock.getAuthorization.mockResolvedValue({
+      status: 'notDetermined', can_request: true, bridge_available: true,
+      reason: '', technical_code: '',
+    });
+    await seiteRendern();
+  }
+
+  it('zeigt Apple-Domain und Fehlercode statt eines Klassennamens', async () => {
+    const u = nutzer();
+    await notDetermined();
+    mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable', 'Der Berechtigungsdialog konnte nicht angezeigt werden.',
+      true, 'authorization_request:tcc_request_rejected:CNErrorDomain/100'));
+
+    await u.click(screen.getByRole('button', { name: /erlauben/i }));
+    const kennung = await screen.findByTestId('fehler-kennung');
+    expect(kennung).toHaveTextContent('CNErrorDomain/100');
+    expect(kennung).toHaveTextContent('tcc_request_rejected');
+    expect(kennung.textContent).not.toMatch(/BridgeOperationError/);
+  });
+
+  it('erklärt, wenn der Dialog nur aus der App kommen kann', async () => {
+    const u = nutzer();
+    await notDetermined();
+    mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable',
+      'Der Berechtigungsdialog kann nur aus der Anwendung selbst angefordert werden.',
+      true, 'tcc_prompt_unavailable:no_host_bundle'));
+
+    await u.click(screen.getByRole('button', { name: /erlauben/i }));
+    expect(await screen.findByText(/nur aus der Anwendung selbst/i))
+      .toBeInTheDocument();
+    expect(screen.getByTestId('fehler-kennung'))
+      .toHaveTextContent('no_host_bundle');
+  });
+
+  it('wiederholt nach einem Fehlschlag nichts von selbst', async () => {
+    const u = nutzer();
+    await notDetermined();
+    mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable', 'Abgelehnt.', true,
+      'authorization_request:tcc_request_rejected:CNErrorDomain/100'));
+
+    await u.click(screen.getByRole('button', { name: /erlauben/i }));
+    await screen.findByTestId('fehler-kennung');
+    // Kein Timer, kein zweiter Aufruf.
+    await new Promise((r) => { setTimeout(r, 120); });
+    expect(mock.requestAuthorization).toHaveBeenCalledTimes(1);
+  });
+
+  it('löst durch erneutes Laden keinen zweiten Dialog aus', async () => {
+    const u = nutzer();
+    await notDetermined();
+    mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable', 'Abgelehnt.', true, 'x:y'));
+    await u.click(screen.getByRole('button', { name: /erlauben/i }));
+    await screen.findByTestId('fehler-kennung');
+
+    // „Erneut laden" liest nur den Status — es fragt nichts an.
+    await u.click(screen.getByRole('button', { name: /Erneut laden/i }));
+    await waitFor(() => expect(mock.getAuthorization.mock.calls.length)
+      .toBeGreaterThan(1));
+    expect(mock.requestAuthorization).toHaveBeenCalledTimes(1);
+  });
+
+  it('zeigt nie einen Dateipfad an', async () => {
+    const u = nutzer();
+    await notDetermined();
+    mock.requestAuthorization.mockRejectedValue(new ContactsApiError(
+      503, 'unavailable', 'Der Dialog kann nur aus der Anwendung kommen.',
+      true, 'tcc_prompt_unavailable:no_host_bundle'));
+    await u.click(screen.getByRole('button', { name: /erlauben/i }));
+    await screen.findByTestId('fehler-kennung');
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/\/Users\//);
+    expect(text).not.toMatch(/\.app/);
   });
 });

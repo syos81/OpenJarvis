@@ -21,10 +21,13 @@ from personaljarvis.contacts.api.routes import (
     create_contacts_router,
 )
 from personaljarvis.contacts.application.live import (
+    HOST_BUNDLE_ENV,
     ContactsLiveService,
     SyncBusy,
     SyncNotAuthorized,
     SyncUnavailable,
+    host_bundle,
+    technischer_code,
 )
 from personaljarvis.contacts.bridge.errors import (
     BridgeProcessError,
@@ -133,6 +136,17 @@ def kopf() -> dict:
     return {DEFAULT_WORKSPACE_HEADER: WORKSPACE}
 
 
+@pytest.fixture
+def in_der_app(monkeypatch):
+    """Prozesskette wie beim Start durch die gepackte App."""
+    monkeypatch.setenv(HOST_BUNDLE_ENV, "/Anwendungen/OpenJarvis.app")
+
+
+@pytest.fixture
+def ohne_app(monkeypatch):
+    monkeypatch.delenv(HOST_BUNDLE_ENV, raising=False)
+
+
 def _client_mit(module, live) -> TestClient:
     module.live_service = live
     app = FastAPI()
@@ -200,23 +214,30 @@ def test_anfordern_ohne_nutzeraktion_sendet_nichts(module):
     assert bridge.starts == 0
 
 
-def test_anfordern_gibt_den_neuen_status_zurueck(module):
-    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED,
-                            grant_to=AuthorizationStatus.AUTHORIZED)
-    sicht = LiveAttrappe(module, bridge).request_authorization(user_initiated=True)
-    assert sicht.status == "authorized"
-    assert bridge.ops == ["requestAuthorization"]
-    assert not bridge.store_beruehrt
+def test_der_server_fordert_die_berechtigung_nicht_mehr_an(module, in_der_app):
+    """Architekturgrenze: der Dialog kommt aus dem App-Prozess.
+
+    Über den Sidecar war er nachweislich nicht zu bekommen — macOS rechnete
+    die Anfrage einem Prozess ohne App-Bundle zu (`CNErrorDomain/100`, kein
+    Dialog). Die Methode bleibt als Vertragsgrenze und sagt, wohin die
+    Anfrage gehört, statt einen nicht funktionierenden Weg offenzuhalten.
+    """
+    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
+    with pytest.raises(SyncUnavailable) as exc:
+        LiveAttrappe(module, bridge).request_authorization(user_initiated=True)
+    assert exc.value.technical_code == "tcc_prompt_unavailable:handled_by_app"
+    assert bridge.ops == [], "kein requestAuthorization an den Sidecar"
+    assert bridge.starts == 0, "der Sidecar startet dafür nicht mehr"
 
 
-def test_ablehnung_wird_nicht_automatisch_wiederholt(module):
-    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED,
-                            grant_to=AuthorizationStatus.DENIED)
+def test_kein_wiederholter_serveraufruf_erzeugt_prompt(module, in_der_app):
+    """Auch mehrfaches Aufrufen bleibt wirkungslos — es gibt keinen Weg."""
+    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
     live = LiveAttrappe(module, bridge)
-    sicht = live.request_authorization(user_initiated=True)
-    assert sicht.status == "denied"
-    assert sicht.can_request is False
-    assert bridge.ops.count("requestAuthorization") == 1
+    for _ in range(3):
+        with pytest.raises(SyncUnavailable):
+            live.request_authorization(user_initiated=True)
+    assert bridge.ops == []
 
 
 # ═══ Kein Sync ohne Berechtigung ════════════════════════════════════════════
@@ -423,7 +444,8 @@ def test_route_liest_den_status(module, kopf):
     client = _client_mit(module, LiveAttrappe(module, bridge))
     body = client.get(f"{PREFIX}/authorization", headers=kopf).json()
     assert body == {"status": "notDetermined", "can_request": True,
-                    "bridge_available": True, "reason": ""}
+                    "bridge_available": True, "reason": "",
+                    "technical_code": ""}
     assert not bridge.store_beruehrt
 
 
@@ -440,14 +462,16 @@ def test_route_fordert_nur_mit_ausdruecklichem_koerper_an(module, kopf):
     assert bridge.ops == []
 
 
-def test_route_fordert_mit_nutzeraktion_an(module, kopf):
-    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED,
-                            grant_to=AuthorizationStatus.AUTHORIZED)
+def test_route_verweist_auf_die_app_statt_zu_fragen(module, kopf, in_der_app):
+    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
     client = _client_mit(module, LiveAttrappe(module, bridge))
     r = client.post(f"{PREFIX}/authorization/request",
                     json={"user_initiated": True}, headers=kopf)
-    assert r.status_code == 200
-    assert r.json()["status"] == "authorized"
+    assert r.status_code == 503
+    detail = r.json()["detail"]
+    assert detail["technical_code"] == "tcc_prompt_unavailable:handled_by_app"
+    assert "Anwendung selbst" in detail["message"]
+    assert bridge.starts == 0
 
 
 def test_syncroute_meldet_aggregiert(module, kopf):
@@ -604,3 +628,348 @@ def test_der_sidecar_enthaelt_keinen_schreibpfad():
     code = "\n".join(z.split("//", 1)[0] for z in quelle.splitlines())
     assert "CNSaveRequest" not in code
     assert "CNMutableContact" not in code
+
+
+# ═══ Fehlervertrag: nie ein nackter Klassenname ═════════════════════════════
+#
+# Regression zum gescheiterten arm64-Livetest: die Oberfläche zeigte wörtlich
+# „BridgeOperationError". Diese Zeichenkette entstand, weil `str(exc)` der
+# Live-Fehler der Klassenname der auslösenden Ausnahme war. Ein Klassenname
+# sagt dem Nutzer nichts, verrät nicht, ob ein zweiter Versuch hilft, und
+# benennt nicht einmal den gescheiterten Schritt.
+def _kopf_ws() -> dict:
+    return {DEFAULT_WORKSPACE_HEADER: WORKSPACE}
+
+
+def test_kein_ausnahmeklassenname_in_der_nutzermeldung(module, monkeypatch):
+    """Der Kern der Regression — über den echten Weg, nicht am Dienst vorbei.
+
+    Der Handshake scheitert mit genau der Ausnahme, deren Klassenname im
+    Livetest auf dem Bildschirm stand.
+    """
+    from personaljarvis.contacts.bridge import client as bridge_client
+    from personaljarvis.contacts.bridge.errors import BridgeOperationError
+
+    def start_scheitert(self):
+        raise BridgeOperationError("provider_error", "interner Text",
+                                   provider_domain="CNErrorDomain",
+                                   provider_code=100)
+
+    monkeypatch.setattr(bridge_client.ContactsBridgeClient, "start",
+                        start_scheitert)
+    live = ContactsLiveService(module, sidecar_path=_echtes_binary())
+    client = _client_mit(module, live)
+
+    detail = client.post(f"{PREFIX}/sync", headers=_kopf_ws()).json()["detail"]
+    assert "BridgeOperationError" not in detail["message"]
+    assert "Error" not in detail["message"]
+    # Statt des Klassennamens steht jetzt die Apple-Angabe in der Kennung.
+    assert detail["technical_code"] == (
+        "bridge_start:tcc_request_rejected:CNErrorDomain/100")
+    assert detail["retryable"] is True
+
+
+def _echtes_binary():
+    """Pfad des gebauten Sidecars; ohne ihn wird der Test übersprungen.
+
+    Der Auflösungsschritt muss gelingen, damit der **Start** scheitern kann —
+    sonst prüfte der Test den falschen Zweig.
+    """
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    for kandidat in (
+        repo / "frontend/src-tauri/binaries/jarvis-contacts-aarch64-apple-darwin",
+        repo / "frontend/src-tauri/binaries/jarvis-contacts-x86_64-apple-darwin",
+    ):
+        if kandidat.exists():
+            return kandidat
+    pytest.skip("Sidecar nicht gebaut")
+
+
+def test_der_fehlervertrag_traegt_alle_vier_felder(module):
+    live = LiveAttrappe(module, BridgeAttrappe(), unavailable=None)
+    live._client = lambda: (_ for _ in ()).throw(  # noqa: SLF001
+        SyncUnavailable("Die Bruecke liess sich nicht starten.",
+                        technical_code="bridge_start_failed:BridgeOperationError"))
+    client = _client_mit(module, live)
+    detail = client.post(f"{PREFIX}/sync", headers=_kopf_ws()).json()["detail"]
+    assert set(detail) == {"code", "message", "technical_code", "retryable"}
+    assert detail["code"] == "unavailable"
+    assert detail["retryable"] is True
+    assert detail["technical_code"] == "bridge_start_failed:BridgeOperationError"
+    assert detail["message"].endswith(".")
+
+
+def test_technische_kennung_traegt_keine_pfade_und_keine_werte(module):
+    """Der Resolver nennt in seiner Meldung Suchpfade — die dürfen nicht raus."""
+    live = LiveAttrappe(module, BridgeAttrappe(), unavailable=None)
+    from personaljarvis.contacts.bridge.errors import BridgeConfigurationError
+
+    def wirft():
+        raise BridgeConfigurationError(
+            "Kein Sidecar unter /Users/geheim/pfad/jarvis-contacts")
+
+    echt = ContactsLiveService._client
+    live._client = lambda: echt(live)  # noqa: SLF001
+    live._sidecar_path = "/Users/geheim/pfad/gibtesnicht"  # noqa: SLF001
+    client = _client_mit(module, live)
+    detail = client.post(f"{PREFIX}/sync", headers=_kopf_ws()).json()["detail"]
+    assert "/Users/" not in detail["message"]
+    assert "/Users/" not in detail["technical_code"]
+    assert detail["technical_code"] == "bridge_not_found"
+
+
+@pytest.mark.parametrize("fehler,status,kategorie,wiederholbar", [
+    (SyncBusy("läuft schon", technical_code="sync_already_running"),
+     409, "conflict", True),
+    (SyncNotAuthorized("keine Berechtigung", technical_code="not_authorized:denied"),
+     403, "forbidden", False),
+    (SyncUnavailable("Brücke weg", technical_code="bridge_not_found"),
+     503, "unavailable", True),
+])
+def test_jede_fehlerklasse_bringt_ihren_eigenen_vertrag(
+        module, fehler, status, kategorie, wiederholbar):
+    live = LiveAttrappe(module, BridgeAttrappe(), unavailable=None)
+    live.sync = lambda **kw: (_ for _ in ()).throw(fehler)  # noqa: SLF001
+    client = _client_mit(module, live)
+    r = client.post(f"{PREFIX}/sync", headers=_kopf_ws())
+    assert r.status_code == status
+    assert r.json()["detail"]["code"] == kategorie
+    assert r.json()["detail"]["retryable"] is wiederholbar
+
+
+def test_autorisierungssicht_meldet_kennung_statt_klassenname(module):
+    """Auch der nicht-fehlerhafte Weg darf keinen Klassennamen zeigen."""
+    live = LiveAttrappe(module, BridgeAttrappe(),
+                        unavailable="egal")
+    client = _client_mit(module, live)
+    body = client.get(f"{PREFIX}/authorization", headers=_kopf_ws()).json()
+    assert body["bridge_available"] is False
+    assert body["status"] == "unknown"
+    assert "Error" not in body["reason"]
+    assert body["technical_code"]
+
+
+def test_technische_kennungen_stammen_aus_geschlossener_menge():
+    """Jede Kennung ist stabil und PII-frei — kein Pfad, kein Wert."""
+    import re
+    from pathlib import Path
+
+    quelle = (Path(__file__).resolve().parents[3]
+              / "src/personaljarvis/contacts/application/live.py").read_text()
+    kennungen = re.findall(r'technical_code=f?"([^"]+)"', quelle)
+    assert kennungen, "keine Kennungen gefunden"
+    for k in kennungen:
+        assert "/" not in k, k
+        assert not k.startswith("{"), k
+        assert re.match(r"^[a-z_]+(:\{?[a-z_.()]*\}?)?$", k), k
+
+
+# ═══ Berechtigungsanfrage: Diagnose und Prozessweg ══════════════════════════
+#
+# Regression zum zweiten gescheiterten arm64-Livetest. Sichtbar war nur
+# „authorization_request_failed:BridgeOperationError" — der Apple-Fehlercode,
+# den der Sidecar bereits gemeldet hatte, ging auf dem Weg nach oben verloren.
+from personaljarvis.contacts.bridge.errors import BridgeOperationError  # noqa: E402
+
+
+def test_apple_domain_und_code_bleiben_erhalten():
+    """Der Kern: `CNErrorDomain/100` darf nicht zu einem Klassennamen werden."""
+    exc = BridgeOperationError("provider_error", "abgelehnt",
+                               provider_domain="CNErrorDomain", provider_code=100)
+    kennung = technischer_code("authorization_request", exc)
+    assert kennung == "authorization_request:tcc_request_rejected:CNErrorDomain/100"
+    assert "BridgeOperationError" not in kennung
+
+
+def test_negative_apple_codes_bleiben_lesbar():
+    exc = BridgeOperationError("provider_error", "x",
+                               provider_domain="NSCocoaErrorDomain",
+                               provider_code=-1)
+    assert technischer_code("authorization_request", exc).endswith(
+        "NSCocoaErrorDomain/-1")
+
+
+def test_timeout_ist_kein_providerfehler():
+    exc = BridgeOperationError("internal", "blieb aus",
+                               provider_domain="timeout", provider_code=0,
+                               retryable=True)
+    assert technischer_code("authorization_request", exc) == (
+        "authorization_request:request_timeout")
+
+
+@pytest.mark.parametrize("bridge_code,erwartet", [
+    ("invalid_request", "bridge_response_invalid"),
+    ("protocol_mismatch", "bridge_response_invalid"),
+    ("tcc_denied", "tcc_denied"),
+    ("provider_error", "tcc_request_rejected"),
+])
+def test_vertragscodes_stammen_aus_geschlossener_menge(bridge_code, erwartet):
+    exc = BridgeOperationError(bridge_code, "x")
+    assert technischer_code("authorization_request", exc) == (
+        f"authorization_request:{erwartet}")
+
+
+def test_ohne_providerangabe_bleibt_der_klassenname_die_beste_auskunft():
+    """Gab der Sidecar nichts Strukturiertes her, ist der Klassenname das
+    einzig Verfügbare — dann ist er zulässig, aber nur dann."""
+    kennung = technischer_code("bridge_start", BridgeProtocolError("x"))
+    assert kennung == "bridge_start:BridgeProtocolError"
+
+
+def test_keine_localizeddescription_im_sidecar():
+    """Apple-Fehlertexte können Pfade enthalten und werden nie übertragen."""
+    from pathlib import Path
+
+    quelle = (Path(__file__).resolve().parents[3]
+              / "native/contacts-bridge/src/sidecar.swift").read_text()
+    code = "\n".join(z.split("//", 1)[0] for z in quelle.splitlines())
+    assert "localizedDescription" not in code
+    assert "userInfo" not in code
+
+
+def test_der_sidecar_meldet_domain_und_code_strukturiert():
+    from pathlib import Path
+
+    quelle = (Path(__file__).resolve().parents[3]
+              / "native/contacts-bridge/src/sidecar.swift").read_text()
+    assert "providerDomain" in quelle and "providerCode" in quelle
+    assert "e.domain" in quelle and "e.code" in quelle
+
+
+# ── Der Prozessweg ─────────────────────────────────────────────────────────
+
+
+def test_statuslesen_braucht_die_app_nicht(module, ohne_app):
+    """`authorizationStatus` fragt nichts an und bleibt deshalb erlaubt."""
+    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
+    sicht = LiveAttrappe(module, bridge).authorization()
+    assert sicht.status == "notDetermined"
+    assert bridge.ops == ["authorizationStatus"]
+
+
+def test_host_bundle_wird_nur_aus_der_umgebung_gelesen(monkeypatch):
+    monkeypatch.setenv(HOST_BUNDLE_ENV, "  /A/B.app  ")
+    assert host_bundle() == "/A/B.app"
+    monkeypatch.setenv(HOST_BUNDLE_ENV, "   ")
+    assert host_bundle() == ""
+
+
+
+# ═══ Der Sidecar bleibt für Lesen zuständig ═════════════════════════════════
+#
+# Die Architekturkorrektur verschiebt **nur** den Berechtigungsdialog in den
+# App-Prozess. Statusabruf und alle Leseoperationen bleiben beim Sidecar —
+# das war nie das Problem und funktioniert belegt.
+def test_statuslesen_laeuft_weiter_ueber_den_sidecar(module):
+    bridge = BridgeAttrappe(AuthorizationStatus.NOT_DETERMINED)
+    sicht = LiveAttrappe(module, bridge).authorization()
+    assert sicht.status == "notDetermined"
+    assert bridge.ops == ["authorizationStatus"]
+    assert bridge.starts == 1 and bridge.stops == 1
+
+
+def test_der_lese_sync_laeuft_weiter_ueber_den_sidecar(module):
+    bridge = BridgeAttrappe(AuthorizationStatus.AUTHORIZED)
+    sync = SyncAttrappe([_lauf(imported=4)])
+    module.sync_service = lambda *a, **k: sync
+    lauf = LiveAttrappe(module, bridge).sync(workspace_id=WORKSPACE)
+    assert lauf.succeeded and lauf.imported == 4
+    assert bridge.starts == 1 and bridge.stops == 1
+
+
+def test_der_sidecar_kann_weiterhin_keine_mutation(module):
+    from personaljarvis.contacts.bridge.client import ContactsBridgeClient
+
+    for name in SCHREIB_OPERATIONEN:
+        with pytest.raises(NotImplementedError):
+            getattr(ContactsBridgeClient(None), name)()
+
+
+def test_keine_route_fordert_noch_ueber_den_sidecar_an(module):
+    """Statisch: im Produktivcode ruft nichts mehr `client.request_authorization`."""
+    import inspect
+
+    from personaljarvis.contacts.application import live as L
+
+    quelle = inspect.getsource(L)
+    code = "\n".join(z.split("#", 1)[0] for z in quelle.splitlines())
+    assert "client.request_authorization" not in code
+    assert ".request_authorization(user_initiated=True)" not in code
+
+
+def _objc_shim() -> str:
+    """Der Objective-C-Shim des App-Prozesses, ohne Kommentare.
+
+    Der Systemaufruf liegt seit der ABI-Korrektur dort und nicht mehr in
+    Rust: der Objective-C-Compiler prüft Blocksignatur, BOOL-Darstellung und
+    den Enum-Wert gegen die echten SDK-Header, was aus roher
+    Nachrichtenübermittlung heraus nicht beweisbar war.
+    """
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    quelle = (repo / "frontend/src-tauri/objc/JCContactsAuthorization.m").read_text()
+    return "\n".join(z for z in quelle.splitlines()
+                     if not z.strip().startswith("//"))
+
+
+def _rust_modul() -> str:
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    quelle = (repo / "frontend/src-tauri/src/contacts_authorization.rs").read_text()
+    produktiv = quelle.split("#[cfg(test)]", 1)[0]
+    return "\n".join(z for z in produktiv.splitlines()
+                     if not z.strip().startswith(("//", "//!")))
+
+
+def test_der_app_prozess_ist_der_einzige_anfrageweg():
+    """Genau eine Aufrufstelle, und sie liegt im Shim des App-Prozesses."""
+    shim = _objc_shim()
+    assert shim.count("requestAccessForEntityType") == 1
+    assert "authorizationStatusForEntityType" in shim
+    # Die Rust-Seite bindet nur an, sie sendet keine Nachricht selbst.
+    assert "requestAccessForEntityType" not in _rust_modul()
+
+
+def test_der_app_prozess_liest_keinen_kontakt():
+    for name, code in (("shim", _objc_shim()), ("rust", _rust_modul())):
+        for verboten in ("CNSaveRequest", "CNMutableContact", "unifiedContact",
+                         "enumerateContacts", "CNContactFetchRequest",
+                         "containersMatchingPredicate"):
+            assert verboten not in code, f"{verboten} in {name}"
+
+
+def test_der_app_prozess_liest_keine_localizeddescription():
+    """Apple-Fehlertexte können Pfade tragen — nur Domain und Zahl gehen raus."""
+    for name, code in (("shim", _objc_shim()), ("rust", _rust_modul())):
+        assert "localizedDescription" not in code, name
+        assert "userInfo" not in code, name
+    shim = _objc_shim()
+    assert "error.domain" in shim and "error.code" in shim
+
+
+def test_der_shim_nimmt_den_enumwert_aus_dem_header():
+    """Kein ungeprüfter Magic Integer: `CNEntityTypeContacts` ist der erste
+    und einzige Fall eines `NS_ENUM(NSInteger, CNEntityType)`, also 0 — und
+    der Shim benutzt die Konstante, nicht die Zahl."""
+    shim = _objc_shim()
+    assert "CNEntityTypeContacts" in shim
+    assert "entityType:0" not in shim.replace(" ", "")
+
+
+def test_der_main_thread_wird_nicht_blockiert():
+    """Der Systemaufruf gehört auf die Main Queue, das Warten nicht."""
+    shim = _objc_shim()
+    assert "dispatch_async(dispatch_get_main_queue()" in shim
+    assert "dispatch_sync(dispatch_get_main_queue()" not in shim
+    assert shim.index("dispatch_semaphore_wait") > shim.index(
+        "dispatch_async(dispatch_get_main_queue()")
+
+
+def test_der_shim_zaehlt_die_callbacks():
+    """Ein zweiter Callback bliebe sonst unsichtbar."""
+    assert "callbackCount += 1" in _objc_shim()
+    assert "callback_count" in _rust_modul()

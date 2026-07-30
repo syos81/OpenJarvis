@@ -40,9 +40,30 @@ export function EmptyState({ title, hint, action }: {
   );
 }
 
-export function ErrorState({ message, onRetry }: {
-  message: string; onRetry?: () => void;
+/**
+ * Fehlerfläche mit drei getrennten Aussagen.
+ *
+ * Vorher stand hier nur die Nachricht — und wenn der Server einen
+ * Ausnahmeklassennamen lieferte, las der Nutzer wörtlich
+ * „BridgeOperationError". Das sagt ihm nichts, verrät nicht, ob ein zweiter
+ * Versuch etwas bringt, und ist für die Fehlersuche wertlos, weil der Name
+ * nicht sagt, welcher Schritt scheiterte.
+ *
+ * Jetzt trägt die Fläche: einen Satz für den Menschen, den Hinweis auf
+ * Wiederholbarkeit, und — klein und abgesetzt — die stabile technische
+ * Kennung zum Weitergeben. Keine Pfade, keine Kontaktdaten.
+ */
+export function ErrorState({ message, code, technicalCode, retryable, onRetry }: {
+  message: string;
+  code?: string;
+  technicalCode?: string;
+  retryable?: boolean;
+  onRetry?: () => void;
 }) {
+  const kennung = [code, technicalCode]
+    .filter((t) => t && t.length > 0)
+    .filter((t, i, a) => a.indexOf(t) === i)
+    .join(' · ');
   return (
     <div
       className="my-4 rounded-md border p-4 text-sm"
@@ -52,8 +73,20 @@ export function ErrorState({ message, onRetry }: {
       <div className="flex items-start gap-2">
         <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
         <div className="flex-1">
-          <p className="font-medium">Die Anfrage ist fehlgeschlagen.</p>
-          <p className="mt-1" style={{ color: 'var(--color-text-muted)' }}>{message}</p>
+          <p className="font-medium">{message}</p>
+          {retryable !== undefined && (
+            <p className="mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              {retryable
+                ? 'Ein erneuter Versuch kann helfen.'
+                : 'Ein erneuter Versuch ändert daran nichts.'}
+            </p>
+          )}
+          {kennung && (
+            <p className="mt-2 font-mono text-xs" data-testid="fehler-kennung"
+               style={{ color: 'var(--color-text-muted)' }}>
+              Code: {kennung}
+            </p>
+          )}
           {onRetry && (
             <button type="button" onClick={onRetry} className="mt-3 underline">
               Erneut laden

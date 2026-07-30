@@ -278,7 +278,10 @@ class AuthorizationOut(_Strict):
                     "unknown"]
     can_request: bool
     bridge_available: bool
+    #: Satz für den Menschen — nie ein Klassenname, nie ein Pfad.
     reason: str = ""
+    #: Stabile, PII-freie Vertragskennung des Fehlerbildes; leer wenn alles ging.
+    technical_code: str = ""
 
 
 class AuthorizationRequestIn(_Strict):

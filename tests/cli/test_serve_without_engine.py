@@ -53,6 +53,43 @@ def isolierte_umgebung(tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def ohne_konfiguriertes_modell(monkeypatch):
+    """Liefert `serve` eine Konfiguration ohne jedes Startmodell.
+
+    Hintergrund, weil es nicht offensichtlich ist: `load_config` ist
+    `lru_cache(maxsize=1)`-memoisiert und der Cache-Schluessel ist allein der
+    `path`-Parameter — **nicht** `OPENJARVIS_HOME`. Der erste Test, der die
+    Konfiguration in einem Prozess laedt, legt sie damit fuer alle folgenden
+    im selben xdist-Worker fest. Im vollen Lauf mit `-n auto` erbte dieser
+    Test deshalb gelegentlich ein fremdes `default_model`;
+    `_resolve_server_model` akzeptiert jeden nicht-leeren Kandidaten, sobald
+    die Engine gar keine Modelle listet, und der als harter Abbruch gepruefte
+    Fall endete mit Exit-Code 0. Einzeln war der Test immer gruen.
+
+    `load_config.cache_clear()` waere der naheliegende Griff und ist trotzdem
+    falsch: der erzwungene Neuaufbau aktiviert Analytics- und
+    Telemetriethreads (PostHog, Aggregator), die dieser Test nie einsammelt —
+    der Lauf haengt dann statt zu scheitern.
+
+    Deshalb wird hier nur die Sicht **dieses** Aufrufs korrigiert: eine tiefe
+    Kopie mit geleerten Modellfeldern. Der geteilte Cache bleibt unberuehrt,
+    und der Test haengt nicht mehr an fremder Reihenfolge.
+    """
+    import copy
+
+    echt = serve_modul.load_config
+
+    def ohne_modell(*args, **kwargs):
+        cfg = copy.deepcopy(echt(*args, **kwargs))
+        cfg.server.model = ""
+        cfg.intelligence.default_model = ""
+        cfg.intelligence.fallback_model = ""
+        return cfg
+
+    monkeypatch.setattr(serve_modul, "load_config", ohne_modell)
+
+
+@pytest.fixture
 def personal_aktiv(monkeypatch):
     """Personal Jarvis ausdruecklich aktiviert — wie es die gepackte App tut."""
     monkeypatch.setenv("OPENJARVIS_PERSONAL_ENABLED", "1")
@@ -123,7 +160,8 @@ def test_engine_der_app_meldet_sich_als_ungesund(isolierte_umgebung,
 
 
 def test_fehlendes_modell_bei_vorhandener_engine_bleibt_fatal(
-        isolierte_umgebung, gestarteter_server, monkeypatch):
+        isolierte_umgebung, ohne_konfiguriertes_modell, gestarteter_server,
+        monkeypatch):
     """Eine antwortende Engine ohne Modell ist eine echte Fehlkonfiguration.
 
     Sie bleibt ein harter Abbruch — hier laeuft etwas, es hat nur nichts zu

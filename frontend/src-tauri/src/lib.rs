@@ -1,3 +1,5 @@
+mod contacts_authorization;
+
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
@@ -1568,6 +1570,22 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     if let Some(sidecar) = bundled_contacts_sidecar() {
         cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1");
         cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR", &sidecar);
+        // The .app this backend belongs to. macOS attributes a TCC prompt to
+        // the *responsible* process, which for a spawned child resolves up the
+        // parent chain to this bundle — the one that carries
+        // NSContactsUsageDescription and can actually put a window on screen.
+        //
+        // A backend started from a terminal has a different chain: the
+        // responsible process is the terminal, which has no usage description.
+        // requestAccess then fails with an opaque provider error and no prompt
+        // ever appears. Setting this only on the spawn path lets the backend
+        // refuse the prompt with a precise reason instead of producing that
+        // opaque failure — see `request_authorization` in live.py.
+        if let Some(app) = sidecar.parent().and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+        {
+            cmd.env("PERSONAL_JARVIS_HOST_BUNDLE", app);
+        }
     }
 
     let jarvis_child = cmd.spawn();
@@ -1718,6 +1736,44 @@ async fn get_setup_status(state: tauri::State<'_, SharedStatus>) -> Result<Setup
 #[tauri::command]
 fn get_api_base() -> String {
     api_base()
+}
+
+/// Reads the Contacts authorization status. Shows no dialog.
+///
+/// The sidecar can read this too, and the Contacts page still does so through
+/// the HTTP API. This command exists so the app can answer the same question
+/// about *itself* — the process a prompt would actually be attributed to.
+#[tauri::command]
+fn personal_contacts_authorization_status() -> contacts_authorization::AuthorizationOutcome {
+    contacts_authorization::environment()
+}
+
+/// Requests Contacts access from this process — the visible app.
+///
+/// **Only ever called from a click.** There is no caller at startup, none when
+/// the Contacts page opens, and no retry: the frontend wires this to exactly
+/// one button, and the module below refuses to prompt when the status is
+/// already settled.
+///
+/// Why here and not in the sidecar: macOS attributes a TCC prompt to the
+/// responsible process. Reached through `uv` and `python`, the sidecar has no
+/// app to be attributed to, and `requestAccess` came back
+/// `CNErrorDomain/100` without ever showing a dialog. This process *is*
+/// `OpenJarvis.app`: it carries `NSContactsUsageDescription` and is in the
+/// foreground.
+///
+/// Reads no contact — `requestAccess` returns a boolean and an optional error.
+#[tauri::command]
+async fn personal_contacts_request_authorization(
+    app: tauri::AppHandle,
+) -> Result<contacts_authorization::AuthorizationOutcome, String> {
+    let _ = &app; // the shim reaches the main queue itself
+    // Deliberately off the main thread: the shim dispatches the system call
+    // onto the main queue and then blocks *this* thread. Running it on the main
+    // thread would deadlock the very thread that has to draw the dialog.
+    tauri::async_runtime::spawn_blocking(contacts_authorization::request_access)
+        .await
+        .map_err(|e| format!("authorization task failed: {e}"))
 }
 
 #[tauri::command]
@@ -3011,6 +3067,8 @@ pub fn run() {
             toggle_overlay,
             hide_overlay,
             get_overlay_conversation,
+            personal_contacts_authorization_status,
+            personal_contacts_request_authorization,
         ])
         .build(tauri::generate_context!())
         .expect("error while building OpenJarvis Desktop")
@@ -3149,6 +3207,30 @@ release/bundle/macos/OpenJarvis.app/Contents/MacOS";
     }
 
     // ── Abhaengigkeitsauswahl beim Start ───────────────────────────────────
+    #[test]
+    fn the_spawn_path_passes_the_host_bundle() {
+        // Ohne diesen Marker weiss das Backend nicht, dass es aus der App
+        // stammt — und verweigert dann die Berechtigungsanfrage, statt sie
+        // in einem undurchsichtigen Providerfehler enden zu lassen.
+        let quelle = include_str!("lib.rs");
+        let marker = quelle
+            .find("cmd.env(\"PERSONAL_JARVIS_HOST_BUNDLE\"")
+            .expect("host bundle marker is not passed to the backend");
+        let sidecar = quelle
+            .find("if let Some(sidecar) = bundled_contacts_sidecar()")
+            .expect("sidecar resolution is missing");
+        assert!(
+            sidecar < marker,
+            "the marker must sit inside the bundled-sidecar branch"
+        );
+        // Zwischen beiden darf keine neue Funktion beginnen — sonst stuende
+        // der Marker ausserhalb des Zweigs.
+        assert!(
+            !quelle[sidecar..marker].contains("\nfn "),
+            "the marker escaped the bundled-sidecar branch"
+        );
+    }
+
     #[test]
     fn degraded_start_syncs_no_inference_extras() {
         // Ohne konfigurierte Engine hat der Start keinen Grund, Provider-SDKs

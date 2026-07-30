@@ -54,9 +54,6 @@ from personaljarvis.contacts.application.errors import (
 from personaljarvis.contacts.application.live import (
     ContactsLiveService,
     LiveError,
-    SyncBusy,
-    SyncNotAuthorized,
-    SyncUnavailable,
 )
 from personaljarvis.contacts.application.queries import (
     DEFAULT_PAGE_SIZE,
@@ -98,25 +95,37 @@ _ERROR_MAP: tuple[tuple[type, int, str], ...] = (
 )
 
 
-#: Live-Fehler tragen ihre Wiederholbarkeit selbst; sie werden nie zu 500.
-_LIVE_ERROR_MAP: tuple[tuple[type, int, str], ...] = (
-    (SyncBusy, 409, "conflict"),
-    (SyncNotAuthorized, 403, "forbidden"),
-    (SyncUnavailable, 503, "unavailable"),
-)
+#: Live-Fehler tragen Kategorie und Wiederholbarkeit selbst; sie werden nie
+#: zu einem nackten 500.
+_LIVE_STATUS: dict[str, int] = {
+    "conflict": 409,
+    "forbidden": 403,
+    "unavailable": 503,
+    "internal": 500,
+}
 
 
 def _live_error(exc: "LiveError") -> HTTPException:
-    for typ, status, code in _LIVE_ERROR_MAP:
-        if isinstance(exc, typ):
-            return HTTPException(
-                status_code=status,
-                detail={"code": code, "message": str(exc),
-                        "retryable": bool(getattr(exc, "retryable", False))})
+    """Bildet einen Live-Fehler auf den Vertrag ab.
+
+    Der Körper trägt **drei** getrennte Angaben, damit die Oberfläche nie auf
+    einen Klassennamen zurückfallen muss:
+
+    * ``message`` — ein Satz für den Menschen,
+    * ``code`` — die grobe Kategorie aus geschlossener Menge,
+    * ``technical_code`` — die stabile, PII-freie Kennung des Fehlerbildes.
+
+    Kein Feld enthält einen Pfad, einen Kontaktwert oder einen Cursor.
+    """
+    kategorie = getattr(exc, "code", "internal")
     return HTTPException(
-        status_code=500,
-        detail={"code": "internal", "message": type(exc).__name__,
-                "retryable": False})
+        status_code=_LIVE_STATUS.get(kategorie, 500),
+        detail={
+            "code": kategorie,
+            "message": str(exc),
+            "technical_code": getattr(exc, "technical_code", type(exc).__name__),
+            "retryable": bool(getattr(exc, "retryable", False)),
+        })
 
 
 def _http_error(exc: Exception) -> HTTPException:

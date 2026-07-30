@@ -62,10 +62,21 @@ func ok(_ id: Any, _ result: [String: Any]) {
           "ok": true, "result": result])
 }
 
-func fail(_ id: Any, _ code: ErrCode, _ message: String, retryable: Bool = false) {
+func fail(_ id: Any, _ code: ErrCode, _ message: String, retryable: Bool = false,
+          providerDomain: String? = nil, providerCode: Int? = nil) {
+    // `providerDomain`/`providerCode` tragen die Apple-Fehlerangabe STRUKTURIERT.
+    // Frueher steckte sie nur im Fliesstext der Meldung und ging beim ersten
+    // Weiterreichen verloren — die Oberflaeche zeigte dann nur noch einen
+    // Ausnahmeklassennamen, und die eigentliche Diagnose war weg.
+    //
+    // Bewusst NUR Domain und numerischer Code: `localizedDescription` kann
+    // Pfade und andere private Angaben enthalten und wird nie uebertragen.
+    var error: [String: Any] = ["code": code.rawValue, "message": message,
+                                "retryable": retryable]
+    if let d = providerDomain { error["providerDomain"] = d }
+    if let c = providerCode   { error["providerCode"] = c }
     emit(["protocolVersion": kProtocolVersion, "requestId": id, "ok": false,
-          "error": ["code": code.rawValue, "message": message,
-                    "retryable": retryable]])
+          "error": error])
 }
 
 // ── Store und Autorisierung ──────────────────────────────────────────────────
@@ -302,12 +313,17 @@ func opRequestAuthorization(_ id: Any, _ payload: [String: Any]) {
         granted = g; reqError = e as NSError?; sem.signal()
     }
     if sem.wait(timeout: .now() + 120) == .timedOut {
-        fail(id, .internalError, "Timeout bei der Autorisierungsentscheidung",
-             retryable: true)
+        // Der Nutzer hat den Dialog nicht beantwortet — oder es erschien
+        // keiner. Beides ist wiederholbar, beides ist KEIN Providerfehler.
+        fail(id, .internalError, "Die Autorisierungsentscheidung blieb aus.",
+             retryable: true, providerDomain: "timeout", providerCode: 0)
         return
     }
     if let e = reqError {
-        fail(id, .providerError, "requestAccess: \(e.domain)/\(e.code)")
+        // Nur Domain und numerischer Code. Der Text bleibt generisch.
+        fail(id, .providerError,
+             "requestAccess wurde vom System abgelehnt.",
+             providerDomain: e.domain, providerCode: e.code)
         return
     }
     ok(id, ["granted": granted, "authorizationStatus": authStatusText(),

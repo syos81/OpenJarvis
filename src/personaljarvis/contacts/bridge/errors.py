@@ -51,11 +51,24 @@ class BridgeOperationError(BridgeError):
     (`tcc_denied`, `not_found`, `invalid_request`, `not_implemented`, …).
     """
 
-    def __init__(self, code: str, message: str, *, retryable: bool = False) -> None:
+    def __init__(self, code: str, message: str, *, retryable: bool = False,
+                 provider_domain: str = "", provider_code: int | None = None) -> None:
         super().__init__(f"{code}: {message}")
         self.code = code
         self.message = message
+        #: Apple-Fehlerdomain, falls der Provider eine geliefert hat. Nur
+        #: Domain und numerischer Code — nie `localizedDescription`, die
+        #: Pfade oder private Angaben enthalten kann.
+        self.provider_domain = provider_domain
+        self.provider_code = provider_code
         self.retryable = retryable
+
+    @property
+    def provider_detail(self) -> str:
+        """`domain/code` als stabile, PII-freie Kurzform. Leer ohne Angabe."""
+        if not self.provider_domain or self.provider_code is None:
+            return ""
+        return f"{self.provider_domain}/{self.provider_code}"
 
 
 class ProcessFailureClass:

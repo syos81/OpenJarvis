@@ -120,7 +120,10 @@ def test_minimum_system_version_bleibt_12_3():
 
 
 def test_produktiver_identifier_unveraendert():
-    assert _conf()["identifier"] == "com.openjarvis.desktop"
+    assert _conf()["identifier"] == "de.kluender.jarvis"
+    assert _conf()["productName"] == "Jarvis"
+    # Die Upstream-Kennung darf in der Konfiguration nicht mehr vorkommen.
+    assert "com.openjarvis.desktop" not in _CONF.read_text()
 
 
 def test_keine_signaturidentitaet_der_bridge_in_der_konfiguration():

@@ -244,3 +244,147 @@ describe('Abgleich', () => {
     }
   });
 });
+
+// ═══ Berechtigungsanfrage über den App-Prozess ══════════════════════════════
+//
+// Der Weg über den Server ist aufgegeben: macOS rechnet einen TCC-Dialog dem
+// verantwortlichen Prozess zu, und der Sidecar wird über `uv` und `python`
+// erreicht — beides ohne App-Bundle. `requestAccess` kam von dort mit
+// `CNErrorDomain/100` zurück, ohne dass je ein Dialog erschien.
+describe('Berechtigungsanfrage', () => {
+  const invoke = vi.fn();
+  //: PII-arme Laufzeitdiagnostik, die das native Kommando mitliefert.
+  const DIAG = {
+    bundle_identifier: 'de.kluender.jarvis',
+    has_usage_description: true,
+    app_active: true,
+    called_on_main_thread: true,
+    entity_type: 0,
+    status_before: 'notDetermined' as const,
+    callback_ran: true,
+    callback_count: 1,
+  };
+
+  async function ladeApi(inTauri: boolean) {
+    vi.resetModules();
+    vi.doMock('../../lib/api', async () => {
+      const echt = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
+      return { ...echt, isTauri: () => inTauri };
+    });
+    vi.doMock('@tauri-apps/api/core', () => ({ invoke }));
+    return import('./api');
+  }
+
+  beforeEach(() => { invoke.mockReset(); });
+  afterEach(() => { vi.doUnmock('../../lib/api'); vi.doUnmock('@tauri-apps/api/core'); });
+
+  it('ruft das Kommando des App-Prozesses, nicht den Server', async () => {
+    const api = await ladeApi(true);
+    invoke.mockResolvedValue({
+      status: 'authorized', granted: true, prompt_attempted: true,
+      error_domain: null, error_code: null, ...DIAG,
+    });
+
+    const sicht = await api.requestAuthorization();
+
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(
+      'personal_contacts_request_authorization');
+    expect(sicht.status).toBe('authorized');
+    // Kein HTTP-Aufruf: der Server ist an dieser Stelle nicht beteiligt.
+    expect(aufrufe).toEqual([]);
+  });
+
+  it('fuehrt notDetermined nach denied korrekt weiter', async () => {
+    const api = await ladeApi(true);
+    invoke.mockResolvedValue({
+      status: 'denied', granted: false, prompt_attempted: true,
+      error_domain: null, error_code: null, ...DIAG,
+    });
+    const sicht = await api.requestAuthorization();
+    expect(sicht.status).toBe('denied');
+    expect(sicht.can_request).toBe(false);
+  });
+
+  it('traegt die Laufzeitdiagnostik in der Kennung', async () => {
+    const api = await ladeApi(true);
+    invoke.mockResolvedValue({
+      status: 'notDetermined', granted: false, prompt_attempted: true,
+      error_domain: 'CNErrorDomain', error_code: 100, ...DIAG,
+    });
+    const fehler = await api.requestAuthorization().catch((e) => e);
+    for (const teil of ['bundle=de.kluender.jarvis', 'usage=true',
+                        'active=true', 'mainthread=true', 'entity=0',
+                        'callback=true/1']) {
+      expect(fehler.technicalCode).toContain(teil);
+    }
+    // Trotzdem kein Pfad und kein Systemfreitext.
+    expect(fehler.technicalCode).not.toMatch(/\/Users\//);
+    expect(fehler.technicalCode).not.toMatch(/\.app/);
+  });
+
+  it('haelt Apple-Domain und Fehlercode in der Kennung fest', async () => {
+    const api = await ladeApi(true);
+    invoke.mockResolvedValue({
+      status: 'notDetermined', granted: false, prompt_attempted: true,
+      error_domain: 'CNErrorDomain', error_code: 100, ...DIAG,
+    });
+    await expect(api.requestAuthorization()).rejects.toMatchObject({
+      code: 'unavailable',
+      retryable: true,
+    });
+    const f = await api.requestAuthorization().catch((e) => e);
+    expect(f.technicalCode).toContain(
+      'authorization_request:tcc_request_rejected:CNErrorDomain/100');
+  });
+
+  it('unterscheidet den Zeitueberlauf vom Providerfehler', async () => {
+    const api = await ladeApi(true);
+    invoke.mockResolvedValue({
+      status: 'notDetermined', granted: false, prompt_attempted: true,
+      error_domain: 'timeout', error_code: 0, ...DIAG,
+    });
+    const f = await api.requestAuthorization().catch((e) => e);
+    expect(f.technicalCode).toContain('authorization_request:request_timeout');
+  });
+
+  it('sagt im Browser ehrlich, dass es die App braucht', async () => {
+    const api = await ladeApi(false);
+    await expect(api.requestAuthorization()).rejects.toMatchObject({
+      technicalCode: 'tcc_prompt_unavailable:requires_desktop_app',
+      retryable: false,
+    });
+    expect(invoke).not.toHaveBeenCalled();
+    expect(aufrufe).toEqual([]);
+  });
+
+  it('wiederholt nach einem Fehlschlag nichts von selbst', async () => {
+    const api = await ladeApi(true);
+    invoke.mockRejectedValue(new Error('IPC weg'));
+    await expect(api.requestAuthorization()).rejects.toMatchObject({
+      technicalCode: 'tcc_prompt_unavailable:ipc_failed',
+    });
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('gibt keine Kontaktdaten und keinen Pfad weiter', async () => {
+    const api = await ladeApi(true);
+    invoke.mockResolvedValue({
+      status: 'notDetermined', granted: false, prompt_attempted: true,
+      error_domain: 'CNErrorDomain', error_code: 100, ...DIAG,
+    });
+    const fehler = await api.requestAuthorization().catch((e) => e);
+    const text = `${fehler.message} ${fehler.technicalCode}`;
+    expect(text).not.toMatch(/\/Users\//);
+    expect(text).not.toMatch(/\.app/);
+    expect(text).not.toMatch(/@/);
+  });
+
+  it('der Statusabruf bleibt beim Server', async () => {
+    const api = await ladeApi(true);
+    antworte({ status: 'notDetermined', can_request: true,
+               bridge_available: true, reason: '', technical_code: '' });
+    await api.getAuthorization();
+    expect(letzter().url).toContain('/v1/personal/contacts/authorization');
+    expect(invoke).not.toHaveBeenCalled();
+  });
+});

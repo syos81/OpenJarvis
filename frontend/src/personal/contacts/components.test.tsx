@@ -208,7 +208,7 @@ describe('Seitencode', () => {
     }
   });
 
-  it('fordert die Berechtigung nur aus einem Klickhandler an', () => {
+  it('ruft das native Kommando nur aus einem Klickhandler', () => {
     // Statische Ergänzung zu den Interaktionstests: der Aufruf darf nirgends
     // in einem `useEffect` stehen. Genau dort entstünde ein Dialog beim
     // blossen Öffnen der Seite.
@@ -261,5 +261,45 @@ describe('Seitencode', () => {
       join(HIER, '../../components/Sidebar/Sidebar.tsx'), 'utf8');
     expect(app.match(/path="contacts"/g)).toHaveLength(1);
     expect(sidebar.match(/path: '\/contacts'/g)).toHaveLength(1);
+  });
+});
+
+describe('Berechtigungsweg im Seitencode', () => {
+  const seite = nurCode(quelle('ContactsPage.tsx'));
+  const klient = nurCode(quelle('api.ts'));
+
+  it('fordert die Berechtigung nirgends beim Laden an', () => {
+    // Alle useEffect-Rümpfe der Seite dürfen `requestAuthorization` nicht
+    // enthalten — dort entstünde ein Prompt beim blossen Öffnen.
+    //
+    // Geschnitten wird am Ende des Rumpfes (der Abhängigkeitsliste `}, [`),
+    // nicht nach einer festen Zeichenzahl: ein Fenster würde in den nächsten
+    // Handler hineinragen und dort den legitimen Klickaufruf finden.
+    const effekte = seite.split('useEffect(').slice(1);
+    expect(effekte.length).toBeGreaterThan(0);
+    for (const rest of effekte) {
+      const ende = rest.indexOf('}, [');
+      const rumpf = ende === -1 ? rest.split('\n')[0] : rest.slice(0, ende);
+      expect(rumpf).not.toContain('requestAuthorization');
+      expect(rumpf).not.toContain('runSync');
+    }
+  });
+
+  it('spricht für den Dialog den App-Prozess an, nicht den Server', () => {
+    // Im Client führt der Anfrageweg über Tauri-IPC; der Serverpfad
+    // /authorization/request wird dafür nicht mehr benutzt.
+    const abschnitt = klient.split('export async function requestAuthorization')[1] ?? '';
+    expect(abschnitt).toContain('personal_contacts_request_authorization');
+    expect(abschnitt.slice(0, 1600)).not.toContain("'/authorization/request'");
+  });
+
+  it('liest den Status weiterhin über den Server', () => {
+    const abschnitt = klient.split('export function getAuthorization')[1] ?? '';
+    expect(abschnitt.slice(0, 200)).toContain("'/authorization'");
+  });
+
+  it('hat genau eine Aufrufstelle für den Dialog', () => {
+    expect(klient.match(/personal_contacts_request_authorization/g))
+      .toHaveLength(1);
   });
 });

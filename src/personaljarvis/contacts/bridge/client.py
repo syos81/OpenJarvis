@@ -74,10 +74,14 @@ class ContactsBridgeClient:
             result = envelope.get("result")
             return result if isinstance(result, dict) else {}
         error = envelope.get("error") or {}
+        roh_code = error.get("providerCode")
         raise BridgeOperationError(
             str(error.get("code", protocol.ErrorCode.INTERNAL)),
             str(error.get("message", "")),
             retryable=bool(error.get("retryable", False)),
+            provider_domain=str(error.get("providerDomain", "")),
+            provider_code=(int(roh_code) if isinstance(roh_code, int)
+                           else None),
         )
 
     def _require_capability(self, name: str, enabled: bool) -> None:

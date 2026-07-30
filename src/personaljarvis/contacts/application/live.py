@@ -27,6 +27,7 @@ anderes: zwei gleichzeitige Läufe **innerhalb** desselben Prozesses.
 
 from __future__ import annotations
 
+import os
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -35,6 +36,7 @@ from personaljarvis.contacts.bridge.client import ContactsBridgeClient
 from personaljarvis.contacts.bridge.errors import (
     BridgeConfigurationError,
     BridgeError,
+    BridgeOperationError,
 )
 from personaljarvis.contacts.bridge.models import AuthorizationStatus
 from personaljarvis.contacts.bridge.process import SidecarProcess
@@ -55,26 +57,107 @@ __all__ = [
 #: den Lesepfad; Mehrkontenbetrieb ist eine spätere, eigene Entscheidung.
 APPLE_PROVIDER_ACCOUNT = "apple-local"
 
+#: Pfad der .app, aus deren Prozesskette dieses Backend stammt. Wird
+#: ausschliesslich vom Tauri-Hauptprozess beim Start gesetzt.
+HOST_BUNDLE_ENV = "PERSONAL_JARVIS_HOST_BUNDLE"
+
+
+def host_bundle() -> str:
+    """Die .app, der macOS eine Berechtigungsanfrage zurechnen wuerde.
+
+    Leer, wenn das Backend nicht von der App gestartet wurde — etwa aus einem
+    Terminal. Dann ist der *verantwortliche Prozess* im Sinne von TCC nicht
+    die App, sondern das Terminal: es traegt keine
+    `NSContactsUsageDescription` und kann keinen Dialog anzeigen.
+    """
+    return os.environ.get(HOST_BUNDLE_ENV, "").strip()
+
+
+#: Übersetzung der Bridge-Fehlerantwort in den stabilen Live-Vertrag.
+#:
+#: Der Sidecar liefert einen Code aus geschlossener Menge plus — bei einem
+#: Providerfehler — Apple-Domain und numerischen Code. Beides wurde bisher
+#: verworfen; übrig blieb der Ausnahmeklassenname. Diese Abbildung hält die
+#: Diagnose fest, ohne je einen Freitext des Systems zu übernehmen.
+_BRIDGE_CODE_ZU_VERTRAG: dict[str, str] = {
+    "provider_error": "tcc_request_rejected",
+    "tcc_denied": "tcc_denied",
+    "invalid_request": "bridge_response_invalid",
+    "protocol_mismatch": "bridge_response_invalid",
+    "invalid_token": "bridge_response_invalid",
+    "not_implemented": "operation_not_implemented",
+    "unsupported": "operation_not_supported",
+}
+
+
+def technischer_code(schritt: str, exc: Exception) -> str:
+    """Stabile, PII-freie Kennung eines gescheiterten Bridge-Schritts.
+
+    Aufbau: ``<schritt>:<vertragscode>[:<domain>/<code>]`` — zum Beispiel
+    ``authorization_request:tcc_request_rejected:CNErrorDomain/100``.
+
+    Der Klassenname der Ausnahme ist ausdrücklich **nicht** Teil der Kennung,
+    solange der Sidecar etwas Besseres geliefert hat: eine Apple-Fehlerdomain
+    sagt, *was* das System abgelehnt hat, ein Python-Klassenname sagt nur,
+    *wo* der Fehler durchgereicht wurde.
+    """
+    if isinstance(exc, BridgeOperationError):
+        vertrag = _BRIDGE_CODE_ZU_VERTRAG.get(exc.code, exc.code)
+        if exc.provider_domain == "timeout":
+            return f"{schritt}:request_timeout"
+        detail = exc.provider_detail
+        return f"{schritt}:{vertrag}" + (f":{detail}" if detail else "")
+    # Kein typisierter Bridge-Fehler: der Prozess selbst gab auf. Hier ist der
+    # Klassenname die beste verfügbare Angabe.
+    return f"{schritt}:{type(exc).__name__}"
+
 
 class LiveError(Exception):
-    """Basisklasse — trägt nie einen Kontaktwert."""
+    """Basisklasse — trägt nie einen Kontaktwert.
 
+    Ein Live-Fehler besteht aus **zwei getrennten Angaben**, und die
+    Trennung ist der ganze Punkt:
+
+    * ``str(exc)`` ist ein Satz für den Menschen vor dem Bildschirm. Er sagt,
+      was nicht ging und was jetzt hilft.
+    * ``technical_code`` ist eine stabile Vertragskennung aus geschlossener
+      Menge, mit der sich ein Fehlerbild wiederfinden lässt.
+
+    Vorher stand in ``str(exc)`` der Klassenname der auslösenden Ausnahme.
+    Die Oberfläche zeigte dann wörtlich ``BridgeOperationError`` — eine
+    Zeichenkette, die dem Nutzer nichts sagt, keinen Hinweis auf
+    Wiederholbarkeit gibt und nicht einmal verrät, welcher Schritt scheiterte.
+    Ein Klassenname ist eine Implementierungsinterna und gehört nie in eine
+    Nutzermeldung.
+    """
+
+    #: Grobe HTTP-nahe Kategorie; wird in `routes.py` auf den Status abgebildet.
+    code = "internal"
     retryable = False
+
+    def __init__(self, message: str, *, technical_code: str = "") -> None:
+        super().__init__(message)
+        #: Stabil, maschinenlesbar, PII-frei. Nie ein Pfad, nie ein Wert.
+        self.technical_code = technical_code or type(self).__name__
 
 
 class SyncBusy(LiveError):
     """Für diesen Workspace läuft bereits ein Lauf."""
 
+    code = "conflict"
     retryable = True
 
 
 class SyncNotAuthorized(LiveError):
     """Ohne erteilte Berechtigung wird der Store nicht einmal geöffnet."""
 
+    code = "forbidden"
+
 
 class SyncUnavailable(LiveError):
     """Sidecar nicht auflösbar, nicht startbar oder Protokoll unbrauchbar."""
 
+    code = "unavailable"
     retryable = True
 
 
@@ -85,7 +168,10 @@ class AuthorizationView:
     status: str
     can_request: bool
     bridge_available: bool
+    #: Satz für den Menschen. Nie ein Klassenname, nie ein Pfad.
     reason: str = ""
+    #: Stabile Vertragskennung für die Fehlersuche. Leer, wenn alles ging.
+    technical_code: str = ""
 
     @property
     def authorized(self) -> bool:
@@ -136,14 +222,24 @@ class ContactsLiveService:
             location = resolve_sidecar(self._sidecar_path,
                                        bundle_dir=self._bundle_dir)
         except BridgeConfigurationError as exc:
-            raise SyncUnavailable(str(exc)) from exc
+            # `str(exc)` des Resolvers nennt Suchpfade — die gehoeren nicht in
+            # eine Nutzermeldung. Die Ursache steht im technischen Code.
+            raise SyncUnavailable(
+                "Die Kontakte-Bruecke wurde nicht gefunden. Die Anwendung "
+                "wurde vermutlich unvollstaendig gepackt.",
+                technical_code="bridge_not_found") from exc
         process = SidecarProcess(location)
         client = ContactsBridgeClient(process)
         try:
             client.start()
         except BridgeError as exc:
             process.stop()
-            raise SyncUnavailable(f"{type(exc).__name__}") from exc
+            raise SyncUnavailable(
+                "Die Kontakte-Bruecke liess sich nicht starten. Ein erneuter "
+                "Versuch ist sinnvoll; bleibt es dabei, hilft ein Neustart "
+                "der Anwendung.",
+                technical_code=technischer_code("bridge_start", exc),
+            ) from exc
         return client, process
 
     # ── Autorisierung ───────────────────────────────────────────────────────
@@ -156,14 +252,17 @@ class ContactsLiveService:
         try:
             client, process = self._client()
         except SyncUnavailable as exc:
-            return AuthorizationView(status="unknown", can_request=False,
-                                     bridge_available=False, reason=str(exc))
+            return AuthorizationView(
+                status="unknown", can_request=False, bridge_available=False,
+                reason=str(exc), technical_code=exc.technical_code)
         try:
             status = client.authorization_status()
         except BridgeError as exc:
-            return AuthorizationView(status="unknown", can_request=False,
-                                     bridge_available=True,
-                                     reason=type(exc).__name__)
+            return AuthorizationView(
+                status="unknown", can_request=False, bridge_available=True,
+                reason="Der Berechtigungsstatus konnte nicht gelesen werden. "
+                       "Er wird nicht geraten.",
+                technical_code=technischer_code("status_read", exc))
         finally:
             process.stop()
         return AuthorizationView(
@@ -183,18 +282,31 @@ class ContactsLiveService:
         """
         if not user_initiated:
             raise SyncNotAuthorized(
-                "requestAuthorization verlangt eine ausdrueckliche Nutzeraktion")
-        client, process = self._client()
-        try:
-            _, status = client.request_authorization(user_initiated=True)
-        except BridgeError as exc:
-            raise SyncUnavailable(type(exc).__name__) from exc
-        finally:
-            process.stop()
-        return AuthorizationView(
-            status=status.value,
-            can_request=status == AuthorizationStatus.NOT_DETERMINED,
-            bridge_available=True)
+                "Die Berechtigung wird nur auf eine ausdrueckliche "
+                "Nutzeraktion hin angefordert.",
+                technical_code="user_action_required")
+
+        # Der Server fordert die Berechtigung **nicht mehr an**.
+        #
+        # Belegt auf arm64: macOS rechnet einen TCC-Dialog dem verantwortlichen
+        # Prozess zu. Der Sidecar wird ueber `uv` und `python` erreicht — beides
+        # CLI-Binaries ohne App-Bundle. `requestAccess` kam von dort mit
+        # `CNErrorDomain/100` zurueck, ohne dass je ein Dialog erschien, und der
+        # Status blieb `notDetermined`: eine technische Ablehnung vor dem
+        # Dialog, keine Nutzerentscheidung.
+        #
+        # Der Dialog kommt jetzt aus dem Tauri-Hauptprozess, der die App *ist*.
+        # Diese Methode bleibt als Vertragsgrenze bestehen und sagt klar, wohin
+        # die Anfrage gehoert — statt einen Weg offenzuhalten, der nachweislich
+        # nicht funktioniert.
+        #
+        # `authorizationStatus` bleibt unberuehrt beim Sidecar: es fragt nichts
+        # an und braucht keinen verantwortlichen Prozess. Ebenso alle spaeteren
+        # Leseoperationen.
+        raise SyncUnavailable(
+            "Der Berechtigungsdialog wird von der Anwendung selbst "
+            "angefordert, nicht vom Server.",
+            technical_code="tcc_prompt_unavailable:handled_by_app")
 
     # ── Manueller Lese-Sync ─────────────────────────────────────────────────
     def _lock_for(self, workspace_id: str) -> threading.Lock:
@@ -215,7 +327,10 @@ class ContactsLiveService:
         """
         riegel = self._lock_for(workspace_id)
         if not riegel.acquire(blocking=False):
-            raise SyncBusy("Fuer diesen Workspace laeuft bereits ein Lauf")
+            raise SyncBusy(
+                "Fuer diesen Arbeitsbereich laeuft bereits ein Abgleich. "
+                "Warte, bis er fertig ist.",
+                technical_code="sync_already_running")
         try:
             return self._sync_unter_riegel(workspace_id)
         finally:
@@ -228,7 +343,10 @@ class ContactsLiveService:
             if status != AuthorizationStatus.AUTHORIZED:
                 # Abbruch **vor** jeder Leseoperation. Der Status ist gelesen,
                 # nicht geraten, und kein Container wurde abgefragt.
-                raise SyncNotAuthorized(status.value)
+                raise SyncNotAuthorized(
+                    "Ohne erteilte Berechtigung werden keine Kontakte "
+                    "gelesen.",
+                    technical_code=f"not_authorized:{status.value}")
 
             dienst = self._module.sync_service(
                 client, workspace_id=workspace_id,
