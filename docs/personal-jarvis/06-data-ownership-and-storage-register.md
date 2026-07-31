@@ -31,6 +31,8 @@ Verwandte DEC-Einträge: DEC-004, DEC-011, DEC-019, DEC-020
 
 Neue Speicher dürfen nur mit Register-Eintrag (Eigentümer, Art, Backup, Migration) entstehen.
 
+**Ergänzung 2026-07-31 (Reuse-Audit, ADR-0020/DEC-044):** Der abgenommene Audit hat weitere faktisch vorhandene Upstream-Speicher belegt, die hier bisher nicht einzeln geführt sind (u. a. `approvals.db`, `digest.db`, `knowledge_graph.db`, `memory_facts.jsonl`, `blobs/`, `embeddings/`, `traces.db`, Frontend-`localStorage`). Ihre Einzelentscheidungen (KEEP/ADAPT/REPLACE/REMOVE) und Retentionpflichten stehen im Register [20](20-openjarvis-reuse-register.md) §4/§7. Vor produktiver Nutzung im Personal-Betrieb sind die als ADAPT/REPLACE markierten Speicher entweder in dieses Register aufzunehmen oder stillzulegen; keiner darf eine zweite fachliche Wahrheit führen (AV-16). `~/.openjarvis/knowledge.db` bleibt ausschließlich **abgeleiteter Projektionszielspeicher** (Zielkomponente Z-1, 20 §5) und erhält je Fachdomäne erst dann wieder Einträge, wenn der kontrollierte Projektionspfad existiert.
+
 ## §3 Entscheidung Chatverläufe
 
 Chatverläufe sind fachliche Personal-Daten. Sie **werden langfristig in die Personal-Datenhoheit überführt** — als kanonische Chat-Tabellen, sobald „Chat & Sessions" als Fachmodul vertikal behandelt wird (Migration per dann zu erstellendem ADR; Zeitpunkt = DEC-D08). Bis dahin bleiben sie Upstream-Subsystem und werden im Backup als sekundärer Speicher gesichert (DEC-019).

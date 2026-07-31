@@ -10,7 +10,7 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042, DEC-043
 
 # 16 — Modulkarte
 
-**Dieses Dokument enthält keine Modulreihenfolge.** Als **erstes Fachmodul wurde am 2026-07-27 „Kontakte" gewählt (DEC-030)**; die **Gesamtreihenfolge aller weiteren Module bleibt ausdrücklich offen** und wird erst nach gesonderter Freigabe entschieden. Die Spalte „mögliche Adapter" nennt **nicht bindende Beispiele**, sofern nicht ausdrücklich als beschlossen gekennzeichnet; die endgültige Adapterwahl fällt je Modul (Abnahmeziel je Modul: DEC-D11).
+**Die Modulreihenfolge ist seit 2026-07-31 bis Modul 3 festgelegt (DEC-045, ADR-0019; §4.2):** Modul 1 **Kontakte** (DEC-030) → Modul 2 **Kalender** → Modul 3 **Trading Intelligence (T1**, ADR-0024/DEC-049**)**. Zwischen diesen Modulen wird kein anderes Fachmodul eingeschoben oder parallel begonnen; **nach Modul 3 wird die Reihenfolge bewusst neu entschieden** (DEC-D10 ist damit vollständig aufgelöst). Die Spalte „mögliche Adapter" nennt **nicht bindende Beispiele**, sofern nicht ausdrücklich als beschlossen gekennzeichnet; die endgültige Adapterwahl fällt je Modul (Abnahmeziel je Modul: DEC-D11).
 
 ## §1 Module (ungeordnet)
 
@@ -18,14 +18,15 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042, DEC-043
 |---|---|---|---|---|
 | Chat & Sessions | Konversation, Verlauf, Tool-Nutzung | PJR | — | **Upstream-getragen** (Chat-Seite, `sessions.db`); Personal ergänzt Pipeline-Tools; spätere Überführung der Verläufe: 06 §3 |
 | Modelle & Inferenz | Modellwahl, Routing-Politik, Egress-Grants je Workspace | PJR | — | Upstream-getragen (Engines/Models-Seite); Personal ergänzt Richtlinien (12) |
-| Kontakte | Personen, Rollen, Beziehungen, externe Identitäten | Basis | AppleContacts (CNContactStore über Swift-Sidecar, ADR-0016) als Erstadapter; CardDAV und lokale vCard als spätere Adapter | eigenes Modul; **gewähltes erstes Fachmodul (DEC-030)** |
-| Kalender | Kalender, Termine, Teilnehmer | Kontakte (Teilnehmer) | CalDAV, AppleEventKit, ICS-Feed (read-only) | eigenes Modul |
+| Kontakte | Personen, Rollen, Beziehungen, externe Identitäten | Basis | AppleContacts (CNContactStore über Swift-Sidecar, ADR-0016) als Erstadapter; CardDAV und lokale vCard als spätere Adapter | eigenes Modul; **Modul 1 (DEC-030, DEC-045)**; einziges aktives Fachmodul, nicht abgeschlossen (§4.1, DEC-050) |
+| Kalender | Kalender, Termine, Teilnehmer | Kontakte (Teilnehmer) | AppleEventKit (öffentliche API; ADR-0016-Analogie: Swift-Sidecar-Muster der Contacts-Bridge) als Erstadapter; CalDAV, ICS-Feed (read-only) später | eigenes Modul; **Modul 2 (DEC-045)** |
 | Mail | Konten, Ordner, Nachrichten-Metadaten, Versand | Kontakte | IMAP/SMTP, JMAP (Apple-Mail-App ist keine Datenquelle, 08 §4) | eigenes Modul |
 | Aufgaben & Projekte | Aufgaben, Projekte, Verknüpfungen | Kontakte, Kalender | AppleEventKit-Reminders, CalDAV-Tasks, lokal | eigenes Modul |
 | Dokumente & Wissen | Dokument-Metadaten, Sammlungen, Blob-Verweise | Basis | Dateisystem-Import; später Cloud-Quellen | eigenes Modul |
 | Globale Suche | Query über kanonische DB + abgeleiteten Index | mehrere Module | — (nutzt MemoryIndexPort) | eigenes Modul |
 | Life OS | Messwerte, Ziele, Provenienz | Kontakte optional | HealthKit-Export, CSV, Geräte-Quellen | eigenes Modul |
-| Trading | Konten, Positionen, Orders, Risikoregeln | Basis, Benachrichtigungen | BrokerAdapter (Ziel: DEC-D12) | eigenes Modul; **immer R2** (10) |
+| Trading Intelligence (T1) | Instrumente-Referenzen, Watchlists, Alarmregeln, Briefing-Definitionen, Provenienz (Marktdaten nur Cache) | Basis, Benachrichtigungen | Markt-/Nachrichten-/Kursdatenquellen (Anbieter offen, ADR-0024 Punkt 4); Internetrecherche (ADR-0022) | eigenes Modul; **Modul 3 (DEC-045, DEC-049)**; R0/R1, keine R2-Fachoperation |
+| Trading T2–T4 (Portfolio/Journal · Strategy Lab · Broker/Execution) | Positionen, Orders, Risikoregeln, Executions | Basis, T1 | BrokerAdapter (Ziel: DEC-D12, vor T4) | eigene Module je Stufe (ADR-0024); **Orders/Execution immer R2** (10); ohne Position nach Modul 3 |
 | Automationen | Trigger → Bedingung → Aktion über Capability-Operationen | alle Capabilities | — (nutzt SchedulerPort) | eigenes Modul |
 | Benachrichtigungen | zentrale Zustands-/Konflikt-/Freigabe-Hinweise | alle | — | eigenes Modul; bis dahin modul-lokale Statusflächen |
 | Voice | Diktat/Vorlesen im Personal-Kontext | Chat | — (Upstream-Speech via PJR; Speech lokal-first; **Cloud-STT/TTS nur über den EgressGuard**, 12 §5; Port-/Adaptertechnik erst mit dem Voice-Modul) | Upstream-Speech gekapselt |
@@ -55,7 +56,7 @@ Verwandte DEC-Einträge: DEC-012, DEC-018, DEC-030, DEC-031, DEC-042, DEC-043
 
 ## §4 Startkriterien je Modul (keine Reihenfolge)
 
-Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11) **und für macOS-Module Abnahmehardware beider Zielarchitekturen — Apple Silicon arm64 und Intel x86_64 — zur Verfügung steht** (ADR-0018, DEC-042; Matrix in 15 §7); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt. Diese Kriterien gelten unverändert für **alle** Module nach dem ersten; die **Reihenfolge der weiteren Module bleibt offen** und wird nicht in diesem Dokument festgelegt.
+Ein Modul darf erst beginnen, wenn: (1) die benötigten Basis-Teile benennbar sind; (2) mindestens ein realer Abnahme-Provider verfügbar ist (DEC-D11) **und für macOS-Module Abnahmehardware beider Zielarchitekturen — Apple Silicon arm64 und Intel x86_64 — zur Verfügung steht** (ADR-0018, DEC-042; Matrix in 15 §7); (3) die Risikoklassen seiner Operationen klassifiziert sind; (4) der UI-Scope definiert ist; (5) für R2-Module zusätzlich: RiskEngine-Regelwerk und Not-Aus-Konzept vor Baubeginn vorliegen. Trading wird nach diesen Kriterien eingeplant, nicht pauschal zuletzt. Diese Kriterien gelten unverändert für **alle** Module. Die **Reihenfolge der ersten drei Fachmodule ist in §4.2 festgelegt** (DEC-045, ADR-0019); die Reihenfolge nach Modul 3 wird bewusst neu entschieden.
 
 ### §4.1 Produktstart-Gate Kontakte (2026-07-28)
 
@@ -67,7 +68,17 @@ Der nach ADR-0016 Punkt 2 verpflichtende Spike G3a ist auf Apple Silicon arm64 *
 
 **Der Modulabschluss bleibt gesperrt,** solange die Abnahmematrix in 15 §8 nicht in **beiden** Spalten vollständig bestanden ist. Spike-Evidenz ist Vor- bzw. Teilnachweis und ersetzt keine Abnahmezeile (15 §7 Nr. 4).
 
-**Kein anderes Fachmodul beginnt parallel.** Die Reihenfolge der weiteren Module bleibt unverändert offen.
+**Kein anderes Fachmodul beginnt parallel.**
+
+### §4.2 Verbindliche Modulreihenfolge bis Modul 3 (2026-07-31, DEC-045, ADR-0019)
+
+Die Reihenfolge der ersten drei Fachmodule ist festgelegt und ersetzt ADR-0012 Punkt 4:
+
+1. **Modul 1 — Kontakte** (DEC-030). Einziges **aktives** Fachmodul; **nicht abgeschlossen**. Fertigmeldung und produktive Auslieferung sind an die acht Gates aus DEC-050 gebunden (kanonisch: [`modules/contacts.md`](modules/contacts.md) §19): vier technische Releaseblocker (DEV-1, DEV-2, CI-Sidecar-Build/-Einbindung/-Reseal, Updater auf eigenes Repository) und vier Plattform-/Modulgates (committed ARM64-Evidenz, vollständige produktive Intel-x86_64-Abnahme, Recovery der 116 Tombstones, Integration des Handoffs in `jarvis/rebuild-v1`). arm64 und x86_64 sind gleichwertig; **Intel ist kein Kompatibilitätstest** (ADR-0018).
+2. **Modul 2 — Kalender.** Darf erst beginnen, wenn Kontakte vollständig abgenommen und integriert ist. Scope-Grenzen für den späteren Einstieg: Apple Calendar über öffentliche EventKit-APIs · mehrere Kalender und Accounts · kanonische Providerdaten und kontrollierte lokale Repräsentation · Initialimport · echte inkrementelle Synchronisation · stabile IDs · Löschungen und Tombstones · Ganztagstermine · Zeitzonen und Sommerzeitwechsel · Serien und Ausnahmen · Teilnehmer, Einladungen und Antwortstatus · Erinnerungen · Konflikterkennung · Create/Update/Delete · Approval-, Outbox- und Ausführungsprüfung · Suche und kontrollierte Projektion · arm64- und Intel-x86_64-Abnahme. **Ein EventKit-Spike oder Kalender-Produktcode entsteht in keinem früheren Auftrag; notwendige Spikes beginnen erst nach vollständiger Kontakte-Abnahme innerhalb des Kalender-Moduls.** Die alte `gcalendar`-Anbindung ist REPLACE (Register 20 §2, C-11), nie Vorstufe.
+3. **Modul 3 — Trading Intelligence (T1)** (ADR-0024, DEC-049). Gestufte Trading-Architektur T1–T4; nur T1 ist eingeplant. T1-Scope, T1-Ausschlüsse und offene Moduleinstiegsentscheidungen: ADR-0024. R0/R1, keine R2-Fachoperation; Orders/Execution (ab T4) bleiben immer R2 (10, AV-18).
+
+**Nach Modul 3 wird die weitere Reihenfolge bewusst neu entschieden.** Hausverwaltung (ADR-0023), Life OS, Mail und weitere Trading-Stufen bleiben verbindliche Zielbereiche ohne festgelegte Position. Es gilt durchgehend die Ein-Modul-Regel (ADR-0019): immer nur ein Fachmodul zu 100 Prozent, kein vorsorglicher Unterbau (AV-33).
 
 ## §5 Modulunterlagen (Konvention)
 

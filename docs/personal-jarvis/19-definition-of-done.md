@@ -70,3 +70,11 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 
 - Live-Abnahme-Protokoll durch den Eigentümer bestätigt. Erst mit dieser Bestätigung gilt das Modul als abgeschlossen.
 - **Auf macOS ist der Abschluss zusätzlich an das vollständige Bestehen beider Spalten der Dual-Architektur-Abnahmematrix gebunden** (15 §7, ADR-0018). Module, deren Abnahme nur auf einer Architektur vorliegt, gelten als **nicht** abgeschlossen — auch rückwirkend.
+
+## §11 Vollständiger Abnahmekatalog (ADR-0019, 2026-07-31)
+
+Ergänzend und ausdrücklich verbindlich: Ein Fachmodul ist erst zu 100 Prozent abgeschlossen, wenn **alle** folgenden Bestandteile vorliegen und nachgewiesen sind — keiner darf mit „vorerst ausreichend", Platzhaltern oder offenen Gates übersprungen werden (AV-3, ADR-0019):
+
+fachliches und kanonisches Datenmodell · versionierte Migrationen · Repository- und Transaktionslogik · Backend und API · öffentliche Provideranbindung · Initialimport und inkrementelle Synchronisation · Cursor-, Änderungs- und Löschsemantik · Create-, Update- und Delete-Strecken, soweit sie zum beschlossenen Modulumfang gehören · Berechtigungen und Plattformrechte · Approvals, Outbox und Ausführungsprüfung · Sicherheits- und Datenschutzgrenzen · vollständige Benutzeroberfläche · **Suche und kontrollierte Projektion** (kanonisch → Index, kein Rückschreiben, Löschweitergabe; ADR-0020 §4, Register 20 §5) · Fehlerfälle und verständliche Nutzerzustände · Logging, Audit und **Provenienz** · **Export** · **getestete Wiederherstellung** · **Retention und Löschweitergabe** · automatisierte Tests · Produktions-Build · Packaging · Signierung · **produktiver Livelauf auf arm64** · **produktiver Livelauf auf Intel-x86_64** · Modul- und Betriebsdokumentation · abschließender Qualitätsaudit · sauberer Commit und kontrollierte Integration.
+
+Die beiden macOS-Zielarchitekturen sind gleichwertig; **Intel x86_64 ist kein Kompatibilitätstest** (ADR-0018, DEC-042). Ein neues Fachmodul beginnt erst, wenn das vorherige diesen Katalog vollständig erfüllt hat (Ein-Modul-Regel, ADR-0019).

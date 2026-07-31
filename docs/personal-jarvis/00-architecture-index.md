@@ -32,16 +32,17 @@ Dieses Dokument ist **nicht normativ**. Es dient der Navigation durch den Archit
 | 13 | [Backup, Recovery & Audit-Checkpoints](13-backup-recovery-and-audit-checkpoints.md) | normativ | Schlüsselarchitektur, SnapshotCoordinator, Restore, Checkpoints |
 | 14 | [UI & Modul-Lifecycle](14-ui-and-module-lifecycle.md) | normativ | Build-time-Registrierung, Readiness, Zustandsmaschine |
 | 15 | [Tests & Quality-Gates](15-testing-and-quality-gates.md) | normativ | Testtaxonomie, Gates, Toolchain, Konformitätsprüfung, Dual-Architektur-Abnahmematrix (§7) und ausgefüllter Abnahmestand Kontakte (§8) |
-| 16 | [Modulkarte](16-module-map.md) | normativ | 15 Module ohne Reihenfolge, Basis, Startkriterien, Produktstart-Gate Kontakte (§4.1) |
+| 16 | [Modulkarte](16-module-map.md) | normativ | Module, Basis, Startkriterien, Produktstart-Gate Kontakte (§4.1), verbindliche Reihenfolge bis Modul 3 (§4.2) |
 | — | [modules/contacts.md](modules/contacts.md) | normativ (Modulunterlage) | produktiver Implementierungsplan des Kontakte-Moduls: Scope, Datenmodell, Sync- und Mutationsmodell, API, UI, Gates A–E, Testplan, Risiken |
 | 17 | [Deferred Decisions](17-deferred-decisions.md) | normativ | 16 vertagte Entscheidungen, Vorwegnahme-Verbot |
 | 18 | [Upstream-Abweichungen](18-upstream-deviations.md) | normativ | Abweichungsliste mit ADR-/Test-Pflicht |
-| 19 | [Definition of Done](19-definition-of-done.md) | normativ | Vollständigkeitskriterien je Modul |
+| 19 | [Definition of Done](19-definition-of-done.md) | normativ | Vollständigkeitskriterien je Modul; vollständiger Abnahmekatalog (§11) |
+| 20 | [OpenJarvis-Reuse-Register](20-openjarvis-reuse-register.md) | normativ (Register) | Übernahme des abgenommenen Reuse-Audits: KEEP/REUSE/ADAPT/PROJECT/REPLACE/REMOVE je Komponente, Kategorientrennung, Suchprojektion Z-1 |
 | — | [Glossar](glossary.md) | normativ (Terminologie) | Einzige Definitionsquelle verbindlicher Begriffe |
 | — | [Entscheidungsregister](decisions-register.md) | normativ (Index) | Akzeptierte und vertagte Entscheidungen |
 | — | [Traceability-Matrix](traceability-matrix.md) | normativ (Index) | AV-Regel → Primärdokument → Testtyp → Durchsetzungsstelle |
 
-ADRs: [docs/adr/](../adr/) — ADR-0001 bis ADR-0018, alle im Status `accepted` (ADR-0001–0012: Baseline-Rückdokumentation; ADR-0013/0014: eigene ADRs der Upstream-Abweichungen DEV-1/DEV-2; ADR-0015–0017: Entscheidungen der Kontakte-Phase — Integrationspunkte DEV-4/DEV-5, Swift-Kontakte-Bridge, Keychain-Anbindung; [ADR-0018](../adr/ADR-0018-dual-architecture-macos-support.md): gleichwertige Dual-Architektur-Unterstützung für macOS arm64 und x86_64 mit Mindestversion 12.3 — ändert AV-29).
+ADRs: [docs/adr/](../adr/) — ADR-0001 bis ADR-0024, alle im Status `accepted` (ADR-0001–0012: Baseline-Rückdokumentation; ADR-0013/0014: eigene ADRs der Upstream-Abweichungen DEV-1/DEV-2; ADR-0015–0017: Entscheidungen der Kontakte-Phase — Integrationspunkte DEV-4/DEV-5, Swift-Kontakte-Bridge, Keychain-Anbindung; [ADR-0018](../adr/ADR-0018-dual-architecture-macos-support.md): gleichwertige Dual-Architektur-Unterstützung für macOS arm64 und x86_64 mit Mindestversion 12.3 — ändert AV-29; **ADR-0019** verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung — ersetzt ADR-0012 Punkt 4; **ADR-0020** Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion; **ADR-0021** Autonomie- und Hintergrundaktionsmodell; **ADR-0022** KI-Arbeit, Internet-, Browser- und App-Steuerung; **ADR-0023** Hausverwaltungs-Systemgrenzen und Workspace-Sicherheitskontexte; **ADR-0024** gestufte Trading-Architektur T1–T4).
 
 ## 2. Lesereihenfolge
 

@@ -23,6 +23,7 @@ Der Eigentümer verlangt ausdrücklich, dass nicht mehrere parallele, nur teilwe
 2. **Materialisierungsregel (AV-33):** Gemeinsame Grundlagen entstehen nur, wenn das unmittelbar folgende Modul sie zwingend braucht. Einzige beschlossene Ausnahme: der Backup-Kern funktioniert ab dem ersten kanonischen Datenbestand (DEC-024).
 3. **Keine Scheinimplementierungen:** keine Platzhalter, Fake-Daten oder leeren Menüpunkte in produktiven Pfaden (AV-3); UI-Sichtbarkeit ist an den Modul-Lifecycle gekoppelt (AV-36; 14 §4).
 4. **Reihenfolge offen:** Erstes Fachmodul und Gesamtreihenfolge sind bewusst nicht entschieden (DEC-D10); es gelten nur die Startkriterien der Modulkarte (16 §4). Trading wird nach Kriterien eingeplant, nicht pauschal zuletzt; die Restore-Fähigkeit besteht ab dem ersten Datenbestand.
+   > **Ersetzt am 2026-07-31 durch [ADR-0019](ADR-0019-module-sequence-and-total-completion.md) (DEC-045):** Die Reihenfolge ist bis Modul 3 festgelegt (Kontakte → Kalender → Trading Intelligence T1); DEC-D10 ist damit vollständig aufgelöst. Nach Modul 3 wird bewusst neu entschieden. **Die Punkte 1–3 dieses ADR (vertikale Vollständigkeit, Materialisierungsregel, keine Scheinimplementierungen) gelten unverändert fort** und werden durch ADR-0019 nur verschärft.
 
 ## Geprüfte Alternativen
 

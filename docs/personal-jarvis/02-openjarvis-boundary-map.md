@@ -55,4 +55,4 @@ Die Baseline bleibt eingefroren; **keine automatischen Rebases, keine Pauschal-M
 
 ## §4 Verweise
 
-Abweichungsdetails: 18. Toolchain-Matrix: 15 §6 (AV-29). Kompositionsgrenze: 04.
+Abweichungsdetails: 18. Toolchain-Matrix: 15 §6 (AV-29). Kompositionsgrenze: 04. **Komponentenscharfe Übernahme des Reuse-Audits (feinere Einzelentscheidungen je Connector, Channel, Infrastruktur- und Persistenzbestandteil): [20](20-openjarvis-reuse-register.md) (ADR-0020, DEC-044).** Bei Konflikt zwischen dieser Bestandskarte (gröber) und dem Register 20 (feiner) gilt die Einzelentscheidung in 20.

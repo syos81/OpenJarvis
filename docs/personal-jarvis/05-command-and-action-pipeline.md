@@ -50,8 +50,9 @@ Jede zustandsändernde Capability-Operation durchläuft:
 Jeder Durchlauf trägt `initiation_context ∈ {user_direct, llm_assisted, automation, system}`:
 
 - **`user_direct` + vollständige Vorschau im Formular/Dialog:** Der bewusste Klick („Speichern", „Senden", „Änderung bestätigen") **ist selbst die explizite Bestätigung** — kein zweiter Dialog. Voraussetzung: Die UI-Aktion zeigt den vollständigen Effekt.
-- **`llm_assisted` / `automation` / `system`:** separate ausdrückliche Freigabe erforderlich (inline im Chat bzw. Freigabefläche). LLM-initiierte Intents parken in `pending_approval`; das Tool-Ergebnis an das Modell lautet „wartet auf Freigabe" — Ausführung erst nach menschlicher Aktion.
-- **R2:** immer Approval-Center mit dauerhaftem Intent — unabhängig vom Kontext (10 §2).
+- **`llm_assisted` / `system`:** separate ausdrückliche Freigabe erforderlich (inline im Chat bzw. Freigabefläche). LLM-initiierte Intents parken in `pending_approval`; das Tool-Ergebnis an das Modell lautet „wartet auf Freigabe" — Ausführung erst nach menschlicher Aktion.
+- **`automation`** (präzisiert 2026-07-31, ADR-0021, DEC-046): Ein Durchlauf, der von einer **vorab ausdrücklich genehmigten, gültigen Automationsregel (Automationsvertrag)** gedeckt ist, gilt als freigegeben und wird **ohne erneutes Approval je Ausführung** ausgeführt; das Ergebnis wird anschließend angezeigt (Aktionsstufe „vorab erlaubte Routineaktion"). Durchläufe **außerhalb** einer gültigen Regel — neu, geändert, abgelaufen, limitüberschreitend oder widerrufen — erfordern eine aktuelle ausdrückliche Freigabe wie `llm_assisted`. Genehmigung, Änderung und Widerruf einer Automationsregel sind selbst freigabepflichtig; jede Ausführung wird auditiert (10 §5) und läuft über den ApplicationCommandBus (AV-35).
+- **R2:** immer Approval-Center mit dauerhaftem Intent — unabhängig vom Kontext, auch bei einer Automationsregel (10 §2, AV-18).
 
 ## §6 Verifikationszustände
 

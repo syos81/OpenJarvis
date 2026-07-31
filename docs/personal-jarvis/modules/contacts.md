@@ -459,3 +459,27 @@ Es gilt 19 unverändert und vollständig. Zusätzlich modulspezifisch:
 Primärdokumente: 04 (Bootstrap/Ports), 05 (CommandBus/Pipeline), 06 (Datenhoheit), 07 (Persistenz/Migrationen), 08 (Adaptermodell, Capability-Grenzen), 09 (Auth/Credentials), 10 (Risiko/Approvals/Audit), 11 (Sync/Outboxes/Konflikte), 12 (Egress), 13 (Backup), 14 (UI/Lifecycle), 15 §7/§8 (Abnahme), 16 §2/§3/§4.1 (Modulkarte), 17 (Deferred Decisions), 18 (DEV-2/DEV-3/DEV-4/DEV-5), 19 (Definition of Done).
 ADRs: [ADR-0001](../../adr/ADR-0001-personal-runtime-facade.md), [ADR-0003](../../adr/ADR-0003-canonical-personal-database.md), [ADR-0005](../../adr/ADR-0005-command-bus-and-action-pipeline.md), [ADR-0006](../../adr/ADR-0006-risk-r0-r1-r2.md), [ADR-0007](../../adr/ADR-0007-transactional-outboxes.md), [ADR-0012](../../adr/ADR-0012-vertical-module-development.md), [ADR-0015](../../adr/ADR-0015-personal-integration-touchpoints.md), [ADR-0016](../../adr/ADR-0016-swift-contacts-bridge.md), [ADR-0018](../../adr/ADR-0018-dual-architecture-macos-support.md).
 Spike-Evidenz (historisch, unverändert), Einstiegspunkt: [contacts-bridge-arm64-phase-b-live-2026-07-28.md](../../testing/contacts-bridge-arm64-phase-b-live-2026-07-28.md) — die weiteren sechs Berichte sind in ADR-0016 verlinkt. Spike-Quellen (Referenz, kein Produktcode), Vertragsstand: `spikes/contacts-bridge-g3a/PROTOCOL.md` (im Repository, außerhalb des Doku-Baums).
+
+## §19 Acht blockierende Gates und Kontakte-Modulstatus (2026-07-31, DEC-050)
+
+*Ergänzung auf `jarvis/rebuild-v1`. Der laufende technische Umsetzungsstand des Moduls liegt auf dem Kontakte-Handoff-Branch; dessen Fortschreibung dieses Plans (u. a. §13.2, §15, §16) wird mit der Handoff-Integration (Gate 8) übernommen. Dieser Abschnitt ist der kanonische Gate-Register-Eintrag nach DEC-050 und ADR-0019.*
+
+**Kontakte ist das einzige aktive Fachmodul und nicht abgeschlossen.** Fertigmeldung und produktive Auslieferung mit Kontakte-Modul sind an **acht** getrennt geführte, sämtlich blockierende Gates gebunden:
+
+**Technische Releaseblocker (vier, voneinander unabhängig):**
+
+1. **DEV-1 — Telemetrie.** Externe PostHog-Analytics standardmäßig datenschutzkonform deaktivieren bzw. härten (ADR-0013). Audit-Befund: Code-Default weiterhin aktiv mit hartkodiertem Host/Key (WIDERSPRÜCHLICH).
+2. **DEV-2 — Tauri-Capabilities.** Shell- und Kommandozugriffe der Webview auf die erforderlichen Rechte begrenzen (ADR-0014). Audit-Befund: pauschale `shell:allow-*`-Rechte und `run_jarvis_command` unverändert (§1 Nr. 6).
+3. **CI-Sidecar.** Den Kontakte-Sidecar in CI bauen, korrekt einbinden und nach dem Bundle-Aufbau neu signieren; der `TAURI_CONFIG`-Override in `.github/workflows/desktop.yml:256` entfernt ihn heute aus jedem Release (§15-Befund).
+4. **Updater.** Auf das eigene Personal-Jarvis-Repository und die eigene Releasekette umstellen; heute zeigt der Updater auf das Upstream-Repository (technisch unabhängig von Gate 3).
+
+**Plattform- und Kontakte-Modulgates (vier):**
+
+5. **ARM64-Evidenz.** Überprüfbare, committed und möglichst maschinenlesbare Nachweise für Build, Packaging, Signierung und produktiven Livelauf. Aktueller Stand: der arm64-Read-/Sync-Pfad ist **DOKUMENTIERT** (Prosa-Protokoll `docs/testing/contacts-arm64-read-sync-validation-2026-07-31.md`, handoff-only), nicht unmittelbar nachgewiesen; das arm64-Sidecar-Binärartefakt ist lokal vorhanden, aber nicht committed.
+6. **Intel-x86_64-Abnahme.** Vollständige produktive Abnahme auf dem Intel-MacBook (macOS 12.7.6): Build, Packaging, Signierung und produktiver Livelauf. **NICHT NACHGEWIESEN**; kein x86_64-Artefakt im Baum. Intel ist gleichwertig, **kein** Kompatibilitätstest (ADR-0018).
+7. **Recovery der 116 Tombstones.** Sichere Klärung bzw. Recovery der lokal tombstoneten Spiegelkontakte; der Recovery-Pfad liegt handoff-only vor.
+8. **Handoff-Integration.** Kontrollierte Übernahme von `handoff/contacts-read-flow-2026-07-29` nach `jarvis/rebuild-v1`.
+
+**Offene Kontakte-Scope-/Abnahmepunkte (aus dem kanonischen Audit; nur belegte Ergebnisse):** Provider-Mutationen (Create/Update/Delete; Sidecar heute `not_implemented`) · Mehrcontainer- und Unified-Contacts-Test · vollständige TCC-Persistenzmatrix (Rebuild, Versions-Bump, Verschieben, Quarantäne) · Suche und kontrollierte Projektion (Zielkomponente Z-1, Register 20 §5 — noch nicht implementiert) · UI-Abnahme je Architektur · Fehler- und Wiederherstellungsfälle · Export und Backup-/Restore-Roundtrip je Architektur · Deaktivierung/Umleitung des alten OpenJarvis-Apple-Contacts-Connectors (C-01 REMOVE, Register 20 §2).
+
+Der Modulabschluss folgt zusätzlich der Matrix 15 §8 (beide Spalten `PASS`) und dem vollständigen Katalog 19 §11. **DEC-D17 (Auslieferungsformat) bleibt offen und wird nicht vorweggenommen.**
