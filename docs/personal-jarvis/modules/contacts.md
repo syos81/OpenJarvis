@@ -426,16 +426,32 @@ Legende: **N** neu · **Ä** vorhandene Datei ändern · **W** unverändert wied
 | Intel-SDK-Stand (Swift 5.7.2 / SDK 13.1) | B | beide Contacts-Eigenschaften sind dort vorhanden (in ADR-0018 belegt); Build-Assertion auf `minos 12.3` |
 | macOS-12.3-Kompatibilität | A/E | `minimumSystemVersion` korrigieren; Abnahme auf einer 12.3-Installation ist Teil von Gate E |
 
-**Abgenommen am 2026-07-31 (arm64):** Der Lese- und Sync-Pfad einschliesslich Auditierung und Neustart ist auf Apple Silicon **produktiv abgenommen** — Initialimport über zwei Container (115 Kontakte, 0 Tombstones), vier Delta-Audit-Runs, Cursorfortsetzung über einen echten Anwendungsneustart, keine unerwarteten Voll-Diffs, kein autonomer Sync. Ein künstlicher Provider-`DELETE`-Livetest ist **nicht** Voraussetzung des Abschlusses; der Pfad ist automatisiert abgedeckt. Evidenz: [`contacts-arm64-read-sync-validation-2026-07-31.md`](../../testing/contacts-arm64-read-sync-validation-2026-07-31.md). Die Aussage gilt ausschliesslich für arm64.
+**Abgenommen am 2026-07-31 — beide Architekturen.** Der Lese- und Sync-Pfad einschliesslich Auditierung und Neustart ist auf **arm64 und x86_64** produktiv abgenommen. Damit sind die beiden in ADR-0018 festgelegten Produktionsziele gleichwertig auf echter Hardware validiert; Mehrcontainer, Vollabgleich, Delta, Neustart, Cursorfortsetzung und Auditspur sind auf jeder von beiden belegt.
+
+| | arm64 (Apple Silicon) | x86_64 (Intel) |
+|---|---|---|
+| Vollaufnahme | Initialimport, 2 Container, 115 Kontakte | Wiederherstellung (116 reaktiviert) + Voll-Diff, 2 Container, 117 Kontakte |
+| Tombstones entstanden | 0 | 0 |
+| Delta-Audit-Runs | 4 | 4 |
+| Ereignisse je Delta-Lauf | 0 | 0 |
+| Cursorfortsetzung über echten Neustart | erfolgreich | erfolgreich |
+| unerwartete Voll-Diffs | keine | keine |
+| autonomer Sync | keiner | keiner |
+| Evidenz | [`…arm64…`](../../testing/contacts-arm64-read-sync-validation-2026-07-31.md) | [`…x86_64…`](../../testing/contacts-x86_64-read-sync-validation-2026-07-31.md) |
+
+**Die Intel-Wiederherstellung ist abgeschlossen:** die 116 am 2026-07-30 irrtümlich lokal gelöschten Spiegelkontakte sind auf **denselben** lokalen Kennungen reaktiviert, ohne Duplikate; die zugehörigen Tombstone-Historien sind als abgeglichen markiert statt gelöscht. Bei Apple war nichts verändert.
+
+Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architekturen Voraussetzung des Abschlusses; der Pfad ist automatisiert abgedeckt.
 
 **Blockiert weiterhin ausschließlich den Modulabschluss:**
 
-1. **Intel-x86_64 — Recovery** der 116 lokal tombstoneten Spiegelkontakte. Bei Apple ist nichts verändert; die lokale Löschung war unbegründet, nicht der Provider.
-2. **Intel — Delta- und Neustartprüfung nach dem Recovery**, gleichwertig zur arm64-Abnahme.
-3. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen, jeweils mit Vorschau, Freigabe und ausdrücklicher Ausführung. Bis dahin bleibt der Sidecar bei `not_implemented`.
+1. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen. Bis dahin bleibt der Sidecar bei `not_implemented`.
+2. **Vorschau-, Freigabe- und Ausführungsablauf** für diese Mutationen — jede Änderung am Provider braucht eine sichtbare Vorschau, eine ausdrückliche Freigabe und einen getrennten Ausführungsschritt.
+3. **Datenschutz-Härtung des `SyncStatusOut`-Vertrags** — er gibt `container_identifier` roh zurück, obwohl die Oberfläche das Feld nicht typisiert und nie anzeigt. Ein Vertrag soll nicht mehr herausgeben, als sein Verbraucher braucht; die Kennung gehört maskiert oder gar nicht hinein. Befund aus der x86_64-Abnahme (§8 C dort).
 4. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
-5. **Finaler Cross-Architecture-Abschluss** — Mehrcontainer-/Unified-Test, vollständige TCC-Persistenzmatrix, Backup-/Restore-Roundtrip je Architektur.
-6. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
+5. **Abschliessender Cross-Architecture-Test der Mutationen** — sobald sie existieren, auf beiden Architekturen auf echter Hardware.
+6. **Backup-/Restore-Roundtrip je Architektur**, soweit als Modulabschluss vorgesehen.
+7. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 
