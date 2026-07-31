@@ -96,7 +96,12 @@ def test_containerzahlen_werden_maskiert_protokolliert(service, module):
     service.initial_import(CONTAINER)
     service.full_diff_account([CONTAINER])
 
-    (spur,) = [z for z in container_spuren(module) if z["attempt"] == 1]
+    # Seit alle Lesepfade auditiert werden, schreibt auch der Initialimport
+    # eine Containerzeile. Gemeint ist hier die des kontoweiten Laufs.
+    konto = next(z["run_id"] for z in laeufe(module)
+                 if z["mode"] == "full_diff_account")
+    (spur,) = [z for z in container_spuren(module)
+               if z["attempt"] == 1 and z["run_id"] == konto]
     assert spur["container_ref"] == container_ref(CONTAINER)
     assert CONTAINER not in spur["container_ref"]
     assert spur["reported_count"] == 2 and spur["received_count"] == 2

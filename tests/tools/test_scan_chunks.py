@@ -66,7 +66,14 @@ def test_scan_empty_store(tmp_path: Path) -> None:
 
 
 def test_registered() -> None:
+    # Idempotent, weil beide Registrierwege moeglich sind: importiert dieser
+    # Test das Modul als erster im Worker, registriert bereits der Dekorator;
+    # war es schon importiert, hat die autouse-clear-Fixture die Eintragung
+    # entfernt und sie muss hier nachgeholt werden. Ein unbedingtes
+    # `register_value` scheiterte im ersten Fall mit „already has an entry" —
+    # und welcher Fall eintritt, entscheidet allein die xdist-Verteilung.
     from openjarvis.tools.scan_chunks import ScanChunksTool
 
-    ToolRegistry.register_value("scan_chunks", ScanChunksTool)
+    if not ToolRegistry.contains("scan_chunks"):
+        ToolRegistry.register_value("scan_chunks", ScanChunksTool)
     assert ToolRegistry.contains("scan_chunks")

@@ -24,7 +24,25 @@ __all__ = [
 
 
 class SyncError(PersonalJarvisError):
-    """Wurzel aller Sync-Fehler."""
+    """Wurzel aller Sync-Fehler.
+
+    Neben der Klasse trägt ein Fehler optional eine **stabile Kennung**. Sie
+    unterscheidet Fälle, die sich dieselbe Klasse teilen: ein `FullDiffRequired`
+    entsteht aus einem untragfähigen Cursor, einem verschwundenen Container
+    oder einem `dropEverything` des Providers — für die Nachvollziehbarkeit
+    sind das drei verschiedene Sachverhalte, für den Typ nur einer.
+
+    Die Kennung stammt aus geschlossener Menge, ist PII-frei und wird in die
+    Auditspur geschrieben. Ohne ausdrückliche Kennung bleibt der Klassenname
+    die beste verfügbare Auskunft.
+    """
+
+    code = ""
+
+    def __init__(self, message: str, *, code: str = "") -> None:
+        super().__init__(message)
+        if code:
+            self.code = code
 
 
 class AuthorizationRequired(SyncError):

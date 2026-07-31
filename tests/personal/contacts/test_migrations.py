@@ -376,3 +376,97 @@ def test_keine_binaerspalte_fuer_thumbnails(migrated_factory):
     spalten = {r[1]: r[2] for r in conn.execute("PRAGMA table_info(contacts)")}
     assert spalten["thumbnail_blob_ref"] == "TEXT"
     assert not any(t.upper() == "BLOB" for t in spalten.values())
+
+
+# ── Auditspur: Bestand einer bereits angewendeten 0005 ───────────────────────
+#
+# Migration 0005 ist auf der produktiven ARM64-Datenbank angewendet. Sie darf
+# deshalb nicht mehr inhaltlich verändert werden — eine nachträglich
+# umgeschriebene Anweisung liefe dort nie, und die Prüfsumme im Ledger
+# widerspräche der Datei. Diese Tests halten beides fest.
+def test_migration_0005_bleibt_unveraendert():
+    """Prüfsumme der ausgelieferten Datei gegen den festgeschriebenen Wert.
+
+    Der Wert stammt aus der Definition selbst — geprüft wird, dass Inhalt und
+    Prüfsumme zueinander passen und die Anweisungen rein additiv sind.
+    """
+    from personaljarvis.base.db.migrations.versions.m0005_sync_audit import (
+        MIGRATION as M0005,
+    )
+
+    assert M0005.migration_id == "0005"
+    assert M0005.schema_version == 5
+    assert M0005.depends_on == ("0004",)
+    # Rein additiv: jede Anweisung legt an, keine verändert Bestand. Geprüft
+    # wird das führende Verb, nicht ein Teilstring — „DELETE" steht sonst
+    # schon im Spaltennamen `events_delete`.
+    for anweisung in M0005.statements:
+        oben = anweisung.strip().upper()
+        assert oben.startswith("CREATE"), anweisung[:60]
+        for verboten in ("DROP TABLE", "DROP INDEX", "ALTER TABLE",
+                         "DELETE FROM", "UPDATE CONTACTS"):
+            assert verboten not in oben, f"{verboten} in {anweisung[:60]}"
+    # Inhaltsgebundene Prüfsumme. Sie ist auf der produktiven ARM64-Datenbank
+    # bereits im Ledger festgeschrieben: ändert sich die Datei, widerspricht
+    # der Ledgereintrag dort der Definition und der Start bricht fail-closed ab.
+    assert M0005.checksum == (
+        "faa8931f6cc1c6d6566389c29b33ea0a536f447b915e822a82c185a354c86998")
+
+
+def test_die_audit_modi_decken_alle_laufarten_ab():
+    """Die CHECK-Menge muss jede produktive Laufart aufnehmen können.
+
+    Sonst scheiterte ein auditierter Lauf erst zur Laufzeit an der Datenbank —
+    und zwar genau der, den niemand erwartet hat.
+    """
+    from personaljarvis.base.db.migrations.versions.m0005_sync_audit import (
+        MIGRATION as M0005,
+    )
+    from personaljarvis.contacts.sync import SyncRunKind
+
+    runs = next(s for s in M0005.statements if "contacts_sync_audit (" in s)
+    for kind in SyncRunKind:
+        assert f"'{kind.value}'" in runs, kind.value
+    assert "'recovery'" in runs
+    for ausgang in ("committed", "rolled_back", "aborted", "running"):
+        assert f"'{ausgang}'" in runs, ausgang
+
+
+def test_upgrade_einer_datenbank_mit_bereits_angewendeter_0005(tmp_path):
+    """Der produktive Fall: 0005 liegt schon, alles Weitere kommt obendrauf.
+
+    Ein vorhandener Auditlauf muss das Upgrade unverändert überleben — er ist
+    die Spur, wegen der die Tabelle existiert.
+    """
+    from personaljarvis.base.db.factory import ConnectionFactory
+
+    pfad = tmp_path / "bestand" / "jarvis.db"
+    f = ConnectionFactory(pfad)
+    f.ensure_ready()
+    try:
+        bis_0005 = tuple(m for m in ALL_MIGRATIONS if m.migration_id <= "0005")
+        MigrationRunner(f, bis_0005).run()
+
+        conn = f.connect()
+        conn.execute(
+            "INSERT INTO contacts_sync_audit ("
+            " run_id, workspace_id, provider_account_id, mode, container_count,"
+            " started_at, completed_at, outcome, cursor_before_present,"
+            " cursor_after_present, full_diff_required, drop_everything_seen,"
+            " suspicious_empty) "
+            "VALUES ('run-alt','ws','apple-local','full_diff_account',2,"
+            " '2026-07-31T08:15:13+00:00','2026-07-31T08:15:13+00:00',"
+            " 'committed',1,1,0,0,0)")
+        conn.commit()
+
+        bericht = MigrationRunner(f, ALL_MIGRATIONS).run()
+        assert "0005" in bericht.already_applied
+
+        zeile = f.connect().execute(
+            "SELECT * FROM contacts_sync_audit WHERE run_id = 'run-alt'"
+        ).fetchone()
+        assert zeile is not None, "der bestehende Auditlauf ging verloren"
+        assert zeile["mode"] == "full_diff_account"
+        assert zeile["outcome"] == "committed"
+    finally:
+        f.close()

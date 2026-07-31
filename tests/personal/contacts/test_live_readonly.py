@@ -582,9 +582,16 @@ def test_serve_start_startet_keinen_sidecar_prozess(db_path, monkeypatch):
                         lambda self: gestartet.append(1))
 
     bootstrap = PersonalBootstrap(db_path)
-    bootstrap.start()
+    runtime = bootstrap.start()
     try:
         assert gestartet == [], "der Bootstrap hat einen Sidecar gestartet"
+        # Seit alle Lesepfade auditiert werden, ist die Auditspur der
+        # unbestechlichste Zeuge: ein Lauf, den niemand ausgeloest hat,
+        # stuende hier.
+        with runtime.contacts.unit_of_work() as uow:
+            laeufe = uow.execute(
+                "SELECT COUNT(*) FROM contacts_sync_audit").fetchone()[0]
+        assert laeufe == 0, "der Bootstrap hat einen Sync-Lauf erzeugt"
     finally:
         bootstrap.stop()
 
@@ -608,6 +615,10 @@ def test_seitenaufruf_fragt_nichts_ab(module, kopf, monkeypatch):
     assert beruehrt == []
     assert bridge.starts == 0, "keine dieser Routen startet einen Sidecar"
     assert not bridge.store_beruehrt
+    with module.unit_of_work() as uow:
+        laeufe = uow.execute(
+            "SELECT COUNT(*) FROM contacts_sync_audit").fetchone()[0]
+    assert laeufe == 0, "ein Seitenaufruf hat einen Sync-Lauf erzeugt"
 
 
 def test_nur_drei_routen_koennen_ueberhaupt_einen_sidecar_starten(module):

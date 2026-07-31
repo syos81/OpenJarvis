@@ -372,6 +372,10 @@ class ContactsSyncService:
     def _snapshot_run(self, container_identifier: str,
                       kind: SyncRunKind) -> SyncRunResult:
         audit: list[str] = [f"sync.{kind.value}.started"]
+        spur = self._neue_spur(kind, container_identifier)
+        vorher = self._load_state(container_identifier)
+        spur.cursor_before_present = bool(vorher is not None
+                                          and vorher.cursor_token)
         try:
             self._require_authorized()
 
@@ -390,6 +394,11 @@ class ContactsSyncService:
             # 2. Vollständige Enumeration.
             enumeration = self._client.enumerate(
                 container_identifier=container_identifier)
+            # Die Zaehlwerte werden festgehalten, **bevor** ueber sie geurteilt
+            # wird: gerade der verworfene Lauf soll zeigen, was ankam.
+            spur.add_container(self._pruefe(
+                container_identifier, enumeration, versuch=1,
+                vorher=self._local_count(container_identifier)))
             if not enumeration.usable_as_delete_basis:
                 raise IncompleteEnumeration(
                     "Enumeration ist unvollständig oder die Zählung weicht ab; "
@@ -403,16 +412,18 @@ class ContactsSyncService:
             # Ein gescheiterter Lauf hinterlaesst keinen Teilbestand: es wurde
             # bis hierhin ausschliesslich gelesen.
             return self._failed(kind, container_identifier, exc, audit,
-                                requires_full_diff=True)
+                                requires_full_diff=True, spur=spur)
 
         # 3. Schreiben — genau eine Transaktion, genau ein Abschluss.
         return self._persist_snapshot(container_identifier, kind, enumeration,
-                                      baseline_token, key_set_version, audit)
+                                      baseline_token, key_set_version, audit,
+                                      spur)
 
     def _persist_snapshot(self, container_identifier: str, kind: SyncRunKind,
                           enumeration: EnumerationResult,
                           baseline_token: str | None, key_set_version: int,
-                          audit: list[str]) -> SyncRunResult:
+                          audit: list[str],
+                          spur: SyncAuditRecord) -> SyncRunResult:
         jetzt = utc_now()
         imported = updated = unchanged = 0
 
@@ -444,6 +455,13 @@ class ContactsSyncService:
                                mode=(SyncMode.DELTA if baseline_token
                                      else SyncMode.FULL_DIFF_REQUIRED),
                                circuit_state=CircuitState.CLOSED, updated_at=jetzt)
+
+            # Dieselbe Transaktion wie Bestand und Cursor.
+            spur.imported, spur.updated, spur.unchanged = imported, updated, unchanged
+            spur.tombstoned = 0
+            spur.cursor_after_present = bool(baseline_token)
+            spur.full_diff_required = not baseline_token
+            SyncAuditWriter(uow).write(spur.finish(OUTCOME_COMMITTED))
 
         if baseline_token:
             audit.append("sync.cursor.advanced")
@@ -561,19 +579,24 @@ class ContactsSyncService:
         """Inkrementeller Lauf über die Änderungshistorie des Providers."""
         audit: list[str] = ["sync.delta.started"]
         kind = SyncRunKind.DELTA
+        spur = self._neue_spur(SyncRunKind.DELTA, container_identifier)
         try:
             self._require_authorized()
             zustand = self._load_state(container_identifier)
             cursor = derive_cursor_state(zustand)
+            spur.cursor_before_present = bool(
+                zustand is not None and zustand.cursor_token)
             if zustand is None or cursor is not CursorState.ACTIVE:
                 raise FullDiffRequired(
-                    f"Der Cursor ist nicht tragfähig (Zustand: {cursor.value})")
+                    f"Der Cursor ist nicht tragfähig (Zustand: {cursor.value})",
+                    code="cursor_unusable")
             assert zustand.cursor_token is not None
 
             container = self._client.containers()
             if not any(c.identifier == container_identifier for c in container):
                 raise FullDiffRequired(
-                    "Der Container ist im Providerinventar nicht mehr enthalten")
+                    "Der Container ist im Providerinventar nicht mehr enthalten",
+                    code="container_missing")
             # Bei genau einem Container ist jedes Ereignis eindeutig zuzuordnen;
             # sonst braucht ein Ereignis eine ausdrückliche Containerangabe.
             eindeutig = len(container) == 1
@@ -587,13 +610,19 @@ class ContactsSyncService:
                         "Der gespeicherte Cursor wurde abgelehnt") from exc
                 raise
 
+            # Die Ereignisse werden gezaehlt, **bevor** ueber sie geurteilt
+            # wird: auch ein abgebrochener Lauf soll zeigen, was hereinkam.
+            self._zaehle_ereignisse(spur, aenderungen.events)
+
             if aenderungen.key_set_version != int(zustand.key_set_version or -1):
                 raise KeySetVersionChanged(
                     "Der Schlüsselsatz des Providers hat gewechselt")
             if aenderungen.requires_full_diff:
                 audit.append("sync.delta.drop_everything")
+                spur.drop_everything_seen = True
                 raise FullDiffRequired(
-                    "Der Provider hat die Historie verworfen (dropEverything)")
+                    "Der Provider hat die Historie verworfen (dropEverything)",
+                    code="drop_everything")
             for ereignis in aenderungen.events:
                 if ereignis.type is ChangeEventType.OTHER:
                     raise UnknownChangeEvent(
@@ -603,16 +632,48 @@ class ContactsSyncService:
             # Ein gescheiterter Lauf hinterlaesst keinen Teilbestand: es wurde
             # bis hierhin ausschliesslich gelesen.
             return self._failed(kind, container_identifier, exc, audit,
-                                requires_full_diff=True)
+                                requires_full_diff=True, spur=spur)
 
         return self._apply_events(container_identifier, aenderungen.events,
                                   aenderungen.current_token,
-                                  aenderungen.key_set_version, eindeutig, audit)
+                                  aenderungen.key_set_version, eindeutig, audit,
+                                  spur)
+
+    def _neue_spur(self, kind: SyncRunKind,
+                   container_identifier: str) -> SyncAuditRecord:
+        """Eine Spur je fachlichem Lauf — angelegt, bevor irgendetwas geschieht.
+
+        Ein Lauf, der erst beim Erfolg eine Spur bekaeme, waere genau dann
+        unsichtbar, wenn er interessant wird.
+        """
+        return SyncAuditRecord(
+            workspace_id=self._workspace_id,
+            provider_account_id=self._provider_account_id,
+            mode=kind.value, container_count=1)
+
+    @staticmethod
+    def _zaehle_ereignisse(spur: SyncAuditRecord,
+                           events: Sequence[ChangeEvent]) -> None:
+        """Aggregiert die Ereignisarten — Zahlen, nie Identifier."""
+        for ereignis in events:
+            if ereignis.type is ChangeEventType.ADD:
+                spur.events_add += 1
+            elif ereignis.type is ChangeEventType.UPDATE:
+                spur.events_update += 1
+            elif ereignis.type is ChangeEventType.DELETE:
+                spur.events_delete += 1
+            else:
+                # `dropEverything` und Unbekanntes. Ersteres traegt zusaetzlich
+                # das eigene Kennzeichen `drop_everything_seen`.
+                spur.events_other += 1
+                if ereignis.type is ChangeEventType.DROP_EVERYTHING:
+                    spur.drop_everything_seen = True
 
     def _apply_events(self, container_identifier: str,
                       events: Sequence[ChangeEvent], current_token: str,
                       key_set_version: int, eindeutig: bool,
-                      audit: list[str]) -> SyncRunResult:
+                      audit: list[str],
+                      spur: SyncAuditRecord) -> SyncRunResult:
         jetzt = utc_now()
         imported = updated = unchanged = tombstoned = verarbeitet = 0
 
@@ -675,6 +736,14 @@ class ContactsSyncService:
                                key_set_version=str(key_set_version),
                                mode=SyncMode.DELTA,
                                circuit_state=CircuitState.CLOSED, updated_at=jetzt)
+
+            # Dieselbe Transaktion wie Bestand und Cursor. Ein `committed`, das
+            # einen Rollback ueberlebte, behauptete einen Lauf, den es nicht
+            # gab — genau die Art Aussage, wegen der diese Spur existiert.
+            spur.imported, spur.updated = imported, updated
+            spur.unchanged, spur.tombstoned = unchanged, tombstoned
+            spur.cursor_after_present = bool(current_token)
+            SyncAuditWriter(uow).write(spur.finish(OUTCOME_COMMITTED))
 
         audit.extend(("sync.cursor.advanced", "sync.delta.succeeded"))
         return SyncRunResult(
@@ -831,12 +900,17 @@ class ContactsSyncService:
     # ── Fehlerabschluss ─────────────────────────────────────────────────────
     def _failed(self, kind: SyncRunKind, container_identifier: str,
                 exc: Exception, audit: list[str], *,
-                requires_full_diff: bool) -> SyncRunResult:
+                requires_full_diff: bool,
+                spur: SyncAuditRecord | None = None) -> SyncRunResult:
         """Beendet einen Lauf ohne Teilbestand.
 
         Der Modus wird nur fortgeschrieben, wenn bereits ein Zustand existiert:
         ohne vorherigen Lauf gibt es keinen `key_set_version`, und eine Zeile
         zu erfinden hiesse, einen nie erfolgten Import zu behaupten.
+
+        Die Spur wird in einer **eigenen** kurzen Arbeitseinheit festgehalten:
+        der Lauf hat fachlich nichts geschrieben, aber *dass* er abbrach, ist
+        genau die Auskunft, die am 2026-07-30 fehlte.
         """
         fehlerklasse = type(exc).__name__
         audit.append(f"sync.{kind.value}.failed")
@@ -859,6 +933,16 @@ class ContactsSyncService:
                     updated_at=jetzt))
             cursor = CursorState.FULL_DIFF_REQUIRED
             audit.append("sync.mode.full_diff_required")
+
+        if spur is not None:
+            spur.error_class = fehlerklasse
+            spur.error_code = self._safe_detail(exc)
+            spur.full_diff_required = requires_full_diff
+            # Kein Cursorfortschritt bei einem Abbruch — und wo der Modus auf
+            # `full_diff_required` ging, ist der alte Cursor sogar verworfen.
+            spur.cursor_after_present = False
+            with self._persistence.unit_of_work() as uow:
+                SyncAuditWriter(uow).write(spur.finish(OUTCOME_ABORTED))
 
         return SyncRunResult(
             kind=kind, succeeded=False, cursor_state=cursor,
@@ -883,4 +967,8 @@ class ContactsSyncService:
             return f"bridge:{exc.code}"
         if isinstance(exc, BridgeProcessError):
             return f"process:{exc.failure_class}"
+        # Eine ausdrueckliche Kennung unterscheidet Faelle, die sich eine
+        # Klasse teilen (etwa die drei Ursachen von `FullDiffRequired`).
+        if isinstance(exc, SyncError) and exc.code:
+            return exc.code
         return type(exc).__name__
