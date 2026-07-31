@@ -447,11 +447,14 @@ Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architektu
 
 1. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen. Bis dahin bleibt der Sidecar bei `not_implemented`.
 2. **Vorschau-, Freigabe- und Ausführungsablauf** für diese Mutationen — jede Änderung am Provider braucht eine sichtbare Vorschau, eine ausdrückliche Freigabe und einen getrennten Ausführungsschritt.
-3. **Datenschutz-Härtung des `SyncStatusOut`-Vertrags** — er gibt `container_identifier` roh zurück, obwohl die Oberfläche das Feld nicht typisiert und nie anzeigt. Ein Vertrag soll nicht mehr herausgeben, als sein Verbraucher braucht; die Kennung gehört maskiert oder gar nicht hinein. Befund aus der x86_64-Abnahme (§8 C dort).
-4. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
-5. **Abschliessender Cross-Architecture-Test der Mutationen** — sobald sie existieren, auf beiden Architekturen auf echter Hardware.
-6. **Backup-/Restore-Roundtrip je Architektur**, soweit als Modulabschluss vorgesehen.
-7. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
+3. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
+4. **Abschliessender Cross-Architecture-Test der Mutationen** — sobald sie existieren, auf beiden Architekturen auf echter Hardware.
+5. **Backup-/Restore-Roundtrip je Architektur**, soweit als Modulabschluss vorgesehen.
+6. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
+
+**Erledigt am 2026-07-31: Datenschutz-Härtung des `SyncStatusOut`-Vertrags.** `GET /sync/status` gibt keine rohen Konto- oder Containerkennungen mehr heraus, sondern `provider_type`, `account_ref` und `container_ref`; `has_cursor` heisst `cursor_present`, dazu kommen `requires_full_diff` und `last_successful_run_at`. Die Maskierung ist dieselbe Bildung wie in der Auditspur (`sync.audit.container_ref`), damit ein `C-…` in Bericht, Datenbank und API denselben Container bezeichnet. Persistenz, Sync und Sidecar arbeiten unverändert mit den echten Kennungen — gehärtet ist ausschliesslich der Transport. Befund aus der x86_64-Abnahme (§8 C dort).
+
+**Noch offen an diesem Vertrag:** ein stabiler technischer Fehlercode, `retryable` und Aggregatzahlen je Zeile. `contacts_sync_state` hat dafür keine Spalten; sie zu ergänzen verlangte eine Migration **und** einen Schreibpfad in der Sync-Logik. Beides war für die Härtung nicht erforderlich und bleibt eine eigene Entscheidung.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 

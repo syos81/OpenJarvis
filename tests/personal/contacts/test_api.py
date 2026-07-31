@@ -291,7 +291,7 @@ def test_capabilities_meldet_notizen_als_nicht_verfuegbar(client):
 def test_sync_status_route_ohne_token(client, module):
     _container_bekannt(module)
     body = client.get(f"{PREFIX}/sync/status", headers=_kopf()).json()
-    assert body[0]["has_cursor"] is True
+    assert body[0]["cursor_present"] is True
     assert "GEHEIM" not in str(body)
     assert "cursor_token" not in body[0]
 

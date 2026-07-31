@@ -215,16 +215,21 @@ export interface SyncRun {
 /**
  * Sync-Zustand, wie ihn die Oberfläche braucht.
  *
- * Der Server liefert mehr Felder — Konto- und Containerkennung,
- * `key_set_version`, `circuit_state`. Sie werden hier bewusst **nicht**
- * typisiert und damit auch nicht benutzt: was nicht im Typ steht, landet
- * nicht im UI-State und kann nicht versehentlich angezeigt werden.
+ * Der Server liefert mehr Felder — `account_ref`, `container_ref`,
+ * `provider_type`, `key_set_version`, `circuit_state`. Sie werden hier
+ * bewusst **nicht** typisiert und damit auch nicht benutzt: was nicht im Typ
+ * steht, landet nicht im UI-State und kann nicht versehentlich angezeigt
+ * werden.
+ *
+ * Rohe Konto- oder Containerkennungen liefert der Server seit dem
+ * 2026-07-31 gar nicht mehr; diese zweite Schranke bleibt trotzdem.
  */
 export interface SyncStatus {
   mode: string;
-  has_cursor: boolean;
+  cursor_present: boolean;
   cursor_taken_at: string | null;
   last_full_diff_at: string | null;
+  requires_full_diff: boolean;
   updated_at: string;
 }
 

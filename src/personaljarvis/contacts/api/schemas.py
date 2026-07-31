@@ -262,14 +262,35 @@ class ReconcileOut(_Strict):
 
 
 class SyncStatusOut(_Strict):
-    provider_account_id: str
-    container_identifier: str
+    """Sync-Zustand je Konto × Container — **ohne** rohe Providerkennungen.
+
+    Bis zum 2026-07-31 standen hier `provider_account_id` und
+    `container_identifier` im Klartext, also eine Apple-interne Kontoidentität
+    in jeder Antwort, jedem Log und jedem Screenshot. Gebraucht wurde davon
+    nie der Wert, sondern nur die Unterscheidbarkeit der Zeilen — und die
+    leisten `account_ref` und `container_ref` (siehe `api.redaction`).
+
+    Was hier nie stehen darf: rohe Provider- oder Containerkennungen, Cursor-
+    oder Change-History-Token, Dateipfade, Kontaktwerte. `cursor_taken_at` ist
+    ein Zeitstempel, kein Token.
+    """
+
+    #: Stabile Gattung statt Kontokennung, z. B. `apple_contacts`.
+    provider_type: str
+    account_ref: str
+    container_ref: str
     mode: str
     circuit_state: str
     key_set_version: str
-    has_cursor: bool
+    cursor_present: bool
     cursor_taken_at: str | None = None
     last_full_diff_at: str | None = None
+    #: Letzter Lauf, der den Zustand fortgeschrieben hat. Beide Quellstempel
+    #: werden ausschließlich nach Erfolg gesetzt.
+    last_successful_run_at: str | None = None
+    #: Spiegelt die Bedingung aus `sync.state.derive_cursor_state`: alles
+    #: außer `CursorState.ACTIVE` verlangt einen Voll-Diff.
+    requires_full_diff: bool = False
     updated_at: str
 
 

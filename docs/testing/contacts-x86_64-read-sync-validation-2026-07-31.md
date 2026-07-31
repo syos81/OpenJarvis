@@ -212,10 +212,11 @@ Container-Identifier** im Klartext.
   Telefonnummern, E-Mail-Adressen oder sonstigen Kontaktinhalte.
 * Die interne Auditspur blieb davon unberührt und enthält weiterhin nur
   maskierte Referenzen.
-* **Offene Härtung:** Der öffentliche `SyncStatusOut`-Vertrag gibt
-  `container_identifier` roh zurück, obwohl die Oberfläche das Feld nicht
-  typisiert und nie anzeigt. Ein Vertrag sollte nicht mehr herausgeben, als
-  sein Verbraucher braucht. Aufgenommen in
+* **Härtung, erledigt am 2026-07-31:** Der öffentliche `SyncStatusOut`-Vertrag
+  gab `container_identifier` und `provider_account_id` roh zurück, obwohl die
+  Oberfläche beide Felder nicht typisiert und nie angezeigt hat. Er gibt
+  stattdessen jetzt `provider_type`, `account_ref` und `container_ref` heraus;
+  die Maskierung ist dieselbe wie in der Auditspur. Siehe
   `docs/personal-jarvis/modules/contacts.md` §15.
 
 ## 9. Abnahmeaussage

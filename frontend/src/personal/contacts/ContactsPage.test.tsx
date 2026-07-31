@@ -262,6 +262,40 @@ describe('Kontaktdetail', () => {
 });
 
 // ═══ Berechtigung ═══════════════════════════════════════════════════════════
+describe('Sync-Status ohne rohe Kennungen', () => {
+  // Der Server liefert seit dem 2026-07-31 nur noch maskierte Kürzel. Die
+  // Oberfläche braucht davon einzig den Zeitstempel — dieser Test hält beides
+  // fest: dass sie mit dem gehärteten Vertrag arbeitet und dass kein Kürzel
+  // im sichtbaren Text landet.
+  const gehaertet = {
+    mode: 'delta',
+    cursor_present: true,
+    cursor_taken_at: '2026-07-31T09:00:00+00:00',
+    last_full_diff_at: null,
+    requires_full_diff: false,
+    updated_at: '2026-07-31T11:30:00+00:00',
+  };
+
+  it('zeigt den letzten Abgleich aus dem gehärteten Vertrag', async () => {
+    mock.getSyncStatus.mockResolvedValue([gehaertet]);
+    await seiteRendern();
+    expect(await screen.findByText(/Zuletzt abgeglichen/)).toBeInTheDocument();
+  });
+
+  it('zeigt weder Kürzel noch Providerkennung an', async () => {
+    mock.getSyncStatus.mockResolvedValue([
+      { ...gehaertet, account_ref: 'A-9f2c11', container_ref: 'C-1b3d99',
+        provider_type: 'apple_contacts', key_set_version: 'v1',
+        circuit_state: 'closed' },
+    ]);
+    await seiteRendern();
+    const text = document.body.textContent ?? '';
+    expect(text).not.toContain('C-1b3d99');
+    expect(text).not.toContain('A-9f2c11');
+    expect(text).not.toContain('ABAccount');
+  });
+});
+
 describe('Berechtigung', () => {
   it('fragt beim Öffnen der Seite nur den Status ab', async () => {
     await seiteRendern();

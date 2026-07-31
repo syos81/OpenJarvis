@@ -30,6 +30,11 @@ from personaljarvis.base.approvals import (
     SelfApprovalRejected,
 )
 from personaljarvis.contacts.api import schemas as S
+from personaljarvis.contacts.api.redaction import (
+    account_ref,
+    container_ref,
+    provider_type,
+)
 from personaljarvis.contacts.application.commands import (
     ContactDraft,
     ContactPatch,
@@ -61,7 +66,7 @@ from personaljarvis.contacts.application.queries import (
     ContactsQueryService,
 )
 from personaljarvis.contacts.application.roles import ContactsRoleService
-from personaljarvis.contacts.domain.enums import InitiationContext
+from personaljarvis.contacts.domain.enums import InitiationContext, SyncMode
 from personaljarvis.contacts.domain.models import Contact
 from personaljarvis.contacts.sync.recovery import (
     RecoveryBusy,
@@ -222,7 +227,9 @@ def create_contacts_router(module) -> APIRouter:
     @router.get("/sync/status", response_model=list[S.SyncStatusOut])
     def sync_status(provider_account_id: str | None = Query(
             default=None, max_length=128)) -> Any:
-        return [S.SyncStatusOut(**vars(s))
+        # Der Filter nimmt weiterhin die **rohe** Kennung entgegen: er ist
+        # Eingabe eines Aufrufers, der sie ohnehin kennt, und keine Ausgabe.
+        return [_sync_status_out(s)
                 for s in queries.sync_status(
                     provider_account_id=provider_account_id)]
 
@@ -550,6 +557,31 @@ def create_contacts_router(module) -> APIRouter:
 
 
 # ── Umwandlung Domäne → Transport ───────────────────────────────────────────
+def _sync_status_out(s) -> S.SyncStatusOut:
+    """Interne Sicht → öffentlicher Vertrag, unter Maskierung der Kennungen.
+
+    Die einzige Stelle, an der `SyncStatusOut` entsteht. Die rohen Kennungen
+    bleiben in `SyncStatusView` — Persistenz und Sidecar brauchen sie, der
+    Transport nicht.
+    """
+    erfolge = [t for t in (s.cursor_taken_at, s.last_full_diff_at) if t]
+    return S.SyncStatusOut(
+        provider_type=provider_type(s.provider_account_id),
+        account_ref=account_ref(s.provider_account_id),
+        container_ref=container_ref(s.container_identifier),
+        mode=s.mode, circuit_state=s.circuit_state,
+        key_set_version=s.key_set_version,
+        cursor_present=s.has_cursor,
+        cursor_taken_at=s.cursor_taken_at,
+        last_full_diff_at=s.last_full_diff_at,
+        last_successful_run_at=max(erfolge) if erfolge else None,
+        # Identisch zu `pending_full_diff`: alles außer einem gültigen Cursor
+        # im Modus `delta` führt auf den Voll-Diff-Pfad.
+        requires_full_diff=(s.mode == SyncMode.FULL_DIFF_REQUIRED.value
+                            or not s.has_cursor),
+        updated_at=s.updated_at)
+
+
 def _mutation_out(m) -> S.MutationOut:
     return S.MutationOut(
         mutation_id=m.mutation_id, command=m.command, state=m.state,
