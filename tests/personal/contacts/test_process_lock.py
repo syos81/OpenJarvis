@@ -101,6 +101,32 @@ def test_zurueckgebliebene_datei_blockiert_nicht(tmp_path):
         lock.release()
 
 
+def test_veralteter_pid_eintrag_wird_beim_erwerb_ersetzt(tmp_path):
+    """Der Neustart raeumt den PID-Eintrag des toten Vorgaengers ab.
+
+    Die Sperre haengt am Dateideskriptor, nicht am Inhalt — ein Neustart
+    gelingt also ohnehin (siehe Test darueber). Bliebe der alte Eintrag aber
+    stehen, zeigte jede Diagnose danach auf einen Prozess, den es nicht mehr
+    gibt: die Datei behauptete einen Halter, der nie geantwortet haette.
+    """
+    path = tmp_path / "personal" / LOCK_FILENAME
+    path.parent.mkdir(parents=True)
+    path.write_text('{"pid": 999999, "port": 1, "started_at": 0}\n')
+
+    lock = ProcessLock(path, port=8123)
+    lock.acquire()
+    try:
+        meta = lock.read_metadata()
+        assert meta is not None
+        assert meta["pid"] == os.getpid(), "die fremde PID steht noch da"
+        assert meta["port"] == 8123
+        assert meta["started_at"] > 0
+        # Kein Rest der alten Zeile: die Datei wird gekuerzt, nicht ueberschrieben.
+        assert "999999" not in path.read_text()
+    finally:
+        lock.release()
+
+
 def test_rechte_sind_eng(tmp_path):
     lock = ProcessLock(tmp_path / "personal" / LOCK_FILENAME)
     lock.acquire()

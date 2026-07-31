@@ -340,27 +340,13 @@ class ContactsModule:
 
         return AuditTrail(uow, module="contacts")
 
-    def build_recovery_service(self, sync_service, *, workspace_id: str,
-                               provider_account_id: str):
-        """Baut die Wiederherstellung — und startet **nichts**.
-
-        Heisst bewusst `build_…`: `recovery_service` ist das Attribut, unter
-        dem die Kompositionswurzel den **Einstiegspunkt** ablegt. Trüge die
-        Fabrik denselben Namen, fände die Route statt des Dienstes die
-        gebundene Methode und riefe sie mit falschen Argumenten auf.
-
-        Sie beantwortet einen konkret erkannten Fehlerzustand und ist keine
-        gewöhnliche Funktion: kein Start, kein Seitenaufruf, kein Folgesync und
-        kein Agent löst sie aus. Der Aufrufer prüft die Vorbedingungen über
-        `check_preconditions()`, bevor irgendein Store berührt wird.
-        """
-        if not self._started:
-            raise PersonalJarvisError("Modul ist nicht gestartet")
-        from personaljarvis.contacts.sync.recovery import ContactsRecoveryService
-
-        return ContactsRecoveryService(
-            sync_service, self, workspace_id=workspace_id,
-            provider_account_id=provider_account_id)
+    # Hier stand eine zweite Recovery-Fabrik (`build_recovery_service`). Sie
+    # hatte im gesamten Baum keinen Aufrufer — auch keinen Test. Gebaut wird
+    # die Wiederherstellung ausschliesslich vom `ContactsRecoveryEntrypoint`
+    # (application/live.py), den die Kompositionswurzel unter
+    # `recovery_service` ablegt. Zwei Aufbauwege fuer denselben Dienst sind
+    # einer zu viel: der ungenutzte veraltet unbemerkt und behauptet eine
+    # Einstiegsmoeglichkeit, die niemand prueft.
 
     # ── Arbeitseinheiten ────────────────────────────────────────────────────
     def unit_of_work(self) -> UnitOfWork:

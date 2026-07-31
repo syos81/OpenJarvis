@@ -236,12 +236,25 @@ def test_kein_aufruf_im_lebenszyklus_oder_scheduler():
 
 
 def test_keine_agenten_oder_toolregistrierung():
+    """Der Endpunktpfad steht in genau einer produktiven Datei: der Route.
+
+    Gesucht wird — wie in `test_kein_aufruf_im_lebenszyklus_oder_scheduler` —
+    ausschliesslich im **produktiven** Baum. Eine Testdatei, die den Pfad
+    aufruft oder ihn als Erwartungswert nennt, ist keine Registrierung; sie
+    unter die erlaubten Fundstellen zu mischen hiesse, den Suchraum mit dem
+    Ergebnisraum zu verwechseln. Genau daran scheiterten diese Prüfung und
+    ihre Schwester in `test_recovery_and_audit.py` gegenseitig: beide
+    enthalten den Pfad selbst, standen aber nicht in der eigenen Allowlist.
+
+    Die Zusicherung wird dadurch **enger**, nicht weiter: erlaubt ist jetzt
+    eine einzige Datei statt zweier, und jede weitere produktive Fundstelle —
+    Agentenwerkzeug, Scheduler, UI — laesst die Pruefung fehlschlagen.
+    """
     treffer = subprocess.run(
-        ["git", "grep", "-l", "recovery/suspicious-empty"],
+        ["git", "grep", "-l", "recovery/suspicious-empty",
+         "--", "src/", "frontend/src"],
         cwd=_REPO, capture_output=True, text=True, timeout=60).stdout.split()
-    erlaubt = {"src/personaljarvis/contacts/api/routes.py",
-               "tests/personal/contacts/test_recovery_and_audit.py"}
-    assert set(treffer) <= erlaubt, treffer
+    assert set(treffer) == {"src/personaljarvis/contacts/api/routes.py"}, treffer
 
 
 def test_keine_ui_schaltflaeche():

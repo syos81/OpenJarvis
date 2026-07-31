@@ -195,8 +195,7 @@ class ContactsSyncService:
         nicht ebenso vollständig aufgezählt sind — der Datensatz könnte dort
         liegen. Die Löschmenge entsteht allein in `full_diff_account`.
         """
-        return self._snapshot_run(container_identifier, SyncRunKind.FULL_DIFF,
-                                  delete_basis=False)
+        return self._snapshot_run(container_identifier, SyncRunKind.FULL_DIFF)
 
     def pending_full_diff(self, container_identifiers) -> tuple[str, ...]:
         """Welche Container brauchen einen Voll-Diff?
@@ -363,8 +362,15 @@ class ContactsSyncService:
             f"{zweite.count}; der Lauf wird verworfen")
 
     # ── Vollaufnahme (Initialimport und Voll-Diff teilen den Ablauf) ────────
-    def _snapshot_run(self, container_identifier: str, kind: SyncRunKind, *,
-                      delete_basis: bool = False) -> SyncRunResult:
+    #
+    # Ein Einzelcontainer-Lauf traegt **nie** eine Loeschmenge. Frueher lag
+    # dafuer ein `delete_basis`-Schalter auf diesem Pfad, den kein Aufrufer je
+    # auf `True` setzte: ein abgeschalteter Loeschzweig, der jederzeit
+    # versehentlich haette eingeschaltet werden koennen. Loeschungen entstehen
+    # ausschliesslich in `full_diff_account` (kontoweite Abwesenheit) und im
+    # Delta-Pfad bei einem ausdruecklichen Provider-DELETE-Ereignis.
+    def _snapshot_run(self, container_identifier: str,
+                      kind: SyncRunKind) -> SyncRunResult:
         audit: list[str] = [f"sync.{kind.value}.started"]
         try:
             self._require_authorized()
@@ -401,24 +407,20 @@ class ContactsSyncService:
 
         # 3. Schreiben — genau eine Transaktion, genau ein Abschluss.
         return self._persist_snapshot(container_identifier, kind, enumeration,
-                                      baseline_token, key_set_version, audit,
-                                      delete_basis=delete_basis)
+                                      baseline_token, key_set_version, audit)
 
     def _persist_snapshot(self, container_identifier: str, kind: SyncRunKind,
                           enumeration: EnumerationResult,
                           baseline_token: str | None, key_set_version: int,
-                          audit: list[str], *,
-                          delete_basis: bool = False) -> SyncRunResult:
+                          audit: list[str]) -> SyncRunResult:
         jetzt = utc_now()
-        imported = updated = unchanged = tombstoned = 0
+        imported = updated = unchanged = 0
 
         with self._persistence.unit_of_work() as uow:
             repos = self._persistence.repositories(uow)
             lokal = self._local_index(repos, container_identifier)
-            gesehen: set[str] = set()
 
             for roh in enumeration.contacts:
-                gesehen.add(roh.provider_identifier)
                 ergebnis, _ = self._write_contact(
                     repos, roh, container_identifier,
                     lokal.get(roh.provider_identifier), jetzt)
@@ -429,22 +431,10 @@ class ContactsSyncService:
                 else:
                     unchanged += 1
 
-            # Löschmenge — nur wenn dieser Lauf sie überhaupt tragen darf.
-            # Ohne `delete_basis` ist die Abwesenheit eines Datensatzes kein
-            # Beweis: er kann in einem Container liegen, der hier nicht geprüft
-            # wurde.
-            if delete_basis:
-                for pid, contact_id in lokal.items():
-                    if pid in gesehen:
-                        continue
-                    self._tombstone(repos, contact_id, pid,
-                                    TOMBSTONE_REASON_ABSENT, jetzt)
-                    tombstoned += 1
-            else:
-                audit.append("sync.delete_basis.absent")
-
-            if tombstoned:
-                audit.append("sync.tombstones.created")
+            # Keine Löschmenge auf diesem Pfad. Die Abwesenheit eines
+            # Datensatzes in *einem* Container ist kein Beweis — er kann in
+            # einem Container liegen, der hier nicht geprüft wurde.
+            audit.append("sync.delete_basis.absent")
 
             self._upsert_state(repos, container_identifier,
                                cursor_token=baseline_token,
@@ -465,7 +455,10 @@ class ContactsSyncService:
             provider_account_id=self._provider_account_id,
             container_identifier=container_identifier,
             imported=imported, updated=updated, unchanged=unchanged,
-            tombstoned=tombstoned, events_processed=0,
+            # Konstant 0 und nicht gezaehlt: dieser Pfad kann keine Loeschung
+            # erzeugen. Eine Variable stuende hier fuer eine Moeglichkeit, die
+            # es nicht gibt.
+            tombstoned=0, events_processed=0,
             cursor_advanced=bool(baseline_token),
             requires_full_diff=not baseline_token,
             audit_events=tuple(audit),

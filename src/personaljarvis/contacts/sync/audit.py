@@ -121,8 +121,14 @@ class SyncAuditWriter:
 
     Bewusst ohne eigene Verbindung: die Spur eines zurückgerollten Laufs
     verschwindet mit ihm — sonst behauptete sie einen Lauf, den es nicht gibt.
-    Ein **abgebrochener** Lauf wird deshalb in einer eigenen, kurzen
-    Transaktion festgehalten (siehe `write_standalone`).
+
+    Ein **abgebrochener** Lauf hat nichts geschrieben, das zurückrollen
+    könnte; dass er abbrach, muss trotzdem bleiben. Der Aufrufer öffnet dafür
+    eine eigene, kurze Arbeitseinheit und schreibt die Spur mit demselben
+    `write` — siehe `ContactsSyncService._account_failed` und
+    `ContactsRecoveryService`. Es gibt bewusst keine zweite Schreibmethode
+    dafür: eine eigene Transaktion ist Sache des Aufrufers, der weiss, ob er
+    gerade in einer steht.
     """
 
     def __init__(self, uow) -> None:

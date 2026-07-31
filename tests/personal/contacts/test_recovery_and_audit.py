@@ -683,14 +683,19 @@ def test_eine_leere_enumeration_belebt_nichts_wieder(module):
 
 
 def test_der_endpunkt_steht_in_keiner_agenten_oder_toolflaeche():
-    """Er ist eine kontrollierte Recovery-Funktion, kein Werkzeug."""
+    """Er ist eine kontrollierte Recovery-Funktion, kein Werkzeug.
+
+    Durchsucht wird nur der **produktive** Baum: diese Datei ruft den Pfad
+    selbst auf, und ein Testaufruf ist keine Werkzeugregistrierung. Frueher
+    stand stattdessen eine Allowlist, die eine der beiden pruefenden
+    Testdateien nannte und die andere vergass — beide fielen dadurch um.
+    """
     import subprocess
     from pathlib import Path
 
     repo = Path(__file__).resolve().parents[3]
     treffer = subprocess.run(
-        ["git", "grep", "-l", "recovery/suspicious-empty"],
+        ["git", "grep", "-l", "recovery/suspicious-empty",
+         "--", "src/", "frontend/src"],
         cwd=repo, capture_output=True, text=True, timeout=60).stdout.split()
-    erlaubt = {"src/personaljarvis/contacts/api/routes.py",
-               "tests/personal/contacts/test_recovery_and_audit.py"}
-    assert set(treffer) <= erlaubt, treffer
+    assert set(treffer) == {"src/personaljarvis/contacts/api/routes.py"}, treffer

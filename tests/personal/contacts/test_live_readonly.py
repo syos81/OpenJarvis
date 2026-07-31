@@ -566,6 +566,29 @@ def test_serve_start_fragt_nichts_ab(db_path, monkeypatch):
         bootstrap.stop()
 
 
+def test_serve_start_startet_keinen_sidecar_prozess(db_path, monkeypatch):
+    """Ergaenzt den Test darueber auf der Prozessebene.
+
+    Jener patcht die Dienstmethoden weg und belegt damit, dass niemand sie
+    ruft. Er saehe aber nicht, wenn der Bootstrap den Sidecar an ihnen vorbei
+    startete — etwa aus einer Bruecken-Vorpruefung heraus. Hier wird deshalb
+    `SidecarProcess.start` selbst beobachtet.
+    """
+    import personaljarvis.contacts.bridge.process as prozess
+    from personaljarvis.bootstrap import PersonalBootstrap
+
+    gestartet: list[int] = []
+    monkeypatch.setattr(prozess.SidecarProcess, "start",
+                        lambda self: gestartet.append(1))
+
+    bootstrap = PersonalBootstrap(db_path)
+    bootstrap.start()
+    try:
+        assert gestartet == [], "der Bootstrap hat einen Sidecar gestartet"
+    finally:
+        bootstrap.stop()
+
+
 def test_seitenaufruf_fragt_nichts_ab(module, kopf, monkeypatch):
     """Das blosse Öffnen der Kontakte-Seite löst keinen Dialog und keinen
     Sync aus — die Seite lädt Liste, Kategorien und Capabilities."""

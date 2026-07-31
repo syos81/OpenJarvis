@@ -367,7 +367,11 @@ Legende: **N** neu · **Ä** vorhandene Datei ändern · **W** unverändert wied
 ## §13 Bestehende Konflikte und Altlasten
 
 1. **`minimumSystemVersion: "10.15"`** in `frontend/src-tauri/tauri.conf.json:47` widerspricht der verbindlichen Untergrenze 12.3. Bestätigter Produktdefekt (ADR-0018 §2, 15 §6). **Korrektur im ersten Commit von Gate A.**
-2. **Doppelte Wahrheit „Kontakte":** `src/openjarvis/connectors/apple_contacts.py` (482 Zeilen) liest die AddressBook-SQLite read-only, ist bei `openjarvis.connectors` registriert und wird im Research-Prompt erwähnt. Er ist **kein** Vorläufer des Moduls (DEC-012, AV-3). Er bleibt als Upstream-Bestandteil unangetastet; das Personal-Modul greift **nie** darauf zu. Eine Deaktivierung wäre eine Upstream-Abweichung und ist nicht Teil dieses Plans.
+2. **Doppelte Wahrheit „Kontakte" — offener zweiter Wahrheits- und Datenquellenpfad.** `src/openjarvis/connectors/apple_contacts.py` (482 Zeilen) liest die AddressBook-SQLite read-only, ist bei `openjarvis.connectors` registriert, erscheint in der Data-Sources-Oberfläche und wird im Research-Prompt als Quelle beworben. Er ist **kein** Vorläufer des Moduls (DEC-012, AV-3); das Personal-Modul greift **nie** darauf zu — statisch belegt (0 Treffer für `apple_contacts` und `openjarvis.connectors` unter `src/personaljarvis/`).
+
+   Er bleibt **vorerst unangetastet**: ein Umbau wäre eine Upstream-Abweichung und ist nicht Teil des laufenden Auftrags. Er ist damit aber **nicht erledigt**, sondern eine offene Verpflichtung. Solange er erreichbar ist, kann ein Klick auf „Sync Now" das rohe Adressbuch — inklusive Notizen, Geburtstagen und Adressen, ohne Redaktion, ohne Tombstones, ohne Änderungserkennung — am gesamten Moduldesign vorbei in `~/.openjarvis/knowledge.db` und deren FTS-Index schreiben. Das ist zugleich eine zweite Datenwahrheit **und** ein Datenschutzpfad, der die Zusicherungen des Moduls nicht einhält.
+
+   **Vor Abschluss des Kontakte-Moduls ist dafür gesondert zu entscheiden und umzusetzen:** deaktivieren (Registrierung, UI-Eintrag und Research-Prompt-Erwähnung entfernen), entfernen, oder auf die kanonische Personal-Jarvis-Datenbank umleiten. Ohne diese Entscheidung ist §16 nicht erfüllt.
 3. **Kein `personaljarvis`-Paket vorhanden** — die gesamte Basis entsteht neu, streng nach AV-33 im Umfang dieses Moduls.
 4. **Spike-Teile, die nicht Produktcode werden dürfen:** die Sicherheitsrail über das Namenspräfix, `enumerateProbe`, `isolationSummary`, `updateViaUnified`, das Env-Gate für `requestAuthorization`, `phase_b.py`, `reconstruct_results.py`, sämtliche Diagnosewerkzeuge.
 5. **Absolute Pfade in Spike-Quellen** (`/Users/Shared/JarvisContactsSpike/...`) — sie beschreiben das Übergabepaket. Produktive Pfade kommen ausschließlich aus dem ConfigurationPort.
@@ -438,6 +442,7 @@ Es gilt 19 unverändert und vollständig. Zusätzlich modulspezifisch:
 4. `outcome_unknown` führt nachweislich zu keinem automatischen Retry.
 5. Speicher-Register (06 §2), Entscheidungsregister, Traceability-Matrix und Glossar sind aktualisiert (19 §9).
 6. Live-Abnahme-Protokoll je Architektur liegt vor und ist vom Eigentümer bestätigt (19 §10).
+7. Der zweite Kontakte-Datenpfad aus §13.2 (`src/openjarvis/connectors/apple_contacts.py`) ist entschieden und umgesetzt — deaktiviert, entfernt oder auf die kanonische Datenbank umgeleitet. Ein Modul, das eine einzige Datenwahrheit zusichert, ist nicht fertig, solange daneben ein zweiter Schreibweg in einen durchsuchbaren Index offen steht.
 
 ## §17 Erster produktiver Implementierungsauftrag (Gate A)
 
