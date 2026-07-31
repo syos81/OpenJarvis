@@ -426,7 +426,16 @@ Legende: **N** neu · **Ä** vorhandene Datei ändern · **W** unverändert wied
 | Intel-SDK-Stand (Swift 5.7.2 / SDK 13.1) | B | beide Contacts-Eigenschaften sind dort vorhanden (in ADR-0018 belegt); Build-Assertion auf `minos 12.3` |
 | macOS-12.3-Kompatibilität | A/E | `minimumSystemVersion` korrigieren; Abnahme auf einer 12.3-Installation ist Teil von Gate E |
 
-**Blockiert ausschließlich den Modulabschluss:** vollständige Intel-Live-Abnahme · Mehrcontainer-/Unified-Test · echte Kontakteoperation aus der gepackten App auf beiden Architekturen · vollständige TCC-Persistenzmatrix · Backup-/Restore-Roundtrip je Architektur.
+**Abgenommen am 2026-07-31 (arm64):** Der Lese- und Sync-Pfad einschliesslich Auditierung und Neustart ist auf Apple Silicon **produktiv abgenommen** — Initialimport über zwei Container (115 Kontakte, 0 Tombstones), vier Delta-Audit-Runs, Cursorfortsetzung über einen echten Anwendungsneustart, keine unerwarteten Voll-Diffs, kein autonomer Sync. Ein künstlicher Provider-`DELETE`-Livetest ist **nicht** Voraussetzung des Abschlusses; der Pfad ist automatisiert abgedeckt. Evidenz: [`contacts-arm64-read-sync-validation-2026-07-31.md`](../../testing/contacts-arm64-read-sync-validation-2026-07-31.md). Die Aussage gilt ausschliesslich für arm64.
+
+**Blockiert weiterhin ausschließlich den Modulabschluss:**
+
+1. **Intel-x86_64 — Recovery** der 116 lokal tombstoneten Spiegelkontakte. Bei Apple ist nichts verändert; die lokale Löschung war unbegründet, nicht der Provider.
+2. **Intel — Delta- und Neustartprüfung nach dem Recovery**, gleichwertig zur arm64-Abnahme.
+3. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen, jeweils mit Vorschau, Freigabe und ausdrücklicher Ausführung. Bis dahin bleibt der Sidecar bei `not_implemented`.
+4. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
+5. **Finaler Cross-Architecture-Abschluss** — Mehrcontainer-/Unified-Test, vollständige TCC-Persistenzmatrix, Backup-/Restore-Roundtrip je Architektur.
+6. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 
