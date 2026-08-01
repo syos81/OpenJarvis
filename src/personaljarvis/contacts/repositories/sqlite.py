@@ -499,10 +499,16 @@ class SqliteSyncStateRepository(_Base):
                 "key_set_version=excluded.key_set_version, mode=excluded.mode, "
                 "circuit_state=excluded.circuit_state, "
                 "updated_at=excluded.updated_at, "
-                # Ein bereits bekannter Typ wird nie durch `NULL` ersetzt:
-                # ein Lauf ohne Containerliste weiss es nicht besser.
-                "container_type=COALESCE(excluded.container_type, "
-                "contacts_sync_state.container_type)",
+                # Eine bereits erhobene Art wird nie verschlechtert — weder
+                # durch `NULL` noch durch `'unknown'`. Beides heisst „dieser
+                # Aufruf weiss es nicht", nicht „die alte Auskunft ist falsch".
+                # Der Schutz sitzt hier, weil es genau einen Schreibweg gibt:
+                # eine Regel an einer Stelle laeuft nicht auseinander.
+                "container_type=CASE "
+                "WHEN excluded.container_type IS NULL "
+                "OR excluded.container_type = 'unknown' "
+                "THEN contacts_sync_state.container_type "
+                "ELSE excluded.container_type END",
                 (state.provider_account_id, state.container_identifier,
                  state.cursor_token, state.cursor_taken_at, state.last_full_diff_at,
                  state.key_set_version, state.mode, state.circuit_state,

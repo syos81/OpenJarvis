@@ -20,6 +20,7 @@ __all__ = [
     "CursorRejected",
     "FullDiffRequired",
     "UnknownChangeEvent",
+    "InventoryInvalid",
 ]
 
 
@@ -128,4 +129,14 @@ class UnknownChangeEvent(SyncError):
 
     Der Lauf wird abgebrochen statt geraten; der nächste Lauf entscheidet
     kontrolliert über einen Voll-Diff.
+    """
+
+
+class InventoryInvalid(SyncError):
+    """Das Containerinventar trägt keine verlässliche Aussage.
+
+    Eine Kennung fehlt oder dieselbe Kennung kam mit zwei Arten. Beides ist
+    fail-closed: es wird **kein** Metadatum geschrieben, keine Zeile angelegt
+    und keine Art aktualisiert. Der Lauf endet, bevor er den Provider
+    überhaupt nach Kontakten fragt.
     """

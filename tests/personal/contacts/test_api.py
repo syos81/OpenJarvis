@@ -126,7 +126,8 @@ def _container_bekannt(module):
     with module.unit_of_work() as uow:
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier=CONTAINER,
-            key_set_version="v1", mode="delta", cursor_token="GEHEIM=="))
+            key_set_version="v1", mode="delta", cursor_token="GEHEIM==",
+            cursor_taken_at="2026-07-31T09:00:00+00:00"))
 
 
 # ═══ Query-Schicht ══════════════════════════════════════════════════════════

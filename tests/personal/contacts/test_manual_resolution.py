@@ -56,7 +56,8 @@ def aufbau(module):
         with module.unit_of_work() as uow:
             SqliteSyncStateRepository(uow).upsert(ContactSyncState(
                 provider_account_id=KONTO, container_identifier=CONTAINER,
-                key_set_version="v1", mode="delta", cursor_token="T"))
+                key_set_version="v1", mode="delta", cursor_token="T",
+                cursor_taken_at="2026-07-31T09:00:00+00:00"))
         module._capabilities = CREATE_CAPS
         module._mutation_service = ContactsMutationService(
             module, provider, capabilities=CREATE_CAPS)

@@ -121,6 +121,24 @@ JSON-Spalten werden **nicht** für fachlich abfragbare Felder verwendet; Mehrfac
 
 ## §6 Sync-Modell
 
+### §6.0 Containerinventar — ein eigener Metadatenschritt
+
+Das Inventar steht **vor** allem Fachlichen und ist von ihm getrennt. Es beantwortet genau zwei Fragen: welche Ablageorte führt der Provider, und welcher Art ist jeder von ihnen. Der Schritt läuft ab, sobald `containers` geantwortet hat und die Antwort geprüft ist — vor Delta-Abruf, vor Voll-Diff-Enumeration, vor jeder Cursorverarbeitung, vor jedem Kontaktabgleich und vor jeder Tombstone-Logik.
+
+**Seine Persistenz bedeutet ausdrücklich keinen erfolgreichen Kontaktsync.** Sie hat eine eigene, kurze UnitOfWork und teilt das Schicksal der Kontakt-, Cursor- und Tombstone-Transaktion nicht. Bricht der Lauf danach ab — `dropEverything`, ungültiger Cursor, unvollständige Enumeration, Prozessabsturz —, bleiben die Inventarmetadaten stehen. Sie waren belegt, bevor der Abbruch geschah, und ein Abbruch entwertet keinen Beleg.
+
+Regeln:
+
+* **Bekannter Ablageort:** ausschließlich `container_type` wird fortgeschrieben. Modus, Cursor, Circuit-Zustand, Voll-Diff-Markierung und beide Erfolgsstempel bleiben unberührt.
+* **Neuer Ablageort:** genau eine neue Zeile — Art gesetzt, Modus `full_diff_required`, kein Cursor, Circuit geschlossen, kein Erfolgsstempel. An `last_full_diff_at is None` bleibt sie jederzeit von einer synchronisierten Zeile unterscheidbar, und sie ist **kein** gültiges Anlageziel: dafür fehlten Fähigkeiten und Feldzustände.
+* **Fehlender Ablageort:** wird nicht gelöscht, nicht getombstonet, nicht stillschweigend entfernt. Sein Verschwinden ist eine Aussage über den Provider, keine über den lokalen Bestand.
+* **Ungültiges oder mehrdeutiges Inventar** (fehlende Kennung; dieselbe Kennung mit zwei Arten): fail-closed, es wird **nichts** persistiert — auch nicht der unstrittige Teil. Eine wortgleich doppelte Nennung ist dagegen nur redundant und kein Fehler.
+* **Keine Verschlechterung:** eine bereits erhobene Art wird nie durch `NULL` und nie durch `unknown` ersetzt. Beides heißt „dieser Aufruf weiß es nicht", nicht „die alte Auskunft ist falsch". Der Schutz sitzt im einzigen Schreibweg (`SqliteSyncStateRepository.upsert`).
+
+Der Typvorrat ist geschlossen: `local`, `cardDAV`, `exchange`, `unassigned`, sonst `unknown`. Er ist wortgleich in Sidecar, Kern, API und Oberfläche und durch Tests daran gebunden.
+
+**Anlass** (2026-08-01): Die Art wurde beim Inventar zwar erhoben, aber erst beim erfolgreichen Abschluss eines Laufs geschrieben. Ein `dropEverything` verwarf sie deshalb — öffentlich stand danach zweimal `art=unknown`, und der geplante Create-Livetest im lokalen Ablageort musste abgebrochen werden, weil sich der lokale nicht mehr vom kontogebundenen unterscheiden ließ. [Bericht](../../testing/contacts-x86_64-create-local-live-2026-08-01.md).
+
 ### §6.1 Initialimport
 
 Autorisierungsprüfung (TCC-Status lesen, **nie** ungefragt anfordern) → Containerinventar → vollständige Enumeration mit fixiertem `key_set_version` → kanonische Normalisierung **im Kern** (der Sidecar normalisiert nicht) → eine UoW je Batch mit Upsert + `contact_external_ids` + DomainEvent + Audit → **Cursor erst nach vollständigem, als `complete:true` bestätigtem Durchlauf** speichern → `last_full_diff_at` setzen.
@@ -488,9 +506,11 @@ Alle Sicherungen haben gehalten: genau **ein** Sendversuch, korrekte Einstufung 
 1. **Manueller Abschluss** (ADR-0019 §5a, Migration `0007`). Neuer terminaler Zustand `manually_resolved_not_applied` und Route `POST …/mutations/{id}/resolve-outcome` mit geschlossenem Vertrag (`not_observed` / `manual_provider_inspection`, kein Freitext, `Literal`-Werte, `extra="forbid"`). Zulässig nur aus `outcome_unknown` und `manual_decision_required`, nur bei verbrauchter Freigabe, **ohne jeden Providerkontakt**; der Outbox-Eintrag wird terminal, `recover_interrupted()` fasst ihn nicht an, ein zweiter Send bleibt unmöglich. Der Auditeintrag `outcome_unknown` bleibt stehen — der Abschluss ist ein eigenes, späteres Ereignis (`mutation_outcome_manually_resolved`). Damit ist auch die Sackgasse `manual_decision_required` aufgelöst.
 2. **`attempt_count`** (ADR-0019 §5b). Bedeutung festgelegt: **Zahl tatsächlich begonnener externer Sendversuche**, kanonisch aus der **Outbox**. Öffentliche Antworten lesen von dort; die gleichnamige Spalte im Vorgang wird beim Claim in derselben Arbeitseinheit mitgeschrieben und ist ein Abbild, nie eine zweite Wahrheit. Vorbereiten, Freigeben, ein abgewiesener zweiter `execute`, Abgleich, lokale Nachführung und Neustart erhöhen ihn nicht.
 
-**Ablageorte sind jetzt fachlich unterscheidbar.** `contacts_sync_state` trägt seit `0007` die Containerart (`local`, `cardDAV`, `exchange`, …); der Sync schreibt sie beim Lauf mit, `/sync/status` gibt sie generisch heraus, und der Anlagedialog zeigt sie. Damit lässt sich ein Ziel **bewusst** wählen statt nach Reihenfolge oder Kontaktzahl — der Fehler, der den ersten Livetest mitverursacht hat. `unknown` heisst „noch nicht erhoben", nie „lokal". Eine pauschale Schreibsperre für kontogebundene Container gibt es ausdrücklich **nicht**.
+**Ablageorte sind jetzt fachlich unterscheidbar.** `contacts_sync_state` trägt seit `0007` die Containerart (`local`, `cardDAV`, `exchange`, …); `/sync/status` gibt sie generisch heraus, und der Anlagedialog zeigt sie. Damit lässt sich ein Ziel **bewusst** wählen statt nach Reihenfolge oder Kontaktzahl — der Fehler, der den ersten Livetest mitverursacht hat. `unknown` heißt „noch nicht erhoben", nie „lokal". Eine pauschale Schreibsperre für kontogebundene Container gibt es ausdrücklich **nicht**.
 
-**Live-Testplan für den nächsten Versuch** (eigene Freigabe erforderlich): genau **ein** Testkontakt mit Präfix `ZZZ-JarvisTest-` (DEC-038), diesmal ausdrücklich im Ablageort der Art **`local`** — erkennbar am Anlagedialog, nicht an der Position. Ablauf unverändert: Anlage vorbereiten → Vorschau prüfen → freigeben → **getrennt** ausführen → Read-back und lokalen Spiegel prüfen → Auditkette prüfen → Kontakt anschliessend in Apple Kontakte von Hand entfernen. Bestehende private Kontakte bleiben unberührt; es wird nichts bearbeitet und nichts gelöscht.
+**Die Art überlebt seit dem 2026-08-01 auch einen Abbruch.** Ursprünglich schrieb erst der erfolgreiche Abschluss eines Laufs sie mit; ein `dropEverything` verwarf damit eine längst belegte Auskunft. Seither ist das Containerinventar ein eigener Metadatenschritt mit eigener Transaktionsgrenze (§6.0). Der zweite Create-Livetest fiel genau darüber aus — er wurde vor jedem Providerkontakt abgebrochen, weil beide Ablageorte öffentlich auf `unknown` standen: [Bericht](../../testing/contacts-x86_64-create-local-live-2026-08-01.md).
+
+**Live-Testplan für den nächsten Versuch** (eigene Freigabe erforderlich): genau **ein** Testkontakt mit Präfix `ZZZ-JarvisTest-` (DEC-038), ausdrücklich im Ablageort der Art **`local`** — erkennbar am Anlagedialog, nicht an der Position. Voraussetzung ist ein vorher **eigens freigegebener** kontoweiter Voll-Diff: beide Ablageorte stehen seit dem 2026-08-01 auf `full_diff_required` ohne Cursor. Ablauf unverändert: Anlage vorbereiten → Vorschau prüfen → freigeben → **getrennt** ausführen → Read-back und lokalen Spiegel prüfen → Auditkette prüfen → Kontakt anschließend in Apple Kontakte von Hand entfernen. Bestehende private Kontakte bleiben unberührt; es wird nichts bearbeitet und nichts gelöscht.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 

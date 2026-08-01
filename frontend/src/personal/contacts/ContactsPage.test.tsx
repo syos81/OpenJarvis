@@ -904,3 +904,65 @@ describe('Berechtigungsfehler', () => {
     expect(text).not.toMatch(/\.app/);
   });
 });
+
+// ═══ Ablageort der Neuanlage ════════════════════════════════════════════════
+//
+// Am 2026-08-01 musste ein Create-Livetest abgebrochen werden: beide
+// Ablageorte standen öffentlich auf `unknown`, und die Auswahl des lokalen
+// war damit nicht mehr belegbar — nur noch ratbar. Diese Tests halten fest,
+// dass die Art das Auswahlmerkmal ist, und sonst nichts.
+describe('Ablageort im Anlagedialog', () => {
+  const MIT_CREATE = { ...CAPS, create_supported: true, mutations_available: true };
+
+  const ort = (ref: string, art: string) => ({
+    container_ref: ref, account_ref: 'A-9f2c11',
+    provider_type: 'apple_contacts', container_type: art,
+    last_successful_run_at: '2026-07-31T09:00:00+00:00',
+  });
+
+  async function dialogOeffnen(orte: unknown[]) {
+    mock.getCapabilities.mockResolvedValue(MIT_CREATE);
+    mock.listContainers.mockResolvedValue(orte);
+    const u = nutzer();
+    await seiteRendern();
+    await u.click(await screen.findByRole('button', { name: /Kontakt anlegen/i }));
+    return { u, feld: await screen.findByTestId('anlage-ablageort') };
+  }
+
+  it('benennt den lokalen Ablageort im Klartext', async () => {
+    const { feld } = await dialogOeffnen([ort('C-1b3d99', 'local')]);
+    expect(within(feld).getByText(/Lokal · Auf meinem Mac/)).toBeInTheDocument();
+  });
+
+  it('stellt einen unbekannten Ablageort nie als lokal dar', async () => {
+    const { feld } = await dialogOeffnen([ort('C-4b8df1', 'unknown')]);
+    expect(within(feld).queryByText(/Auf meinem Mac/)).toBeNull();
+    expect(within(feld).getByText(/Art noch nicht bekannt/)).toBeInTheDocument();
+    expect(screen.getByText(/Art noch nicht erhoben/)).toBeInTheDocument();
+  });
+
+  it('wählt einen unbekannten Ablageort auch als einzigen nicht vor', async () => {
+    const { feld } = await dialogOeffnen([ort('C-4b8df1', 'unknown')]);
+    expect((feld as HTMLSelectElement).value).toBe('');
+  });
+
+  it('unterscheidet die Ablageorte an der Art, nicht an der Reihenfolge', async () => {
+    // Der lokale steht bewusst hinten: die Anzeige darf ihn trotzdem als
+    // solchen ausweisen, und der kontogebundene darf es nie.
+    const { feld } = await dialogOeffnen([
+      ort('C-4b8df1', 'cardDAV'), ort('C-1b3d99', 'local'),
+    ]);
+    const lokal = within(feld).getByText(/Lokal · Auf meinem Mac/);
+    expect(lokal).toHaveValue('C-1b3d99');
+    expect(within(feld).getByText(/CardDAV \/ iCloud/)).toHaveValue('C-4b8df1');
+    // Nichts ist vorausgewählt, solange es mehr als einen gibt.
+    expect((feld as HTMLSelectElement).value).toBe('');
+  });
+
+  it('zeigt weder rohe Container- noch Kontokennungen', async () => {
+    await dialogOeffnen([ort('C-1b3d99', 'local'), ort('C-4b8df1', 'cardDAV')]);
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/ABAccount/);
+    expect(text).not.toMatch(/[0-9A-F]{8}-[0-9A-F]{4}-/i);
+  });
+});

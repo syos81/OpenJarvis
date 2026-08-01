@@ -70,6 +70,7 @@ from personaljarvis.contacts.application.queries import (
 from personaljarvis.contacts.application.roles import ContactsRoleService
 from personaljarvis.contacts.domain.enums import InitiationContext, SyncMode
 from personaljarvis.contacts.domain.models import Contact
+from personaljarvis.contacts.sync.containers import normalize_container_type
 from personaljarvis.contacts.sync.recovery import (
     RecoveryBusy,
     RecoveryNotApplicable,
@@ -698,7 +699,9 @@ def _sync_status_out(s) -> S.SyncStatusOut:
         provider_type=provider_type(s.provider_account_id),
         account_ref=account_ref(s.provider_account_id),
         container_ref=container_ref(s.container_identifier),
-        container_type=s.container_type or "unknown",
+        # Zweiter Riegel am Austritt: was nicht im geschlossenen Vorrat steht,
+        # verlaesst die Anwendung als `unknown` — nie als Rohwert.
+        container_type=normalize_container_type(s.container_type),
         mode=s.mode, circuit_state=s.circuit_state,
         key_set_version=s.key_set_version,
         cursor_present=s.has_cursor,

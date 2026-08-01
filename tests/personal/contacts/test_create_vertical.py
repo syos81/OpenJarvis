@@ -99,7 +99,8 @@ def modul(module, provider):
     with module.unit_of_work() as uow:
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier=CONTAINER,
-            key_set_version="v1", mode="delta", cursor_token="TOKEN"))
+            key_set_version="v1", mode="delta", cursor_token="TOKEN",
+            cursor_taken_at="2026-07-31T09:00:00+00:00"))
     module._capabilities = CREATE_CAPS
     module._mutation_service = ContactsMutationService(
         module, provider, capabilities=CREATE_CAPS)
@@ -175,7 +176,8 @@ def test_mehrdeutige_referenz_scheitert_statt_zu_waehlen(modul, client, provider
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO,
             container_identifier="ZWEITER-CONTAINER:ABAccount",
-            key_set_version="v1", mode="delta", cursor_token="T2"))
+            key_set_version="v1", mode="delta", cursor_token="T2",
+            cursor_taken_at="2026-07-31T09:00:00+00:00"))
     with patch("personaljarvis.contacts.api.redaction.container_ref",
                side_effect=kollidierend):
         r = client.post(PREFIX, headers=_kopf(),
@@ -216,7 +218,8 @@ def test_ohne_freigeschaltete_faehigkeit_wird_nicht_vorbereitet(module, provider
     with module.unit_of_work() as uow:
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier=CONTAINER,
-            key_set_version="v1", mode="delta", cursor_token="T"))
+            key_set_version="v1", mode="delta", cursor_token="T",
+            cursor_taken_at="2026-07-31T09:00:00+00:00"))
     app = FastAPI()
     app.include_router(create_contacts_router(module))
     r = TestClient(app).post(PREFIX, headers=_kopf(), json=_create_body())
@@ -680,7 +683,8 @@ def _mit_timeout(module, leser) -> tuple:
     with module.unit_of_work() as uow:
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier=CONTAINER,
-            key_set_version="v1", mode="delta", cursor_token="TOKEN"))
+            key_set_version="v1", mode="delta", cursor_token="TOKEN",
+            cursor_taken_at="2026-07-31T09:00:00+00:00"))
     module._capabilities = CREATE_CAPS
     module._mutation_service = ContactsMutationService(
         module, provider, capabilities=CREATE_CAPS)
@@ -996,10 +1000,12 @@ def test_die_containerart_erscheint_maskiert_im_status(modul, client):
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier=CONTAINER,
             key_set_version="v1", mode="delta", cursor_token="T",
+            cursor_taken_at="2026-07-31T09:00:00+00:00",
             container_type="cardDAV"))
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier="_local:ABAccount",
             key_set_version="v1", mode="delta", cursor_token="T",
+            cursor_taken_at="2026-07-31T09:00:00+00:00",
             container_type="local"))
     zeilen = client.get(f"{PREFIX}/sync/status", headers=_kopf()).json()
     arten = {z["container_ref"]: z["container_type"] for z in zeilen}
@@ -1020,6 +1026,7 @@ def test_die_art_traegt_keine_kennung(modul, client):
         SqliteSyncStateRepository(uow).upsert(ContactSyncState(
             provider_account_id=KONTO, container_identifier=CONTAINER,
             key_set_version="v1", mode="delta", cursor_token="T",
+            cursor_taken_at="2026-07-31T09:00:00+00:00",
             container_type="cardDAV"))
     text = client.get(f"{PREFIX}/sync/status", headers=_kopf()).text
     for verboten in (CONTAINER, "ABAccount", KONTO):

@@ -431,9 +431,16 @@ class ContactsQueryService:
         Kollision der Maskierung darf niemals dazu führen, dass ein Kontakt im
         falschen Container landet (ADR-0019 §2).
 
-        Die Kandidatenmenge ist der bekannte Bestand aus `contacts_sync_state`:
-        ein Container, der nie synchronisiert wurde, ist auch kein gültiges
-        Ziel — dann fehlten Fähigkeiten und Feldzustände.
+        Die Kandidatenmenge ist der **synchronisierte** Bestand: ein Container,
+        der nie vollständig gelesen wurde, ist kein gültiges Ziel — dann fehlten
+        Fähigkeiten und Feldzustände.
+
+        Seit dem 2026-08-01 entsteht eine Zeile in `contacts_sync_state` schon
+        durch das blosse Containerinventar. Die Existenz der Zeile reicht hier
+        deshalb nicht mehr. Entscheidend sind die beiden Erfolgsstempel — genau
+        die, aus denen der Statusvertrag `last_successful_run_at` bildet: sie
+        werden ausschliesslich nach einem abgeschlossenen Lauf gesetzt, und der
+        Inventarschritt setzt sie nie. Eine Regel, ein Wortlaut, beide Schichten.
         """
         from personaljarvis.contacts.api.redaction import (
             container_ref as maskieren,
@@ -443,6 +450,8 @@ class ContactsQueryService:
             rows = uow.execute(
                 "SELECT DISTINCT provider_account_id, container_identifier "
                 "FROM contacts_sync_state "
+                "WHERE cursor_taken_at IS NOT NULL "
+                "OR last_full_diff_at IS NOT NULL "
                 "ORDER BY provider_account_id, container_identifier"
             ).fetchall()
         treffer = [(r["provider_account_id"], r["container_identifier"])
@@ -450,8 +459,8 @@ class ContactsQueryService:
                    if maskieren(r["container_identifier"]) == container_ref]
         if not treffer:
             raise ContainerNotAvailable(
-                "Der gewaehlte Container ist nicht bekannt. Bekannt werden "
-                "Container erst durch eine Synchronisation.")
+                "Der gewaehlte Ablageort wurde noch nicht vollstaendig "
+                "synchronisiert und ist deshalb kein gueltiges Ziel.")
         if len(treffer) > 1:
             raise ContainerNotAvailable(
                 "Die Containerreferenz ist nicht eindeutig; es wird nichts "

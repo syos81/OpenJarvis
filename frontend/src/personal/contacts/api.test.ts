@@ -302,6 +302,46 @@ describe('Abgleich', () => {
   });
 });
 
+// ═══ Wählbare Ablageorte ════════════════════════════════════════════════════
+//
+// Ein Ablageort wird seit dem 2026-08-01 schon durch das blosse
+// Containerinventar bekannt — ohne dass je ein Kontakt gelesen wurde. Als
+// Anlageziel taugt er dann nicht: es fehlen Fähigkeiten und Feldzustände, und
+// der Server weist ihn ab. Angeboten wird er deshalb gar nicht erst.
+describe('Ablageorte für die Neuanlage', () => {
+  const ort = (extra = {}) => ({
+    container_ref: 'C-1b3d99', account_ref: 'A-9f2c11',
+    provider_type: 'apple_contacts', container_type: 'local',
+    last_successful_run_at: '2026-07-31T09:00:00+00:00', ...extra,
+  });
+
+  it('liest sie aus dem Statusvertrag', async () => {
+    antworte([ort()]);
+    const api = await import('./api');
+    await api.listContainers();
+    expect(letzter().url).toContain('/v1/personal/contacts/sync/status');
+  });
+
+  it('bietet einen nie synchronisierten Ablageort nicht an', async () => {
+    antworte([
+      ort(),
+      ort({ container_ref: 'C-4b8df1', container_type: 'cardDAV',
+            last_successful_run_at: null }),
+    ]);
+    const api = await import('./api');
+    const orte = await api.listContainers();
+    expect(orte.map((o) => o.container_ref)).toEqual(['C-1b3d99']);
+  });
+
+  it('behält einen synchronisierten Ablageort auch ohne erhobene Art', async () => {
+    // `unknown` ist eine schlechtere Auskunft, aber kein Grund, das Ziel zu
+    // verschweigen — der Nutzer sieht die fehlende Art und entscheidet selbst.
+    antworte([ort({ container_type: 'unknown' })]);
+    const api = await import('./api');
+    expect(await api.listContainers()).toHaveLength(1);
+  });
+});
+
 // ═══ Berechtigungsanfrage über den App-Prozess ══════════════════════════════
 //
 // Der Weg über den Server ist aufgegeben: macOS rechnet einen TCC-Dialog dem

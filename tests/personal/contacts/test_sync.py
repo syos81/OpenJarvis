@@ -616,10 +616,29 @@ def test_konstruktion_loest_nichts_aus(module, bridge):
     assert bridge.aufrufe == []
 
 
-def test_inventar_legt_keinen_sync_zustand_an(service, module, bridge):
+def test_inventar_legt_metadaten_an_aber_behauptet_keinen_lauf(
+        service, module, bridge):
+    """Das Inventar ist ein Metadatenschritt — kein Import.
+
+    Bis zum 2026-08-01 legte es gar nichts an; die Art des Ablageorts ging
+    dadurch bei jedem Abbruch verloren. Jetzt entsteht eine Zeile — aber eine,
+    der man ansieht, dass nie ein Kontakt gelesen wurde: kein Cursor, kein
+    Erfolgsstempel, Modus `full_diff_required`.
+    """
     inventar = service.inventory_containers()
     assert [c.identifier for c in inventar] == [CONTAINER]
-    assert zustand(module) is None
+
+    z = zustand(module)
+    assert z is not None
+    assert z.mode == SyncMode.FULL_DIFF_REQUIRED.value
+    assert z.cursor_token is None and z.cursor_taken_at is None
+    assert z.last_full_diff_at is None
+    # Kein Bestand, keine Löschmenge — der Schritt fasst Kontakte nicht an.
+    with module.unit_of_work() as uow:
+        assert uow.execute(
+            "SELECT COUNT(*) AS n FROM contacts").fetchone()["n"] == 0
+        assert uow.execute(
+            "SELECT COUNT(*) AS n FROM contacts_tombstones").fetchone()["n"] == 0
 
 
 def test_ohne_gestartete_bridge_wird_nicht_gelesen(module):

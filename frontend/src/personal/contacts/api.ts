@@ -505,10 +505,23 @@ export interface ContainerOption {
    * nicht Grösse. `unknown`, solange kein Lauf sie erhoben hat.
    */
   container_type: string;
+  /**
+   * Letzter Lauf, der den Zustand fortgeschrieben hat. `null` heisst: dieser
+   * Ablageort ist nur aus dem Containerinventar bekannt und wurde nie
+   * vollständig gelesen — dann fehlen Fähigkeiten und Feldzustände, und das
+   * Backend weist ihn als Ziel ohnehin zurück.
+   */
+  last_successful_run_at: string | null;
 }
 
 export function listContainers(): Promise<ContainerOption[]> {
-  return request<ContainerOption[]>('/sync/status');
+  return request<ContainerOption[]>('/sync/status').then(
+    // Die Regel steht hier und nicht in der Ansicht: ein Ablageort, der kein
+    // gültiges Ziel ist, wird gar nicht erst angeboten. Ein angebotener und
+    // dann abgelehnter Eintrag lädt zum Probieren ein — und Probieren ist bei
+    // einer Neuanlage genau das Falsche.
+    (o) => o.filter((e) => e.last_successful_run_at !== null),
+  );
 }
 
 export function getSyncStatus(): Promise<SyncStatus[]> {

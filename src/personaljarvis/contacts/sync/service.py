@@ -59,6 +59,10 @@ from personaljarvis.contacts.sync.audit import (
     SyncAuditWriter,
     container_ref,
 )
+from personaljarvis.contacts.sync.containers import (
+    is_specific_container_type,
+    validate_inventory,
+)
 from personaljarvis.contacts.sync.echo import EchoSuppressionLedger
 from personaljarvis.contacts.sync.errors import (
     AuthorizationRequired,
@@ -132,8 +136,10 @@ class ContactsSyncService:
         #: Nur für Tests kürzbar. Produktiv bleibt die Pause die Konstante —
         #: sie ist der ganze Sinn der Gegenprobe.
         self._empty_recheck_pause = empty_recheck_pause
-        #: Art je Ablageort, sobald `inventory_containers()` sie gesehen hat.
-        #: Leer heisst „noch nicht erhoben" — nie „unbekannter Typ".
+        #: Art je Ablageort aus dem letzten geprüften Inventar dieses Laufs,
+        #: bereits in den geschlossenen Vorrat übersetzt. Leer heisst „in
+        #: diesem Lauf nicht erhoben" — nie „unbekannter Typ". Die verbindliche
+        #: Quelle ist die Datenbank; das hier ist nur der kurze Weg dorthin.
         self._container_arten: dict[str, str] = {}
 
     # ── Vorbedingungen ──────────────────────────────────────────────────────
@@ -159,21 +165,93 @@ class ContactsSyncService:
 
     # ── Containerinventar ───────────────────────────────────────────────────
     def inventory_containers(self) -> tuple[ContainerInfo, ...]:
-        """Liest das Containerinventar.
+        """Liest das Containerinventar **und** sichert seine Metadaten.
 
-        Legt **keine** Sync-Zustände an: eine Zeile in `contacts_sync_state`
-        entsteht erst mit dem ersten erfolgreichen Lauf. Sonst wäre nach dem
-        blossen Inventar nicht mehr unterscheidbar, ob ein Container schon
-        importiert wurde.
+        Das Inventar ist ein eigener, geprüfter Metadatenschritt. Er läuft
+        vollständig ab, bevor irgendein Kontakt gelesen, ein Cursor angefasst
+        oder eine Löschmenge gebildet wird — und seine Wirkung überlebt einen
+        anschliessenden Abbruch.
+
+        Bis zum 2026-08-01 war das anders: die Arten wurden hier zwar erhoben,
+        aber erst im erfolgreichen Abschluss eines Laufs geschrieben. Ein
+        `dropEverything` verwarf damit eine gültige Auskunft, die längst
+        vorlag — und ohne sie war der lokale Ablageort nicht mehr vom
+        kontogebundenen zu unterscheiden.
+
+        Was hier **nicht** passiert: kein Kontakt wird importiert, kein
+        Tombstone gesetzt, kein Cursor bewegt, kein Auditlauf behauptet. Eine
+        Zeile aus diesem Schritt sagt „dieser Ablageort existiert und ist von
+        dieser Art" — nicht „er wurde synchronisiert".
         """
         self._require_authorized()
         container = self._client.containers()
-        # Die Art jedes Ablageorts merken: sie kommt ausschliesslich hier
-        # vorbei und wird beim naechsten Zustandsschreiben mitgesichert.
-        # Ohne sie koennte eine Oberflaeche einen Ablageort nur an Reihenfolge
-        # oder Groesse unterscheiden — und das ist keine bewusste Auswahl.
-        self._container_arten = {c.identifier: c.type for c in container}
+        self.persist_container_inventory(container)
         return container
+
+    def persist_container_inventory(self, container) -> tuple[str, ...]:
+        """Sichert Kennung und Art jedes Ablageorts — sonst nichts.
+
+        Eigene, kurze UnitOfWork: sie hat mit der Kontakt-, Cursor- und
+        Tombstone-Transaktion nichts zu tun und darf deren Schicksal nicht
+        teilen. Fällt der Lauf danach aus, bleiben diese Metadaten stehen.
+
+        Für einen **bekannten** Ablageort wird ausschliesslich die Art
+        fortgeschrieben. Modus, Cursor, Circuit-Zustand, Voll-Diff-Markierung
+        und beide Erfolgsstempel bleiben unberührt — der Schritt behauptet
+        keinen Lauf.
+
+        Für einen **neuen** Ablageort entsteht genau eine Zeile: Art gesetzt,
+        Modus `full_diff_required`, kein Cursor, Circuit geschlossen, kein
+        Erfolgsstempel. Damit ist sie von einer synchronisierten Zeile jederzeit
+        unterscheidbar (`last_full_diff_at is None`), und `pending_full_diff`
+        führt sie wie zuvor auf den kontoweiten Pfad.
+
+        Ein Ablageort, der im Inventar **fehlt**, wird hier nicht angefasst:
+        weder gelöscht noch getombstonet noch stillschweigend entfernt. Sein
+        Verschwinden ist eine Aussage über den Provider, keine über den
+        lokalen Bestand.
+
+        :returns: die Kennungen der neu angelegten Zeilen.
+        """
+        arten = validate_inventory(container)
+        # Erst nach bestandener Pruefung merken: ein mehrdeutiges Inventar darf
+        # auch den Folgelauf nicht mit halben Angaben versorgen.
+        self._container_arten = dict(arten)
+        if not arten:
+            return ()
+
+        jetzt = utc_now()
+        neu: list[str] = []
+        with self._persistence.unit_of_work() as uow:
+            repos = self._persistence.repositories(uow)
+            for kennung, art in arten.items():
+                vorher = repos.sync_state.get(self._provider_account_id,
+                                              kennung)
+                if vorher is None:
+                    repos.sync_state.upsert(ContactSyncState(
+                        provider_account_id=self._provider_account_id,
+                        container_identifier=kennung, container_type=art,
+                        # Der Schluesselsatz des laufenden Sidecars. Er wird
+                        # beim ersten echten Lauf ohnehin ueberschrieben; bis
+                        # dahin ist er die einzige belegte Angabe.
+                        key_set_version=str(self._handshake_key_set_version()),
+                        mode=SyncMode.FULL_DIFF_REQUIRED.value,
+                        cursor_token=None, cursor_taken_at=None,
+                        last_full_diff_at=None,
+                        circuit_state=CircuitState.CLOSED.value,
+                        updated_at=jetzt))
+                    neu.append(kennung)
+                elif (is_specific_container_type(art)
+                        and art != vorher.container_type):
+                    # `replace` statt Neubau: jedes andere Feld bleibt
+                    # nachweislich das, was der letzte Lauf hinterlassen hat.
+                    repos.sync_state.upsert(replace(
+                        vorher, container_type=art, updated_at=jetzt))
+        return tuple(neu)
+
+    def _handshake_key_set_version(self) -> int:
+        handshake = self._client.handshake
+        return handshake.key_set_version if handshake is not None else -1
 
     # ── Öffentliche Läufe ───────────────────────────────────────────────────
     def sync(self, container_identifier: str) -> SyncRunResult:

@@ -927,7 +927,15 @@ function CreateDialog({ onClose, onPrepared }: {
   useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
   useEffect(() => {
     api.listContainers()
-      .then((o) => { setOrte(o); if (o.length === 1) setOrt(o[0].container_ref); })
+      // Vorausgewählt wird nur, wenn es genau einen Ablageort gibt **und**
+      // seine Art erhoben ist. Ein `unknown` bleibt eine bewusste Entscheidung
+      // des Nutzers — vorausgewählt sähe es aus wie eine getroffene Wahl.
+      .then((o) => {
+        setOrte(o);
+        if (o.length === 1 && o[0].container_type !== 'unknown') {
+          setOrt(o[0].container_ref);
+        }
+      })
       .catch(() => setOrte([]));
   }, []);
 
