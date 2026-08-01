@@ -117,6 +117,73 @@ def test_der_reason_verlaesst_den_shim_nur_als_digest_oder_artefakt():
         "reasonDigest", "")
 
 
+# ═══ Statik: die Uncaught-Letztdiagnose ═════════════════════════════════════
+def test_der_uncaught_handler_wird_genau_einmal_registriert():
+    """Ein Handler, eine Registrierung — und der fremde bleibt erhalten."""
+    code = _ohne_kommentare(_quelle("JCContactsSaveShim.m"))
+    assert code.count("NSSetUncaughtExceptionHandler(") == 1
+    assert "NSGetUncaughtExceptionHandler()" in code
+    assert "gPreviousUncaughtHandler" in code
+    assert "gUncaughtInstalled" in code
+
+
+def test_der_handler_ist_reine_letztdiagnose():
+    """Kein Fortsetzen, kein Antworten, kein Store, kein Retry."""
+    code = _ohne_kommentare(_quelle("JCContactsSaveShim.m"))
+    handler = code.split("JCUncaughtExceptionDiagnosticsHandler(NSException")[1]
+    handler = handler.split("\n}")[0]
+    for verboten in ("executeSaveRequest", "attempt(", "stdout",
+                     "STDOUT_FILENO", "exit(", "abort(", "open(", "mkdir",
+                     "fileSystemRepresentation", "stringByAppending"):
+        assert verboten not in handler, verboten
+    # Er schreibt ausschliesslich ueber bereits offene Deskriptoren.
+    assert "STDERR_FILENO" in handler
+    assert "gDiag.fd" in handler
+
+
+def test_die_stderr_zeile_traegt_nie_den_reason():
+    code = _ohne_kommentare(_quelle("JCContactsSaveShim.m"))
+    handler = code.split("JCUncaughtExceptionDiagnosticsHandler(NSException")[1]
+    handler = handler.split("if (gDiag.fd >= 0)")[0]
+    # Zwischen Digest-Marke und Zeilenende wird nur der Digest geschrieben —
+    # der Reason-Puffer kommt in diesem Abschnitt nicht vor.
+    assert "uncaught_objc_exception name=" in handler
+    assert "reasonUtf8" not in handler.split("reasonDigest=")[1]
+
+
+def test_das_artefakt_wird_vor_dem_save_vorbereitet():
+    """Im Todesmoment bleibt nur write(2) auf einen offenen Deskriptor."""
+    code = _ohne_kommentare(_quelle("JCContactsSaveShim.m"))
+    kern = code.split("JCExecuteSaveGuardedWithAttempt(")[1]
+    assert kern.index("JCPrepareDiagnosticsForAttempt()") < kern.index("@try")
+    # Ohne Wurf verschwindet die leere Datei wieder.
+    erfolgszweig = kern.split("@try")[1].split("@catch")[0]
+    assert "JCDiscardPreparedDiagnostics()" in erfolgszweig
+
+
+def test_swift_installiert_die_letztdiagnose_genau_einmal():
+    code = _ohne_kommentare(_quelle("sidecar.swift"))
+    assert code.count("JCInstallUncaughtExceptionDiagnostics()") == 1
+    # Vor der Hauptschleife — nicht je Anfrage.
+    assert (code.index("JCInstallUncaughtExceptionDiagnostics()")
+            < code.index("while let line = readLine"))
+
+
+def test_die_uncaught_stderr_zeile_ueberlebt_die_filterung(tmp_path):
+    """`[contacts-bridge] …` passiert die Allowlist woertlich."""
+    from personaljarvis.contacts.bridge.errors import BridgeError
+
+    from .test_crash_diagnostics import _prozess_mit_stderr
+
+    zeile = ("[contacts-bridge] uncaught_objc_exception "
+             "name=NSInternalInconsistencyException reasonDigest=" + ABC_DIGEST)
+    prozess = _prozess_mit_stderr(tmp_path, [zeile])
+    with pytest.raises(BridgeError):
+        prozess.start(timeout=5.0)
+    prozess.stop()
+    assert zeile[:120] in " ".join(prozess.safe_stderr())
+
+
 # ═══ Statik: der Swift-Aufrufer ═════════════════════════════════════════════
 def test_swift_kennt_keinen_direkten_execute_mehr():
     code = _ohne_kommentare(_quelle("sidecar.swift"))
@@ -191,10 +258,12 @@ def test_das_gepackte_binary_traegt_die_grenze():
     symbole = subprocess.run(["/usr/bin/nm", "-gU", str(binary)],
                              capture_output=True, text=True).stdout
     assert "JCExecuteSaveRequestGuarded" in symbole
+    assert "JCInstallUncaughtExceptionDiagnostics" in symbole
     daten = binary.read_bytes()
     assert b"objc_exception" in daten
     assert b"processMustTerminate" in daten
     assert b"OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH" in daten
+    assert b"uncaught_objc_exception name=" in daten
 
 
 # ═══ Provider: Auswertung der Exception-Antwort ═════════════════════════════

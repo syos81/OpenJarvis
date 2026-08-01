@@ -40,6 +40,14 @@ static NSArray<NSString *> *artefakte(NSString *dir) {
         sortedArrayUsingSelector:@selector(compare:)];
 }
 
+/// Ein „fremder" Handler, wie ihn eine andere Bibliothek registriert haben
+/// koennte. Der Kettentest belegt, dass er die Installation ueberlebt und
+/// nach der eigenen Diagnose weiterhin genau einmal aufgerufen wird.
+static int sFremdeAufrufe = 0;
+static void JCTestVorhandenerFremderHandler(NSException *exception) {
+    sFremdeAufrufe++;
+}
+
 int main(void) {
     @autoreleasepool {
         // ── A · Erfolg ──────────────────────────────────────────────────────
@@ -178,6 +186,122 @@ int main(void) {
                                   @"0123456789abcdef"] invertedSet]]
                       .location == NSNotFound,
                @"H: Digest ist reiner Hex und traegt keinen Text");
+
+        // ── D2 · Vorbereitetes Artefakt verschwindet ohne Wurf ──────────────
+        // (Env zeigt weiterhin auf `dir`; zwei Dateien liegen dort bereits.)
+        NSUInteger vorher = artefakte(dir).count;
+        JCExecuteSaveGuardedWithAttempt(
+            ^BOOL(NSError **error) { return YES; });
+        pruefe(artefakte(dir).count == vorher,
+               @"D2: nach Erfolg bleibt kein leeres Artefakt zurueck");
+        JCExecuteSaveGuardedWithAttempt(^BOOL(NSError **error) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"CNErrorDomain"
+                                             code:2
+                                         userInfo:nil];
+            }
+            return NO;
+        });
+        pruefe(artefakte(dir).count == vorher,
+               @"D2: nach NSError bleibt kein leeres Artefakt zurueck");
+
+        // ── U · Uncaught-Handler: Installation, Kette, Letztdiagnose ────────
+        // Ein fremder Handler ist vor der Installation registriert …
+        sFremdeAufrufe = 0;
+        NSSetUncaughtExceptionHandler(&JCTestVorhandenerFremderHandler);
+        JCInstallUncaughtExceptionDiagnostics();
+        NSUncaughtExceptionHandler *installiert = NSGetUncaughtExceptionHandler();
+        pruefe(installiert != NULL
+               && installiert != &JCTestVorhandenerFremderHandler,
+               @"U: eigener Handler ist registriert");
+        // … und eine zweite Installation aendert nichts (genau einmal).
+        JCInstallUncaughtExceptionDiagnostics();
+        pruefe(NSGetUncaughtExceptionHandler() == installiert,
+               @"U: zweite Installation ist wirkungslos");
+
+        // Letztdiagnose simulieren: Kontext vorbereiten (via Kern), Handler
+        // aus dem Versuch heraus direkt aufrufen — wie beim Dispatch-Wurf
+        // erreicht der @catch den Fall nie.
+        NSUInteger vorUncaught = artefakte(dir).count;
+        int stderrAlt = dup(STDERR_FILENO);
+        NSString *stderrDatei = [dir stringByAppendingPathComponent:@"stderr.txt"];
+        int stderrNeu = open(stderrDatei.fileSystemRepresentation,
+                             O_CREAT | O_WRONLY | O_TRUNC, 0600);
+        dup2(stderrNeu, STDERR_FILENO);
+        JCSaveOutcome *waehrendUncaught = JCExecuteSaveGuardedWithAttempt(
+            ^BOOL(NSError **error) {
+                NSGetUncaughtExceptionHandler()(
+                    [[NSException alloc] initWithName:@"NSGenericException"
+                                               reason:kBoeserReason
+                                             userInfo:nil]);
+                return YES;
+            });
+        dup2(stderrAlt, STDERR_FILENO);
+        close(stderrNeu);
+        close(stderrAlt);
+        pruefe(waehrendUncaught.kind == JCSaveOutcomeKindSuccess,
+               @"U: der Kern selbst sah keinen Wurf (Handler lief separat)");
+        pruefe(sFremdeAufrufe == 1,
+               @"U: der fremde Handler wurde genau einmal weitergerufen");
+        NSArray<NSString *> *neue = artefakte(dir);
+        // stderr.txt liegt jetzt zusaetzlich im Ordner.
+        pruefe(neue.count == vorUncaught + 2,
+               @"U: genau ein neues Artefakt (plus stderr-Mitschnitt)");
+        NSDictionary *uncaughtDoc = nil;
+        for (NSString *n in neue) {
+            if (![n hasPrefix:@"contacts-exception-"]) { continue; }
+            NSData *daten = [NSData dataWithContentsOfFile:
+                [dir stringByAppendingPathComponent:n]];
+            NSDictionary *doc = [NSJSONSerialization JSONObjectWithData:daten
+                                                                options:0
+                                                                  error:NULL];
+            if ([doc[@"source"] isEqualToString:@"uncaught"]) {
+                uncaughtDoc = doc;
+            }
+        }
+        pruefe(uncaughtDoc != nil, @"U: Artefakt traegt source=uncaught");
+        pruefe([uncaughtDoc[@"exceptionName"]
+                   isEqualToString:@"NSGenericException"],
+               @"U: Klassenname im Artefakt");
+        pruefe([uncaughtDoc[@"reason"] isEqualToString:kBoeserReason],
+               @"U: begrenzter Roh-Reason nur im geschuetzten Artefakt");
+        pruefe([uncaughtDoc[@"reasonTruncated"] boolValue] == NO,
+               @"U: kurzer Reason ist nicht gekappt");
+        NSString *stderrText = [NSString stringWithContentsOfFile:stderrDatei
+                                                         encoding:NSUTF8StringEncoding
+                                                            error:NULL] ?: @"";
+        pruefe([stderrText containsString:
+                   @"[contacts-bridge] uncaught_objc_exception name=NSGenericException"],
+               @"U: stderr-Zeile mit Klassenname");
+        pruefe([stderrText containsString:@"reasonDigest="]
+               && [stderrText containsString:uncaughtDoc[@"reasonDigest"]],
+               @"U: stderr-Digest stimmt mit Artefakt ueberein");
+        pruefe(![stderrText containsString:@"ZZZ-Geheimname"]
+               && ![stderrText containsString:@"@example"]
+               && ![stderrText containsString:@"/Users/"],
+               @"U: kein Roh-Reason auf stderr");
+        unlink(stderrDatei.fileSystemRepresentation);
+
+        // Ohne vorbereiteten Kontext (Env aus): nur die stderr-Zeile, kein
+        // Artefakt, keine Pfadaufloesung.
+        unsetenv(JCExceptionDiagnosticsPathEnvVar.UTF8String);
+        NSUInteger ohneKontextVorher = artefakte(dir).count;
+        int stillAlt = dup(STDERR_FILENO);
+        int stillNeu = open("/dev/null", O_WRONLY);
+        dup2(stillNeu, STDERR_FILENO);
+        JCExecuteSaveGuardedWithAttempt(^BOOL(NSError **error) {
+            NSGetUncaughtExceptionHandler()(
+                [[NSException alloc] initWithName:@"X" reason:@"r"
+                                         userInfo:nil]);
+            return YES;
+        });
+        dup2(stillAlt, STDERR_FILENO);
+        close(stillNeu);
+        close(stillAlt);
+        pruefe(artefakte(dir).count == ohneKontextVorher,
+               @"U: ohne Diagnosemodus entsteht im Handler kein Artefakt");
+        setenv(JCExceptionDiagnosticsPathEnvVar.UTF8String,
+               dir.fileSystemRepresentation, 1);
 
         // ── F · Unsichere Diagnosepfade: still kein Artefakt ────────────────
         struct { const char *name; const char *wert; } faelle[3];

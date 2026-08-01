@@ -95,4 +95,26 @@ JCSaveOutcome *JCExecuteSaveGuardedWithAttempt(
 /// 0600-JSON-Datei abgelegt. Standard: nicht gesetzt — kein Artefakt.
 FOUNDATION_EXPORT NSString *const JCExceptionDiagnosticsPathEnvVar;
 
+/// Installiert den Uncaught-Exception-Diagnosehandler — genau einmal,
+/// weitere Aufrufe sind wirkungslos. Ein bereits registrierter fremder
+/// Handler wird gesichert und nach der eigenen Diagnose aufgerufen, nie
+/// unbemerkt ersetzt.
+///
+/// Warum es ihn gibt: Der Save-Wurf vom 2026-08-01/02 entsteht INNERHALB
+/// von Apples `performBlockAndWait`-Dispatch-Pfad. libdispatch ist eine
+/// No-Throw-Grenze — beim Entwinden ueber `_dispatch_client_callout` laeuft
+/// die Ausnahme in `std::terminate`, drei Ebenen unter jedem `@try` des
+/// Aufrufers (Crashreport-Beleg: `_objc_terminate` im Absturzthread). Der
+/// von `_objc_terminate` aufgerufene Uncaught-Handler ist der EINZIGE Ort,
+/// der diese Ausnahme noch sieht.
+///
+/// Der Handler ist reine Letztdiagnose: er setzt den Prozess nicht fort,
+/// behandelt nichts, sendet keine stdout-Antwort, beruehrt keinen Store,
+/// startet keinen Retry und behauptet weder Erfolg noch `not_sent`. Er
+/// schreibt eine PII-arme stderr-Zeile, fuellt — falls vorbereitet — das
+/// Diagnoseartefakt ueber den bereits offenen Deskriptor und kehrt zurueck,
+/// damit die normale Terminierung (SIGABRT → `child_signalled` →
+/// `outcome_unknown`) unveraendert weiterlaeuft.
+void JCInstallUncaughtExceptionDiagnostics(void);
+
 NS_ASSUME_NONNULL_END

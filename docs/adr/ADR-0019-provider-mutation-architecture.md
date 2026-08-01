@@ -343,6 +343,24 @@ die Ausnahme gilt:
 Die Grenze ist eine **Diagnose- und Prozesssicherheitsgrenze** — sie behebt
 den Apple-Schreibpfad nicht und ersetzt keine Ursachenanalyse.
 
+**Präzisierung 2026-08-02: die Dispatch-Grenze und die Uncaught-Letztdiagnose.**
+Der Diagnose-Create vom 2026-08-02 belegte per Crashreport: der reale Wurf
+entsteht **innerhalb** von Apples `performBlockAndWait`-Dispatch-Pfad, und
+libdispatch ist eine No-Throw-Grenze — die Ausnahme läuft beim Entwinden über
+`_dispatch_client_callout` in `std::terminate`, drei Ebenen unter jedem
+`@try` des Aufrufers. Ein äußeres `@try/@catch` kann genau diesen Wurf
+prinzipbedingt nie fangen (der Shim blieb im Stack nachweisbar, sein `@catch`
+wurde nie erreicht). Deshalb installiert der Sidecar seit dem 2026-08-02
+zusätzlich genau einmal einen `NSSetUncaughtExceptionHandler` — den einzigen
+Ort, den `_objc_terminate` vor dem `abort()` noch aufruft. Der Handler ist
+reine Letztdiagnose: Artefaktdatei und Metadaten werden **vor** dem Save
+vorbereitet (ohne Wurf wird die leere Datei wieder entfernt), im Todesmoment
+bleibt nur `write(2)` auf den offenen Deskriptor plus eine PII-arme
+stderr-Zeile (`uncaught_objc_exception name=… reasonDigest=…`). Er setzt den
+Prozess nicht fort, sendet keine stdout-Antwort und ruft einen zuvor
+registrierten fremden Handler weiterhin auf. Die Klassifikation bleibt
+unverändert `child_signalled` → `outcome_unknown`, `attempt_count` bleibt 1.
+
 ### 5. Providererfolg und lokale Nachführung
 
 Das bestehende Zustandsmodell kann die Zwischenlage „Provideränderung

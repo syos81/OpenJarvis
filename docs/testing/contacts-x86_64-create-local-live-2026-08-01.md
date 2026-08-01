@@ -177,3 +177,22 @@ Roh-Reason nur im ausdrücklich aktivierten Diagnosemodus
 (`OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH`). Der Shim behebt den
 Apple-Schreibpfad nicht; er macht den nächsten, einzeln freizugebenden
 Diagnose-Create erst aussagekräftig.
+
+## Nachtrag 2026-08-02: Diagnose-Create — Grenzbefund statt Reason
+
+Der einzeln freigegebene Diagnose-Create (HEAD `3defc77`, Diagnosemodus
+aktiv, minimaler Kontakt nur mit Vorname, lokaler Ablageort) endete im
+**vierten byte-identischen SIGABRT**. Der neue Crashreport zeigt erstmals
+die eigenen Shim-Frames im Stack — und damit den Beweis: der Wurf entsteht
+**innerhalb** von Apples `performBlockAndWait`-Dispatch-Pfad und läuft an
+der libdispatch-No-Throw-Grenze in `std::terminate`, bevor irgendein
+`@try/@catch` ihn sehen kann. Das Diagnoseartefakt blieb leer, Klasse und
+Reason fehlen weiterhin; Sichtprüfung: kein Kontakt entstanden; Mutation
+korrekt `outcome_unknown`/`child_signalled`, ein Send, Freigabe verbraucht,
+Bestand 117/117/0.
+
+**Konsequenz (2026-08-02):** Uncaught-Letztdiagnose im Sidecar
+(`NSSetUncaughtExceptionHandler`, ADR-0019 §4a) — vorbereitetes Artefakt vor
+dem Save, `write(2)`-Diagnose im Todesmoment, PII-arme stderr-Zeile,
+Klassifikation unverändert. Der nächste einzelne Diagnose-Create soll damit
+erstmals Ausnahmeklasse und geschützten Reason liefern.

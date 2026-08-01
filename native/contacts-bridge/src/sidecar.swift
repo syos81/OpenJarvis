@@ -842,6 +842,12 @@ func handshakePayload() -> [String: Any] {
     ]
 }
 
+// Letztdiagnose fuer Wuerfe aus Apples Dispatch-Pfad, die kein @try/@catch
+// je erreicht (ADR-0019 §4a, Crashreport-Beleg vom 2026-08-02): genau eine
+// Installation, direkt am Prozessstart. Der Handler behandelt nichts — er
+// schreibt Klasse und Digest und laesst die Terminierung weiterlaufen.
+JCInstallUncaughtExceptionDiagnostics()
+
 emit(handshakePayload())
 diag("bereit, Protokollversion \(kProtocolVersion), Autorisierung \(authStatusText())")
 

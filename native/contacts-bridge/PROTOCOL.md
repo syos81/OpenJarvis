@@ -106,7 +106,14 @@ Geschlossener Ergebnisvertrag von `create` (immer `ok:true`):
 `processMustTerminate: true`. Danach schreibt der Sidecar genau diese eine
 Antwort, flusht und beendet sich mit `exit(0)` — der Host liest die Antwort
 vor dem Exit; ein Exit **ohne** Antwort bleibt ein Prozessfehler
-(`child_signalled`/`child_exited`). Der volle `reason` erscheint niemals in
+(`child_signalled`/`child_exited`). Wirft Apples Dispatch-Pfad selbst (dann erreicht kein `@catch` die
+Ausnahme), stirbt der Prozess weiterhin per SIGABRT — der beim Start
+installierte Uncaught-Handler schreibt zuvor best-effort
+`[contacts-bridge] uncaught_objc_exception name=<bereinigt>
+reasonDigest=<sha256|unavailable>` nach stderr und füllt das **vor** dem
+Save vorbereitete Diagnoseartefakt über den bereits offenen Deskriptor
+(`source: "uncaught"`); ohne Wurf wird die vorbereitete leere Datei wieder
+entfernt. Der volle `reason` erscheint niemals in
 stdout/stderr; nur der ausdrücklich per
 `OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH` aktivierte Diagnosemodus
 legt ihn als exklusive 0600-Datei in einen benutzereigenen 0700-Ordner.
