@@ -120,6 +120,18 @@ def attach(app: Any, *, database_path: str | None = None,
     # `include_router`: Tests reichen leichte App-Attrappen herein, und ein
     # fehlender Router darf den Bootstrap nicht scheitern lassen, nachdem
     # Datenbank und Sperre bereits stehen.
+    # Reihenfolge ist hier bedeutungstragend (ADR-0019 §6):
+    #
+    #   bootstrap.start()   Modul, Migrationen, Erholung verwaister Vorgaenge
+    #   check_bridge()      kontaktfreier Handshake -> Faehigkeitsmenge
+    #   _register_*()       Werkzeuge verdrahten
+    #
+    # Ohne den Startcheck bliebe `capabilities` auf dem Gate-A-Grundzustand
+    # (alles ausser Lesen False) und `create` waere dauerhaft gesperrt — die
+    # Bruecke aus dem Handshake haette keinen Aufrufer. Er muss **vor** der
+    # Registrierung laufen, damit der danach neu gebaute Mutationsdienst die
+    # abgeleitete Menge traegt und nicht die alte.
+    _derive_capabilities(runtime.contacts)
     _register_recovery_service(runtime.contacts, sidecar_path, bundle_dir)
     _register_mutation_bridge(runtime.contacts, sidecar_path, bundle_dir)
 
@@ -128,6 +140,24 @@ def attach(app: Any, *, database_path: str | None = None,
 
         app.include_router(create_contacts_router(runtime.contacts))
     return runtime
+
+
+def _derive_capabilities(module: Any) -> None:
+    """Leitet die Fähigkeitsmenge aus dem Sidecar-Handshake ab.
+
+    **Kontaktfrei.** `check_bridge()` sendet ausschliesslich `ping` und liest
+    die unaufgeforderte `ready`-Zeile — beides gehört zu
+    `protocol.CONTACT_FREE_OPERATIONS`. Es gibt keinen `CNContactStore`-
+    Zugriff, kein `authorizationStatus`, kein `requestAuthorization`, keinen
+    Dialog und keine Kontaktoperation. Der Prozess wird danach beendet.
+
+    **Fail-closed in jeder Richtung.** Fehlt das Binary, scheitert der
+    Handshake, fehlen die Vertragsversionen oder passen sie nicht exakt, so
+    bleibt jede Schreibfähigkeit `False` — `check_bridge()` fängt die gesamte
+    Bridge-Fehlerfamilie ab und liefert dann einen Status ohne Fähigkeiten.
+    Eine teilweise oder optimistische Freischaltung gibt es nicht.
+    """
+    module.check_bridge()
 
 
 def _register_mutation_bridge(module: Any, sidecar_path: str | None,

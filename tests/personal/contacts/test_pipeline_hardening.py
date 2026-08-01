@@ -191,11 +191,20 @@ def test_erholter_vorgang_ist_abgleichbar_aber_nie_erneut_sendbar(module):
 
     class Leser:
         def observe(self, **kw):
-            return ReconcileObservation(exists=True,
-                                        provider_identifier="raw-neu")
+            from personaljarvis.contacts.application.field_contract import (
+                as_bridge_contact,
+                parse_create_fields,
+            )
+
+            return ReconcileObservation(
+                exists=True, provider_identifier="raw-neu",
+                readback=as_bridge_contact(
+                    parse_create_fields({"given_name": "Fixi"}),
+                    provider_identifier="raw-neu"))
 
     ergebnis = ContactsReconcileService(module, Leser()).reconcile(mutation_id)
     assert ergebnis.state == MutationState.SUCCEEDED
+    assert provider.calls == 0, "Der Abgleich sendet nie"
 
 
 def test_recover_auf_gesunder_datenbank_ist_leer(module):

@@ -27,6 +27,7 @@ from personaljarvis.contacts.application import ContactsMutationService
 from personaljarvis.contacts.application.field_contract import (
     as_bridge_contact,
     parse_canonical_payload,
+    parse_create_fields,
     project_bridge_contact,
     readback_digest,
 )
@@ -35,6 +36,7 @@ from personaljarvis.contacts.application.mutation_service import (
     MutationState,
     ProviderResponse,
 )
+from personaljarvis.contacts.application.reconcile import ReconcileObservation
 from personaljarvis.contacts.domain.capabilities import ContactCapabilitySet
 from personaljarvis.contacts.domain.models import ContactSyncState
 from personaljarvis.contacts.repositories.sqlite import SqliteSyncStateRepository
@@ -623,3 +625,228 @@ def test_kein_hintergrundexecutor_und_kein_scheduler():
                          "BackgroundTasks", "apscheduler", "add_job",
                          "asyncio.create_task"):
             assert verboten not in code, f"{datei.name}: {verboten}"
+
+
+# ═══ Abgleich nach ungewissem Ausgang ═══════════════════════════════════════
+#
+# Der teuerste reale Fall: der Provider hat angelegt, aber die Antwort ging
+# verloren. Der Vorgang steht auf `outcome_unknown`; erst der **lesende**
+# Abgleich klaert ihn. Frueher setzte dieser Weg direkt `succeeded` — der
+# lokale Kontakt fehlte dann, und die Echo-Unterdrueckung haette ihn beim
+# naechsten Delta-Lauf ausgefiltert.
+class LeseAttrappe:
+    """Rein lesender Abgleichleser. Zaehlt jeden Lesezugriff."""
+
+    def __init__(self, *, exists: bool | None = True, mit_readback=True,
+                 felder=None) -> None:
+        self.exists = exists
+        self.mit_readback = mit_readback
+        self.felder = felder or {"given_name": "ZZZ-JarvisTest",
+                                 "family_name": "Anlage"}
+        self.calls = 0
+
+    def observe(self, *, command, provider_identifier, expected_fields,
+                idempotency_key):
+        self.calls += 1
+        if self.exists is not True:
+            return ReconcileObservation(exists=self.exists)
+        zurueck = (as_bridge_contact(parse_create_fields(self.felder),
+                                     provider_identifier=ERZEUGT)
+                   if self.mit_readback else None)
+        return ReconcileObservation(
+            exists=True, provider_identifier=ERZEUGT,
+            fields=dict(self.felder), readback=zurueck)
+
+
+def _timeout_provider() -> ZaehlProvider:
+    from personaljarvis.contacts.bridge.errors import (
+        MutationOutcomeUnknown,
+        ProcessDiagnostics,
+    )
+
+    return ZaehlProvider(raises=MutationOutcomeUnknown(
+        "request_timeout",
+        ProcessDiagnostics(request_id=1, operation="create",
+                           elapsed_seconds=120.0, child_exit_code=None,
+                           child_signal=None, child_alive=True,
+                           stdout_eof=False, stderr_eof=False,
+                           detail="keine Antwort binnen 120.0 s")))
+
+
+def _mit_timeout(module, leser) -> tuple:
+    """Bereitet vor, gibt frei, laeuft in einen Timeout — und stellt bereit."""
+    provider = _timeout_provider()
+    with module.unit_of_work() as uow:
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO, container_identifier=CONTAINER,
+            key_set_version="v1", mode="delta", cursor_token="TOKEN"))
+    module._capabilities = CREATE_CAPS
+    module._mutation_service = ContactsMutationService(
+        module, provider, capabilities=CREATE_CAPS)
+    module.reconcile_reader = leser
+    app = FastAPI()
+    app.include_router(create_contacts_router(module))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+    r = c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+               json={"user_initiated": True})
+    assert r.json()["state"] == MutationState.OUTCOME_UNKNOWN
+    return c, mid, provider
+
+
+def _mutationszeile(module, mid):
+    with module.unit_of_work() as uow:
+        return uow.execute(
+            "SELECT state, target_contact_id, readback_digest, "
+            "target_provider_identifier FROM contacts_mutations "
+            "WHERE mutation_id = ?", (mid,)).fetchone()
+
+
+# ── A. Timeout, aber der Provider hat tatsaechlich angelegt ────────────────
+def test_abgleich_nach_timeout_fuehrt_bis_succeeded(module):
+    leser = LeseAttrappe()
+    c, mid, provider = _mit_timeout(module, leser)
+
+    ergebnis = c.post(f"{PREFIX}/mutations/{mid}/reconcile",
+                      headers=_kopf()).json()
+    assert ergebnis["verdict"] == "applied"
+    assert ergebnis["state"] == MutationState.SUCCEEDED
+
+    zeile = _mutationszeile(module, mid)
+    assert zeile["state"] == MutationState.SUCCEEDED
+    assert zeile["target_contact_id"]
+    assert len(zeile["readback_digest"]) == 64
+    assert zeile["target_provider_identifier"] == ERZEUGT
+    # Genau ein lokaler Kontakt, genau eine externe Identitaet — und **kein**
+    # Voll-Diff als Voraussetzung.
+    assert len(_lokaler_kontakt(module)) == 1
+    # Genau ein Sendversuch insgesamt, ein Lesezugriff.
+    assert provider.calls == 1
+    assert leser.calls == 1
+    assert ergebnis["contact_id"] == zeile["target_contact_id"]
+
+
+def test_abgleich_nach_timeout_schliesst_die_auditkette(module):
+    c, mid, _ = _mit_timeout(module, LeseAttrappe())
+    c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf())
+    with module.unit_of_work() as uow:
+        stufen = [r["stage"] for r in uow.execute(
+            "SELECT stage FROM personal_audit_log WHERE subject_id = ? "
+            "ORDER BY sequence", (mid,)).fetchall()]
+    assert stufen == [
+        "mutation_prepared", "approval_requested", "approval_granted",
+        "execution_claimed", "provider_send_started",
+        "provider_result_received", "outcome_unknown", "reconcile_started",
+        "reconcile_succeeded", "mutation_completed"]
+
+
+# ── B. Abgleich ohne Read-back ────────────────────────────────────────────
+def test_abgleich_ohne_readback_schliesst_nicht_ab(module):
+    """Belegt gefunden, aber kein kanonischer Zustand — dann entscheidet ein Mensch."""
+    leser = LeseAttrappe(mit_readback=False)
+    c, mid, provider = _mit_timeout(module, leser)
+
+    ergebnis = c.post(f"{PREFIX}/mutations/{mid}/reconcile",
+                      headers=_kopf()).json()
+    assert ergebnis["state"] == MutationState.MANUAL_DECISION_REQUIRED
+    assert ergebnis["verdict"] == "ambiguous"
+
+    zeile = _mutationszeile(module, mid)
+    assert zeile["state"] == MutationState.MANUAL_DECISION_REQUIRED
+    assert zeile["target_contact_id"] is None
+    assert zeile["readback_digest"] is None
+    # Nichts erfunden, nichts gesendet.
+    assert _lokaler_kontakt(module) == []
+    assert provider.calls == 1
+
+
+def test_abgleich_ohne_providerkontakt_endet_nicht_in_succeeded(module):
+    leser = LeseAttrappe(exists=None)
+    c, mid, provider = _mit_timeout(module, leser)
+    ergebnis = c.post(f"{PREFIX}/mutations/{mid}/reconcile",
+                      headers=_kopf()).json()
+    assert ergebnis["state"] != MutationState.SUCCEEDED
+    assert _lokaler_kontakt(module) == []
+    assert provider.calls == 1
+
+
+# ── C. Lokaler Commit scheitert ───────────────────────────────────────────
+def test_fehlgeschlagene_nachfuehrung_behaelt_den_providerbeleg(module,
+                                                                monkeypatch):
+    leser = LeseAttrappe()
+    c, mid, provider = _mit_timeout(module, leser)
+
+    def platzt(self, uow, zeile, quelle):
+        raise RuntimeError("Datenbank fuer diesen Lauf nicht schreibbar")
+
+    monkeypatch.setattr(ContactsMutationService, "_spiegeln", platzt)
+    with pytest.raises(RuntimeError):
+        c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf())
+
+    zeile = _mutationszeile(module, mid)
+    assert zeile["state"] == MutationState.PROVIDER_APPLIED_PENDING_RECONCILE
+    assert zeile["readback_digest"], "Der Providerbeleg darf nicht verlorengehen"
+    assert zeile["target_provider_identifier"] == ERZEUGT
+    assert _lokaler_kontakt(module) == []
+
+    # Danach ist der Abschluss ohne jeden Provideraufruf nachholbar.
+    monkeypatch.undo()
+    vorher = provider.calls
+    ergebnis = module.mutation_service().finalize_pending(mid)
+    assert ergebnis.state == MutationState.SUCCEEDED
+    assert provider.calls == vorher
+    assert len(_lokaler_kontakt(module)) == 1
+
+
+# ── D. Wiederholter Abgleich ──────────────────────────────────────────────
+def test_zweiter_abgleich_erzeugt_nichts_neues(module):
+    leser = LeseAttrappe()
+    c, mid, provider = _mit_timeout(module, leser)
+    erste = c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf()).json()
+
+    zweite = c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf())
+    # Aus `succeeded` gibt es keinen Abgleich mehr — der Vorgang ist fertig.
+    assert zweite.status_code == 409
+    assert provider.calls == 1
+    assert len(_lokaler_kontakt(module)) == 1
+    assert _mutationszeile(module, mid)["target_contact_id"] == \
+        erste["contact_id"]
+
+
+def test_wiederholte_nachfuehrung_bleibt_bei_demselben_kontakt(module):
+    c, mid, provider = _mit_timeout(module, LeseAttrappe())
+    c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf())
+    erste = _mutationszeile(module, mid)["target_contact_id"]
+
+    module.mutation_service().finalize_pending(mid)
+    module.mutation_service().finalize_pending(mid)
+    assert _mutationszeile(module, mid)["target_contact_id"] == erste
+    assert len(_lokaler_kontakt(module)) == 1
+    assert provider.calls == 1
+
+
+# ── E. Neustart im Zwischenzustand ────────────────────────────────────────
+def test_neustart_im_zwischenzustand_sendet_nicht(module, monkeypatch):
+    leser = LeseAttrappe()
+    c, mid, provider = _mit_timeout(module, leser)
+
+    def platzt(self, uow, zeile, quelle):
+        raise RuntimeError("Abbruch zwischen C1 und C2")
+
+    monkeypatch.setattr(ContactsMutationService, "_spiegeln", platzt)
+    with pytest.raises(RuntimeError):
+        c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf())
+    monkeypatch.undo()
+
+    # „Neustart": die Erholung laeuft und fasst den Zwischenzustand nicht an.
+    erholt = module.mutation_service().recover_interrupted()
+    assert mid not in erholt
+    assert _mutationszeile(module, mid)["state"] == \
+        MutationState.PROVIDER_APPLIED_PENDING_RECONCILE
+    assert provider.calls == 1
+
+    # Die lokale Nachfuehrung bleibt moeglich — ohne Provideraufruf.
+    assert module.mutation_service().finalize_pending(mid).state == \
+        MutationState.SUCCEEDED
+    assert provider.calls == 1
+    assert len(_lokaler_kontakt(module)) == 1

@@ -593,8 +593,16 @@ def test_reconcile_liest_nur(client, module, provider):
 
         def observe(self, **kw):
             self.calls += 1
-            return ReconcileObservation(exists=True,
-                                        provider_identifier="raw-neu")
+            from personaljarvis.contacts.application.field_contract import (
+                as_bridge_contact,
+                parse_create_fields,
+            )
+
+            return ReconcileObservation(
+                exists=True, provider_identifier="raw-neu",
+                readback=as_bridge_contact(
+                    parse_create_fields({"given_name": "Fixi"}),
+                    provider_identifier="raw-neu"))
 
     leser = Leser()
     module.reconcile_reader = leser

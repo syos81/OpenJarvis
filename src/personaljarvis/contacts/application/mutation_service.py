@@ -121,10 +121,15 @@ class MutationState:
 class ProviderResponse:
     """Antwort des Ausführungsziels — Fake-Bridge oder echte Bridge.
 
-    `readback` und `readback_digest` sind bei `SUCCEEDED` **Pflicht**: ohne
-    zurückgelesenen Datensatz gilt ein Vorgang nicht als angewandt, sondern
-    als `outcome_unknown` (ADR-0019 §4). Der Konstruktor erzwingt das, damit
-    kein Aufrufer versehentlich einen Erfolg ohne Beleg meldet.
+    Der Konstruktor erzwingt bei `SUCCEEDED` genau eines: einen
+    `provider_identifier`. Ein Erfolg ohne Ziel wäre sinnlos.
+
+    `readback` und `readback_digest` erzwingt er **nicht** — die Prüfung
+    liegt nachgelagert und ist dort fail-closed: der produktive Provider
+    stuft ein `applied` ohne Read-back als `outcome_unknown` ein
+    (`bridge_provider._auswerten`), und `finalize_pending` verweigert die
+    Nachführung ohne belegte Providerwahrheit. Ein Erfolg ohne Beleg kann
+    also entstehen — er kommt nur nirgends bis `succeeded` durch.
     """
 
     def __init__(self, outcome: str, *, error_code: str | None = None,

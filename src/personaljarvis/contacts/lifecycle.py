@@ -181,6 +181,11 @@ class ContactsModule:
 
         self._bridge_status = status
         self._capabilities = derive_capabilities(status)
+        # Ein bereits gebauter Mutationsdienst haelt die **alte**
+        # Faehigkeitsmenge fest. Wer die Menge aendert, macht ihn damit
+        # ungueltig — das ist eine Invariante dieser Klasse und keine
+        # Obliegenheit des Aufrufers. Der naechste Zugriff baut ihn neu.
+        self._mutation_service = None
         if not status.available:
             self._state = ModuleState.DEGRADED
         elif status.authorization_status != "authorized":

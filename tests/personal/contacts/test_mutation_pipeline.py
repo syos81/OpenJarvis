@@ -701,15 +701,54 @@ def _in_unbekannten_zustand(module, command):
     return vorgang
 
 
+
+def _readback(provider_identifier: str = "raw-neu"):
+    """Ein kanonischer Read-back, wie ihn der echte Leser mitbringt.
+
+    Seit ADR-0019 §5 schliesst eine per Abgleich belegte **Neuanlage** nur mit
+    Read-back ab: ohne ihn gaebe es keinen lokalen Spiegel, und die
+    Echo-Unterdrueckung wuerde das eigene Add-Ereignis spaeter herausfiltern.
+    """
+    from personaljarvis.contacts.application.field_contract import (
+        as_bridge_contact,
+        parse_create_fields,
+    )
+
+    return as_bridge_contact(
+        parse_create_fields({"given_name": "Fixi", "family_name": "Eins"}),
+        provider_identifier=provider_identifier)
+
 def test_create_eindeutig_gefunden(module):
+    """Belegt gefunden **und** kanonisch zurueckgelesen — dann erst fertig."""
+    _container_bekannt(module)
+    vorgang = _in_unbekannten_zustand(module, _create())
+    leser = AttrappenLeser(ReconcileObservation(
+        exists=True, provider_identifier="raw-neu", readback=_readback()))
+    ergebnis = ContactsReconcileService(module, leser).reconcile(
+        vorgang.mutation_id)
+    assert ergebnis.verdict == ReconcileVerdict.APPLIED
+    assert ergebnis.state == MutationState.SUCCEEDED
+    # Der lokale Spiegel entsteht mit — sonst waere `succeeded` eine Luege.
+    with module.unit_of_work() as uow:
+        zeile = uow.execute(
+            "SELECT target_contact_id, readback_digest FROM contacts_mutations "
+            "WHERE mutation_id = ?", (vorgang.mutation_id,)).fetchone()
+    assert zeile["target_contact_id"]
+    assert zeile["readback_digest"]
+
+
+def test_create_gefunden_aber_ohne_readback_bleibt_offen(module):
+    """Ohne kanonischen Zustand wird nichts abgeschlossen und nichts erfunden."""
     _container_bekannt(module)
     vorgang = _in_unbekannten_zustand(module, _create())
     leser = AttrappenLeser(ReconcileObservation(
         exists=True, provider_identifier="raw-neu"))
     ergebnis = ContactsReconcileService(module, leser).reconcile(
         vorgang.mutation_id)
-    assert ergebnis.verdict == ReconcileVerdict.APPLIED
-    assert ergebnis.state == MutationState.SUCCEEDED
+    assert ergebnis.state == MutationState.MANUAL_DECISION_REQUIRED
+    with module.unit_of_work() as uow:
+        anzahl = uow.execute("SELECT COUNT(*) c FROM contacts").fetchone()
+    assert anzahl["c"] == 0
 
 
 def test_create_ohne_stabilen_bezug_ist_mehrdeutig(module):
@@ -849,7 +888,8 @@ def test_ereignisfolge_bei_unbekanntem_ausgang_und_abgleich(module):
     _container_bekannt(module)
     vorgang = _in_unbekannten_zustand(module, _create())
     ContactsReconcileService(module, AttrappenLeser(
-        ReconcileObservation(exists=True, provider_identifier="raw-neu"))
+        ReconcileObservation(exists=True, provider_identifier="raw-neu",
+                             readback=_readback()))
     ).reconcile(vorgang.mutation_id)
     stufen = _stufen(module, vorgang.mutation_id)
     for erwartet in (AuditStage.OUTCOME_UNKNOWN, AuditStage.RECONCILE_STARTED,

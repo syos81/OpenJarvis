@@ -202,7 +202,9 @@ def create_contacts_router(module) -> APIRouter:
         return request.headers.get("X-Personal-Actor") or "desktop-user"
 
     def _mutation_service():
-        # Fake-Provider bleibt Sache der Komposition. Die Route führt nie aus.
+        # Welcher Provider dahintersteht, bleibt Sache der Komposition.
+        # Ausgeführt wird ausschliesslich über `POST …/execute`, und das
+        # verlangt eine ausdrückliche Nutzeraktion im Rumpf.
         return module.mutation_service()
 
     def _live() -> ContactsLiveService:

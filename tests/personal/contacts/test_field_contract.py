@@ -200,6 +200,57 @@ def test_kanonische_form_traegt_nur_gesetzte_felder():
 
 
 # ═══ Digest ═════════════════════════════════════════════════════════════════
+#: Feste Testnutzlast fuer den Goldwert. Erfundene Daten, kein echter Kontakt.
+GOLDNUTZLAST = {
+    "contact_type": "person",
+    "given_name": "ZZZ-Vertrag", "family_name": "Goldwert",
+    "organization_name": "Beispiel GmbH",
+    "birthday": {"year": 1980, "month": 5, "day": 3},
+    "emails": [{"label": "work", "value": "zzz@example.invalid"}],
+    "phones": [{"label": "mobile", "value": "+49 30 000001"}],
+    "postal_addresses": [{"label": "home", "street": "Weg 1", "city": "Kiel",
+                          "postal_code": "24103", "country": "Deutschland",
+                          "iso_country_code": "de"}],
+    "urls": [{"label": "work", "value": "https://example.invalid"}],
+    "dates": [{"label": "other", "month": 9, "day": 1}],
+}
+
+#: Gepinnter Erwartungswert. Er faellt bei **jeder** unbeabsichtigten
+#: Aenderung der Kanonisierung — Feldnamen, Sortierung, Weglassregeln,
+#: Unicode-Normalform, Laenderkennung, Vertragsversion. Aendert sich die
+#: Kanonisierung absichtlich, ist das eine neue Feldvertragsversion; dann
+#: gehoert dieser Wert bewusst neu gesetzt und nicht stillschweigend
+#: nachgezogen.
+GOLDWERT = "17a9b881f9aa199e5e237957fe6fd4a49e63553ed52e0ad8e6341fe42d432570"
+
+
+def test_digest_goldwert_bleibt_stabil():
+    """Ein fester Digest fuer eine feste Nutzlast — der externe Anker.
+
+    Die uebrigen Digest-Tests vergleichen Ergebnisse derselben Bildung
+    miteinander und wuerden eine gemeinsame Verschiebung nicht bemerken.
+    Dieser Wert steht ausserhalb der Bildung.
+    """
+    assert readback_digest(parse_create_fields(GOLDNUTZLAST)) == GOLDWERT
+
+
+def test_goldwert_haengt_an_der_vertragsversion():
+    """Eine neue Vertragsversion muss den Digest zwingend veraendern."""
+    from personaljarvis.base.digest import digest_of
+
+    felder = parse_create_fields(GOLDNUTZLAST)
+    anders = digest_of({"fieldContractVersion": FIELD_CONTRACT_VERSION + 1,
+                        "fields": canonical_payload(felder)})
+    assert anders != GOLDWERT
+
+
+def test_goldnutzlast_traegt_keine_echten_kontaktdaten():
+    text = str(GOLDNUTZLAST)
+    assert "example.invalid" in text
+    for verboten in ("@gmail", "@icloud", "kluender", "lukas"):
+        assert verboten not in text.lower()
+
+
 def test_digest_ist_plattformstabil_und_wertabhaengig():
     felder = parse_create_fields({"given_name": "Fixi", "family_name": "Eins"})
     # Fester Wert: derselbe fachliche Inhalt muss auf jeder Plattform und in

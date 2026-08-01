@@ -147,12 +147,25 @@ class ContactsReconcileService:
             detail = None
 
         verdikt, provider_id = self._judge(payload, beobachtung)
+        rueckgabe = getattr(beobachtung, "readback", None)
+
+        # Eine angewandte **Neuanlage** ist mit dem Urteil noch nicht fertig:
+        # es gibt den Kontakt beim Provider, aber lokal noch nicht. Sie geht
+        # deshalb ueber denselben Weg wie ein Lauf, der eben geschrieben hat —
+        # Zwischenlage, dann Nachfuehrung, dann erst `succeeded` (ADR-0019 §5).
+        if (verdikt == ReconcileVerdict.APPLIED
+                and payload.command == "create"):
+            return self._create_nachfuehren(mutation_id, provider_id,
+                                            rueckgabe, outbox_id)
 
         # ── Phase C: festschreiben ─────────────────────────────────────────
         with self._persistence.unit_of_work() as uow:
             audit = AuditTrail(uow, module=MODULE)
             outbox = ExternalActionOutbox(uow)
             if verdikt == ReconcileVerdict.APPLIED:
+                # Nur `update` und `delete` erreichen diesen Zweig; beide sind
+                # nicht implementiert (ADR-0019 §9) und aendern am lokalen
+                # Bestand nichts, was hier nachzufuehren waere.
                 ContactsMutationService._set_state(
                     uow, mutation_id, MutationState.SUCCEEDED,
                     outcome="succeeded", completed=True,
@@ -191,6 +204,68 @@ class ContactsReconcileService:
                                    state=zustand,
                                    provider_identifier=provider_id,
                                    detail=detail)
+
+    # ── Angewandte Neuanlage: Beleg festschreiben, dann nachführen ─────────
+    def _create_nachfuehren(self, mutation_id: str, provider_id: str | None,
+                            rueckgabe, outbox_id: str) -> ReconcileResult:
+        """Schliesst eine per Abgleich belegte Neuanlage vollständig ab.
+
+        Der Abgleich hat den Kontakt beim Provider gefunden — damit ist die
+        Wirkung bewiesen, aber lokal steht noch nichts. Früher setzte dieser
+        Weg direkt `succeeded`; der Kontakt fehlte dann im kanonischen
+        Bestand, und weil die Echo-Unterdrückung das eigene Add-Ereignis
+        herausfiltert, wäre er erst beim nächsten Voll-Diff aufgetaucht.
+
+        Der Ablauf ist deshalb derselbe wie nach einem eigenen Schreiblauf:
+        erst der Beleg (C1), dann die Nachführung (C2), dann `succeeded`.
+
+        **Ohne vollständigen Read-back wird nichts abgeschlossen.** Es wird
+        weder geraten noch aus Nutzlast oder Vorschau ein Providerzustand
+        erfunden — der Vorgang endet bei einer menschlichen Entscheidung. Ein
+        zweiter Provideraufruf findet in keinem Fall statt.
+        """
+        from personaljarvis.contacts.application.field_contract import (
+            project_bridge_contact,
+            readback_digest,
+        )
+
+        if not provider_id or rueckgabe is None:
+            with self._persistence.unit_of_work() as uow:
+                ContactsMutationService._set_state(
+                    uow, mutation_id, MutationState.MANUAL_DECISION_REQUIRED,
+                    error_code="readback_missing")
+                AuditTrail(uow, module=MODULE).record(
+                    AuditStage.MANUAL_DECISION_REQUIRED,
+                    subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                    facts={"verdict": ReconcileVerdict.AMBIGUOUS,
+                           "detail": "readback_missing"})
+            return ReconcileResult(
+                mutation_id=mutation_id, verdict=ReconcileVerdict.AMBIGUOUS,
+                state=MutationState.MANUAL_DECISION_REQUIRED,
+                detail="readback_missing")
+
+        # C1 — Providerwirkung und Beleg festschreiben.
+        with self._persistence.unit_of_work() as uow:
+            ContactsMutationService._set_state(
+                uow, mutation_id,
+                MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
+                provider_identifier=provider_id,
+                readback_digest=readback_digest(
+                    project_bridge_contact(rueckgabe)))
+            ExternalActionOutbox(uow).resolve_unknown(outbox_id, succeeded=True)
+            AuditTrail(uow, module=MODULE).record(
+                AuditStage.RECONCILE_SUCCEEDED, subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id,
+                facts={"verdict": ReconcileVerdict.APPLIED,
+                       "viaReconcile": True})
+
+        # C2 — kanonische Nachführung aus **diesem** Read-back.
+        ergebnis = ContactsMutationService(
+            self._persistence, None).finalize_pending(mutation_id,
+                                                      readback=rueckgabe)
+        return ReconcileResult(
+            mutation_id=mutation_id, verdict=ReconcileVerdict.APPLIED,
+            state=ergebnis.state, provider_identifier=provider_id)
 
     # ── Sonderfall: nur der lokale Spiegel fehlt ────────────────────────────
     def _nur_lokal_nachfuehren(self, mutation_id: str,

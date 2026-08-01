@@ -159,23 +159,55 @@ def test_app_erklaert_den_kontaktezugriff():
     assert len(text) > 40, "Der Text muss dem Nutzer wirklich etwas sagen"
 
 
-def test_der_usage_text_verspricht_kein_schreiben():
-    """Der Text erscheint dem Nutzer wörtlich. Diese Version liest nur.
-
-    Geprüft wird die Zusage, nicht das Vorkommen einzelner Wörter: die
-    Verneinung „es werden keine Kontakte verändert" enthält „verändert" und
-    ist gerade deshalb richtig. Eine reine Teilstringsuche hätte sie
-    fälschlich als Schreibversprechen gewertet.
-    """
-    text = _info_plist(_erforderlich())["NSContactsUsageDescription"]
+#: Die Zusage, die der Text tragen muss — Stand Feldvertrag v1 (nur `create`).
+#:
+#: Bis zur Aktivierung von Update (M4) und Delete (M5) gilt: gelesen wird,
+#: **neu angelegt nur nach ausdrücklicher Freigabe**, **bestehende Kontakte
+#: bleiben unverändert**. Mit M4/M5 wird der letzte Teil falsch und der Text
+#: ist erneut anzupassen (ADR-0019 §9).
+def _pruefe_usage_text(text: str, quelle: str) -> None:
     klein = text.lower()
-    assert "liest" in klein, "Der Text muss sagen, dass gelesen wird"
-    assert "keine kontakte verändert" in klein, (
-        "Der Text muss ausdrücklich verneinen, dass geschrieben wird")
-    # Ein Schreibversprechen stünde ohne vorangehende Verneinung da.
-    for satz in text.split("."):
-        if any(v in satz.lower() for v in ("verwaltet", "bearbeitet", "schreibt")):
-            assert "keine" in satz.lower(), satz
+    assert "liest" in klein, f"{quelle}: muss sagen, dass gelesen wird"
+    assert "freigabe" in klein, (
+        f"{quelle}: das Anlegen muss an eine ausdrückliche Freigabe gebunden "
+        f"sein — sonst verspricht der Text weniger Kontrolle, als es gibt")
+    assert "bestehende kontakte werden nicht verändert" in klein, (
+        f"{quelle}: muss verneinen, dass Bestehendes geändert wird")
+    # Kein unbedingtes Schreibversprechen: jeder Satz, der von Anlegen oder
+    # Verwalten spricht, muss die Bedingung mittragen.
+    for satz in text.split(";"):
+        klein_satz = satz.lower()
+        if any(v in klein_satz for v in ("angelegt", "verwaltet", "bearbeitet",
+                                         "schreibt")):
+            assert "freigabe" in klein_satz or "nicht" in klein_satz, satz
+
+
+def test_der_usage_text_bindet_das_anlegen_an_eine_freigabe():
+    """Der Text erscheint dem Nutzer wörtlich — er muss heute wahr sein.
+
+    Geprüft wird die **Zusage**, nicht das Vorkommen einzelner Wörter: die
+    Verneinung „bestehende Kontakte werden nicht verändert" enthält
+    „verändert" und ist gerade deshalb richtig.
+    """
+    _pruefe_usage_text(_info_plist(_erforderlich())["NSContactsUsageDescription"],
+                       "Bundle")
+
+
+def test_der_usage_text_der_quelle_stimmt_mit_dem_bundle_ueberein():
+    """Sonst prüfte der Test oben nur ein altes Bauartefakt.
+
+    Genau das ist einmal passiert: der Bundle-Text hinkte der Quelle hinterher,
+    und die Zusage galt als geprüft, obwohl sie es nicht war.
+    """
+    import plistlib
+    from pathlib import Path
+
+    quelle = plistlib.loads(
+        (Path(__file__).resolve().parents[3]
+         / "frontend/src-tauri/Info.plist").read_bytes())
+    _pruefe_usage_text(quelle["NSContactsUsageDescription"], "Quelle")
+    assert (quelle["NSContactsUsageDescription"]
+            == _info_plist(_erforderlich())["NSContactsUsageDescription"])
 
 
 def test_sidecar_traegt_denselben_usage_text():
