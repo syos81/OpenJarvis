@@ -761,13 +761,47 @@ func opCreate(_ id: Any, _ payload: [String: Any]) {
         ok(id, r)
     }
 
-    do {
-        try store.execute(req)
-    } catch let e as NSError {
+    // Der EINZIGE Weg zum Store: die Objective-C-@try/@catch-Grenze des
+    // Shims. Swift kann eine NSException nicht fangen; ohne die Grenze starb
+    // der Prozess per SIGABRT und Klasse wie Begruendung gingen verloren
+    // (beide x86_64-Livetests am 2026-08-01). Genau ein Aufruf, kein Retry.
+    let wache = JCExecuteSaveRequestGuarded(store, req)
+    switch wache.kind {
+    case .success:
+        break
+    case .error:
         // Bewusst KEINE Auswertung des Fehlercodes zu „nichts passiert": ob ein
         // Fehler vor oder nach dem Commit entsteht, ist nicht beweisbar. Der
         // Kern loest das ueber den Abgleich auf, nie ueber einen zweiten Send.
+        let e = (wache.error ?? NSError(domain: "JCContactsSaveShim", code: -1))
+            as NSError
         unknown("save_failed", "save: \(e.domain)/\(e.code)")
+        return
+    case .exception:
+        // Der Store-Zustand ist ab jetzt undefiniert: der SaveRequest kann
+        // bereits wirksam sein. Deshalb zwingend `outcome_unknown` — niemals
+        // `not_sent` —, genau EINE Antwort, und danach endet der Prozess
+        // kontrolliert. Kein Read-back, kein weiterer Store-Zugriff, keine
+        // weitere Anfrage.
+        var extra: [String: Any] = [
+            "exceptionName": wache.exceptionName ?? "UnknownException",
+            "reasonPresent": wache.reasonPresent,
+            "processMustTerminate": true,
+        ]
+        if let digest = wache.reasonDigest { extra["reasonDigest"] = digest }
+        let r = mutationResult("outcome_unknown", errorCode: "objc_exception",
+                               extra: extra)
+        ok(id, r)
+        // Reihenfolge: erst die Antwortzeile (direkter write(2), das
+        // Diagnoseartefakt hat der Shim bereits per fsync abgeschlossen),
+        // dann der PII-arme stderr-Befund, dann ein ausdruecklicher Flush
+        // beider stdio-Puffer, dann das Ende.
+        diag(wache.sanitizedDiagnostic ?? "NSException ohne Diagnose")
+        fflush(stdout)
+        fflush(stderr)
+        exit(0)
+    @unknown default:
+        unknown("save_failed", "Shim meldete unbekannten Ausgang")
         return
     }
 

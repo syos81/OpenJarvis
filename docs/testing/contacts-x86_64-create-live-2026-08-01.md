@@ -185,3 +185,20 @@ weiterhin auf `outcome_unknown` und wartet auf eine ausdrückliche Entscheidung.
 Kein zweiter Schreibversuch. Kein Abgleich mit Providerzugriff. Kein Sync,
 keine Wiederherstellung. Kein Kontakt angelegt, verändert oder gelöscht. Keine
 Änderung an `jarvis/rebuild-v1`.
+
+---
+
+## Nachtrag (2026-08-01, Abend): Hypothese 1 widerlegt, Exception-Grenze eingebaut
+
+Der Wiederholungstest im **lokalen** Ablageort (`C-4b8df1`, `container_type =
+local`, gewählt an der Art) starb am identischen, offsetgleichen SIGABRT —
+siehe [Bericht des lokalen Livetests samt Nachtrag](contacts-x86_64-create-local-live-2026-08-01.md).
+Die Containerwahl war damit **nicht** ursächlich. Der manuelle Kontrolltest
+über Kontakte.app (lokal anlegen, löschen) **bestand** — der Store ist
+beschreibbar; die Ursache liegt im In-Process-Schreibpfad des Sidecars und
+ist weiterhin nicht identifiziert.
+
+Als Konsequenz kapselt seit dem 2026-08-01 die Objective-C-Grenze
+`JCContactsSaveShim` (ADR-0019 §4a) den einen `executeSaveRequest:error:`:
+eine `NSException` wird typisiert gefangen, bleibt zwingend
+`outcome_unknown`, und Klassenname wie Reason-Digest überleben PII-arm.

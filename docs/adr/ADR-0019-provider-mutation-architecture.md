@@ -306,6 +306,43 @@ Autors liefert. Der Kern ordnet ausschließlich darüber zu — niemals über
 Namen. Liefert die Probe nichts Eindeutiges, endet der Abgleich in
 `manual_decision_required`.
 
+### 4a. Objective-C-Exception-Grenze um den Save (Ergänzung 2026-08-01)
+
+**Anlass.** Beide x86_64-Create-Livetests am 2026-08-01 starben an einer
+nicht abgefangenen Objective-C-Ausnahme in Apples Save-Pfad
+(`NSPersistentStoreCoordinator executeRequest:` → `SIGABRT` via
+`std::terminate`). Swift kann `NSException` nicht fangen; Klasse und
+Begründung gingen verloren, und der Kern sah nur `child_signalled`.
+
+**Verbindlich seit dieser Ergänzung:** Der eine `executeSaveRequest:error:`
+läuft ausschließlich innerhalb einer Objective-C-`@try/@catch`-Grenze
+(`JCContactsSaveShim`). Die Grenze unterscheidet typisiert drei Ausgänge:
+Erfolg, `NSError` (bestehende Semantik unverändert) und `NSException`. Für
+die Ausnahme gilt:
+
+* Das Ergebnis ist **zwingend `outcome_unknown`** (`errorCode:
+  objc_exception`) — der Save kann bereits wirksam sein. Niemals `not_sent`,
+  niemals ein zweiter Send; at-most-once bleibt unberührt.
+* Die normale Antwort trägt ausschließlich PII-arme Befunddaten: bereinigter
+  Klassenname (`exceptionName`, nur Bezeichnerzeichen), `reasonPresent`,
+  `reasonDigest` (SHA-256 des unveränderten Reason-Texts) und
+  `processMustTerminate: true`. Der volle `reason` verlässt den Shim **nie**
+  über stdout, stderr, API oder Audit — er kann Kontaktwerte tragen.
+* Nach genau einer Antwort beendet sich der Sidecar kontrolliert
+  (Store-Zustand nach einer `NSException` ist undefiniert); der Kern liest
+  die Antwort vor dem Exit und wertet den Exit danach nicht mehr. Ein Exit
+  **ohne** Antwort bleibt `child_signalled`/`child_exited` →
+  `outcome_unknown`.
+* Ein ausdrücklich aktivierter Diagnosemodus
+  (`OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH`, gesetzt nur in einem
+  eigens freigegebenen Diagnoselauf) legt den Roh-Reason als exklusive
+  0600-Datei in einen bestehenden, benutzereigenen 0700-Ordner. Ohne die
+  Variable entsteht kein Artefakt; ein Schreibfehler ändert die
+  Klassifikation nicht.
+
+Die Grenze ist eine **Diagnose- und Prozesssicherheitsgrenze** — sie behebt
+den Apple-Schreibpfad nicht und ersetzt keine Ursachenanalyse.
+
 ### 5. Providererfolg und lokale Nachführung
 
 Das bestehende Zustandsmodell kann die Zwischenlage „Provideränderung

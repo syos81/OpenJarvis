@@ -692,14 +692,20 @@ def test_der_sidecar_hat_genau_einen_schreibpfad():
     Frueher lautete der Nachweis „gar kein CNSaveRequest". Seit ADR-0019 legt
     der Sidecar Kontakte an; die Aussage muss deshalb schaerfer werden statt
     zu verschwinden: **genau einer**, und zwar dort, wo er hingehoert.
+
+    Seit dem 2026-08-01 fuehrt der Weg zum Store ausschliesslich durch die
+    Objective-C-@try/@catch-Grenze (`JCExecuteSaveRequestGuarded`): ein
+    direkter `store.execute(`-Aufruf in Swift waere wieder ein Pfad, auf dem
+    eine NSException den Prozess toetet und ihre Diagnose verliert.
     """
     code = _sidecar_code()
     assert code.count("CNSaveRequest()") == 1
-    assert code.count("store.execute(") == 1
+    assert code.count("store.execute(") == 0
+    assert code.count("JCExecuteSaveRequestGuarded(") == 1
     # Die eine Stelle liegt in opCreate und vor keiner Schleife.
     nach_create = code.split("func opCreate")[1]
     assert "CNSaveRequest()" in nach_create
-    assert "for " not in nach_create.split("store.execute(")[0].split(
+    assert "for " not in nach_create.split("JCExecuteSaveRequestGuarded(")[0].split(
         "let req = CNSaveRequest()")[1]
 
 

@@ -134,3 +134,46 @@ Zwei getrennte Schritte, in dieser Reihenfolge:
 * [contacts.md §6.0 — Containerinventar](../personal-jarvis/modules/contacts.md)
 * [Erster Create-Livetest, 2026-08-01](contacts-x86_64-create-live-2026-08-01.md)
 * [ADR-0019 — Provider-Mutationsarchitektur](../adr/ADR-0019-provider-mutation-architecture.md)
+
+---
+
+## Nachtrag: der durchgeführte Test am selben Abend — NICHT BESTANDEN
+
+Nach dem bestandenen kontoweiten Voll-Diff (beide Ablageorte klassifiziert:
+`C-4b8df1` = `local`, `C-1b3d99` = `cardDAV`) wurde der Test unter neuer
+Freigabe auf HEAD `7d51079c` tatsächlich durchgeführt — Ziel diesmal belegt
+der **lokale** Ablageort, gewählt an der Art, nicht an Position oder
+Kontaktzahl.
+
+**Ergebnis: NICHT BESTANDEN.** Der Sidecar starb um 17:05:39Z beim
+`executeSaveRequest` mit **SIGABRT** — Frame für Frame und offsetgleich
+derselbe Absturz wie am Vormittag im kontogebundenen Container
+(`NSPersistentStoreCoordinator executeRequest:` → `ABManagedObjectContext
+save:` → ungefangene Objective-C-Ausnahme → `std::terminate`). Sichtprüfung:
+**kein Kontakt entstanden**, kein bestehender verändert, Bestand unverändert
+117/117/0.
+
+Die Schutzmechanik hielt erneut vollständig: genau ein Sendversuch
+(`attempt_count = 1` in Mutation und Outbox), Einstufung `outcome_unknown`
+(`child_signalled`), Freigabe verbraucht, zweiter Execute 409, Auditkette
+lückenlos (15 Ereignisse, kryptografisch verkettet).
+
+**Damit ist die Container-Hypothese widerlegt.** Der Absturz ist
+containerunabhängig; die Ursache liegt im In-Process-Schreibpfad selbst.
+Die vollständige Ursachenanalyse (Fable, 2026-08-01) ergab: Wurfort exakt
+belegt, Ausnahmeklasse und Begründung fehlen in beiden Absturzberichten —
+**Root Cause noch nicht identifiziert**.
+
+**Manueller Apple-Kontakte-Kontrolltest: BESTANDEN.** Ein minimaler lokaler
+Kontakt liess sich über Kontakte.app anlegen und löschen. Der lokale Store
+dieses Benutzers ist damit beweisbar beschreibbar; das beweist ausdrücklich
+**nicht**, dass Kontakte.app denselben In-Process-Pfad verwendet.
+
+**Konsequenz (umgesetzt am 2026-08-01):** Objective-C-Exception-Grenze
+`JCContactsSaveShim` um den einen `executeSaveRequest:error:` (ADR-0019
+§4a). Eine künftige `NSException` wird typisiert gefangen, bleibt zwingend
+`outcome_unknown`, liefert Klassenname und Reason-Digest PII-arm — und der
+Roh-Reason nur im ausdrücklich aktivierten Diagnosemodus
+(`OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH`). Der Shim behebt den
+Apple-Schreibpfad nicht; er macht den nächsten, einzeln freizugebenden
+Diagnose-Create erst aussagekräftig.

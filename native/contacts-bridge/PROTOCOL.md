@@ -85,14 +85,31 @@ keinen impliziten Weg; ein Start des Sidecars fordert **nie** Berechtigungen an.
 ausschließlich aus der `changes`-Antwort; ein zweiter Store-Read für den Cursor
 ist der Fehler, den 11 §3 verbietet.
 
-## Mutationen (Vertrag ab jetzt, Implementierung in Gate C)
+## Mutationen (`create` implementiert seit M2; `update`/`delete` nicht)
 
-Pflichtfelder je Mutation: `mutationId`, `idempotencyKey`, `approvalId`;
-bei `update`/`delete` zusätzlich `targetProviderIdentifier` und — soweit
-anwendbar — `expectedRevision`. Fehlen sie, antwortet die Bridge mit
-`invalid_request` und benennt die fehlenden Felder. Sind sie vollständig,
-antwortet sie mit `not_implemented`. **In keinem Fall findet ein
-Store-Schreibzugriff statt.**
+Pflichtfelder je Mutation: `mutationId`, `idempotencyKey`, `approvalId`,
+`mutationContractVersion`, `fieldContractVersion`; bei `create` zusätzlich
+`containerIdentifier` und `fields` (Feldvertrag v1). `update`/`delete`
+antworten weiterhin `not_implemented` — ohne Store-Zugriff.
+
+Geschlossener Ergebnisvertrag von `create` (immer `ok:true`):
+`outcome ∈ {applied, not_sent, outcome_unknown}`. `applied` trägt
+`providerIdentifier`, `containerIdentifier` und den Read-back-DTO;
+`not_sent` ist ausschließlich **vor** jeder Store-Übergabe möglich.
+
+**Objective-C-Exception-Grenze (seit 2026-08-01, ADR-0019 §4a):** Der eine
+`executeSaveRequest:error:` läuft in einer `@try/@catch`-Grenze
+(`JCContactsSaveShim`). Eine gefangene `NSException` ergibt
+`outcome: outcome_unknown` mit `errorCode: objc_exception`,
+`exceptionName` (bereinigter Klassenname), `reasonPresent`,
+`reasonDigest` (SHA-256 des unveränderten Reason-Texts) und
+`processMustTerminate: true`. Danach schreibt der Sidecar genau diese eine
+Antwort, flusht und beendet sich mit `exit(0)` — der Host liest die Antwort
+vor dem Exit; ein Exit **ohne** Antwort bleibt ein Prozessfehler
+(`child_signalled`/`child_exited`). Der volle `reason` erscheint niemals in
+stdout/stderr; nur der ausdrücklich per
+`OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH` aktivierte Diagnosemodus
+legt ihn als exklusive 0600-Datei in einen benutzereigenen 0700-Ordner.
 
 Es gibt **keinen** Präfix-Rail: produktiv sichert die Vorgangsbindung
 (Ziel-ID, Freigabe, Idempotenzschlüssel), nicht ein Namensmuster.

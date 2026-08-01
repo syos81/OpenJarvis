@@ -51,29 +51,47 @@ cat > "$PLIST" <<'PLIST_EOF'
   <string>1.0.0</string>
   <key>CFBundleVersion</key>
   <string>1</string>
-  <!-- Der Text erscheint dem Nutzer woertlich im Systemdialog. Er sagt
-       deshalb genau, was diese Version tut: sie liest. Der Sidecar enthaelt
-       keinen Schreibpfad (kein CNSaveRequest), und ein Versprechen von
-       "verwalten" waere schlicht falsch. -->
+  <!-- Der Text erscheint dem Nutzer woertlich im Systemdialog. Lesen ist
+       der Normalfall; ein Anlegen geschieht ausschliesslich nach einer
+       ausdruecklichen Einzelfreigabe (ADR-0019, Phase M2). Ein Versprechen
+       von "verwalten" waere weiterhin falsch. -->
   <key>NSContactsUsageDescription</key>
   <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Neue Kontakte werden nur nach deiner ausdruecklichen Freigabe angelegt; bestehende Kontakte werden nicht veraendert und keine Daten uebertragen.</string>
 </dict>
 PLIST_EOF
 echo '</plist>' >> "$PLIST"
 
-echo "== 1/3 Objective-C-Shim kompilieren ($TARGET) =="
+echo "== 1/4 Objective-C-Shims kompilieren ($TARGET) =="
 clang -c -fobjc-arc -fmodules -target "$TARGET" -isysroot "$SDK" \
   "$SRC/JCChangeHistoryShim.m" -o "$BUILD/JCChangeHistoryShim.o"
+clang -c -fobjc-arc -fmodules -target "$TARGET" -isysroot "$SDK" \
+  "$SRC/JCContactsSaveShim.m" -o "$BUILD/JCContactsSaveShim.o"
 
-echo "== 2/3 Swift kompilieren und linken =="
+echo "== 2/4 Shim-Harness bauen und ausfuehren (kontaktfrei) =="
+# Der Harness prueft die @try/@catch-Grenze ausschliesslich mit Fakes —
+# kein CNContactStore, kein Kontaktzugriff. Er laeuft bei JEDEM Build:
+# ein gebrochener Shim kann damit gar nicht erst gepackt werden. Beim
+# Cross-Bauen ist das Testbinary nicht ausfuehrbar; dann wird es nur gebaut.
+clang -fobjc-arc -fmodules -target "$TARGET" -isysroot "$SDK" \
+  "$SRC/JCContactsSaveShimTests.m" "$BUILD/JCContactsSaveShim.o" \
+  -framework Foundation -framework Contacts \
+  -o "$BUILD/$NAME-shim-tests"
+if [ "$(uname -m)" = "${TARGET%%-*}" ]; then
+  "$BUILD/$NAME-shim-tests"
+else
+  echo "   (Cross-Build: Harness gebaut, Ausfuehrung uebersprungen)"
+fi
+
+echo "== 3/4 Swift kompilieren und linken =="
 swiftc -target "$TARGET" -sdk "$SDK" \
-  -import-objc-header "$SRC/JCChangeHistoryShim.h" \
-  "$SRC/sidecar.swift" "$BUILD/JCChangeHistoryShim.o" \
+  -import-objc-header "$SRC/JCBridgingHeader.h" \
+  "$SRC/sidecar.swift" \
+  "$BUILD/JCChangeHistoryShim.o" "$BUILD/JCContactsSaveShim.o" \
   -framework Contacts -framework Foundation \
   -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$PLIST" \
   -o "$BIN"
 
-echo "== 3/3 Nachweise =="
+echo "== 4/4 Nachweise =="
 echo "-- Architektur --";  lipo -info "$BIN"
 echo "-- Mindestversion (muss minos $MIN_MACOS sein) --"
 otool -l "$BIN" | grep -A3 LC_BUILD_VERSION | grep -E "minos|sdk"

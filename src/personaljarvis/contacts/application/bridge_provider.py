@@ -213,7 +213,42 @@ class ContactsBridgeMutationProvider:
         # am teuersten waere.
         return ProviderResponse(
             ProviderOutcome.OUTCOME_UNKNOWN,
-            error_code=str(fehler or "unknown_outcome"))
+            error_code=str(fehler or "unknown_outcome"),
+            exception_diagnostics=_exception_diagnostics(roh))
+
+
+#: Bezeichnerzeichen eines Objective-C-Klassennamens. Alles andere — `/`,
+#: `@`, Leerzeichen — hat in einem Ausnahmenamen nichts verloren und wird
+#: entfernt statt maskiert. Zweiter Riegel zur gleichen Regel im Shim: auch
+#: eine manipulierte Sidecar-Antwort traegt keinen Freitext in den Kern.
+_EXCEPTION_NAME_ALLOWED = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
+
+_HEX_DIGITS = frozenset("0123456789abcdef")
+
+
+def _exception_diagnostics(roh: dict[str, Any]) -> dict[str, Any] | None:
+    """PII-armer Befund einer nativ gefangenen NSException — oder None.
+
+    Übernommen wird ausschliesslich die geschlossene Feldmenge des
+    Shim-Vertrags, jedes Feld erneut geprüft: der Name auf Bezeichnerzeichen
+    reduziert und gekappt, der Digest nur als exakter SHA-256-Hex akzeptiert.
+    Der Reason-Text selbst hat in dieser Antwort keinen Platz — tauchte er
+    auf, würde er hier schlicht nicht mitgelesen.
+    """
+    if roh.get("errorCode") != "objc_exception":
+        return None
+    name = "".join(c for c in str(roh.get("exceptionName") or "")
+                   if c in _EXCEPTION_NAME_ALLOWED)[:64]
+    befund: dict[str, Any] = {
+        "exception_name": name or "UnknownException",
+        "reason_present": bool(roh.get("reasonPresent")),
+    }
+    digest = roh.get("reasonDigest")
+    if (isinstance(digest, str) and len(digest) == 64
+            and set(digest) <= _HEX_DIGITS):
+        befund["reason_digest"] = digest
+    return befund
 
 
 class ContactsBridgeReconcileReader:

@@ -1040,9 +1040,13 @@ def test_sidecar_schreibt_nur_ueber_create():
     code = _swift_code_ohne_prosa("native/contacts-bridge/src/sidecar.swift")
     assert "opMutationNotImplemented" in code
     assert "notImplemented" in code
-    # Genau ein Schreibvorgang, und er steht in opCreate.
+    # Genau ein Schreibvorgang, und er steht in opCreate. Seit 2026-08-01
+    # fuehrt er durch die Objective-C-@try/@catch-Grenze — ein direkter
+    # `store.execute(` in Swift waere wieder der Pfad, auf dem eine
+    # NSException den Prozess ohne Diagnose toetet.
     assert code.count("CNSaveRequest()") == 1
-    assert code.count("store.execute(") == 1
+    assert code.count("store.execute(") == 0
+    assert code.count("JCExecuteSaveRequestGuarded(") == 1
     assert "func opCreate" in code
     # Update und Delete laufen weiterhin in den Nicht-implementiert-Zweig.
     assert 'case "update", "delete":' in code

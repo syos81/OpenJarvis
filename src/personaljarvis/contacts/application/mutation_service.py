@@ -166,7 +166,8 @@ class ProviderResponse:
     def __init__(self, outcome: str, *, error_code: str | None = None,
                  provider_identifier: str | None = None,
                  readback=None, readback_digest: str | None = None,
-                 container_identifier: str | None = None) -> None:
+                 container_identifier: str | None = None,
+                 exception_diagnostics: dict | None = None) -> None:
         if outcome not in ProviderOutcome.ALL:
             raise ValueError(f"Unbekanntes Provider-Ergebnis: {outcome}")
         if outcome == ProviderOutcome.SUCCEEDED and not provider_identifier:
@@ -181,6 +182,11 @@ class ProviderResponse:
         self.readback = readback
         self.readback_digest = readback_digest
         self.container_identifier = container_identifier
+        #: PII-arme Befunddaten einer nativ gefangenen Objective-C-Ausnahme
+        #: (`exception_name`, `reason_present`, `reason_digest`). Niemals der
+        #: Reason-Text selbst — der existiert ausserhalb des ausdrücklich
+        #: aktivierten Diagnoseartefakts nur als Digest.
+        self.exception_diagnostics = exception_diagnostics
 
 
 class MutationProvider(Protocol):
@@ -708,9 +714,15 @@ class ContactsMutationService:
         outbox.mark_outcome_unknown(outbox_id, token, error_code=code)
         self._set_state(uow, mutation_id, MutationState.OUTCOME_UNKNOWN,
                         outcome="outcome_unknown", error_code=code)
+        fakten: dict = {"errorCode": code, "automaticRetry": False}
+        # Eine nativ gefangene Objective-C-Ausnahme hinterlässt ihren
+        # PII-armen Befund in der Auditkette: Klassenname und Digest — nie
+        # den Reason-Text (der existiert nur im ausdrücklich aktivierten,
+        # geschützten Diagnoseartefakt).
+        if getattr(antwort, "exception_diagnostics", None):
+            fakten["exception"] = dict(antwort.exception_diagnostics)
         audit.record(AuditStage.OUTCOME_UNKNOWN, subject_type=SUBJECT_TYPE,
-                     subject_id=mutation_id,
-                     facts={"errorCode": code, "automaticRetry": False})
+                     subject_id=mutation_id, facts=fakten)
         return ExecutionResult(
             mutation_id=mutation_id, state=MutationState.OUTCOME_UNKNOWN,
             outcome="outcome_unknown", error_code=code, attempt_count=versuche)
