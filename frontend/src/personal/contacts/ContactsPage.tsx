@@ -109,6 +109,16 @@ const ANBIETER_LABELS: Record<string, string> = {
   unknown: 'Unbekannte Quelle',
 };
 
+// Art des Ablageorts, fachlich benannt. Sie ist die Angabe, an der sich ein
+// Ziel bewusst waehlen laesst — nicht Reihenfolge und nicht Groesse.
+const CONTAINER_ART: Record<string, string> = {
+  local: 'Lokal · Auf meinem Mac',
+  cardDAV: 'CardDAV / iCloud',
+  exchange: 'Exchange',
+  unassigned: 'Ohne Zuordnung',
+  unknown: 'Art noch nicht bekannt',
+};
+
 const LABEL_TEXT: Record<string, string> = {
   home: 'Privat', work: 'Arbeit', mobile: 'Mobil', main: 'Haupt',
   other: 'Sonstige',
@@ -977,13 +987,22 @@ function CreateDialog({ onClose, onPrepared }: {
             <option value="">Bitte wählen</option>
             {orte.map((o) => (
               <option key={o.container_ref} value={o.container_ref}>
-                {ANBIETER_LABELS[o.provider_type] ?? o.provider_type} · {o.container_ref}
+                {CONTAINER_ART[o.container_type] ?? o.container_type}
+                {' · '}{ANBIETER_LABELS[o.provider_type] ?? o.provider_type}
+                {' · '}{o.container_ref}
               </option>
             ))}
           </select>
           {orte.length === 0 && (
             <span className="mt-1 block text-xs" style={{ color: 'var(--color-text-muted)' }}>
               Noch kein Ablageort bekannt. Er entsteht mit der ersten Synchronisation.
+            </span>
+          )}
+          {orte.some((o) => o.container_type === 'unknown') && (
+            <span className="mt-1 block text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Für manche Ablageorte ist die Art noch nicht erhoben. Ein
+              Abgleich holt sie nach — bis dahin lässt sich nicht bewusst
+              wählen.
             </span>
           )}
         </label>
@@ -1200,6 +1219,8 @@ function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [gleichtAb, setGleichtAb] = useState(false);
   const [fuehrtAus, setFuehrtAus] = useState(false);
+  const [loestAuf, setLoestAuf] = useState(false);
+  const [fragtAbschluss, setFragtAbschluss] = useState(false);
   const [caps, setCaps] = useState<Capabilities | null>(null);
 
   useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
@@ -1325,6 +1346,81 @@ function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               : <RefreshCw size={14} aria-hidden="true" />}
             Zustand abgleichen
           </button>
+        </div>
+      )}
+
+      {(m.state === 'outcome_unknown'
+        || m.state === 'manual_decision_required') && (
+        <div className="mt-4 rounded-md border p-4"
+             style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+          <p className="text-sm font-medium">
+            Selbst in Apple Kontakte nachgesehen?
+          </p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Wenn du dort nachgeschaut hast und die Änderung <strong>nicht</strong>
+            {' '}vorhanden ist, kannst du den Vorgang hier abschliessen. Es wird
+            dabei <strong>nichts</strong> erneut übertragen — festgehalten wird
+            nur, was du gesehen hast.
+          </p>
+          {!fragtAbschluss ? (
+            <button
+              type="button" data-testid="extern-geprueft"
+              onClick={() => setFragtAbschluss(true)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+              style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}
+            >
+              Extern geprüft: Änderung nicht vorhanden
+            </button>
+          ) : (
+            <div className="mt-3 rounded-md border p-3"
+                 style={{ borderColor: 'var(--color-warning, #b45309)' }}>
+              <p className="text-sm">
+                Du bestätigst: Der Kontakt wurde in Apple Kontakte geprüft und
+                die Änderung ist dort nicht vorhanden. Der Vorgang wird danach
+                endgültig geschlossen und lässt sich nicht erneut ausführen.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => setFragtAbschluss(false)}
+                        className="rounded-md border px-3 py-1.5 text-sm"
+                        style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+                  Abbrechen
+                </button>
+                <button
+                  type="button" disabled={loestAuf} data-testid="abschluss-bestaetigen"
+                  onClick={async () => {
+                    setLoestAuf(true); setFehler(null);
+                    try {
+                      await api.resolveOutcomeNotObserved(m.mutation_id);
+                      setFragtAbschluss(false);
+                      await laden();
+                    } catch (e) { setFehler(fehlerbild(e)); }
+                    setLoestAuf(false);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                >
+                  {loestAuf && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+                  Ja, so abschliessen
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {m.state === 'manually_resolved_not_applied' && (
+        <div className="mt-4 rounded-md border p-4"
+             style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+          <p className="text-sm font-medium">
+            Abgeschlossen: Änderung war beim Provider nicht vorhanden.
+          </p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Das hast du nach eigener Prüfung festgehalten. Der technische
+            Ausgang dieses Vorgangs war zum Zeitpunkt des Fehlers
+            <strong> unbekannt</strong> — das bleibt in der Nachweiskette so
+            stehen und wird durch den Abschluss nicht überschrieben. Ein
+            erneuter Versuch wäre eine neue Änderung mit eigener Freigabe.
+          </p>
         </div>
       )}
 

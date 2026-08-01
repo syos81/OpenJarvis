@@ -491,17 +491,22 @@ class SqliteSyncStateRepository(_Base):
                 "INSERT INTO contacts_sync_state (provider_account_id, "
                 "container_identifier, cursor_token, cursor_taken_at, "
                 "last_full_diff_at, key_set_version, mode, circuit_state, "
-                "updated_at) VALUES (?,?,?,?,?,?,?,?,?) "
+                "updated_at, container_type) VALUES (?,?,?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(provider_account_id, container_identifier) DO UPDATE SET "
                 "cursor_token=excluded.cursor_token, "
                 "cursor_taken_at=excluded.cursor_taken_at, "
                 "last_full_diff_at=excluded.last_full_diff_at, "
                 "key_set_version=excluded.key_set_version, mode=excluded.mode, "
-                "circuit_state=excluded.circuit_state, updated_at=excluded.updated_at",
+                "circuit_state=excluded.circuit_state, "
+                "updated_at=excluded.updated_at, "
+                # Ein bereits bekannter Typ wird nie durch `NULL` ersetzt:
+                # ein Lauf ohne Containerliste weiss es nicht besser.
+                "container_type=COALESCE(excluded.container_type, "
+                "contacts_sync_state.container_type)",
                 (state.provider_account_id, state.container_identifier,
                  state.cursor_token, state.cursor_taken_at, state.last_full_diff_at,
                  state.key_set_version, state.mode, state.circuit_state,
-                 state.updated_at),
+                 state.updated_at, state.container_type),
             )
         except sqlite3.IntegrityError as exc:
             raise IntegrityError(f"Sync-Zustand nicht speicherbar: {exc}") from exc
@@ -526,6 +531,7 @@ class SqliteSyncStateRepository(_Base):
         return ContactSyncState(
             provider_account_id=r["provider_account_id"],
             container_identifier=r["container_identifier"],
+            container_type=r["container_type"],
             cursor_token=r["cursor_token"], cursor_taken_at=r["cursor_taken_at"],
             last_full_diff_at=r["last_full_diff_at"],
             key_set_version=r["key_set_version"], mode=r["mode"],

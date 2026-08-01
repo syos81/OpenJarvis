@@ -499,6 +499,12 @@ export interface ContainerOption {
   container_ref: string;
   account_ref: string;
   provider_type: string;
+  /**
+   * Art des Ablageorts (`local`, `cardDAV`, `exchange`, …). Sie ist die
+   * Angabe, an der sich ein Ziel bewusst wählen lässt — nicht Reihenfolge und
+   * nicht Grösse. `unknown`, solange kein Lauf sie erhoben hat.
+   */
+  container_type: string;
 }
 
 export function listContainers(): Promise<ContainerOption[]> {
@@ -623,6 +629,28 @@ export function executeMutation(id: string): Promise<ExecutionResult> {
   return request<ExecutionResult>(
     `/mutations/${encodeURIComponent(id)}/execute`,
     { method: 'POST', body: JSON.stringify({ user_initiated: true }) },
+  );
+}
+
+/**
+ * Schliesst einen ungewissen Ausgang nach **externer** Prüfung ab.
+ *
+ * Der Fall: der Provider hat technisch nicht geantwortet, und der Mensch hat
+ * ausserhalb von Jarvis nachgesehen. Diese Route berührt den Provider nicht
+ * und ermöglicht **niemals** einen zweiten Send — sie hält eine Beobachtung
+ * fest und schliesst den Vorgang ab.
+ */
+export function resolveOutcomeNotObserved(id: string): Promise<ExecutionResult> {
+  return request<ExecutionResult>(
+    `/mutations/${encodeURIComponent(id)}/resolve-outcome`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        user_initiated: true,
+        decision: 'not_observed',
+        evidence: 'manual_provider_inspection',
+      }),
+    },
   );
 }
 

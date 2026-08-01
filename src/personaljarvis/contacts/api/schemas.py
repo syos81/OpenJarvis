@@ -37,6 +37,7 @@ __all__ = [
     "UpdateContactIn",
     "DeleteContactIn",
     "ExecuteMutationIn",
+    "ResolveOutcomeIn",
     "ExecutionResultOut",
     "CONTAINER_REF_PATTERN",
     "PreparedMutationOut",
@@ -266,6 +267,24 @@ class DeleteContactIn(_MutationBase):
     expected_revision: str = Field(min_length=1, max_length=64)
 
 
+class ResolveOutcomeIn(_Strict):
+    """Menschlicher Abschluss eines ungewissen Ausgangs (ADR-0019).
+
+    Drei geschlossene Angaben, **kein Freitext**: eine getippte Begründung
+    landete in der Auditspur und könnte einen Kontaktwert tragen. Was zählt,
+    ist die technische Aussage — *was* wurde entschieden und *worauf* stützt
+    es sich.
+
+    `not_observed` ist die einzige Entscheidung: „doch angewandt" gibt es hier
+    absichtlich nicht. Dafür ist der Abgleich zuständig, und der **liest** am
+    Provider, statt sich auf eine Erinnerung zu verlassen.
+    """
+
+    user_initiated: Literal[True]
+    decision: Literal["not_observed"]
+    evidence: Literal["manual_provider_inspection"]
+
+
 class ExecuteMutationIn(_Strict):
     """Die ausdrückliche Nutzeraktion, die eine Ausführung auslöst.
 
@@ -403,6 +422,10 @@ class SyncStatusOut(_Strict):
     provider_type: str
     account_ref: str
     container_ref: str
+    #: Art des Ablageorts (`local`, `cardDAV`, `exchange`, …) — die Angabe,
+    #: an der sich ein Ziel bewusst wählen lässt. Sie ist generisch und trägt
+    #: keine Kennung. `unknown`, solange kein Lauf sie erhoben hat.
+    container_type: str = "unknown"
     mode: str
     circuit_state: str
     key_set_version: str

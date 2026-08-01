@@ -164,9 +164,21 @@ Nach einer externen Sichtprüfung gibt es **keinen** Weg, festzuhalten:
 Zusätzlich ist `manual_decision_required` selbst eine **Sackgasse**: der
 Zustand wird gesetzt, aber von keinem Übergang verlassen.
 
-Das ist eine Produkt- und Architekturlücke. Sie wird hier **gemeldet, nicht
-improvisiert** — ein neuer Zustandsübergang gehört in eine Entscheidung, nicht
-in eine Fehlerbehebung. Der Vorgang bleibt bis dahin auf `outcome_unknown`.
+Das ist eine Produkt- und Architekturlücke. Sie wurde zunächst **gemeldet,
+nicht improvisiert** — ein neuer Zustandsübergang gehört in eine Entscheidung,
+nicht in eine Fehlerbehebung.
+
+**Geschlossen am 2026-08-01** (ADR-0019 §5a): Es gibt jetzt den terminalen
+Zustand `manually_resolved_not_applied` und die Route
+`POST …/mutations/{id}/resolve-outcome` mit geschlossenem Vertrag
+(`not_observed` / `manual_provider_inspection`, kein Freitext). Sie berührt
+den Provider nicht, ist nur aus `outcome_unknown` und
+`manual_decision_required` zulässig, verlangt eine verbrauchte Freigabe und
+ermöglicht niemals einen zweiten Send. Der Auditeintrag `outcome_unknown`
+bleibt stehen; der Abschluss ist ein eigenes, späteres Ereignis.
+
+**Die hier beschriebene Live-Mutation ist noch nicht aufgelöst.** Sie steht
+weiterhin auf `outcome_unknown` und wartet auf eine ausdrückliche Entscheidung.
 
 ## 8. Was nicht geschah
 

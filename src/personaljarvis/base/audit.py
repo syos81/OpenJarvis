@@ -38,6 +38,11 @@ class AuditStage:
     RECONCILE_STARTED = "reconcile_started"
     RECONCILE_SUCCEEDED = "reconcile_succeeded"
     MANUAL_DECISION_REQUIRED = "manual_decision_required"
+    #: Ein Mensch hat einen ungewissen Ausgang aufgelöst. Ein **eigenes,
+    #: späteres** Ereignis — es ersetzt `OUTCOME_UNKNOWN` nicht, sondern folgt
+    #: darauf. Die Kette bleibt damit ehrlich: erst war es unbekannt, dann kam
+    #: eine externe Beobachtung dazu.
+    MUTATION_OUTCOME_MANUALLY_RESOLVED = "mutation_outcome_manually_resolved"
     MUTATION_COMPLETED = "mutation_completed"
 
     ALL = frozenset({
@@ -45,7 +50,8 @@ class AuditStage:
         APPROVAL_REJECTED, APPROVAL_EXPIRED, APPROVAL_CANCELLED,
         EXECUTION_CLAIMED, PROVIDER_SEND_STARTED, PROVIDER_RESULT_RECEIVED,
         FAILED_BEFORE_SEND, OUTCOME_UNKNOWN, RECONCILE_STARTED,
-        RECONCILE_SUCCEEDED, MANUAL_DECISION_REQUIRED, MUTATION_COMPLETED,
+        RECONCILE_SUCCEEDED, MANUAL_DECISION_REQUIRED,
+        MUTATION_OUTCOME_MANUALLY_RESOLVED, MUTATION_COMPLETED,
     })
 
 

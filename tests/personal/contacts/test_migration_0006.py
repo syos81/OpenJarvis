@@ -82,10 +82,10 @@ def _indizes(conn) -> set[str]:
 
 
 # ═══ Frische Datenbank ══════════════════════════════════════════════════════
-def test_frische_datenbank_laeuft_0001_bis_0006(tmp_path):
+def test_frische_datenbank_enthaelt_0006(tmp_path):
+    """0006 laeuft auf einer frischen Datenbank mit — auch neben spaeteren."""
     bericht = MigrationRunner(_factory(tmp_path), ALL_MIGRATIONS).run()
-    assert bericht.applied[-1] == "0006"
-    assert bericht.schema_version == 6
+    assert "0006" in bericht.applied
 
 
 def test_0006_haengt_an_0004_und_0005(tmp_path):

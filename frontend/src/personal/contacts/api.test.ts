@@ -224,6 +224,28 @@ describe('Ausfuehren', () => {
   });
 });
 
+// ── Manueller Abschluss eines ungewissen Ausgangs ──────────────────────────
+describe('Ungewissen Ausgang abschliessen', () => {
+  it('sendet den geschlossenen Vertrag und nichts sonst', async () => {
+    const api = await import('./api');
+    await api.resolveOutcomeNotObserved('m-9');
+    expect(letzter().url).toContain('/mutations/m-9/resolve-outcome');
+    expect(letzter().init.method).toBe('POST');
+    expect(JSON.parse(letzter().init.body as string)).toEqual({
+      user_initiated: true,
+      decision: 'not_observed',
+      evidence: 'manual_provider_inspection',
+    });
+  });
+
+  it('nimmt keinen Freitext entgegen', async () => {
+    const api = await import('./api');
+    // Die Funktion hat genau einen Parameter: die Vorgangskennung. Es gibt
+    // keinen Weg, eine getippte Begruendung mitzuschicken.
+    expect(api.resolveOutcomeNotObserved.length).toBe(1);
+  });
+});
+
 // ── Freigaben ──────────────────────────────────────────────────────────────
 describe('Freigaben', () => {
   it('nennt bei jeder Entscheidung den entscheidenden Menschen', async () => {

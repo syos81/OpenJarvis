@@ -36,6 +36,7 @@ from personaljarvis.contacts.application.mutation_service import (
     MutationState,
     ProviderResponse,
 )
+from personaljarvis.contacts.application.queries import ContactsQueryService
 from personaljarvis.contacts.application.reconcile import ReconcileObservation
 from personaljarvis.contacts.domain.capabilities import ContactCapabilitySet
 from personaljarvis.contacts.domain.models import ContactSyncState
@@ -850,3 +851,176 @@ def test_neustart_im_zwischenzustand_sendet_nicht(module, monkeypatch):
         MutationState.SUCCEEDED
     assert provider.calls == 1
     assert len(_lokaler_kontakt(module)) == 1
+
+
+# ═══ Sendversuchszählung ════════════════════════════════════════════════════
+#
+# Befund des Livetests: `contacts_mutations.attempt_count` stand auf 0,
+# waehrend die Outbox 1 zaehlte und tatsaechlich genau ein Sendversuch lief.
+# Zwei Zahlen fuer dieselbe Sache, und die oeffentlich sichtbare war die
+# falsche.
+#
+# Festgelegte Bedeutung: **`attempt_count` ist die Zahl tatsaechlich
+# begonnener externer Sendversuche.** Kanonisch ist die Outbox — sie erhoeht
+# beim Claim, und der Claim ist der Moment, ab dem gesendet wird.
+def _zaehler(modul, mid) -> tuple[int, int, int]:
+    """(Vorgangsspalte, Outbox, oeffentliche Antwort)."""
+    with modul.unit_of_work() as uow:
+        vorgang = uow.execute(
+            "SELECT attempt_count FROM contacts_mutations WHERE mutation_id = ?",
+            (mid,)).fetchone()["attempt_count"]
+        outbox = uow.execute(
+            "SELECT o.attempt_count FROM personal_external_action_outbox o "
+            "JOIN contacts_mutations m ON m.outbox_id = o.outbox_id "
+            "WHERE m.mutation_id = ?", (mid,)).fetchone()["attempt_count"]
+    oeffentlich = ContactsQueryService(modul).get_mutation(
+        mid, workspace_id=WORKSPACE).attempt_count
+    return vorgang, outbox, oeffentlich
+
+
+def _einig(modul, mid, erwartet: int) -> None:
+    vorgang, outbox, oeffentlich = _zaehler(modul, mid)
+    assert outbox == erwartet, f"Outbox {outbox} != {erwartet}"
+    assert oeffentlich == erwartet, f"oeffentlich {oeffentlich} != {erwartet}"
+    assert vorgang == erwartet, f"Vorgangsspalte {vorgang} != {erwartet}"
+
+
+def test_vor_der_ausfuehrung_zaehlt_nichts(modul, client, provider):
+    mid = _vorbereitet(client)
+    _einig(modul, mid, 0)                       # Prepare
+    client.post(f"{PREFIX}/mutations/{mid}/approve", headers=_kopf(),
+                json={"decision_actor": MENSCH})
+    _einig(modul, mid, 0)                       # Freigabe
+    assert provider.calls == 0
+
+
+def test_ein_send_zaehlt_ueberall_eins(modul, client, provider):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    assert provider.calls == 1
+    _einig(modul, mid, 1)
+
+
+def test_abbruch_zaehlt_ebenfalls_genau_eins(modul):
+    from personaljarvis.contacts.bridge.errors import (
+        MutationOutcomeUnknown,
+        ProcessDiagnostics,
+    )
+
+    provider = ZaehlProvider(raises=MutationOutcomeUnknown(
+        "child_signalled",
+        ProcessDiagnostics(request_id=1, operation="create",
+                           elapsed_seconds=0.9, child_exit_code=-6,
+                           child_signal=6, child_alive=False,
+                           stdout_eof=True, stderr_eof=True, detail="Signal")))
+    modul._mutation_service = ContactsMutationService(
+        modul, provider, capabilities=CREATE_CAPS)
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+    antwort = c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                     json={"user_initiated": True}).json()
+    assert antwort["state"] == MutationState.OUTCOME_UNKNOWN
+    assert antwort["attempt_count"] == 1
+    _einig(modul, mid, 1)
+
+
+def test_abgewiesener_zweiter_execute_zaehlt_nicht(modul, client, provider):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    assert provider.calls == 1
+    _einig(modul, mid, 1)
+
+
+def test_nachfuehrung_und_neustart_zaehlen_nicht(modul, client, provider):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    modul.mutation_service().finalize_pending(mid)      # C2 erneut
+    modul.mutation_service().recover_interrupted()      # „Neustart"
+    assert provider.calls == 1
+    _einig(modul, mid, 1)
+
+
+def test_abgleich_zaehlt_nicht(modul):
+    """Der Abgleich liest — er sendet nie, also zaehlt er auch nicht."""
+    from personaljarvis.contacts.bridge.errors import (
+        MutationOutcomeUnknown,
+        ProcessDiagnostics,
+    )
+
+    provider = ZaehlProvider(raises=MutationOutcomeUnknown(
+        "request_timeout",
+        ProcessDiagnostics(request_id=1, operation="create",
+                           elapsed_seconds=120.0, child_exit_code=None,
+                           child_signal=None, child_alive=True,
+                           stdout_eof=False, stderr_eof=False, detail="Timeout")))
+    modul._mutation_service = ContactsMutationService(
+        modul, provider, capabilities=CREATE_CAPS)
+    modul.reconcile_reader = LeseAttrappe()
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+    c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+           json={"user_initiated": True})
+    _einig(modul, mid, 1)
+    c.post(f"{PREFIX}/mutations/{mid}/reconcile", headers=_kopf())
+    assert provider.calls == 1
+    _einig(modul, mid, 1)
+
+
+def test_die_outbox_ist_die_kanonische_quelle(modul, client, provider):
+    """Weichen die beiden je ab, gewinnt die Outbox — sichtbar und belegt."""
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    # Die Vorgangsspalte kuenstlich verfaelschen: die oeffentliche Antwort
+    # darf ihr nicht folgen.
+    with modul.unit_of_work() as uow:
+        uow.execute("UPDATE contacts_mutations SET attempt_count = 99 "
+                    "WHERE mutation_id = ?", (mid,))
+    body = client.get(f"{PREFIX}/mutations/{mid}", headers=_kopf()).json()
+    assert body["attempt_count"] == 1
+
+
+# ═══ Ablageorte: fachlich unterscheidbar ════════════════════════════════════
+def test_die_containerart_erscheint_maskiert_im_status(modul, client):
+    """Ohne sie liesse sich ein Ziel nur an Reihenfolge oder Groesse waehlen."""
+    with modul.unit_of_work() as uow:
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO, container_identifier=CONTAINER,
+            key_set_version="v1", mode="delta", cursor_token="T",
+            container_type="cardDAV"))
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO, container_identifier="_local:ABAccount",
+            key_set_version="v1", mode="delta", cursor_token="T",
+            container_type="local"))
+    zeilen = client.get(f"{PREFIX}/sync/status", headers=_kopf()).json()
+    arten = {z["container_ref"]: z["container_type"] for z in zeilen}
+    assert set(arten.values()) == {"local", "cardDAV"}
+    # Die Auswahl haengt an der Art, nicht an der Position.
+    assert arten[container_ref("_local:ABAccount")] == "local"
+    assert arten[container_ref(CONTAINER)] == "cardDAV"
+
+
+def test_ohne_erhobene_art_wird_nicht_geraten(modul, client):
+    """`unknown` heisst „noch nicht erhoben" — nie „lokal"."""
+    zeilen = client.get(f"{PREFIX}/sync/status", headers=_kopf()).json()
+    assert zeilen[0]["container_type"] == "unknown"
+
+
+def test_die_art_traegt_keine_kennung(modul, client):
+    with modul.unit_of_work() as uow:
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO, container_identifier=CONTAINER,
+            key_set_version="v1", mode="delta", cursor_token="T",
+            container_type="cardDAV"))
+    text = client.get(f"{PREFIX}/sync/status", headers=_kopf()).text
+    for verboten in (CONTAINER, "ABAccount", KONTO):
+        assert verboten not in text

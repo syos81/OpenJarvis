@@ -107,6 +107,10 @@ class MutationState(_StrEnum):
     PROVIDER_APPLIED_PENDING_RECONCILE = "provider_applied_pending_reconcile"
     RECONCILE_REQUIRED = "reconcile_required"
     MANUAL_DECISION_REQUIRED = "manual_decision_required"
+    #: Ein Mensch hat den Provider ausserhalb von Jarvis geprüft und die
+    #: Änderung dort nicht beobachtet. Terminal — und ausdrücklich **nicht**
+    #: dasselbe wie `FAILED_BEFORE_SEND`: gesendet wurde, nur ohne Wirkung.
+    MANUALLY_RESOLVED_NOT_APPLIED = "manually_resolved_not_applied"
     FAILED = "failed"
 
 

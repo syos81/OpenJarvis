@@ -40,6 +40,8 @@ vi.mock('./api', async () => {
     cancelMutation: vi.fn(),
     expireMutation: vi.fn(),
     reconcileMutation: vi.fn(),
+    resolveOutcomeNotObserved: vi.fn(),
+    listContainers: vi.fn(),
   };
 });
 
@@ -106,6 +108,7 @@ function standard() {
   mock.getContact.mockResolvedValue(detail('k-1', 'Alpha Test'));
   mock.listApprovals.mockResolvedValue([]);
   mock.listMutations.mockResolvedValue([]);
+  mock.listContainers.mockResolvedValue([]);
 }
 
 beforeEach(() => {

@@ -353,6 +353,60 @@ freie Nummer, derzeit 0006): Neuaufbau von `contacts_mutations` nach dem
 Zustands-CHECK und (b) neuer Spalte `readback_digest TEXT` (Digest, kein
 Inhalt). Weitere Tabellen sind nicht betroffen.
 
+### 5a. Menschlicher Abschluss eines ungewissen Ausgangs (Ergänzung 2026-08-01)
+
+Der gescheiterte Create-Livetest hat eine Lücke offengelegt, die dieser ADR
+nicht vorgesehen hatte: Eine Mutation stand auf `outcome_unknown`, der Nutzer
+hat den Provider ausserhalb von Jarvis geprüft und die Änderung dort **nicht**
+gefunden — und es gab keinen Weg, dieses Wissen festzuhalten. `reject`,
+`cancel` und `expire` verlangen eine wartende Freigabe (die war verbraucht),
+`execute` ist gesperrt, `reconcile` verlangt einen Providerzugriff, und
+`manual_decision_required` wurde von keinem Übergang verlassen.
+
+**Neuer terminaler Zustand: `manually_resolved_not_applied`.** Kein
+vorhandener Zustand passte: `failed_before_send` behauptet „nachweislich
+nichts gesendet" — genau das war hier falsch; `failed` entsteht nur nach einem
+Abgleich und behauptet eine Systembeobachtung; `cancelled` heisst „vor der
+Ausführung zurückgezogen". Einen davon zu verwenden hiesse, die Historie
+umzuschreiben.
+
+**Route:** `POST /v1/personal/contacts/mutations/{mutation_id}/resolve-outcome`
+mit geschlossenem Körper `{"user_initiated": true, "decision": "not_observed",
+"evidence": "manual_provider_inspection"}` — drei `Literal`-Werte,
+`extra="forbid"`, **kein Freitext**. Eine getippte Begründung landete in der
+Auditspur und könnte einen Kontaktwert tragen.
+
+**Verbindlich:**
+
+- Zulässig **nur** aus `outcome_unknown` und `manual_decision_required`, und
+  nur bei bereits **verbrauchter** Freigabe — ohne Sendversuch gibt es keinen
+  ungewissen Ausgang.
+- **Kein Providerkontakt.** Kein Sidecar, kein Lesen, kein Senden.
+- Der Zielzustand ist terminal, der Outbox-Eintrag wird endgültig geschlossen;
+  ein zweiter Send wird dadurch nie möglich.
+- `recover_interrupted()` fasst den Zustand nicht an; er liegt weder in
+  `NEEDS_RECONCILE` noch in `IN_FLIGHT_STATES`.
+- Ein zweiter Aufruf wird mit 409 abgewiesen und verändert nichts.
+
+**Die Historie bleibt stehen.** Der Auditeintrag `outcome_unknown` wird nicht
+überschrieben; der Abschluss ist ein **eigenes, späteres** Ereignis
+(`mutation_outcome_manually_resolved`) mit Entscheidung, Evidenz, Entscheider
+und Vorzustand als geschlossene technische Werte. Zum Zeitpunkt des
+technischen Fehlers war das Ergebnis unbekannt — das bleibt wahr, auch nachdem
+ein Mensch später mehr gesehen hat.
+
+### 5b. Bedeutung von `attempt_count` (Ergänzung 2026-08-01)
+
+**`attempt_count` ist die Zahl tatsächlich begonnener externer
+Sendversuche.** Kanonisch ist die **Outbox**: sie erhöht beim Claim, und der
+Claim ist der Moment, ab dem gesendet wird. Öffentliche Antworten lesen von
+dort; die gleichnamige Spalte in `contacts_mutations` wird beim Claim in
+derselben Arbeitseinheit mitgeschrieben und ist ein Abbild — nie eine zweite
+Wahrheit.
+
+Vorbereiten, Freigeben, ein abgewiesener zweiter `execute`, der Abgleich, die
+lokale Nachführung und ein Neustart erhöhen den Zähler **nicht**.
+
 ### 6. Capability-Brücke und Vertragsversionierung
 
 ```

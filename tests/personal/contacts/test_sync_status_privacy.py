@@ -110,8 +110,8 @@ def test_status_feldmenge_ist_abgeschlossen(client, module):
     """Ein neues Feld muss bewusst hinzugefügt werden, nicht durchrutschen."""
     _zustand(module)
     assert set(_status(client)[0]) == {
-        "provider_type", "account_ref", "container_ref", "mode",
-        "circuit_state", "key_set_version", "cursor_present",
+        "provider_type", "account_ref", "container_ref", "container_type",
+        "mode", "circuit_state", "key_set_version", "cursor_present",
         "cursor_taken_at", "last_full_diff_at", "last_successful_run_at",
         "requires_full_diff", "updated_at"}
 

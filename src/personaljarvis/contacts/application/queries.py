@@ -172,6 +172,7 @@ class SyncStatusView:
 
     provider_account_id: str
     container_identifier: str
+    container_type: str | None
     mode: str
     circuit_state: str
     key_set_version: str
@@ -303,9 +304,14 @@ class ContactsQueryService:
         with self._persistence.unit_of_work() as uow:
             rows = uow.execute(
                 f"SELECT m.*, c.display_name AS ziel_name, a.state AS a_state, "
-                f"a.expires_at AS a_expires FROM contacts_mutations m "
+                f"a.expires_at AS a_expires, "
+                # Kanonische Quelle der Sendversuche (siehe `_mutation`).
+                f"o.attempt_count AS sendversuche "
+                f"FROM contacts_mutations m "
                 f"LEFT JOIN contacts c ON c.id = m.target_contact_id "
                 f"LEFT JOIN personal_approvals a ON a.approval_id = m.approval_id "
+                f"LEFT JOIN personal_external_action_outbox o "
+                f"ON o.outbox_id = m.outbox_id "
                 f"WHERE {' AND '.join(bedingungen)} "
                 f"ORDER BY m.created_at DESC, m.mutation_id LIMIT ?",
                 (*werte, limit)).fetchall()
@@ -316,9 +322,12 @@ class ContactsQueryService:
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
                 "SELECT m.*, c.display_name AS ziel_name, a.state AS a_state, "
-                "a.expires_at AS a_expires FROM contacts_mutations m "
+                "a.expires_at AS a_expires, o.attempt_count AS sendversuche "
+                "FROM contacts_mutations m "
                 "LEFT JOIN contacts c ON c.id = m.target_contact_id "
                 "LEFT JOIN personal_approvals a ON a.approval_id = m.approval_id "
+                "LEFT JOIN personal_external_action_outbox o "
+                "ON o.outbox_id = m.outbox_id "
                 "WHERE m.mutation_id = ? AND m.workspace_id = ?",
                 (mutation_id, workspace_id)).fetchone()
             return self._mutation(zeile) if zeile else None
@@ -464,6 +473,7 @@ class ContactsQueryService:
             return tuple(SyncStatusView(
                 provider_account_id=r["provider_account_id"],
                 container_identifier=r["container_identifier"],
+                container_type=r["container_type"],
                 mode=r["mode"], circuit_state=r["circuit_state"],
                 key_set_version=r["key_set_version"],
                 # Der Token selbst verlaesst diese Schicht nicht.
@@ -519,7 +529,14 @@ class ContactsQueryService:
             target_display_name=row["ziel_name"],
             container_identifier=row["container_identifier"],
             expected_revision=row["expected_revision"],
-            attempt_count=row["attempt_count"],
+            # **Kanonisch die Outbox.** Sie erhoeht den Zaehler beim Claim,
+            # also genau dann, wenn ein Sendversuch beginnt. Die gleichnamige
+            # Spalte im Vorgang wird dabei mitgeschrieben und ist ein
+            # Abbild — nie eine zweite Wahrheit. Fehlt der Outbox-Eintrag
+            # (Vorgang ohne Warteschlange), gilt der Vorgangswert.
+            attempt_count=(row["sendversuche"]
+                           if row["sendversuche"] is not None
+                           else row["attempt_count"]),
             last_error_code=row["last_error_code"],
             created_at=row["created_at"], approved_at=row["approved_at"],
             completed_at=row["completed_at"], approval_id=row["approval_id"],

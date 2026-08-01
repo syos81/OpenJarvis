@@ -132,6 +132,9 @@ class ContactsSyncService:
         #: Nur für Tests kürzbar. Produktiv bleibt die Pause die Konstante —
         #: sie ist der ganze Sinn der Gegenprobe.
         self._empty_recheck_pause = empty_recheck_pause
+        #: Art je Ablageort, sobald `inventory_containers()` sie gesehen hat.
+        #: Leer heisst „noch nicht erhoben" — nie „unbekannter Typ".
+        self._container_arten: dict[str, str] = {}
 
     # ── Vorbedingungen ──────────────────────────────────────────────────────
     def _require_started(self) -> None:
@@ -164,7 +167,13 @@ class ContactsSyncService:
         importiert wurde.
         """
         self._require_authorized()
-        return self._client.containers()
+        container = self._client.containers()
+        # Die Art jedes Ablageorts merken: sie kommt ausschliesslich hier
+        # vorbei und wird beim naechsten Zustandsschreiben mitgesichert.
+        # Ohne sie koennte eine Oberflaeche einen Ablageort nur an Reihenfolge
+        # oder Groesse unterscheiden — und das ist keine bewusste Auswahl.
+        self._container_arten = {c.identifier: c.type for c in container}
+        return container
 
     # ── Öffentliche Läufe ───────────────────────────────────────────────────
     def sync(self, container_identifier: str) -> SyncRunResult:
@@ -878,6 +887,7 @@ class ContactsSyncService:
         repos.sync_state.upsert(ContactSyncState(
             provider_account_id=self._provider_account_id,
             container_identifier=container_identifier,
+            container_type=self._container_arten.get(container_identifier),
             key_set_version=key_set_version, mode=mode.value,
             cursor_token=cursor_token, cursor_taken_at=cursor_taken_at,
             last_full_diff_at=last_full_diff_at,

@@ -517,6 +517,38 @@ def create_contacts_router(module) -> APIRouter:
         """
         return _entscheiden(mutation_id, request, "expire", None)
 
+    @router.post("/mutations/{mutation_id}/resolve-outcome",
+                 response_model=S.ExecutionResultOut)
+    def resolve_outcome(mutation_id: str, body: S.ResolveOutcomeIn,
+                        request: Request) -> Any:
+        """Schliesst einen ungewissen Ausgang nach **externer** Prüfung ab.
+
+        Der Fall: der Provider hat technisch nicht geantwortet, der Mensch hat
+        ausserhalb von Jarvis nachgesehen und die Änderung dort nicht
+        gefunden. Ohne diesen Weg bliebe der Vorgang für immer offen — und
+        ohne ihn wäre die Versuchung gross, ihn stattdessen als „nichts
+        gesendet" zu verbuchen, was die Historie verfälschte.
+
+        **Diese Route berührt den Provider nicht.** Kein Sidecar, kein Lesen,
+        kein Senden. Sie hält eine menschliche Beobachtung fest und schliesst
+        den Vorgang terminal ab; ein zweiter Send wird dadurch nie möglich.
+        """
+        assert body.user_initiated is True      # von Pydantic erzwungen
+        ws = workspace(request)
+        if queries.get_mutation(mutation_id, workspace_id=ws) is None:
+            raise _http_error(MutationNotFound("Mutation existiert nicht"))
+        try:
+            ergebnis = _mutation_service().resolve_outcome_manually(
+                mutation_id, decision=body.decision, evidence=body.evidence,
+                actor=actor(request))
+        except (MutationError, ApprovalError) as exc:
+            raise _http_error(exc) from exc
+        return S.ExecutionResultOut(
+            mutation_id=ergebnis.mutation_id, state=ergebnis.state,
+            outcome=ergebnis.outcome, error_code=ergebnis.error_code,
+            retryable=False, attempt_count=ergebnis.attempt_count,
+            contact_id=None, pending_local_catchup=False)
+
     # ── Mutationen vorbereiten ──────────────────────────────────────────────
     def _prepare(command) -> S.PreparedMutationOut:
         try:
@@ -666,6 +698,7 @@ def _sync_status_out(s) -> S.SyncStatusOut:
         provider_type=provider_type(s.provider_account_id),
         account_ref=account_ref(s.provider_account_id),
         container_ref=container_ref(s.container_identifier),
+        container_type=s.container_type or "unknown",
         mode=s.mode, circuit_state=s.circuit_state,
         key_set_version=s.key_set_version,
         cursor_present=s.has_cursor,

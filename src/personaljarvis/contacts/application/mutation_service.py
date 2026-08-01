@@ -66,6 +66,7 @@ from personaljarvis.contacts.domain.models import utc_now
 
 __all__ = [
     "MODULE",
+    "ManualResolution",
     "SUBJECT_TYPE",
     "TRANSACTION_AUTHOR",
     "MutationState",
@@ -79,6 +80,29 @@ SUBJECT_TYPE = "contacts.mutation"
 
 #: Autor jeder Schreiboperation — Grundlage der Echo-Unterdrückung (11 §3).
 TRANSACTION_AUTHOR = "de.kluender.jarvis.contacts-bridge"
+
+
+class ManualResolution:
+    """Geschlossene Werte des menschlichen Abschlusses.
+
+    Bewusst **kein Freitext**: eine Begründung, die ein Mensch tippt, landete
+    in der Auditspur und könnte einen Kontaktwert tragen. Was zählt, ist
+    ohnehin nur die technische Aussage — *was* wurde entschieden und *worauf*
+    stützt es sich.
+    """
+
+    #: Die einzige heute zulässige Entscheidung: die Änderung wurde beim
+    #: Provider **nicht beobachtet**. Ein „doch angewandt" gibt es hier
+    #: absichtlich nicht — dafür ist der Abgleich zuständig, der liest.
+    NOT_OBSERVED = "not_observed"
+    DECISIONS = frozenset({NOT_OBSERVED})
+
+    #: Worauf sich die Aussage stützt.
+    MANUAL_PROVIDER_INSPECTION = "manual_provider_inspection"
+    EVIDENCE = frozenset({MANUAL_PROVIDER_INSPECTION})
+
+    #: Stabiler technischer Code im Vorgang und in der Outbox.
+    ERROR_CODE = "manually_resolved_not_applied"
 
 
 class MutationState:
@@ -96,6 +120,9 @@ class MutationState:
     PROVIDER_APPLIED_PENDING_RECONCILE = "provider_applied_pending_reconcile"
     RECONCILE_REQUIRED = "reconcile_required"
     MANUAL_DECISION_REQUIRED = "manual_decision_required"
+    #: Menschlich aufgelöst: der Provider wurde ausserhalb von Jarvis geprüft
+    #: und die Änderung dort **nicht beobachtet**. Terminal.
+    MANUALLY_RESOLVED_NOT_APPLIED = "manually_resolved_not_applied"
     FAILED = "failed"
 
     #: Endzustände. Ein zweiter Send findet nie statt.
@@ -107,7 +134,11 @@ class MutationState:
     #: diese Regel bliebe der Zustand ein Zombie: nicht terminal, nicht
     #: ausführbar, und sein Outbox-Eintrag stünde dauerhaft als fällig.
     TERMINAL = frozenset({SUCCEEDED, REJECTED, EXPIRED, CANCELLED, FAILED,
-                          FAILED_BEFORE_SEND})
+                          FAILED_BEFORE_SEND, MANUALLY_RESOLVED_NOT_APPLIED})
+    #: Zustände, die ein Mensch nach eigener Prüfung am Provider abschliessen
+    #: darf. Beide sagen „das System weiss es nicht" — genau dort, und nur
+    #: dort, hilft eine externe Beobachtung weiter.
+    MANUALLY_RESOLVABLE = frozenset({OUTCOME_UNKNOWN, MANUAL_DECISION_REQUIRED})
     #: Zustände, aus denen nur der Abgleich weiterführt — **nie** ein Send.
     #: `PROVIDER_APPLIED_PENDING_RECONCILE` gehört ausdrücklich dazu: dort ist
     #: die Providerwirkung bewiesen, ein zweiter Send legte einen zweiten
@@ -300,6 +331,16 @@ class ContactsMutationService:
             payload = self._payload_from_row(zeile)
             outbox = ExternalActionOutbox(uow)
             eintrag, token = outbox.claim(zeile["outbox_id"])
+            # `attempt_count` zaehlt **tatsaechlich begonnene** externe
+            # Sendversuche. Kanonisch ist die Outbox: dort erhoeht der Claim
+            # den Wert, und der Claim ist der Moment, ab dem gesendet wird.
+            # Die Spalte im Vorgang wird in **derselben** Arbeitseinheit
+            # nachgezogen — sonst stuenden dort dauerhaft 0 Versuche, waehrend
+            # die Outbox 1 zaehlt, und die Mutationsliste widerspraeche der
+            # Ausfuehrungsantwort.
+            uow.execute(
+                "UPDATE contacts_mutations SET attempt_count = ? "
+                "WHERE mutation_id = ?", (eintrag.attempt_count, mutation_id))
 
             audit = AuditTrail(uow, module=MODULE)
             audit.record(AuditStage.EXECUTION_CLAIMED,
@@ -377,6 +418,87 @@ class ContactsMutationService:
         # wäre nie etwas geschehen.
         return self.finalize_pending(mutation_id, readback=antwort.readback,
                                      attempt_count=ergebnis.attempt_count)
+
+    # ── Menschlicher Abschluss eines ungewissen Ausgangs ────────────────────
+    def resolve_outcome_manually(self, mutation_id: str, *, decision: str,
+                                 evidence: str, actor: str) -> ExecutionResult:
+        """Schliesst einen ungewissen Ausgang nach externer Prüfung ab.
+
+        **Kein Providerkontakt.** Diese Methode startet keinen Prozess, liest
+        nichts am Store und sendet nichts. Sie hält ausschliesslich fest, was
+        ein Mensch ausserhalb von Jarvis gesehen hat.
+
+        **Sie schreibt die Historie nicht um.** Der Auditeintrag
+        `outcome_unknown` bleibt stehen: zum Zeitpunkt des technischen Fehlers
+        war das Ergebnis unbekannt, und das bleibt wahr. Der Abschluss ist ein
+        **eigenes, späteres** Ereignis daneben — deshalb auch ein eigener
+        Zustand und nicht `failed_before_send`, das etwas anderes behauptet
+        („nachweislich nichts gesendet").
+
+        **Ein zweiter Send wird dadurch nie möglich.** Der Zielzustand ist
+        terminal, der Outbox-Eintrag wird endgültig geschlossen, und die
+        Freigabe war bereits verbraucht.
+
+        Wiederholter Aufruf: der Vorgang ist danach terminal, ein zweiter
+        Aufruf wird typisiert abgewiesen und ändert nichts.
+        """
+        if decision != ManualResolution.NOT_OBSERVED:
+            raise InvalidCommand(
+                f"Unbekannte Entscheidung: {decision}")
+        if evidence not in ManualResolution.EVIDENCE:
+            raise InvalidCommand(f"Unbekannte Evidenz: {evidence}")
+        if not actor or not actor.strip():
+            raise InvalidCommand("Ein Abschluss verlangt einen Entscheider")
+
+        with self._persistence.unit_of_work() as uow:
+            zeile = self._require_row(uow, mutation_id)
+            zustand = zeile["state"]
+            if zustand not in MutationState.MANUALLY_RESOLVABLE:
+                raise AlreadySettled(
+                    f"Mutation ist '{zustand}'; ein manueller Abschluss ist "
+                    f"nur aus einem ungewissen Ausgang moeglich")
+
+            # Die Freigabe muss verbraucht sein: nur dann gab es ueberhaupt
+            # einen Sendversuch, dessen Ausgang offen sein koennte.
+            freigabe = ApprovalStore(uow).get(zeile["approval_id"])
+            if freigabe is None or freigabe.state != ApprovalState.CONSUMED:
+                raise MutationNotExecutable(
+                    "Ohne verbrauchte Freigabe gab es keinen Sendversuch, "
+                    "dessen Ausgang aufzuloesen waere")
+
+            self._set_state(uow, mutation_id,
+                            MutationState.MANUALLY_RESOLVED_NOT_APPLIED,
+                            outcome="failed", completed=True,
+                            error_code=ManualResolution.ERROR_CODE)
+            # Der Outbox-Eintrag wird endgueltig geschlossen. `abandon` ist
+            # genau dafuer da und laesst ihn nie wieder als faellig erscheinen.
+            outbox = ExternalActionOutbox(uow)
+            eintrag = outbox.get(zeile["outbox_id"]) if zeile["outbox_id"] else None
+            if eintrag is not None and eintrag.state not in OutboxState.TERMINAL:
+                outbox.abandon(zeile["outbox_id"],
+                               error_code=ManualResolution.ERROR_CODE)
+
+            AuditTrail(uow, module=MODULE).record(
+                AuditStage.MUTATION_OUTCOME_MANUALLY_RESOLVED,
+                subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                facts={"decision": decision, "evidence": evidence,
+                       "decisionActor": actor, "previousState": zustand,
+                       "providerContacted": False, "resend": False})
+            return ExecutionResult(
+                mutation_id=mutation_id,
+                state=MutationState.MANUALLY_RESOLVED_NOT_APPLIED,
+                outcome="failed", error_code=ManualResolution.ERROR_CODE,
+                attempt_count=self._sendversuche(uow, zeile["outbox_id"]))
+
+    @staticmethod
+    def _sendversuche(uow: UnitOfWork, outbox_id: str | None) -> int:
+        """Tatsächlich begonnene Sendversuche — kanonisch aus der Outbox."""
+        if not outbox_id:
+            return 0
+        zeile = uow.execute(
+            "SELECT attempt_count FROM personal_external_action_outbox "
+            "WHERE outbox_id = ?", (outbox_id,)).fetchone()
+        return zeile["attempt_count"] if zeile else 0
 
     # ── C2: kanonische lokale Nachführung ───────────────────────────────────
     def finalize_pending(self, mutation_id: str, *, readback=None,

@@ -437,6 +437,10 @@ class ContactSyncState:
     last_full_diff_at: str | None = None
     circuit_state: str = "closed"
     updated_at: str = field(default_factory=utc_now)
+    #: Art des Ablageorts (`local`, `cardDAV`, `exchange`, …), wie der
+    #: Provider sie meldet. `None` heisst „noch nicht synchronisiert" — nicht
+    #: „unbekannter Typ", und schon gar nicht „lokal".
+    container_type: str | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.provider_account_id, "provider_account_id")
