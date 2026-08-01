@@ -134,7 +134,15 @@ def test_kontaktfreier_handshake_ping_caps_shutdown():
         assert handshake.capabilities.notes_supported is False
         assert handshake.capabilities.link_unlink_supported is False
         assert handshake.capabilities.unified_read_only is True
-        assert handshake.capabilities.mutations_implemented is False
+        # Seit ADR-0019 schreibt der Sidecar — aber ausschliesslich `create`.
+        assert handshake.capabilities.mutations_implemented is True
+        assert handshake.capabilities.create_implemented is True
+        assert handshake.capabilities.update_implemented is False
+        assert handshake.capabilities.delete_implemented is False
+        assert handshake.capabilities.mutation_contract_version == \
+            protocol.MUTATION_CONTRACT_VERSION
+        assert handshake.capabilities.field_contract_version == \
+            protocol.FIELD_CONTRACT_VERSION
 
         assert proc.request(protocol.Operation.PING, timeout=10)["ok"] is True
         caps = proc.request(protocol.Operation.CAPS, timeout=10)
@@ -156,25 +164,29 @@ def test_unbekannte_operation_wird_typisiert_abgelehnt():
         proc.stop()
 
 
-def test_mutationen_liefern_not_implemented():
-    """Vertraglich definiert, aber ohne jeden Store-Schreibzugriff."""
+def test_create_bricht_ohne_pflichtfelder_vor_dem_store_ab():
+    """`create` ist implementiert — aber ohne Vertrag geschieht nichts.
+
+    Frueher endete diese Anfrage in `not_implemented`. Seit ADR-0019 endet sie
+    in `not_sent`: die Aussage ist damit schaerfer, denn `not_sent` behauptet
+    ausdruecklich, dass **nichts uebergeben wurde** — genau das, worauf der
+    Kern seine Zustandsentscheidung stuetzt.
+    """
     proc = SidecarProcess(resolve_sidecar(_native()))
     proc.start()
     try:
-        # Ohne Pflichtfelder: invalid_request mit Feldliste.
         envelope = proc.request(protocol.Operation.CREATE, {}, timeout=10)
-        assert envelope["ok"] is False
-        assert envelope["error"]["code"] == protocol.ErrorCode.INVALID_REQUEST
-        for feld in ("mutationId", "idempotencyKey", "approvalId"):
-            assert feld in envelope["error"]["message"]
+        assert envelope["ok"] is True
+        ergebnis = envelope["result"]
+        assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
+        assert ergebnis["errorCode"] == protocol.ErrorCode.INVALID_REQUEST
 
-        # Mit Pflichtfeldern: not_implemented.
+        # Auch mit Pflichtfeldern, aber ohne Container: weiterhin not_sent.
         envelope = proc.request(
             protocol.Operation.CREATE,
             {"mutationId": "m", "idempotencyKey": "k", "approvalId": "a"},
             timeout=10)
-        assert envelope["ok"] is False
-        assert envelope["error"]["code"] == protocol.ErrorCode.NOT_IMPLEMENTED
+        assert envelope["result"]["outcome"] == protocol.MutationOutcome.NOT_SENT
     finally:
         proc.stop()
 
@@ -248,3 +260,70 @@ def test_objc_shim_ist_reine_weiterleitung():
     assert code.count("return [store") == 2
     for verboten in ("if ", "for ", "while ", "switch "):
         assert verboten not in code, "Der Shim darf keine Ablauflogik enthalten"
+
+
+# ── Mutationsvertrag: kontaktfrei am laufenden Sidecar ──────────────────────
+#
+# Ausgefuehrt werden ausschliesslich Anfragen, die **vor** jedem Store-Zugriff
+# abbrechen: fehlende Pflichtfelder und eine falsche Vertragsversion. Beide
+# Wege enden im Sidecar vor `store.execute` — es wird kein Kontakt angelegt,
+# gelesen oder veraendert, und es gibt keinen TCC-Dialog.
+def _mutationsantwort(payload: dict) -> dict:
+    proc = SidecarProcess(resolve_sidecar(_native()))
+    proc.start()
+    try:
+        return proc.request(protocol.Operation.CREATE, payload, timeout=15)
+    finally:
+        proc.stop()
+
+
+def test_create_ohne_pflichtfelder_meldet_not_sent():
+    antwort = _mutationsantwort({"fields": {"givenName": "X"}})
+    assert antwort["ok"] is True
+    ergebnis = antwort["result"]
+    assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
+    assert ergebnis["errorCode"] == "invalid_request"
+
+
+def test_create_mit_fremder_vertragsversion_meldet_not_sent():
+    """Ein Kern mit anderem Vertragsstand schreibt hier nichts."""
+    antwort = _mutationsantwort({
+        "mutationId": "m-1", "idempotencyKey": "i-1", "approvalId": "a-1",
+        "containerIdentifier": "egal", "fields": {"givenName": "X"},
+        "mutationContractVersion": 99, "fieldContractVersion": 99})
+    ergebnis = antwort["result"]
+    assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
+    assert ergebnis["errorCode"] == "protocol_mismatch"
+
+
+def test_die_mutationsantwort_nennt_ihre_vertragsversionen():
+    antwort = _mutationsantwort({"fields": {}})
+    ergebnis = antwort["result"]
+    assert ergebnis["mutationContractVersion"] == protocol.MUTATION_CONTRACT_VERSION
+    assert ergebnis["fieldContractVersion"] == protocol.FIELD_CONTRACT_VERSION
+    assert ergebnis["transactionAuthor"] == "de.kluender.jarvis.contacts-bridge"
+
+
+def test_die_mutationsantwort_traegt_keinen_feldwert_und_keinen_pfad():
+    antwort = _mutationsantwort({
+        "mutationId": "m-2", "idempotencyKey": "i-2", "approvalId": "a-2",
+        "containerIdentifier": "egal",
+        "fields": {"givenName": "Geheimname-XYZ"},
+        "mutationContractVersion": 99, "fieldContractVersion": 1})
+    text = json.dumps(antwort)
+    assert "Geheimname-XYZ" not in text
+    assert "/Users/" not in text
+
+
+@pytest.mark.parametrize("operation", ["update", "delete"])
+def test_update_und_delete_bleiben_nicht_implementiert(operation):
+    proc = SidecarProcess(resolve_sidecar(_native()))
+    proc.start()
+    try:
+        antwort = proc.request(operation, {
+            "mutationId": "m-3", "idempotencyKey": "i-3", "approvalId": "a-3",
+            "targetProviderIdentifier": "egal"}, timeout=15)
+    finally:
+        proc.stop()
+    assert antwort["ok"] is False
+    assert antwort["error"]["code"] == protocol.ErrorCode.NOT_IMPLEMENTED

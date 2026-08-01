@@ -84,6 +84,14 @@ class MutationState(_StrEnum):
     * `OUTCOME_UNKNOWN` — **möglicherweise** gesendet. Weder Erfolg noch
       Fehlschlag; von dort führt genau ein Weg weiter, und der heißt
       `RECONCILE_REQUIRED` — also zuerst lesen, nie wiederholen.
+
+    Seit 0006 gibt es dazwischen einen dritten, ebenfalls getrennten Zustand:
+
+    * `PROVIDER_APPLIED_PENDING_RECONCILE` — **bewiesen** gesendet und
+      angewandt, aber der kanonische Spiegel ist noch nicht nachgeführt. Er
+      ist das Gegenteil von `OUTCOME_UNKNOWN`: dort ist nichts bewiesen, hier
+      alles. Aus ihm führt nie ein weiterer Send, sondern ausschliesslich die
+      Wiederholung der **lokalen** Nachführung (ADR-0019 §5).
     """
 
     PREPARED = "prepared"
@@ -96,6 +104,7 @@ class MutationState(_StrEnum):
     SUCCEEDED = "succeeded"
     FAILED_BEFORE_SEND = "failed_before_send"
     OUTCOME_UNKNOWN = "outcome_unknown"
+    PROVIDER_APPLIED_PENDING_RECONCILE = "provider_applied_pending_reconcile"
     RECONCILE_REQUIRED = "reconcile_required"
     MANUAL_DECISION_REQUIRED = "manual_decision_required"
     FAILED = "failed"

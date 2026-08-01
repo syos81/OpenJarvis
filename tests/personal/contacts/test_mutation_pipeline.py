@@ -57,6 +57,13 @@ from personaljarvis.contacts.application.errors import (
     TargetBindingError,
     UnifiedIdentifierNotWritable,
 )
+from personaljarvis.contacts.application.field_contract import (
+    as_bridge_contact,
+    parse_canonical_payload,
+    parse_create_fields,
+    project_bridge_contact,
+    readback_digest,
+)
 from personaljarvis.contacts.domain.enums import InitiationContext
 from personaljarvis.contacts.domain.models import ExternalIdentifier
 
@@ -106,12 +113,16 @@ class AttrappenProvider:
 
     def __init__(self, outcome: str = ProviderOutcome.SUCCEEDED, *,
                  error_code: str | None = None,
-                 provider_identifier: str | None = None,
-                 raises: Exception | None = None) -> None:
+                 provider_identifier: str | None = "erzeugt-1",
+                 raises: Exception | None = None,
+                 readback_abweichend: bool = False) -> None:
         self.outcome = outcome
         self.error_code = error_code
         self.provider_identifier = provider_identifier
         self.raises = raises
+        #: Simuliert einen Provider, der etwas anderes zurueckliest, als
+        #: geschrieben wurde — dann traegt der Beleg die Nachfuehrung nicht.
+        self.readback_abweichend = readback_abweichend
         self.calls: list[dict] = []
 
     def apply(self, payload, *, mutation_id, idempotency_key, approval_id):
@@ -122,8 +133,22 @@ class AttrappenProvider:
                            "target": payload.target_provider_identifier})
         if self.raises is not None:
             raise self.raises
-        return ProviderResponse(self.outcome, error_code=self.error_code,
-                                provider_identifier=self.provider_identifier)
+        if self.outcome != ProviderOutcome.SUCCEEDED:
+            return ProviderResponse(self.outcome, error_code=self.error_code,
+                                    provider_identifier=self.provider_identifier)
+        # Ein angewandter Vorgang bringt IMMER einen Read-back mit — genau wie
+        # der echte Sidecar. Ohne ihn gaebe es keinen Erfolg (ADR-0019 §4).
+        felder = parse_canonical_payload(payload.fields)
+        if self.readback_abweichend:
+            felder = parse_create_fields({"given_name": "Anders"})
+        zurueck = as_bridge_contact(
+            felder, provider_identifier=self.provider_identifier)
+        return ProviderResponse(
+            self.outcome, error_code=self.error_code,
+            provider_identifier=self.provider_identifier,
+            container_identifier=payload.container_identifier,
+            readback=zurueck,
+            readback_digest=readback_digest(project_bridge_contact(zurueck)))
 
 
 class AttrappenLeser:
@@ -966,20 +991,36 @@ def test_application_schicht_startet_keinen_prozess():
             assert verboten not in code, f"{datei.name}: {verboten}"
 
 
-def test_sidecar_bleibt_ohne_schreibimplementierung():
-    """Gate C schaltet den Swift-Sidecar nicht fuer Store-Schreibzugriffe frei."""
-    from pathlib import Path
+def test_sidecar_schreibt_nur_ueber_create():
+    """Der Sidecar kennt genau einen Schreibpfad, und der heisst `create`.
 
+    Update und Delete bleiben `not_implemented` — Phase M4 bzw. M5, Delete
+    zusaetzlich hinter der offenen Entscheidung DEC-D06 (ADR-0019 §7/§9).
+    """
     code = _swift_code_ohne_prosa("native/contacts-bridge/src/sidecar.swift")
     assert "opMutationNotImplemented" in code
     assert "notImplemented" in code
-    # Es gibt weiterhin keinen CNSaveRequest im ausfuehrbaren Sidecar-Code.
-    assert "CNSaveRequest" not in code
+    # Genau ein Schreibvorgang, und er steht in opCreate.
+    assert code.count("CNSaveRequest()") == 1
+    assert code.count("store.execute(") == 1
+    assert "func opCreate" in code
+    # Update und Delete laufen weiterhin in den Nicht-implementiert-Zweig.
+    assert 'case "update", "delete":' in code
+    assert '"updateImplemented": false' in code
+    assert '"deleteImplemented": false' in code
 
 
-def test_bridge_client_verweigert_direkte_mutation():
+def test_bridge_client_verweigert_update_und_delete():
     from personaljarvis.contacts.bridge.client import ContactsBridgeClient
 
-    for name in ("create", "update", "delete"):
-        with pytest.raises(NotImplementedError, match="CommandBus"):
+    for name in ("update", "delete"):
+        with pytest.raises(NotImplementedError, match="ADR-0019"):
             getattr(ContactsBridgeClient, name)(None)
+
+
+def test_bridge_client_create_verlangt_den_vollen_vertrag():
+    """`create` nimmt keine Teilangabe entgegen — alle Pflichtfelder oder nichts."""
+    from personaljarvis.contacts.bridge.client import ContactsBridgeClient
+
+    with pytest.raises(TypeError):
+        ContactsBridgeClient(None).create()

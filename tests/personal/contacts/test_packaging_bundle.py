@@ -424,7 +424,11 @@ def test_bundle_layout_handshake_kontaktfrei(tmp_path):
         assert handshake.protocol_version == protocol.PROTOCOL_VERSION
         assert handshake.bundle_identifier == "de.kluender.jarvis.contacts-bridge"
         assert handshake.capabilities.notes_supported is False
-        assert handshake.capabilities.mutations_implemented is False
+        # Aus dem gepackten Bundle heraus gilt derselbe Vertrag wie direkt:
+        # `create` implementiert, `update`/`delete` nicht.
+        assert handshake.capabilities.create_implemented is True
+        assert handshake.capabilities.update_implemented is False
+        assert handshake.capabilities.delete_implemented is False
 
         assert proc.request("ping")["result"]["pong"] is True
         assert proc.request("caps")["result"]["type"] == "ready"

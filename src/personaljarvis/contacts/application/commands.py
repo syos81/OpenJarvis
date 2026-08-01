@@ -27,6 +27,11 @@ from personaljarvis.contacts.application.errors import (
     TargetBindingError,
     UnifiedIdentifierNotWritable,
 )
+from personaljarvis.contacts.application.field_contract import (
+    CreateFields,
+    canonical_payload,
+    parse_create_fields,
+)
 from personaljarvis.contacts.domain.enums import InitiationContext
 from personaljarvis.contacts.domain.models import utc_now
 
@@ -102,15 +107,22 @@ def _validate_fields(felder: Mapping[str, Any], *, kontext: str) -> dict:
 
 @dataclass(frozen=True)
 class ContactDraft:
-    """Kanonischer Entwurf für `create` — providerneutral."""
+    """Kanonischer Entwurf für `create` — geprüft gegen den Feldvertrag v1.
+
+    Der Entwurf hält nach der Prüfung **zwei** Sichten auf dieselbe Sache:
+    `contract` ist die typisierte Form für Vorschau und Digest, `fields` die
+    kanonische Nutzlast, die zum Sidecar geht und in `payload_json` liegt.
+    Beide entstehen aus derselben Prüfung — es gibt keinen Weg, an ihr vorbei
+    etwas in die Nutzlast zu bekommen.
+    """
 
     fields: Mapping[str, Any]
+    contract: CreateFields | None = None
 
     def __post_init__(self) -> None:
-        geprueft = _validate_fields(self.fields, kontext="Entwurf")
-        if not geprueft:
-            raise InvalidCommand("Ein Entwurf ohne Felder ist nicht zulaessig")
-        object.__setattr__(self, "fields", dict(sorted(geprueft.items())))
+        vertrag = parse_create_fields(self.fields)
+        object.__setattr__(self, "contract", vertrag)
+        object.__setattr__(self, "fields", canonical_payload(vertrag))
 
 
 @dataclass(frozen=True)

@@ -8,8 +8,11 @@ Grenzen dieses Moduls:
   Kern (ADR-0016 Punkt 4).
 * **Kein Sidecar-Start beim Import oder im Konstruktor.** Der Prozess startet
   erst bei einem ausdrücklichen `start()`.
-* **Keine Mutationsausführung.** `create`/`update`/`delete` sind vertraglich
-  definiert und liefern bis Gate C `not_implemented`.
+* **Genau eine Mutationsoperation.** `create` ist implementiert und sendet
+  **einmal**; `update`/`delete` bleiben `NotImplementedError` und liefern
+  sidecarseitig `not_implemented` (ADR-0019 §9).
+* **Kein Retry im Client.** Ein abgebrochener Mutationsaufruf ist
+  `outcome_unknown` — nie ein zweiter Versuch.
 * `requestAuthorization` erfolgt **nur** auf ausdrückliche Nutzeraktion und
   niemals automatisch beim Start (Plan §8).
 """
@@ -36,7 +39,14 @@ from personaljarvis.contacts.bridge.models import (
 )
 from personaljarvis.contacts.bridge.process import SidecarProcess
 
-__all__ = ["ContactsBridgeClient"]
+__all__ = ["ContactsBridgeClient", "MUTATION_TIMEOUT_SECONDS"]
+
+#: Eigener Timeout für Mutationen. Ein Leseaufruf darf nach 30 s aufgeben —
+#: bei einer Mutation heisst Aufgeben `outcome_unknown` und damit manuelle
+#: Nacharbeit. Vier Minuten sind grosszügig genug, dass ein langsamer Store
+#: nicht zum Abgleichfall wird, und knapp genug, dass ein hängender Prozess
+#: nicht ewig blockiert.
+MUTATION_TIMEOUT_SECONDS = 120.0
 
 
 class ContactsBridgeClient:
@@ -166,12 +176,46 @@ class ContactsBridgeClient:
         contact = BridgeContact.parse(raw["contact"])
         return contact
 
-    # ── Mutationen: bis Gate C nicht implementiert ──────────────────────────
-    def create(self, **_: Any) -> None:
+    # ── Mutation: ausschliesslich `create` ──────────────────────────────────
+    def create(self, *, mutation_id: str, idempotency_key: str,
+               approval_id: str, container_identifier: str,
+               fields: dict[str, Any],
+               timeout: float = MUTATION_TIMEOUT_SECONDS) -> dict[str, Any]:
+        """Sendet **genau einen** Anlagebefehl und liefert das Rohergebnis.
+
+        Der Client entscheidet nichts: er überträgt die bereits kanonisierte
+        Nutzlast, hängt die Vertragsversionen an und gibt zurück, was der
+        Sidecar geantwortet hat. Die Auswertung des Ergebnisvertrags geschieht
+        im Provider (`application.bridge_provider`), damit sie an genau einer
+        Stelle steht.
+
+        Der Timeout ist bewusst grosszügiger als bei Leseoperationen: ein
+        Timeout ist hier nie folgenlos, sondern erzeugt Abgleicharbeit.
+        """
+        return self._call(protocol.Operation.CREATE, {
+            "mutationId": mutation_id,
+            "idempotencyKey": idempotency_key,
+            "approvalId": approval_id,
+            "transactionAuthor": self._transaction_author(),
+            "mutationContractVersion": protocol.MUTATION_CONTRACT_VERSION,
+            "fieldContractVersion": protocol.FIELD_CONTRACT_VERSION,
+            "containerIdentifier": container_identifier,
+            "fields": fields,
+        }, timeout=timeout)
+
+    def _transaction_author(self) -> str:
+        hs = self._process.handshake
+        if hs is None:
+            raise BridgeProtocolError("Bridge ist nicht gestartet")
+        return hs.transaction_author
+
+    def update(self, **_: Any) -> None:
         raise NotImplementedError(
-            "Mutationen entstehen in Gate C ueber den ApplicationCommandBus "
-            "(AV-35) — nie direkt ueber den Bridge-Client."
+            "update ist noch nicht implementiert (ADR-0019 §9, Phase M4)."
         )
 
-    update = create
-    delete = create
+    def delete(self, **_: Any) -> None:
+        raise NotImplementedError(
+            "delete ist noch nicht implementiert (ADR-0019 §9, Phase M5) und "
+            "zusaetzlich hinter der offenen Entscheidung DEC-D06 verriegelt."
+        )

@@ -97,10 +97,25 @@ class BridgeCapabilities:
     change_history_supported: bool = True
     full_diff_fallback_supported: bool = True
     mutations_implemented: bool = False
+    #: Je Operation einzeln — nie pauschal. Ein Sammelflag hätte mit `create`
+    #: auch `update` und `delete` freigeschaltet (ADR-0019 §6).
+    create_implemented: bool = False
+    update_implemented: bool = False
+    delete_implemented: bool = False
+    #: Vertragsstand der Gegenseite. `-1` heisst „nicht genannt" und ist von
+    #: einer echten Version unterscheidbar — beides führt fail-closed zu
+    #: „nicht freigeschaltet", aber nur so ist die Ursache erkennbar.
+    mutation_contract_version: int = -1
+    field_contract_version: int = -1
 
     @classmethod
     def parse(cls, raw: dict[str, Any] | None) -> "BridgeCapabilities":
         r = raw or {}
+
+        def version(name: str) -> int:
+            wert = r.get(name)
+            return wert if isinstance(wert, int) and not isinstance(wert, bool) else -1
+
         return cls(
             notes_supported=bool(r.get("notesSupported", False)),
             link_unlink_supported=bool(r.get("linkUnlinkSupported", False)),
@@ -109,6 +124,11 @@ class BridgeCapabilities:
             change_history_supported=bool(r.get("changeHistorySupported", False)),
             full_diff_fallback_supported=bool(r.get("fullDiffFallbackSupported", False)),
             mutations_implemented=bool(r.get("mutationsImplemented", False)),
+            create_implemented=bool(r.get("createImplemented", False)),
+            update_implemented=bool(r.get("updateImplemented", False)),
+            delete_implemented=bool(r.get("deleteImplemented", False)),
+            mutation_contract_version=version("mutationContractVersion"),
+            field_contract_version=version("fieldContractVersion"),
         )
 
 

@@ -20,7 +20,9 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 
 from personaljarvis.base.approvals import (
     ApprovalError,
@@ -149,9 +151,45 @@ def _http_error(exc: Exception) -> HTTPException:
                 "retryable": False})
 
 
+class _SanitizedValidationRoute(APIRoute):
+    """Validierungsfehler ohne die abgelehnte Eingabe.
+
+    FastAPI antwortet auf einen Schemaverstoss standardmässig mit der vollen
+    Pydantic-Fehlerliste — **einschliesslich des eingereichten Werts** unter
+    `input`. Bei einem Kontaktfeld ist dieser Wert ein Kontaktwert, und der
+    stand damit im Antwortkörper, in jedem Log und in jedem Fehlerbericht.
+
+    Diese Route-Klasse ersetzt die Antwort durch die Vertragsform des Moduls:
+    **welche** Felder verletzt sind, steht drin — **was** darin stand, nicht.
+    Die ursprüngliche Ausnahme wird bewusst nicht verkettet (`from None`),
+    sonst trüge der Traceback den Wert weiter.
+    """
+
+    def get_route_handler(self):
+        original = super().get_route_handler()
+
+        async def handler(request: Request) -> Response:
+            try:
+                return await original(request)
+            except RequestValidationError as exc:
+                felder = sorted({
+                    ".".join(str(teil) for teil in fehler.get("loc", ())[1:])
+                    for fehler in exc.errors()})
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "validation_failed",
+                            "message": "Die Anfrage entspricht nicht dem "
+                                       "Vertrag dieses Endpunkts",
+                            "fields": [f for f in felder if f],
+                            "retryable": False}) from None
+
+        return handler
+
+
 def create_contacts_router(module) -> APIRouter:
     """Baut den Router über einem gestarteten `ContactsModule`."""
-    router = APIRouter(prefix=PREFIX, tags=["personal-contacts"])
+    router = APIRouter(prefix=PREFIX, tags=["personal-contacts"],
+                       route_class=_SanitizedValidationRoute)
     queries = ContactsQueryService(module)
     roles = ContactsRoleService(module)
 
@@ -198,7 +236,7 @@ def create_contacts_router(module) -> APIRouter:
         except MutationError as exc:
             raise _http_error(exc) from exc
         return S.ContactPageOut(
-            items=[S.ContactSummaryOut(**vars(z)) for z in seite.items],
+            items=[_summary_out(z) for z in seite.items],
             next_cursor=seite.next_cursor, has_more=seite.has_more)
 
     @router.get("/categories", response_model=list[S.RoleCountOut])
@@ -375,10 +413,48 @@ def create_contacts_router(module) -> APIRouter:
             ergebnis = module.reconcile_service(leser).reconcile(mutation_id)
         except MutationError as exc:
             raise _http_error(exc) from exc
-        return S.ReconcileOut(mutation_id=ergebnis.mutation_id,
-                              verdict=ergebnis.verdict, state=ergebnis.state,
-                              provider_identifier=ergebnis.provider_identifier,
-                              detail=ergebnis.detail)
+        nachher = queries.get_mutation(mutation_id, workspace_id=ws)
+        return S.ReconcileOut(
+            mutation_id=ergebnis.mutation_id, verdict=ergebnis.verdict,
+            state=ergebnis.state,
+            contact_id=nachher.target_contact_id if nachher else None,
+            detail=ergebnis.detail)
+
+    # ── Ausführung: eine eigene, ausdrückliche Nutzeraktion ─────────────────
+    @router.post("/mutations/{mutation_id}/execute",
+                 response_model=S.ExecutionResultOut)
+    def execute_mutation(mutation_id: str, body: S.ExecuteMutationIn,
+                         request: Request) -> Any:
+        """Führt **eine** freigegebene Mutation aus (ADR-0019 §1).
+
+        Diese Route ist der einzige Weg zu einem Provider-Schreibvorgang. Sie
+        ist bewusst von `approve` getrennt: eine Freigabe sagt „ich habe das
+        gesehen und will es", die Ausführung sagt „jetzt". Ein Klick darf
+        nicht beides bedeuten.
+
+        Es gibt keinen Hintergrundexecutor und keinen Scheduler, der sie
+        aufriefe; `body.user_initiated` ist `Literal[True]` und lässt sich
+        nicht durch einen Query-Parameter ersetzen.
+
+        Doppelte und gleichzeitige Aufrufe: der zweite verliert den
+        Outbox-Claim und wird typisiert abgewiesen — es gibt genau einen Send.
+        """
+        assert body.user_initiated is True   # von Pydantic erzwungen
+        ws = workspace(request)
+        if queries.get_mutation(mutation_id, workspace_id=ws) is None:
+            raise _http_error(MutationNotFound("Mutation existiert nicht"))
+        try:
+            ergebnis = _mutation_service().execute(mutation_id)
+        except (MutationError, ApprovalError) as exc:
+            raise _http_error(exc) from exc
+        return S.ExecutionResultOut(
+            mutation_id=ergebnis.mutation_id, state=ergebnis.state,
+            outcome=ergebnis.outcome, error_code=ergebnis.error_code,
+            # Kein Zustand dieser Pipeline ist automatisch wiederholbar. Ein
+            # neuer Versuch ist immer eine neue freigabepflichtige Mutation.
+            retryable=False, attempt_count=ergebnis.attempt_count,
+            contact_id=ergebnis.contact_id,
+            pending_local_catchup=ergebnis.pending_local_catchup)
 
     @router.get("/approvals", response_model=list[S.ApprovalOut])
     def list_approvals(request: Request,
@@ -451,8 +527,9 @@ def create_contacts_router(module) -> APIRouter:
             state=vorgang.state, payload_digest=vorgang.payload_digest,
             preview_digest=vorschau.digest, reused=vorgang.reused,
             command=vorschau.command,
-            target_provider_identifier=vorschau.target_provider_identifier,
-            container_identifier=vorschau.container_identifier,
+            target_contact_id=vorschau.target_contact_id,
+            container_ref=(container_ref(vorschau.container_identifier)
+                           if vorschau.container_identifier else None),
             target_label=vorschau.target_label,
             changes=[S.FieldChangeOut(field_name=c.field_name,
                                       previous=c.previous, planned=c.planned)
@@ -461,16 +538,22 @@ def create_contacts_router(module) -> APIRouter:
 
     @router.post("", response_model=S.PreparedMutationOut, status_code=201)
     def prepare_create(body: S.CreateContactIn, request: Request) -> Any:
+        """Bereitet eine Neuanlage vor. Es wird **nichts** gesendet.
+
+        Das Ziel ist eine maskierte `container_ref`; die rohe Apple-Kennung
+        entsteht erst hier drinnen und verlässt den Prozess nicht.
+        """
         try:
+            konto, container = queries.resolve_container_ref(body.container_ref)
             command = CreateContact(
                 mutation_id=str(uuid.uuid4()),
                 idempotency_key=body.idempotency_key,
-                provider_account_id=body.provider_account_id,
+                provider_account_id=konto,
                 workspace_id=workspace(request), actor=actor(request),
                 initiation_context=InitiationContext(body.initiation_context),
                 correlation_id=body.correlation_id,
-                container_identifier=body.container_identifier,
-                draft=ContactDraft(body.fields))
+                container_identifier=container,
+                draft=ContactDraft(body.fields.as_field_mapping()))
         except MutationError as exc:
             raise _http_error(exc) from exc
         return _prepare(command)
@@ -482,14 +565,16 @@ def create_contacts_router(module) -> APIRouter:
         if queries.get_contact(contact_id, workspace_id=ws) is None:
             raise _http_error(MutationNotFound("Kontakt existiert nicht"))
         try:
+            konto, ziel = queries.resolve_contact_target(contact_id,
+                                                         workspace_id=ws)
             command = UpdateContact(
                 mutation_id=str(uuid.uuid4()),
                 idempotency_key=body.idempotency_key,
-                provider_account_id=body.provider_account_id,
+                provider_account_id=konto,
                 workspace_id=ws, actor=actor(request),
                 initiation_context=InitiationContext(body.initiation_context),
                 correlation_id=body.correlation_id,
-                target_provider_identifier=body.target_provider_identifier,
+                target_provider_identifier=ziel,
                 expected_revision=body.expected_revision,
                 patch=ContactPatch(body.fields))
         except MutationError as exc:
@@ -510,14 +595,16 @@ def create_contacts_router(module) -> APIRouter:
         if queries.get_contact(contact_id, workspace_id=ws) is None:
             raise _http_error(MutationNotFound("Kontakt existiert nicht"))
         try:
+            konto, ziel = queries.resolve_contact_target(contact_id,
+                                                         workspace_id=ws)
             command = DeleteContact(
                 mutation_id=str(uuid.uuid4()),
                 idempotency_key=body.idempotency_key,
-                provider_account_id=body.provider_account_id,
+                provider_account_id=konto,
                 workspace_id=ws, actor=actor(request),
                 initiation_context=InitiationContext(body.initiation_context),
                 correlation_id=body.correlation_id,
-                target_provider_identifier=body.target_provider_identifier,
+                target_provider_identifier=ziel,
                 expected_revision=body.expected_revision)
         except MutationError as exc:
             raise _http_error(exc) from exc
@@ -557,6 +644,14 @@ def create_contacts_router(module) -> APIRouter:
 
 
 # ── Umwandlung Domäne → Transport ───────────────────────────────────────────
+def _summary_out(z) -> S.ContactSummaryOut:
+    """Listeneintrag mit maskierter Providerherkunft."""
+    felder = {k: v for k, v in vars(z).items() if k != "provider_account_ids"}
+    return S.ContactSummaryOut(
+        **felder,
+        account_refs=sorted({account_ref(k) for k in z.provider_account_ids}))
+
+
 def _sync_status_out(s) -> S.SyncStatusOut:
     """Interne Sicht → öffentlicher Vertrag, unter Maskierung der Kennungen.
 
@@ -587,10 +682,12 @@ def _mutation_out(m) -> S.MutationOut:
         mutation_id=m.mutation_id, command=m.command, state=m.state,
         outcome=m.outcome, initiation_context=m.initiation_context,
         actor=m.actor, correlation_id=m.correlation_id,
-        provider_account_id=m.provider_account_id,
+        provider_type=provider_type(m.provider_account_id),
+        account_ref=account_ref(m.provider_account_id),
         target_contact_id=m.target_contact_id,
         target_display_name=m.target_display_name,
-        container_identifier=m.container_identifier,
+        container_ref=(container_ref(m.container_identifier)
+                       if m.container_identifier else None),
         expected_revision=m.expected_revision, attempt_count=m.attempt_count,
         last_error_code=m.last_error_code, created_at=m.created_at,
         approved_at=m.approved_at, completed_at=m.completed_at,
@@ -613,7 +710,10 @@ def _labeled(werte, wert_feld: str | None = None,
 
 
 def _detail_out(c: Contact) -> S.ContactDetailOut:
-    schreibziel = c.external_ids[0].write_target if c.external_ids else None
+    # `writable` statt `write_target`: die Oberflaeche zielt ueber die lokale
+    # `id`, das Backend loest sie auf. Eine rohe Providerkennung verlaesst die
+    # API nicht mehr (ADR-0019 §2).
+    beschreibbar = bool(c.external_ids) and not c.is_me_card
     return S.ContactDetailOut(
         id=c.id, workspace_id=c.workspace_id, display_name=c.display_name,
         contact_type=c.contact_type.value, given_name=c.given_name,
@@ -643,7 +743,11 @@ def _detail_out(c: Contact) -> S.ContactDetailOut:
             S.FieldAvailabilityOut(field_name=f.field_name,
                                    state=f.state.value)
             for f in c.field_availability],
-        provider_accounts=sorted({e.provider_account_id
-                                  for e in c.external_ids}),
-        containers=sorted({e.container_identifier for e in c.external_ids}),
-        write_target=schreibziel, unified_read_only=True)
+        account_refs=sorted({account_ref(e.provider_account_id)
+                             for e in c.external_ids}),
+        container_refs=sorted({container_ref(e.container_identifier)
+                               for e in c.external_ids}),
+        provider_type=(provider_type(c.external_ids[0].provider_account_id)
+                       if c.external_ids else "unknown"),
+        writable=beschreibbar, revision=str(c.local_revision),
+        unified_read_only=True)

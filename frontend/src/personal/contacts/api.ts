@@ -6,9 +6,9 @@
 // /v1/personal/contacts und dort über den ApplicationCommandBus.
 //
 // Was hier niemals im UI-State landet: Sync-Cursor, Change-History-Token,
-// Roh-Payloads. Der `write_target` ist die einzige Provider-Kennung, die
-// überhaupt herauskommt — sie ist Pflicht, weil sonst nur über einen Namen
-// gezielt werden könnte, und genau das ist verboten.
+// Roh-Payloads — und seit ADR-0019 auch keine Provider-Kennung mehr. Die
+// Oberfläche zielt über die lokale `contact_id` bzw. eine maskierte
+// `container_ref`; das Backend löst beides intern auf.
 
 import { getBase, authHeaders, isTauri } from '../../lib/api';
 
@@ -40,7 +40,8 @@ export interface ContactSummary {
   sync_state: string;
   conflict_state: string | null;
   roles: string[];
-  provider_account_ids: string[];
+  /** Maskierte Kontoreferenzen — die UI braucht nur ihre Anzahl. */
+  account_refs: string[];
   email_count: number;
   phone_count: number;
   address_count: number;
@@ -85,9 +86,14 @@ export interface ContactDetail {
   relations: LabeledValue[];
   roles: string[];
   field_availability: FieldAvailability[];
-  provider_accounts: string[];
-  containers: string[];
-  write_target: string | null;
+  /** Providerherkunft ausschliesslich maskiert (ADR-0019). */
+  account_refs: string[];
+  container_refs: string[];
+  provider_type: string;
+  /** Ob dieser Kontakt Ziel einer Mutation sein kann. Gezielt wird über `id`. */
+  writable: boolean;
+  /** Lokale Revision als Konfliktbedingung — keine Apple-Kennung. */
+  revision: string;
   unified_read_only: boolean;
 }
 
@@ -110,8 +116,9 @@ export interface PreparedMutation {
   preview_digest: string;
   reused: boolean;
   command: string;
-  target_provider_identifier: string | null;
-  container_identifier: string | null;
+  /** Lokale Zielkennung — bei `create` erst nach der Ausführung bekannt. */
+  target_contact_id: string | null;
+  container_ref: string | null;
   target_label: string | null;
   changes: FieldChange[];
   warnings: string[];
@@ -125,10 +132,11 @@ export interface Mutation {
   initiation_context: string;
   actor: string;
   correlation_id: string;
-  provider_account_id: string;
+  provider_type: string;
+  account_ref: string;
   target_contact_id: string | null;
   target_display_name: string | null;
-  container_identifier: string | null;
+  container_ref: string | null;
   expected_revision: string | null;
   attempt_count: number;
   last_error_code: string | null;
@@ -237,8 +245,41 @@ export interface ReconcileResult {
   mutation_id: string;
   verdict: string;
   state: string;
-  provider_identifier: string | null;
+  contact_id: string | null;
   detail: string | null;
+}
+
+/** Ergebnis eines Ausführungsversuchs — aggregiert, ohne Providerkennung. */
+export interface ExecutionResult {
+  mutation_id: string;
+  state: string;
+  outcome: string | null;
+  error_code: string | null;
+  retryable: boolean;
+  attempt_count: number;
+  contact_id: string | null;
+  pending_local_catchup: boolean;
+}
+
+/** Feldvertrag v1 — die geschlossene Feldmenge einer Neuanlage. */
+export interface LabeledValueIn {
+  label: string | null;
+  value: string;
+}
+
+export interface ContactFieldsIn {
+  contact_type?: 'person' | 'organization';
+  given_name?: string;
+  middle_name?: string;
+  family_name?: string;
+  nickname?: string;
+  organization_name?: string;
+  department_name?: string;
+  job_title?: string;
+  birthday?: { year?: number | null; month: number; day: number };
+  emails?: LabeledValueIn[];
+  phones?: LabeledValueIn[];
+  urls?: LabeledValueIn[];
 }
 
 export class ContactsApiError extends Error {
@@ -447,6 +488,23 @@ export function runSync(): Promise<SyncRun> {
   return request<SyncRun>('/sync', { method: 'POST' });
 }
 
+/**
+ * Wählbare Ablageorte für eine Neuanlage — **ausschliesslich maskiert**.
+ *
+ * Bewusst eine eigene, enge Sicht auf `/sync/status`: der Statustyp oben
+ * blendet die Referenzen absichtlich aus, weil die Statusanzeige sie nicht
+ * braucht. Der Anlagedialog braucht sie — aber auch er sieht nur Kürzel.
+ */
+export interface ContainerOption {
+  container_ref: string;
+  account_ref: string;
+  provider_type: string;
+}
+
+export function listContainers(): Promise<ContainerOption[]> {
+  return request<ContainerOption[]>('/sync/status');
+}
+
 export function getSyncStatus(): Promise<SyncStatus[]> {
   return request<SyncStatus[]>('/sync/status');
 }
@@ -470,29 +528,31 @@ export function removeRole(contactId: string, role: string): Promise<{ contact_i
 export interface PrepareBase {
   idempotencyKey: string;
   correlationId: string;
-  providerAccountId: string;
 }
 
+/**
+ * Bereitet eine Neuanlage vor. Zielt über eine **maskierte** `container_ref`;
+ * rohe Apple-Kennungen kennt die Oberfläche nicht mehr.
+ */
 export function prepareCreate(
-  input: PrepareBase & { containerIdentifier: string; fields: Record<string, unknown> },
+  input: PrepareBase & { containerRef: string; fields: ContactFieldsIn },
 ): Promise<PreparedMutation> {
   return request<PreparedMutation>('', {
     method: 'POST',
     body: JSON.stringify({
       idempotency_key: input.idempotencyKey,
       correlation_id: input.correlationId,
-      provider_account_id: input.providerAccountId,
-      container_identifier: input.containerIdentifier,
+      container_ref: input.containerRef,
       fields: input.fields,
     }),
   });
 }
 
+/** Ziel ist die lokale `contactId`; das Backend löst sie intern auf. */
 export function prepareUpdate(
   contactId: string,
   input: PrepareBase & {
-    targetProviderIdentifier: string;
-    expectedRevision: string | null;
+    expectedRevision: string;
     fields: Record<string, unknown>;
   },
 ): Promise<PreparedMutation> {
@@ -501,8 +561,6 @@ export function prepareUpdate(
     body: JSON.stringify({
       idempotency_key: input.idempotencyKey,
       correlation_id: input.correlationId,
-      provider_account_id: input.providerAccountId,
-      target_provider_identifier: input.targetProviderIdentifier,
       expected_revision: input.expectedRevision,
       fields: input.fields,
     }),
@@ -511,18 +569,13 @@ export function prepareUpdate(
 
 export function prepareDelete(
   contactId: string,
-  input: PrepareBase & {
-    targetProviderIdentifier: string;
-    expectedRevision: string | null;
-  },
+  input: PrepareBase & { expectedRevision: string },
 ): Promise<PreparedMutation> {
   return request<PreparedMutation>(`/${encodeURIComponent(contactId)}/delete`, {
     method: 'POST',
     body: JSON.stringify({
       idempotency_key: input.idempotencyKey,
       correlation_id: input.correlationId,
-      provider_account_id: input.providerAccountId,
-      target_provider_identifier: input.targetProviderIdentifier,
       expected_revision: input.expectedRevision,
     }),
   });
@@ -560,6 +613,18 @@ export const approveMutation = (id: string, actor: string) => decide(id, 'approv
 export const rejectMutation = (id: string, actor: string) => decide(id, 'reject', actor);
 export const cancelMutation = (id: string, actor: string) => decide(id, 'cancel', actor);
 export const expireMutation = (id: string) => decide(id, 'expire');
+
+/**
+ * Führt eine **freigegebene** Mutation aus — die einzige Stelle, an der etwas
+ * zum Provider geht. Bewusst ein eigener Aufruf: eine Freigabe führt nichts
+ * aus. `user_initiated` ist Pflicht und steht im Rumpf, nicht in der URL.
+ */
+export function executeMutation(id: string): Promise<ExecutionResult> {
+  return request<ExecutionResult>(
+    `/mutations/${encodeURIComponent(id)}/execute`,
+    { method: 'POST', body: JSON.stringify({ user_initiated: true }) },
+  );
+}
 
 /** Gleicht ausschließlich lesend ab. Es gibt bewusst kein „erneut senden". */
 export function reconcileMutation(id: string): Promise<ReconcileResult> {

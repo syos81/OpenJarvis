@@ -262,7 +262,11 @@ def test_get_detail(client, module):
     assert r.status_code == 200
     body = r.json()
     assert body["display_name"] == "Fixi Eins"
-    assert body["write_target"] == "raw-1"
+    from personaljarvis.contacts.api.redaction import container_ref
+
+    assert body["writable"] is True
+    assert "write_target" not in body
+    assert body["container_refs"] == [container_ref(CONTAINER)]
     assert body["unified_read_only"] is True
     zustaende = {f["field_name"]: f["state"] for f in body["field_availability"]}
     assert zustaende["note"] == "unavailable_by_capability"
@@ -335,8 +339,10 @@ def test_kategorie_unbekanntes_feld_wird_abgewiesen(client, module):
 
 # ═══ HTTP: Mutationen vorbereiten — nie ausführen ═══════════════════════════
 def _create_body(**kw) -> dict:
+    from personaljarvis.contacts.api.redaction import container_ref
+
     body = {"idempotency_key": new_id(), "correlation_id": new_id(),
-            "provider_account_id": KONTO, "container_identifier": CONTAINER,
+            "container_ref": container_ref(CONTAINER),
             "fields": {"given_name": "Neu"}}
     body.update(kw)
     return body
@@ -369,7 +375,6 @@ def test_update_vorbereiten_zeigt_vorher_nachher(client, module, provider):
     k = _kontakt(module)
     r = client.patch(f"{PREFIX}/{k.id}", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": KONTO, "target_provider_identifier": "raw-1",
         "expected_revision": "1", "fields": {"nickname": "Neu"}})
     assert r.status_code == 200
     aenderungen = {c["field_name"]: (c["previous"], c["planned"])
@@ -382,7 +387,6 @@ def test_update_notizfeld_wird_abgewiesen(client, module):
     k = _kontakt(module)
     r = client.patch(f"{PREFIX}/{k.id}", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": KONTO, "target_provider_identifier": "raw-1",
         "expected_revision": "1", "fields": {"note": "heimlich"}})
     assert r.status_code == 422
     assert r.json()["detail"]["code"] == "validation_failed"
@@ -392,7 +396,6 @@ def test_update_me_card_wird_abgewiesen(client, module):
     k = _kontakt(module, me_card=True, provider_identifier="raw-me")
     r = client.patch(f"{PREFIX}/{k.id}", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": KONTO, "target_provider_identifier": "raw-me",
         "expected_revision": "1", "fields": {"nickname": "X"}})
     assert r.status_code == 422
     assert r.json()["detail"]["code"] == "forbidden"
@@ -402,28 +405,27 @@ def test_update_unified_identifier_wird_abgewiesen(client, module):
     k = _kontakt(module)
     r = client.patch(f"{PREFIX}/{k.id}", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": KONTO,
-        "target_provider_identifier": "unified:abc",
         "expected_revision": "1", "fields": {"nickname": "X"}})
-    assert r.status_code == 422
-    assert r.json()["detail"]["code"] == "forbidden"
+    # Der unifizierte Identifier ist als Ziel gar nicht mehr adressierbar:
+    # die API kennt nur die lokale contact_id, und deren Aufloesung liefert
+    # ausschliesslich Rohdatensaetze.
+    assert r.status_code == 200
 
 
 def test_update_fremdes_providerkonto_wird_abgewiesen(client, module):
     k = _kontakt(module, konto="konto-a", provider_identifier="raw-x")
     r = client.patch(f"{PREFIX}/{k.id}", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": "konto-b",
-        "target_provider_identifier": "raw-x",
         "expected_revision": "1", "fields": {"nickname": "X"}})
-    assert r.status_code == 403
+    # Ein fremdes Konto laesst sich nicht mehr behaupten: das Ziel wird aus
+    # der lokalen Identitaet aufgeloest, nicht vom Aufrufer genannt.
+    assert r.status_code == 200
 
 
 def test_delete_vorbereiten_warnt_und_sendet_nichts(client, module, provider):
     k = _kontakt(module)
     r = client.post(f"{PREFIX}/{k.id}/delete", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": KONTO, "target_provider_identifier": "raw-1",
         "expected_revision": "1"})
     assert r.status_code == 200
     assert r.json()["warnings"]
@@ -438,11 +440,21 @@ def test_prepare_lehnt_unbekanntes_feld_ab(client, module):
 
 
 def test_prepare_lehnt_unbekanntes_kontaktfeld_ab(client, module):
+    """Ein unbekanntes Feld prallt schon am Transportmodell ab.
+
+    Seit dem geschlossenen Feldvertrag v1 antwortet Pydantic mit seiner
+    eigenen Fehlerliste statt mit dem Anwendungsfehler — die Ablehnung
+    geschieht also **eine Schicht frueher** als vorher. Das ist die staerkere
+    Aussage: der Wert erreicht die Anwendungsschicht gar nicht erst.
+    """
     _container_bekannt(module)
     r = client.post(PREFIX, headers=_kopf(),
                     json=_create_body(fields={"lieblingsfarbe": "blau"}))
     assert r.status_code == 422
     assert r.json()["detail"]["code"] == "validation_failed"
+    assert "fields.lieblingsfarbe" in r.json()["detail"]["fields"]
+    # Der Wert selbst taucht in der Ablehnung nicht auf.
+    assert "blau" not in r.text
 
 
 # ═══ HTTP: Freigaben ════════════════════════════════════════════════════════
@@ -637,15 +649,18 @@ def _routenpfade(module) -> list[str]:
     return pfade
 
 
-def test_router_bietet_keinen_ausfuehrungsendpunkt(module):
-    """Keine Route führt eine vorbereitete Mutation aus.
+def test_genau_ein_ausfuehrungsendpunkt(module):
+    """Es gibt **einen** Weg zum Provider, und er heisst `execute`.
 
-    `authorization` steht bewusst nicht mehr auf der Verbotsliste: die Route
-    existiert seit dem Lese-Livegang und ist ausdrücklich erlaubt. Verboten
-    bleibt, was einen Vorgang zum Provider schickt.
+    Vorher lautete der Nachweis „gar keiner". Seit ADR-0019 gibt es ihn — die
+    Aussage muss deshalb schaerfer werden statt zu verschwinden: genau eine
+    Route, und daneben weiterhin nichts, was einen Vorgang wiederholt oder
+    ungefragt abschickt.
     """
     pfade = _routenpfade(module)
-    for verboten in ("execute", "send", "retry", "resend", "commit"):
+    assert sum("execute" in p for p in pfade) == 1
+    assert any(p.endswith("/mutations/{mutation_id}/execute") for p in pfade)
+    for verboten in ("send", "retry", "resend", "commit", "flush"):
         assert not any(verboten in p for p in pfade), verboten
 
 
@@ -675,7 +690,6 @@ def test_fehlermeldungen_tragen_keine_kontaktwerte(client, module):
     k = _kontakt(module, name="Geheimname Wert")
     r = client.patch(f"{PREFIX}/{k.id}", headers=_kopf(), json={
         "idempotency_key": new_id(), "correlation_id": new_id(),
-        "provider_account_id": KONTO, "target_provider_identifier": "raw-1",
         "expected_revision": "1", "fields": {"note": "x"}})
     assert "Geheimname" not in r.text
 

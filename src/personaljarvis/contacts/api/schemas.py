@@ -15,6 +15,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from personaljarvis.contacts.application import field_contract as FC
+
 __all__ = [
     "MAX_TEXT",
     "MAX_FIELDS",
@@ -27,8 +29,16 @@ __all__ = [
     "RoleAssignIn",
     "RolesOut",
     "CreateContactIn",
+    "ContactFieldsIn",
+    "LabeledValueIn",
+    "PostalAddressIn",
+    "BirthdayIn",
+    "DateIn",
     "UpdateContactIn",
     "DeleteContactIn",
+    "ExecuteMutationIn",
+    "ExecutionResultOut",
+    "CONTAINER_REF_PATTERN",
     "PreparedMutationOut",
     "FieldChangeOut",
     "MutationOut",
@@ -52,6 +62,11 @@ MAX_TEXT = 512
 #: Request-Größe, ohne eine feste Feldliste im Transport zu zementieren.
 MAX_FIELDS = 40
 
+#: Form der maskierten Containerreferenz (`api.redaction.container_ref`).
+#: Das Muster steht hier, damit eine rohe Apple-Kennung schon an der
+#: Transportgrenze abprallt und gar nicht erst in die Aufloesung gerät.
+CONTAINER_REF_PATTERN = r"^C-[0-9a-f]{6}$"
+
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -68,7 +83,9 @@ class ContactSummaryOut(_Strict):
     sync_state: str
     conflict_state: str | None = None
     roles: list[str] = Field(default_factory=list)
-    provider_account_ids: list[str] = Field(default_factory=list)
+    #: Maskierte Kontoreferenzen. Die Oberflaeche braucht nur ihre **Anzahl**
+    #: („aus 2 Quellen"); die rohe Kontokennung hat sie nie benutzt.
+    account_refs: list[str] = Field(default_factory=list)
     email_count: int = 0
     phone_count: int = 0
     address_count: int = 0
@@ -128,14 +145,17 @@ class ContactDetailOut(_Strict):
     relations: list[LabeledValueOut] = Field(default_factory=list)
     roles: list[str] = Field(default_factory=list)
     field_availability: list[FieldAvailabilityOut] = Field(default_factory=list)
-    #: Providerherkunft **ohne** Roh-Identifier: Konto und Container genügen
-    #: der Anzeige; die Provider-ID wird nur dort ausgegeben, wo sie technisch
-    #: gebraucht wird (Mutationsziel).
-    provider_accounts: list[str] = Field(default_factory=list)
-    containers: list[str] = Field(default_factory=list)
-    #: Schreibziel für Update/Delete. Ohne dieses Feld könnte die UI nur über
-    #: einen Namen zielen — genau das ist verboten (Plan §7.1).
-    write_target: str | None = None
+    #: Providerherkunft ausschliesslich maskiert (ADR-0019 §2).
+    account_refs: list[str] = Field(default_factory=list)
+    container_refs: list[str] = Field(default_factory=list)
+    provider_type: str = "unknown"
+    #: Ob dieser Kontakt überhaupt Ziel einer Mutation sein kann. Trat an die
+    #: Stelle von `write_target`: die Oberfläche brauchte davon nie den Wert,
+    #: sondern nur die Aussage — und zielt seither über die lokale `id`.
+    writable: bool = False
+    #: Lokale Revision als Konfliktbedingung für `update`/`delete`. Sie ist
+    #: eine Zahl aus der eigenen Datenbank, keine Apple-Kennung.
+    revision: str = "1"
     unified_read_only: bool = True
 
 
@@ -154,28 +174,107 @@ class RolesOut(_Strict):
 
 
 # ── Eingabe: Mutationen ─────────────────────────────────────────────────────
+#
+# Keine Eingabe nennt mehr eine rohe Apple-Kennung. Ziel eines `update` oder
+# `delete` ist die lokale `contact_id` im Pfad; Ziel eines `create` ist eine
+# maskierte `container_ref`. Die Aufloesung auf die echten Kennungen geschieht
+# im Backend und ist fail-closed (ADR-0019 §2).
 class _MutationBase(_Strict):
     idempotency_key: str = Field(min_length=1, max_length=128)
     correlation_id: str = Field(min_length=1, max_length=128)
-    provider_account_id: str = Field(min_length=1, max_length=128)
     initiation_context: Literal["user_direct", "llm_assisted", "automation",
                                 "system"] = "user_direct"
 
 
+class LabeledValueIn(_Strict):
+    """Ein etikettierter Wert. Das Label kommt aus geschlossenem Vorrat."""
+
+    label: str | None = Field(default=None, max_length=32)
+    value: str = Field(min_length=1, max_length=FC.MAX_URL)
+
+
+class PostalAddressIn(_Strict):
+    label: str | None = Field(default=None, max_length=32)
+    street: str | None = Field(default=None, max_length=MAX_TEXT)
+    city: str | None = Field(default=None, max_length=MAX_TEXT)
+    state: str | None = Field(default=None, max_length=MAX_TEXT)
+    postal_code: str | None = Field(default=None, max_length=MAX_TEXT)
+    country: str | None = Field(default=None, max_length=MAX_TEXT)
+    iso_country_code: str | None = Field(default=None, max_length=2)
+
+
+class BirthdayIn(_Strict):
+    year: int | None = Field(default=None, ge=1, le=9999)
+    month: int = Field(ge=1, le=12)
+    day: int = Field(ge=1, le=31)
+
+
+class DateIn(BirthdayIn):
+    label: str | None = Field(default=None, max_length=32)
+
+
+class ContactFieldsIn(_Strict):
+    """Feldvertrag v1 als Transportmodell — die geschlossene Feldmenge.
+
+    `extra="forbid"` weist ein unbekanntes Feld schon hier ab; die fachliche
+    Pruefung (Labelvorrat, Grenzen, Normalisierung) macht danach
+    `application.field_contract`. Zwei Schranken, eine Wahrheit: was hier
+    steht, muss dort ankommen.
+    """
+
+    contact_type: Literal["person", "organization"] = "person"
+    given_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    middle_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    family_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    previous_family_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    name_prefix: str | None = Field(default=None, max_length=MAX_TEXT)
+    name_suffix: str | None = Field(default=None, max_length=MAX_TEXT)
+    nickname: str | None = Field(default=None, max_length=MAX_TEXT)
+    phonetic_given_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    phonetic_family_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    organization_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    department_name: str | None = Field(default=None, max_length=MAX_TEXT)
+    job_title: str | None = Field(default=None, max_length=MAX_TEXT)
+    birthday: BirthdayIn | None = None
+    emails: list[LabeledValueIn] = Field(default_factory=list, max_length=10)
+    phones: list[LabeledValueIn] = Field(default_factory=list, max_length=10)
+    postal_addresses: list[PostalAddressIn] = Field(default_factory=list,
+                                                    max_length=5)
+    urls: list[LabeledValueIn] = Field(default_factory=list, max_length=10)
+    dates: list[DateIn] = Field(default_factory=list, max_length=5)
+
+    def as_field_mapping(self) -> dict[str, Any]:
+        """Nur ausdrücklich gesetzte Felder — `None` heisst „nicht gesetzt"."""
+        return {k: v for k, v in self.model_dump().items() if v not in (None, [])}
+
+
 class CreateContactIn(_MutationBase):
-    container_identifier: str = Field(min_length=1, max_length=256)
-    fields: dict[str, Any] = Field(max_length=MAX_FIELDS)
+    #: Maskierte Containerreferenz. Eine rohe Apple-Kennung wird hier bereits
+    #: vom Muster abgewiesen.
+    container_ref: str = Field(pattern=CONTAINER_REF_PATTERN)
+    fields: ContactFieldsIn
 
 
 class UpdateContactIn(_MutationBase):
-    target_provider_identifier: str = Field(min_length=1, max_length=256)
-    expected_revision: str | None = Field(default=None, max_length=64)
+    """Ziel ist die lokale `contact_id` im Pfad, nie eine Providerkennung."""
+
+    expected_revision: str = Field(min_length=1, max_length=64)
     fields: dict[str, Any] = Field(max_length=MAX_FIELDS)
 
 
 class DeleteContactIn(_MutationBase):
-    target_provider_identifier: str = Field(min_length=1, max_length=256)
-    expected_revision: str | None = Field(default=None, max_length=64)
+    expected_revision: str = Field(min_length=1, max_length=64)
+
+
+class ExecuteMutationIn(_Strict):
+    """Die ausdrückliche Nutzeraktion, die eine Ausführung auslöst.
+
+    `Literal[True]` und `extra="forbid"`: es gibt keinen Aufruf ohne bewusste
+    Bestätigung im Rumpf, und kein Query-Parameter kann sie ersetzen. Eine
+    Freigabe allein führt nichts aus (ADR-0019 §1).
+    """
+
+    user_initiated: Literal[True]
 
 
 class FieldChangeOut(_Strict):
@@ -192,8 +291,9 @@ class PreparedMutationOut(_Strict):
     preview_digest: str
     reused: bool = False
     command: str
-    target_provider_identifier: str | None = None
-    container_identifier: str | None = None
+    #: Lokale Zielkennung — bei `create` erst nach der Ausführung bekannt.
+    target_contact_id: str | None = None
+    container_ref: str | None = None
     target_label: str | None = None
     changes: list[FieldChangeOut] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -207,10 +307,11 @@ class MutationOut(_Strict):
     initiation_context: str
     actor: str
     correlation_id: str
-    provider_account_id: str
+    provider_type: str = "unknown"
+    account_ref: str = ""
     target_contact_id: str | None = None
     target_display_name: str | None = None
-    container_identifier: str | None = None
+    container_ref: str | None = None
     expected_revision: str | None = None
     attempt_count: int = 0
     last_error_code: str | None = None
@@ -254,11 +355,34 @@ class ApprovalDecisionIn(_Strict):
 
 
 class ReconcileOut(_Strict):
+    """Ergebnis des Abgleichs — ohne Providerkennung.
+
+    Die frühere `provider_identifier` war die einzige rohe Apple-Kennung in
+    einer Abgleichantwort und wurde von der Oberfläche nie angezeigt. Wer den
+    betroffenen Kontakt sucht, findet ihn über `contact_id`.
+    """
+
     mutation_id: str
     verdict: str
     state: str
-    provider_identifier: str | None = None
+    contact_id: str | None = None
     detail: str | None = None
+
+
+class ExecutionResultOut(_Strict):
+    """Ergebnis eines Ausführungsversuchs — aggregiert und maskiert."""
+
+    mutation_id: str
+    state: str
+    outcome: str | None = None
+    error_code: str | None = None
+    retryable: bool = False
+    attempt_count: int = 0
+    #: Lokale Kennung des angelegten Spiegels — erst nach der Nachführung.
+    contact_id: str | None = None
+    #: Ob der Vorgang noch eine lokale Nacharbeit braucht. Ein `true` heisst
+    #: ausdrücklich **nicht**, dass erneut gesendet werden darf.
+    pending_local_catchup: bool = False
 
 
 class SyncStatusOut(_Strict):

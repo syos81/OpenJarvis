@@ -121,12 +121,51 @@ def attach(app: Any, *, database_path: str | None = None,
     # fehlender Router darf den Bootstrap nicht scheitern lassen, nachdem
     # Datenbank und Sperre bereits stehen.
     _register_recovery_service(runtime.contacts, sidecar_path, bundle_dir)
+    _register_mutation_bridge(runtime.contacts, sidecar_path, bundle_dir)
 
     if hasattr(app, "include_router"):
         from personaljarvis.contacts.api import create_contacts_router
 
         app.include_router(create_contacts_router(runtime.contacts))
     return runtime
+
+
+def _register_mutation_bridge(module: Any, sidecar_path: str | None,
+                              bundle_dir: str | None) -> None:
+    """Verdrahtet das produktive Ausführungsziel und den Abgleichleser.
+
+    **Die Registrierung löst nichts aus.** Sie startet keinen Prozess, prüft
+    keine Berechtigung und führt keine Mutation aus; `resolve_sidecar` sieht
+    ausschliesslich auf die Datei. Ausgeführt wird erst auf eine ausdrückliche
+    Nutzeraktion über `POST …/mutations/{id}/execute`.
+
+    Ist die Bridge strukturell nicht vorhanden, bleibt der Standardprovider
+    stehen (`_UnavailableProvider` → `failed_before_send`), und die Capability
+    bleibt ohnehin `False`. Ein Fake- oder Rückfallprovider wird ausdrücklich
+    **nicht** eingesetzt: eine Anlage auf erfundenen Daten wäre schlimmer als
+    keine.
+
+    Die Fähigkeitsprüfung geschieht nicht hier, sondern zweimal später — beim
+    Vorbereiten und erneut beim Ausführen, jeweils gegen die aus dem Handshake
+    abgeleitete Menge. Hier steht nur das Werkzeug bereit.
+    """
+    from personaljarvis.contacts.application.bridge_provider import (
+        ContactsBridgeMutationProvider,
+        ContactsBridgeReconcileReader,
+    )
+    from personaljarvis.contacts.bridge.errors import BridgeConfigurationError
+    from personaljarvis.contacts.bridge.resolver import resolve_sidecar
+
+    try:
+        resolve_sidecar(sidecar_path, bundle_dir=bundle_dir)
+    except BridgeConfigurationError:
+        return
+
+    module._mutation_service = None      # naechster Zugriff baut ihn neu
+    module.mutation_provider = ContactsBridgeMutationProvider(
+        sidecar_path=sidecar_path, bundle_dir=bundle_dir)
+    module.reconcile_reader = ContactsBridgeReconcileReader(
+        sidecar_path=sidecar_path, bundle_dir=bundle_dir)
 
 
 def _register_recovery_service(module: Any, sidecar_path: str | None,

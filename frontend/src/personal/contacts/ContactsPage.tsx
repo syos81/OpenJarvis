@@ -102,6 +102,18 @@ const SYNC_MODUS: Record<string, string> = {
   delta: 'Änderungsabgleich',
 };
 
+// Anzeigetexte fuer maskierte Providerangaben und den geschlossenen
+// Labelvorrat des Feldvertrags v1.
+const ANBIETER_LABELS: Record<string, string> = {
+  apple_contacts: 'Apple Kontakte',
+  unknown: 'Unbekannte Quelle',
+};
+
+const LABEL_TEXT: Record<string, string> = {
+  home: 'Privat', work: 'Arbeit', mobile: 'Mobil', main: 'Haupt',
+  other: 'Sonstige',
+};
+
 function SyncPanel({ onSynced }: { onSynced: () => void }) {
   const [auth, setAuth] = useState<Authorization | null>(null);
   const [status, setStatus] = useState<SyncStatus[]>([]);
@@ -424,8 +436,8 @@ function ContactList({ onOpen, onCreate, reloadKey = 0 }: {
                         verloren. Die Anzahl sagt dem Nutzer alles, was ihn
                         betrifft — nämlich ob ein Kontakt aus mehreren Quellen
                         stammt. */}
-                    {k.provider_account_ids.length > 1 && (
-                      <span>aus {k.provider_account_ids.length} Quellen</span>
+                    {k.account_refs.length > 1 && (
+                      <span>aus {k.account_refs.length} Quellen</span>
                     )}
                     {k.roles.map((r) => <Chip key={r}>{r}</Chip>)}
                   </span>
@@ -505,13 +517,13 @@ function ContactDetailView({ id, onBack, onPrepared }: {
   if (fehler) return <ErrorState {...fehler} onRetry={() => void laden()} />;
   if (!kontakt) return <EmptyState title="Kontakt nicht gefunden" />;
 
-  // Drei Bedingungen, alle notwendig: die Karte darf beschreibbar sein, ein
-  // Schreibziel muss feststehen, und der Provider muss die Operation
-  // ueberhaupt koennen. Die dritte fehlte — Aendern und Loeschen waren
-  // sichtbar, obwohl produktive Mutationen geschlossen sind.
-  const aenderbar = !kontakt.is_me_card && Boolean(kontakt.write_target)
+  // Drei Bedingungen, alle notwendig: die Karte darf beschreibbar sein, das
+  // Backend muss ein eindeutiges Ziel aufloesen koennen (`writable`), und der
+  // Provider muss die Operation ueberhaupt koennen. Seit ADR-0019 kennt die
+  // Oberflaeche kein Schreibziel mehr — sie zielt ueber die lokale `id`.
+  const aenderbar = !kontakt.is_me_card && kontakt.writable
     && Boolean(caps?.update_supported);
-  const loeschbar = !kontakt.is_me_card && Boolean(kontakt.write_target)
+  const loeschbar = !kontakt.is_me_card && kontakt.writable
     && Boolean(caps?.delete_supported);
 
   return (
@@ -544,9 +556,9 @@ function ContactDetailView({ id, onBack, onPrepared }: {
             {/* Kein Provider-Identifier in der Oberfläche. Dass ein Kontakt
                 aus mehreren Konten stammt, ist die einzige Aussage, die den
                 Nutzer hier betrifft. */}
-            {kontakt.provider_accounts.length > 1 && (
+            {kontakt.account_refs.length > 1 && (
               <Chip title="Dieser Kontakt stammt aus mehreren Konten.">
-                {kontakt.provider_accounts.length} Quellen
+                {kontakt.account_refs.length} Quellen
               </Chip>
             )}
           </div>
@@ -769,9 +781,7 @@ function UpdateDialog({ kontakt, caps, onClose, onPrepared }: {
       onPrepared(await api.prepareUpdate(kontakt.id, {
         idempotencyKey: neueId(),
         correlationId: neueId(),
-        providerAccountId: kontakt.provider_accounts[0] ?? '',
-        targetProviderIdentifier: kontakt.write_target ?? '',
-        expectedRevision: String(kontakt.local_revision),
+        expectedRevision: kontakt.revision,
         fields: geaendert,
       }));
     } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
@@ -834,9 +844,7 @@ function DeleteDialog({ kontakt, caps, onClose, onPrepared }: {
       onPrepared(await api.prepareDelete(kontakt.id, {
         idempotencyKey: neueId(),
         correlationId: neueId(),
-        providerAccountId: kontakt.provider_accounts[0] ?? '',
-        targetProviderIdentifier: kontakt.write_target ?? '',
-        expectedRevision: String(kontakt.local_revision),
+        expectedRevision: kontakt.revision,
       }));
     } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
   };
@@ -877,29 +885,59 @@ function DeleteDialog({ kontakt, caps, onClose, onPrepared }: {
   );
 }
 
+// Felder der Neuanlage nach Feldvertrag v1. Die Liste ist bewusst geschlossen
+// und spiegelt `application.field_contract`: was hier nicht steht, nimmt das
+// Backend auch nicht an.
+const ANLAGE_FELDER = [
+  { key: 'given_name', label: 'Vorname' },
+  { key: 'family_name', label: 'Nachname' },
+  { key: 'nickname', label: 'Spitzname' },
+  { key: 'organization_name', label: 'Organisation' },
+  { key: 'department_name', label: 'Abteilung' },
+  { key: 'job_title', label: 'Position' },
+] as const;
+
+const MAIL_LABELS = ['home', 'work', 'other'] as const;
+const TEL_LABELS = ['home', 'work', 'mobile', 'main', 'other'] as const;
+
 function CreateDialog({ onClose, onPrepared }: {
   onClose: () => void; onPrepared: (m: PreparedMutation) => void;
 }) {
   const [werte, setWerte] = useState<Record<string, string>>({});
-  const [konto, setKonto] = useState('');
-  const [container, setContainer] = useState('');
+  const [orte, setOrte] = useState<api.ContainerOption[]>([]);
+  const [ort, setOrt] = useState('');
+  const [mail, setMail] = useState('');
+  const [mailLabel, setMailLabel] = useState<string>('home');
+  const [tel, setTel] = useState('');
+  const [telLabel, setTelLabel] = useState<string>('mobile');
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [sendet, setSendet] = useState(false);
 
   useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
+  useEffect(() => {
+    api.listContainers()
+      .then((o) => { setOrte(o); if (o.length === 1) setOrt(o[0].container_ref); })
+      .catch(() => setOrte([]));
+  }, []);
 
   const gefuellt = Object.entries(werte).filter(([, v]) => v.trim() !== '');
+  const vollstaendig = (gefuellt.length > 0 || mail.trim() !== '' || tel.trim() !== '')
+    && ort !== '' && Boolean(caps?.create_supported);
 
   const absenden = async () => {
     setSendet(true); setFehler(null);
     try {
+      const felder: api.ContactFieldsIn = Object.fromEntries(
+        gefuellt.map(([k, v]) => [k, v.trim()]),
+      );
+      if (mail.trim()) felder.emails = [{ label: mailLabel, value: mail.trim() }];
+      if (tel.trim()) felder.phones = [{ label: telLabel, value: tel.trim() }];
       onPrepared(await api.prepareCreate({
         idempotencyKey: neueId(),
         correlationId: neueId(),
-        providerAccountId: konto.trim(),
-        containerIdentifier: container.trim(),
-        fields: Object.fromEntries(gefuellt),
+        containerRef: ort,
+        fields: felder,
       }));
     } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
   };
@@ -907,19 +945,19 @@ function CreateDialog({ onClose, onPrepared }: {
   return (
     <Modal
       open onClose={onClose} title="Kontakt anlegen"
-      description="Der Kontakt wird vorbereitet und braucht danach deine Freigabe."
+      description="Der Kontakt wird vorbereitet und braucht danach deine Freigabe. Ausgeführt wird er erst in einem eigenen, dritten Schritt."
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-md border px-3 py-1.5 text-sm"
                   style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
             Abbrechen
           </button>
-          <button type="button" onClick={absenden}
-                  disabled={sendet || gefuellt.length === 0 || !konto.trim() || !container.trim()}
+          <button type="button" onClick={absenden} disabled={sendet || !vollstaendig}
+                  data-testid="anlage-vorbereiten"
                   className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
                   style={{
                     backgroundColor: 'var(--color-accent)', color: '#fff',
-                    opacity: gefuellt.length === 0 || !konto.trim() || !container.trim() ? 0.5 : 1,
+                    opacity: vollstaendig ? 1 : 0.5,
                   }}>
             {sendet && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
             Anlage vorbereiten
@@ -930,19 +968,26 @@ function CreateDialog({ onClose, onPrepared }: {
       <CapabilityHinweis caps={caps} />
       {fehler && <ErrorState {...fehler} />}
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">
-          <span className="block" style={{ color: 'var(--color-text-muted)' }}>Konto</span>
-          <input value={konto} onChange={(e) => setKonto(e.target.value)}
-                 className="mt-1 w-full rounded-md border px-2 py-1"
-                 style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
-        </label>
-        <label className="text-sm">
+        <label className="text-sm sm:col-span-2">
           <span className="block" style={{ color: 'var(--color-text-muted)' }}>Ablageort</span>
-          <input value={container} onChange={(e) => setContainer(e.target.value)}
-                 className="mt-1 w-full rounded-md border px-2 py-1"
-                 style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
+          <select value={ort} onChange={(e) => setOrt(e.target.value)}
+                  data-testid="anlage-ablageort"
+                  className="mt-1 w-full rounded-md border px-2 py-1"
+                  style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+            <option value="">Bitte wählen</option>
+            {orte.map((o) => (
+              <option key={o.container_ref} value={o.container_ref}>
+                {ANBIETER_LABELS[o.provider_type] ?? o.provider_type} · {o.container_ref}
+              </option>
+            ))}
+          </select>
+          {orte.length === 0 && (
+            <span className="mt-1 block text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Noch kein Ablageort bekannt. Er entsteht mit der ersten Synchronisation.
+            </span>
+          )}
         </label>
-        {PATCHBARE_FELDER.map((f) => (
+        {ANLAGE_FELDER.map((f) => (
           <label key={f.key} className="text-sm">
             <span className="block" style={{ color: 'var(--color-text-muted)' }}>{f.label}</span>
             <input value={werte[f.key] ?? ''}
@@ -951,6 +996,34 @@ function CreateDialog({ onClose, onPrepared }: {
                    style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
           </label>
         ))}
+        <label className="text-sm">
+          <span className="block" style={{ color: 'var(--color-text-muted)' }}>E-Mail</span>
+          <div className="mt-1 flex gap-1">
+            <select value={mailLabel} onChange={(e) => setMailLabel(e.target.value)}
+                    aria-label="Art der E-Mail-Adresse"
+                    className="rounded-md border px-2 py-1"
+                    style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+              {MAIL_LABELS.map((l) => <option key={l} value={l}>{LABEL_TEXT[l]}</option>)}
+            </select>
+            <input value={mail} onChange={(e) => setMail(e.target.value)}
+                   className="w-full rounded-md border px-2 py-1"
+                   style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
+          </div>
+        </label>
+        <label className="text-sm">
+          <span className="block" style={{ color: 'var(--color-text-muted)' }}>Telefon</span>
+          <div className="mt-1 flex gap-1">
+            <select value={telLabel} onChange={(e) => setTelLabel(e.target.value)}
+                    aria-label="Art der Telefonnummer"
+                    className="rounded-md border px-2 py-1"
+                    style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+              {TEL_LABELS.map((l) => <option key={l} value={l}>{LABEL_TEXT[l]}</option>)}
+            </select>
+            <input value={tel} onChange={(e) => setTel(e.target.value)}
+                   className="w-full rounded-md border px-2 py-1"
+                   style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }} />
+          </div>
+        </label>
       </div>
     </Modal>
   );
@@ -1107,11 +1180,29 @@ function ApprovalBoard({ onOpenMutation }: { onOpenMutation: (id: string) => voi
 }
 
 // ═══ Mutationsstatus ════════════════════════════════════════════════════════
+/**
+ * Ob dieser Vorgang jetzt ausgeführt werden darf.
+ *
+ * Drei Bedingungen, alle notwendig: freigegeben, vom Provider unterstützt,
+ * und noch nicht gesendet. Die Schaltfläche erscheint deshalb nur im Zustand
+ * `approved` — jeder spätere Zustand bedeutet, dass bereits gesendet wurde.
+ */
+function kannAusfuehren(m: MutationDetail, caps: Capabilities | null): boolean {
+  if (m.state !== 'approved') return false;
+  if (m.command === 'create') return Boolean(caps?.create_supported);
+  if (m.command === 'update') return Boolean(caps?.update_supported);
+  return Boolean(caps?.delete_supported);
+}
+
 function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [m, setM] = useState<MutationDetail | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState<Fehlerbild | null>(null);
   const [gleichtAb, setGleichtAb] = useState(false);
+  const [fuehrtAus, setFuehrtAus] = useState(false);
+  const [caps, setCaps] = useState<Capabilities | null>(null);
+
+  useEffect(() => { api.getCapabilities().then(setCaps).catch(() => setCaps(null)); }, []);
 
   const laden = useCallback(async () => {
     setLaedt(true); setFehler(null);
@@ -1140,6 +1231,73 @@ function MutationDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         {m.last_error_code && <Chip tone="warn">{m.last_error_code}</Chip>}
         <Chip>Versuche: {m.attempt_count}</Chip>
       </div>
+
+      {m.state === 'approved' && (
+        <div className="mt-4 rounded-md border p-4"
+             style={{ borderColor: 'var(--color-border, rgba(127,127,127,0.3))' }}>
+          <p className="text-sm font-medium">Freigegeben — noch nicht ausgeführt.</p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Die Freigabe allein ändert bei Apple Kontakte nichts. Erst dieser
+            Schritt überträgt den Vorgang, und er läuft genau einmal.
+          </p>
+          <button
+            type="button" data-testid="ausfuehren"
+            disabled={fuehrtAus || !kannAusfuehren(m, caps)}
+            onClick={async () => {
+              setFuehrtAus(true); setFehler(null);
+              try { await api.executeMutation(m.mutation_id); await laden(); }
+              catch (e) { setFehler(fehlerbild(e)); }
+              // Bewusst kein `finally`: nach einem Lauf bleibt die Schaltflaeche
+              // gesperrt, bis der neu geladene Zustand sie freigibt. Ein zweiter
+              // Klick waehrend der Uebertragung kann so gar nicht entstehen.
+              setFuehrtAus(false);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm"
+            style={{
+              backgroundColor: 'var(--color-accent)', color: '#fff',
+              opacity: kannAusfuehren(m, caps) ? 1 : 0.5,
+            }}
+          >
+            {fuehrtAus && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            Jetzt ausführen
+          </button>
+          {!kannAusfuehren(m, caps) && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Diese Operation ist für Apple Kontakte noch nicht freigeschaltet.
+            </p>
+          )}
+        </div>
+      )}
+
+      {m.state === 'provider_applied_pending_reconcile' && (
+        <div className="mt-4 rounded-md border p-4" role="alert"
+             style={{ borderColor: 'var(--color-warning, #b45309)' }}>
+          <p className="text-sm font-medium">
+            Bei Apple angelegt — lokale Übernahme steht noch aus.
+          </p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Der Kontakt existiert bereits bei Apple Kontakte; nur die lokale
+            Kopie fehlt noch. Es wird deshalb **nichts** erneut übertragen —
+            der Abgleich holt allein die lokale Übernahme nach.
+          </p>
+          <button
+            type="button" disabled={gleichtAb} data-testid="nachfuehren"
+            onClick={async () => {
+              setGleichtAb(true); setFehler(null);
+              try { await api.reconcileMutation(m.mutation_id); await laden(); }
+              catch (e) { setFehler(fehlerbild(e)); }
+              finally { setGleichtAb(false); }
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+            style={{ borderColor: 'var(--color-warning, #b45309)' }}
+          >
+            {gleichtAb
+              ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              : <RefreshCw size={14} aria-hidden="true" />}
+            Lokale Übernahme nachholen
+          </button>
+        </div>
+      )}
 
       {m.state === 'outcome_unknown' && (
         <div className="mt-4 rounded-md border p-4" role="alert"

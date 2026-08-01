@@ -20,6 +20,10 @@ let kProtocolVersion = 1
 let kBundleIdentifier = "de.kluender.jarvis.contacts-bridge"
 let kTransactionAuthor = kBundleIdentifier
 let kKeySetVersion = 1
+// Vertragsversionen der Mutationshuelle und des Feldvertrags (ADR-0019 §6).
+// Beide Seiten nennen sie; Ungleichheit ist fail-closed.
+let kMutationContractVersion = 1
+let kFieldContractVersion = 1
 
 // ── Ausgabe ───────────────────────────────────────────────────────────────────
 let stdoutLock = NSLock()
@@ -116,7 +120,15 @@ func capabilityStates() -> [String: Any] {
         "meCardReadOnly": true,
         "changeHistorySupported": true,
         "fullDiffFallbackSupported": true,
-        "mutationsImplemented": false,   // bis Gate C: not_implemented
+        // Einzeln je Operation, nie pauschal: `create` ist implementiert,
+        // `update` und `delete` bleiben not_implemented (ADR-0019 §9).
+        // Ein pauschales Flag haette Update und Delete mitfreigeschaltet.
+        "createImplemented": true,
+        "updateImplemented": false,
+        "deleteImplemented": false,
+        "mutationsImplemented": true,    // mindestens eine Operation schreibt
+        "mutationContractVersion": kMutationContractVersion,
+        "fieldContractVersion": kFieldContractVersion,
     ]
 }
 
@@ -453,9 +465,12 @@ func opGetUnifiedReadOnly(_ id: Any, _ payload: [String: Any]) {
     }
 }
 
-// ── Mutationen: vertraglich definiert, bis Gate C nicht implementiert ────────
+// ── Mutationen: vertraglich definiert, noch nicht implementiert ──────────────
 // Die Pflichtfelder werden bereits validiert, damit der Vertrag von Anfang an
 // verbindlich ist. Es findet KEIN Store-Schreibzugriff statt.
+//
+// Gilt weiterhin fuer `update` und `delete` (ADR-0019 §9: erst M4 bzw. M5;
+// Delete zusaetzlich hinter DEC-D06).
 func opMutationNotImplemented(_ id: Any, _ op: String, _ payload: [String: Any]) {
     var missing: [String] = []
     for key in ["mutationId", "idempotencyKey", "approvalId"] where payload[key] == nil {
@@ -470,7 +485,310 @@ func opMutationNotImplemented(_ id: Any, _ op: String, _ payload: [String: Any])
         return
     }
     fail(id, .notImplemented,
-         "\(op) ist vertraglich definiert, aber bis Gate C nicht implementiert")
+         "\(op) ist vertraglich definiert, aber nicht implementiert")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CREATE — der einzige implementierte Schreibpfad (ADR-0019)
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Die Antwort ist IMMER ok:true mit genau einem von drei Ausgaengen. Das ist
+// Absicht: ein `fail()` liesse offen, ob vor oder nach der Uebergabe an den
+// Store abgebrochen wurde — und genau diese Unterscheidung ist die
+// sicherheitsrelevante Aussage des ganzen Pfades.
+//
+//   applied          Save bestaetigt UND derselbe Datensatz zurueckgelesen.
+//   not_sent         Nachweislich kein SaveRequest uebergeben. Alles Pruefbare
+//                    geschieht deshalb VOR `store.execute`.
+//   outcome_unknown  Ab dem Moment der Uebergabe. Ein Wurf aus `execute` zaehlt
+//                    dazu: der Store hat den Request bereits, und welche Fehler
+//                    dort vor und welche nach dem Commit entstehen, ist
+//                    Apple-Interna und nicht beweisbar.
+//
+// KEIN automatischer Retry, KEINE Schleife, KEINE Namenssuche, KEINE Domaenen-
+// oder Freigabeentscheidung. Der Sidecar bleibt duenn: er validiert den
+// Feldvertrag, baut das CN-Objekt, speichert einmal, liest zurueck.
+//
+// Der Read-back-DIGEST entsteht bewusst NICHT hier, sondern im Kern: seine
+// Bildung verlangt die Ruecknormalisierung der Apple-Rohlabels, und
+// Normalisierung ist Kernaufgabe (ADR-0016 Punkt 4). Der Sidecar liefert den
+// zurueckgelesenen Datensatz als DTO; den Beleg bildet der Kern daraus.
+
+
+/// Prozesslokale Wiederholungssperre.
+///
+/// Sie hilft gegen einen doppelten Aufruf INNERHALB derselben Sidecar-Laufzeit
+/// und ist ausdruecklich KEINE Exactly-once-Garantie: mit dem Prozess stirbt
+/// sie. Die belastbare Zusage „hoechstens ein Send je Mutation" erbringt allein
+/// der Kern (Outbox-Claim, verbrauchte Freigabe, terminale Zustaende).
+var mutationMemo: [String: [String: Any]] = [:]
+let mutationMemoLock = NSLock()
+
+func mutationResult(_ outcome: String, errorCode: String? = nil,
+                    extra: [String: Any] = [:]) -> [String: Any] {
+    var r: [String: Any] = [
+        "outcome": outcome,
+        "mutationContractVersion": kMutationContractVersion,
+        "fieldContractVersion": kFieldContractVersion,
+        "transactionAuthor": kTransactionAuthor,
+    ]
+    if let c = errorCode { r["errorCode"] = c }
+    for (k, v) in extra { r[k] = v }
+    return r
+}
+
+/// Geschlossener Labelvorrat des Feldvertrags v1 → Apple-Konstanten.
+/// Ein unbekanntes Label erreicht diese Stelle nicht (der Kern prueft) — und
+/// wird hier erneut abgewiesen: es gaebe sonst ein Label, dessen Rueckweg beim
+/// Lesen nicht belegt ist.
+let kEmailLabels: [String: String] = [
+    "home": CNLabelHome, "work": CNLabelWork, "other": CNLabelOther]
+let kPhoneLabels: [String: String] = [
+    "home": CNLabelHome, "work": CNLabelWork, "other": CNLabelOther,
+    "mobile": CNLabelPhoneNumberMobile, "main": CNLabelPhoneNumberMain]
+let kAddressLabels: [String: String] = [
+    "home": CNLabelHome, "work": CNLabelWork, "other": CNLabelOther]
+let kUrlLabels: [String: String] = [
+    "home": CNLabelHome, "work": CNLabelWork, "other": CNLabelOther]
+let kDateLabels: [String: String] = ["other": CNLabelOther]
+
+/// Verletzung des Feldvertrags. Traegt ausschliesslich eine technische
+/// Meldung — nie einen Feldwert, denn der waere PII.
+struct FieldContractViolation: Error { let message: String }
+
+func cnLabel(_ raw: Any?, _ allowed: [String: String]) throws -> String? {
+    if raw == nil || raw is NSNull { return nil }
+    guard let s = raw as? String else {
+        throw FieldContractViolation(message: "Label muss Text sein")
+    }
+    guard let mapped = allowed[s] else {
+        throw FieldContractViolation(message: "unbekanntes Label")
+    }
+    return mapped
+}
+
+/// Baut das CN-Objekt streng aus dem Feldvertrag v1.
+/// Was der Vertrag nicht kennt, wird nicht gesetzt — es gibt keinen Zweig,
+/// ueber den Notiz, Bild, Beziehung, soziales Profil oder Gruppe hineinkaeme.
+func buildMutableContact(_ f: [String: Any]) throws -> CNMutableContact {
+    let c = CNMutableContact()
+
+    if let art = f["contactType"] as? String {
+        switch art {
+        case "person":       c.contactType = .person
+        case "organization": c.contactType = .organization
+        default: throw FieldContractViolation(message: "contactType unzulaessig")
+        }
+    }
+
+    let scalars: [(String, ReferenceWritableKeyPath<CNMutableContact, String>)] = [
+        ("givenName", \.givenName), ("middleName", \.middleName),
+        ("familyName", \.familyName), ("previousFamilyName", \.previousFamilyName),
+        ("namePrefix", \.namePrefix), ("nameSuffix", \.nameSuffix),
+        ("nickname", \.nickname), ("phoneticGivenName", \.phoneticGivenName),
+        ("phoneticFamilyName", \.phoneticFamilyName),
+        ("organizationName", \.organizationName),
+        ("departmentName", \.departmentName), ("jobTitle", \.jobTitle),
+    ]
+    for (key, path) in scalars {
+        guard let raw = f[key], !(raw is NSNull) else { continue }
+        guard let s = raw as? String else {
+            throw FieldContractViolation(message: "\(key): Text erwartet")
+        }
+        c[keyPath: path] = s
+    }
+
+    if let b = f["birthday"] as? [String: Any] {
+        guard let m = b["month"] as? Int, let d = b["day"] as? Int else {
+            throw FieldContractViolation(
+                message: "birthday: Monat und Tag erforderlich")
+        }
+        var comps = DateComponents()
+        comps.month = m
+        comps.day = d
+        if let y = b["year"] as? Int { comps.year = y }
+        c.birthday = comps
+    }
+
+    func labeledStrings(_ key: String,
+                        _ allowed: [String: String]) throws -> [CNLabeledValue<NSString>] {
+        guard let items = f[key] as? [[String: Any]] else { return [] }
+        var out: [CNLabeledValue<NSString>] = []
+        for i in items {
+            guard let v = i["value"] as? String, !v.isEmpty else {
+                throw FieldContractViolation(message: "\(key): leerer Wert")
+            }
+            let l = try cnLabel(i["label"], allowed)
+            out.append(CNLabeledValue(label: l, value: v as NSString))
+        }
+        return out
+    }
+
+    c.emailAddresses = try labeledStrings("emails", kEmailLabels)
+    c.urlAddresses = try labeledStrings("urls", kUrlLabels)
+
+    if let items = f["phones"] as? [[String: Any]] {
+        var out: [CNLabeledValue<CNPhoneNumber>] = []
+        for i in items {
+            guard let v = i["value"] as? String, !v.isEmpty else {
+                throw FieldContractViolation(message: "phones: leerer Wert")
+            }
+            let l = try cnLabel(i["label"], kPhoneLabels)
+            out.append(CNLabeledValue(label: l, value: CNPhoneNumber(stringValue: v)))
+        }
+        c.phoneNumbers = out
+    }
+
+    if let items = f["postalAddresses"] as? [[String: Any]] {
+        var out: [CNLabeledValue<CNPostalAddress>] = []
+        for i in items {
+            let a = CNMutablePostalAddress()
+            a.street = (i["street"] as? String) ?? ""
+            a.city = (i["city"] as? String) ?? ""
+            a.state = (i["state"] as? String) ?? ""
+            a.postalCode = (i["postalCode"] as? String) ?? ""
+            a.country = (i["country"] as? String) ?? ""
+            a.isoCountryCode = (i["isoCountryCode"] as? String) ?? ""
+            out.append(CNLabeledValue(label: try cnLabel(i["label"], kAddressLabels),
+                                      value: a))
+        }
+        c.postalAddresses = out
+    }
+
+    if let items = f["dates"] as? [[String: Any]] {
+        var out: [CNLabeledValue<NSDateComponents>] = []
+        for i in items {
+            guard let m = i["month"] as? Int, let d = i["day"] as? Int else {
+                throw FieldContractViolation(
+                    message: "dates: Monat und Tag erforderlich")
+            }
+            let comps = NSDateComponents()
+            comps.month = m
+            comps.day = d
+            if let y = i["year"] as? Int { comps.year = y }
+            out.append(CNLabeledValue(label: try cnLabel(i["label"], kDateLabels),
+                                      value: comps))
+        }
+        c.dates = out
+    }
+
+    return c
+}
+
+func opCreate(_ id: Any, _ payload: [String: Any]) {
+    // ── Phase 1: alles Pruefbare VOR jeder Uebergabe an den Store ───────────
+    func notSent(_ code: String, _ message: String) {
+        diag("create not_sent: \(code) — \(message)")
+        ok(id, mutationResult("not_sent", errorCode: code))
+    }
+
+    var missing: [String] = []
+    for key in ["mutationId", "idempotencyKey", "approvalId", "containerIdentifier"]
+    where payload[key] == nil {
+        missing.append(key)
+    }
+    if !missing.isEmpty {
+        notSent("invalid_request",
+                "Pflichtfelder fehlen: \(missing.sorted().joined(separator: ","))")
+        return
+    }
+    guard (payload["mutationContractVersion"] as? Int) == kMutationContractVersion,
+          (payload["fieldContractVersion"] as? Int) == kFieldContractVersion else {
+        notSent("protocol_mismatch",
+                "Vertragsversionen passen nicht zu diesem Sidecar")
+        return
+    }
+    guard let idem = payload["idempotencyKey"] as? String, !idem.isEmpty else {
+        notSent("invalid_request", "idempotencyKey leer"); return
+    }
+    guard let container = payload["containerIdentifier"] as? String,
+          !container.isEmpty else {
+        notSent("invalid_request", "containerIdentifier leer"); return
+    }
+    guard let fields = payload["fields"] as? [String: Any], !fields.isEmpty else {
+        notSent("invalid_request", "fields fehlt oder ist leer"); return
+    }
+
+    // Wiederholung innerhalb derselben Laufzeit: gemerktes Ergebnis, kein
+    // zweiter Save. Siehe `mutationMemo` — keine Exactly-once-Zusage.
+    mutationMemoLock.lock()
+    let gemerkt = mutationMemo[idem]
+    mutationMemoLock.unlock()
+    if let g = gemerkt {
+        diag("create: idempotencyKey bereits beantwortet, kein zweiter Save")
+        ok(id, g)
+        return
+    }
+
+    guard CNContactStore.authorizationStatus(for: .contacts) == .authorized else {
+        notSent("tcc_denied", "Autorisierung ist \(authStatusText())"); return
+    }
+
+    // Der Zielcontainer wird EXAKT aufgeloest. Keine Namenssuche, keine
+    // automatische Wahl, kein „erster Treffer".
+    do {
+        let treffer = try store.containers(
+            matching: CNContainer.predicateForContainers(withIdentifiers: [container]))
+        if treffer.isEmpty {
+            notSent("not_found", "Zielcontainer existiert nicht"); return
+        }
+        if treffer.count > 1 {
+            notSent("conflict", "Zielcontainer ist nicht eindeutig"); return
+        }
+    } catch let e as NSError {
+        notSent("provider_error", "containers: \(e.domain)/\(e.code)"); return
+    }
+
+    let neu: CNMutableContact
+    do {
+        neu = try buildMutableContact(fields)
+    } catch let v as FieldContractViolation {
+        notSent("invalid_request", v.message); return
+    } catch {
+        notSent("invalid_request", "Feldvertrag verletzt"); return
+    }
+    let identifier = neu.identifier
+
+    let req = CNSaveRequest()
+    req.transactionAuthor = kTransactionAuthor   // Grundlage der Echo-Unterdrueckung
+    req.add(neu, toContainerWithIdentifier: container)
+
+    // ── Phase 2: genau eine Uebergabe. Ab hier ist nichts mehr „nicht gesendet"
+    func unknown(_ code: String, _ message: String) {
+        diag("create outcome_unknown: \(code) — \(message)")
+        let r = mutationResult("outcome_unknown", errorCode: code)
+        mutationMemoLock.lock(); mutationMemo[idem] = r; mutationMemoLock.unlock()
+        ok(id, r)
+    }
+
+    do {
+        try store.execute(req)
+    } catch let e as NSError {
+        // Bewusst KEINE Auswertung des Fehlercodes zu „nichts passiert": ob ein
+        // Fehler vor oder nach dem Commit entsteht, ist nicht beweisbar. Der
+        // Kern loest das ueber den Abgleich auf, nie ueber einen zweiten Send.
+        unknown("save_failed", "save: \(e.domain)/\(e.code)")
+        return
+    }
+
+    // ── Phase 3: Read-back. Ohne ihn gilt der Vorgang NICHT als angewandt ───
+    do {
+        guard let zurueck = try fetchRaw(identifier: identifier) else {
+            unknown("readback_not_found",
+                    "Save bestaetigt, Datensatz nicht wieder auffindbar")
+            return
+        }
+        let r = mutationResult("applied", extra: [
+            "providerIdentifier": zurueck.identifier,
+            "containerIdentifier": container,
+            "contact": dto(zurueck, meIdentifier: meCardIdentifier()),
+        ])
+        mutationMemoLock.lock(); mutationMemo[idem] = r; mutationMemoLock.unlock()
+        diag("create applied")
+        ok(id, r)
+    } catch let e as NSError {
+        unknown("readback_failed", "readback: \(e.domain)/\(e.code)")
+    }
 }
 
 // ── Handshake ────────────────────────────────────────────────────────────────
@@ -527,7 +845,8 @@ while let line = readLine(strippingNewline: true) {
     case "changes":              opChanges(id, payload)
     case "get":                  opGet(id, payload)
     case "getUnifiedReadOnly":   opGetUnifiedReadOnly(id, payload)
-    case "create", "update", "delete":
+    case "create":               opCreate(id, payload)
+    case "update", "delete":
         opMutationNotImplemented(id, op, payload)
     case "shutdown":
         ok(id, ["bye": true])

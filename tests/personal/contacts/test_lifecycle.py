@@ -50,9 +50,25 @@ def _python_code_ohne_prosa(path: Path) -> str:
     return " ".join(stuecke)
 
 
+#: Dateien, die den Bridge-Vertrag benennen duerfen, weil sie ihn **sind**:
+#: die Adapterbindung startet den Sidecar und spricht sein Protokoll. Die
+#: Liste ist bewusst kurz und wird unten auf ihre Groesse geprueft — eine
+#: wachsende Ausnahmeliste waere das Ende der Regel.
+ADAPTERBINDUNGEN = ("bridge_provider.py",)
+
+
 def _kernquellen():
-    """Alle Produktivdateien AUSSER der Bridge."""
-    return [d for d in QUELLEN.rglob("*.py") if BRIDGE not in d.parents]
+    """Alle Produktivdateien AUSSER Bridge und Adapterbindung."""
+    return [d for d in QUELLEN.rglob("*.py")
+            if BRIDGE not in d.parents and d.name not in ADAPTERBINDUNGEN]
+
+
+def test_die_ausnahmeliste_bleibt_klein():
+    """Genau eine Adapterbindung ausserhalb des Bridge-Pakets."""
+    gefunden = [d for d in QUELLEN.rglob("*.py")
+                if BRIDGE not in d.parents and d.name in ADAPTERBINDUNGEN]
+    assert len(gefunden) == 1
+    assert gefunden[0].parent.name == "application"
 
 
 # ── Start / Stop ─────────────────────────────────────────────────────────────

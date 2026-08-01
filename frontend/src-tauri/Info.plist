@@ -14,6 +14,6 @@
 <plist version="1.0">
 <dict>
   <key>NSContactsUsageDescription</key>
-  <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Es werden keine Kontakte verändert und keine Daten übertragen.</string>
+  <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Neue Kontakte werden nur nach deiner ausdrücklichen Freigabe angelegt; bestehende Kontakte werden nicht verändert und keine Daten übertragen.</string>
 </dict>
 </plist>

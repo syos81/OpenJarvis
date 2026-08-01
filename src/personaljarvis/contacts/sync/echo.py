@@ -38,6 +38,9 @@ __all__ = ["EchoSuppressionLedger", "MutationLookup", "IN_FLIGHT_STATES"]
 IN_FLIGHT_STATES: frozenset[MutationState] = frozenset({
     MutationState.EXECUTING,
     MutationState.OUTCOME_UNKNOWN,
+    # Hier ist die eigene Wirkung **bewiesen** — das Ereignis dazu ist mit
+    # Sicherheit das eigene, und der Spiegel ist noch nicht nachgefuehrt.
+    MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
     MutationState.RECONCILE_REQUIRED,
 })
 

@@ -13,9 +13,21 @@ Der verbindliche Ablauf (Plan §7.2, 11 §4/§5):
 
 **Für `create` gilt eine schärfere Regel:** Es wird **nie** nach einem Namen
 gesucht. Zugeordnet wird ausschließlich über einen belegten stabilen Bezug —
-die vom Provider gemeldete Identität oder den Transaktionsautor-Marker. Fehlt
-beides, ist der Fall mehrdeutig und ein Mensch entscheidet. Eine Namenssuche
-würde einen fremden Kontakt treffen können; das ist ausgeschlossen.
+die vom Provider gemeldete Identität. Fehlt sie, ist der Fall mehrdeutig und
+ein Mensch entscheidet. Eine Namenssuche würde einen fremden Kontakt treffen
+können; das ist ausgeschlossen.
+
+**Warum es keinen Transaktionsautor-Bezug gibt** (SDK-Befund, macOS 12–13):
+`CNChangeHistoryFetchRequest` kennt nur `excludedTransactionAuthors`; ein
+`includedTransactionAuthors` existiert nicht, und `CNChangeHistoryEvent` trägt
+keinen Autor. Über die öffentliche API lässt sich ein Add-Ereignis deshalb
+nicht dem eigenen Schreibvorgang zuordnen. Diese Grenze wird hier nicht
+umgangen, sondern getragen: ein `create` mit verlorener Antwort endet bei
+`manual_decision_required`.
+
+**Der Sonderfall `provider_applied_pending_reconcile`** ist kein Urteilsfall.
+Dort ist die Providerwirkung bereits bewiesen und nur der lokale Spiegel
+offen; der Abgleich holt ihn nach, statt etwas zu beurteilen.
 """
 
 from __future__ import annotations
@@ -50,12 +62,16 @@ class ReconcileObservation:
                  provider_identifier: str | None = None,
                  fields: dict[str, Any] | None = None,
                  transaction_author: str | None = None,
-                 ambiguous: bool = False) -> None:
+                 ambiguous: bool = False, readback=None) -> None:
         self.exists = exists
         self.provider_identifier = provider_identifier
         self.fields = fields or {}
         self.transaction_author = transaction_author
         self.ambiguous = ambiguous
+        #: Der gelesene Providerdatensatz, falls vorhanden. Er ist die
+        #: Providerwahrheit für eine nachzuholende lokale Nachführung — genau
+        #: dieselbe Quelle wie ein Read-back nach dem Schreiben.
+        self.readback = readback
 
 
 class ReconcileReader(Protocol):
@@ -94,20 +110,33 @@ class ContactsReconcileService:
                 raise MutationNotExecutable(
                     f"Mutation ist '{zeile['state']}' und braucht keinen Abgleich")
             payload = ContactsMutationService._payload_from_row(zeile)
+            nur_lokal = (zeile["state"]
+                         in MutationState.PENDING_LOCAL_CATCHUP)
             AuditTrail(uow, module=MODULE).record(
                 AuditStage.RECONCILE_STARTED, subject_type=SUBJECT_TYPE,
-                subject_id=mutation_id, facts={"command": payload.command})
-            uow.execute(
-                "UPDATE contacts_mutations SET state = ? WHERE mutation_id = ?",
-                (MutationState.RECONCILE_REQUIRED, mutation_id))
+                subject_id=mutation_id, facts={"command": payload.command,
+                                               "localCatchupOnly": nur_lokal})
+            if not nur_lokal:
+                uow.execute(
+                    "UPDATE contacts_mutations SET state = ? "
+                    "WHERE mutation_id = ?",
+                    (MutationState.RECONCILE_REQUIRED, mutation_id))
             outbox_id = zeile["outbox_id"]
             idempotency_key = zeile["idempotency_key"]
+            # Bei `create` steht die Identitaet erst nach dem Lauf fest und
+            # liegt in der Spalte, nicht in der Nutzlast.
+            ziel_kennung = (zeile["target_provider_identifier"]
+                            or payload.target_provider_identifier)
+
+        if nur_lokal:
+            return self._nur_lokal_nachfuehren(mutation_id, ziel_kennung,
+                                               idempotency_key, payload)
 
         # ── Phase B: lesen, ohne offene Transaktion ────────────────────────
         try:
             beobachtung = self._reader.observe(
                 command=payload.command,
-                provider_identifier=payload.target_provider_identifier,
+                provider_identifier=ziel_kennung,
                 expected_fields=dict(payload.fields),
                 idempotency_key=idempotency_key)
         except Exception as exc:                        # noqa: BLE001
@@ -162,6 +191,53 @@ class ContactsReconcileService:
                                    state=zustand,
                                    provider_identifier=provider_id,
                                    detail=detail)
+
+    # ── Sonderfall: nur der lokale Spiegel fehlt ────────────────────────────
+    def _nur_lokal_nachfuehren(self, mutation_id: str,
+                               ziel_kennung: str | None,
+                               idempotency_key: str,
+                               payload) -> ReconcileResult:
+        """Holt die lokale Nachführung nach — ohne jedes Urteil.
+
+        Die Providerwirkung ist bewiesen; es gibt nichts zu beurteilen. Zuerst
+        wird versucht, ohne Providerkontakt auszukommen (der Beleg
+        `readback_digest` erlaubt das, wenn Entwurf und Providerzustand
+        identisch sind). Erst wenn das nicht trägt, wird **gelesen** — nie
+        geschrieben.
+        """
+        dienst = ContactsMutationService(self._persistence, None)
+        try:
+            ergebnis = dienst.finalize_pending(mutation_id)
+        except MutationNotExecutable:
+            beobachtung = self._reader.observe(
+                command=payload.command, provider_identifier=ziel_kennung,
+                expected_fields=dict(payload.fields),
+                idempotency_key=idempotency_key)
+            rueckgabe = getattr(beobachtung, "readback", None)
+            if beobachtung.exists is not True or rueckgabe is None:
+                with self._persistence.unit_of_work() as uow:
+                    AuditTrail(uow, module=MODULE).record(
+                        AuditStage.MANUAL_DECISION_REQUIRED,
+                        subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                        facts={"verdict": ReconcileVerdict.AMBIGUOUS,
+                               "detail": "local_catchup_without_provider_state"})
+                return ReconcileResult(
+                    mutation_id=mutation_id,
+                    verdict=ReconcileVerdict.AMBIGUOUS,
+                    state=MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
+                    detail="local_catchup_pending")
+            ergebnis = dienst.finalize_pending(mutation_id, readback=rueckgabe)
+
+        with self._persistence.unit_of_work() as uow:
+            AuditTrail(uow, module=MODULE).record(
+                AuditStage.RECONCILE_SUCCEEDED, subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id,
+                facts={"verdict": ReconcileVerdict.APPLIED,
+                       "localCatchupOnly": True})
+        return ReconcileResult(
+            mutation_id=mutation_id, verdict=ReconcileVerdict.APPLIED,
+            state=ergebnis.state,
+            provider_identifier=ergebnis.provider_identifier)
 
     # ── Urteilsbildung ──────────────────────────────────────────────────────
     @staticmethod

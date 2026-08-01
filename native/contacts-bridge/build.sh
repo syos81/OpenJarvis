@@ -56,7 +56,7 @@ cat > "$PLIST" <<'PLIST_EOF'
        keinen Schreibpfad (kein CNSaveRequest), und ein Versprechen von
        "verwalten" waere schlicht falsch. -->
   <key>NSContactsUsageDescription</key>
-  <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Es werden keine Kontakte veraendert und keine Daten uebertragen.</string>
+  <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Neue Kontakte werden nur nach deiner ausdruecklichen Freigabe angelegt; bestehende Kontakte werden nicht veraendert und keine Daten uebertragen.</string>
 </dict>
 PLIST_EOF
 echo '</plist>' >> "$PLIST"

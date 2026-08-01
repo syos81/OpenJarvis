@@ -152,44 +152,75 @@ describe('Lesen', () => {
 
 // ── Vorbereiten, nie ausfuehren ────────────────────────────────────────────
 describe('Mutationen vorbereiten', () => {
-  it('schickt create an den Modulpfad, mit Container und Feldern', async () => {
+  it('schickt create mit maskierter Containerreferenz, nie mit Apple-Kennung', async () => {
     const api = await import('./api');
     await api.prepareCreate({
-      idempotencyKey: 'i-1', correlationId: 'c-1', providerAccountId: 'apple',
-      containerIdentifier: 'con-1', fields: { given_name: 'Neu' },
+      idempotencyKey: 'i-1', correlationId: 'c-1',
+      containerRef: 'C-1b3d99', fields: { given_name: 'Neu' },
     });
     expect(letzter().url).toBe('http://localhost:8000/v1/personal/contacts');
     expect(letzter().init.method).toBe('POST');
     expect(JSON.parse(letzter().init.body as string)).toEqual({
       idempotency_key: 'i-1', correlation_id: 'c-1',
-      provider_account_id: 'apple', container_identifier: 'con-1',
-      fields: { given_name: 'Neu' },
+      container_ref: 'C-1b3d99', fields: { given_name: 'Neu' },
     });
   });
 
   it('schickt update mit erwarteter Revision — sonst gaebe es keinen Konfliktschutz', async () => {
     const api = await import('./api');
     await api.prepareUpdate('k-1', {
-      idempotencyKey: 'i-2', correlationId: 'c-2', providerAccountId: 'apple',
-      targetProviderIdentifier: 'raw-1', expectedRevision: '7',
+      idempotencyKey: 'i-2', correlationId: 'c-2', expectedRevision: '7',
       fields: { nickname: 'Kurz' },
     });
     expect(letzter().init.method).toBe('PATCH');
     const body = JSON.parse(letzter().init.body as string);
     expect(body.expected_revision).toBe('7');
-    expect(body.target_provider_identifier).toBe('raw-1');
+    // Das Ziel steht im Pfad, nicht im Koerper — und ist die lokale Kennung.
+    expect(letzter().url).toContain('/k-1');
+    expect(JSON.stringify(body)).not.toContain('raw-');
   });
 
-  it('zielt beim Loeschen auf die feste Providerkennung, nie auf den Namen', async () => {
+  it('zielt beim Loeschen auf die lokale Kennung, nie auf einen Namen', async () => {
     const api = await import('./api');
     await api.prepareDelete('k-1', {
-      idempotencyKey: 'i-3', correlationId: 'c-3', providerAccountId: 'apple',
-      targetProviderIdentifier: 'raw-1', expectedRevision: '7',
+      idempotencyKey: 'i-3', correlationId: 'c-3', expectedRevision: '7',
     });
     expect(letzter().url).toContain('/k-1/delete');
     const body = JSON.parse(letzter().init.body as string);
-    expect(body.target_provider_identifier).toBe('raw-1');
+    expect(body.expected_revision).toBe('7');
     expect(JSON.stringify(body)).not.toContain('display_name');
+  });
+
+  it('sendet keine rohe Providerkennung in irgendeinem Mutationskoerper', async () => {
+    const api = await import('./api');
+    await api.prepareCreate({
+      idempotencyKey: 'i-4', correlationId: 'c-4',
+      containerRef: 'C-4b8df1', fields: { given_name: 'Neu' },
+    });
+    const koerper = letzter().init.body as string;
+    for (const verboten of ['ABAccount', 'provider_account_id',
+                            'container_identifier', 'target_provider_identifier']) {
+      expect(koerper).not.toContain(verboten);
+    }
+  });
+});
+
+// ── Ausfuehren: ein eigener, ausdruecklicher Schritt ───────────────────────
+describe('Ausfuehren', () => {
+  it('verlangt die ausdrueckliche Nutzeraktion im Koerper', async () => {
+    const api = await import('./api');
+    await api.executeMutation('m-1');
+    expect(letzter().url).toContain('/mutations/m-1/execute');
+    expect(letzter().init.method).toBe('POST');
+    expect(JSON.parse(letzter().init.body as string))
+      .toEqual({ user_initiated: true });
+  });
+
+  it('traegt die Bestaetigung nie in der URL', async () => {
+    const api = await import('./api');
+    await api.executeMutation('m-2');
+    expect(letzter().url).not.toContain('user_initiated');
+    expect(letzter().url).not.toContain('?');
   });
 });
 
@@ -239,9 +270,13 @@ describe('Abgleich', () => {
   it('bietet keine Funktion zum erneuten Senden an', async () => {
     const api = await import('./api');
     const namen = Object.keys(api);
-    for (const verboten of ['retry', 'resend', 'execute', 'send', 'force']) {
+    // `executeMutation` ist der EINE erlaubte Sendeweg und deshalb hier
+    // ausgenommen; alles, was ein zweites Senden nahelegte, bleibt verboten.
+    for (const verboten of ['retry', 'resend', 'send', 'force']) {
       expect(namen.filter((n) => n.toLowerCase().includes(verboten))).toEqual([]);
     }
+    expect(namen.filter((n) => n.toLowerCase().includes('execute')))
+      .toEqual(['executeMutation']);
   });
 });
 

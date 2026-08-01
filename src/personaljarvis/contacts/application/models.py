@@ -51,6 +51,8 @@ class MutationPreview:
     changes: tuple[FieldChange, ...] = ()
     target_label: str | None = None
     warnings: tuple[str, ...] = ()
+    #: Lokale Zielkennung — sie und nicht die Providerkennung geht nach aussen.
+    target_contact_id: str | None = None
 
     @property
     def digest(self) -> str:
@@ -138,10 +140,19 @@ class ExecutionResult:
     error_code: str | None = None
     provider_identifier: str | None = None
     attempt_count: int = 0
+    #: Lokale Kennung des kanonischen Spiegels — erst nach der Nachführung (C2).
+    contact_id: str | None = None
+    #: Fingerabdruck des zurückgelesenen Providerzustands (ADR-0019 §5).
+    readback_digest: str | None = None
 
     @property
     def requires_reconcile(self) -> bool:
         return self.state in ("outcome_unknown", "reconcile_required")
+
+    @property
+    def pending_local_catchup(self) -> bool:
+        """Beim Provider angewandt, lokal noch nicht nachgeführt."""
+        return self.state == "provider_applied_pending_reconcile"
 
 
 class ReconcileVerdict:

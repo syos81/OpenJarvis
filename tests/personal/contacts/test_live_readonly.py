@@ -45,7 +45,10 @@ _REPO_LIVE = (Path(__file__).resolve().parents[3]
 #: eine davon auslösen, solange nicht `authorized` gilt.
 STORE_OPERATIONEN = ("containers", "enumerate", "changes", "get",
                      "getUnifiedReadOnly")
-SCHREIB_OPERATIONEN = ("create", "update", "delete")
+#: Operationen, die der Client weiterhin verweigert. `create` ist seit
+#: ADR-0019 implementiert und gehoert deshalb nicht mehr hierher — Update und
+#: Delete bleiben es (Phase M4 bzw. M5, Delete zusaetzlich hinter DEC-D06).
+SCHREIB_OPERATIONEN = ("update", "delete")
 
 
 class BridgeAttrappe:
@@ -666,8 +669,8 @@ def test_der_live_dienst_kennt_keine_schreiboperation(module):
         assert not any(verboten in n.lower() for n in namen), verboten
 
 
-def test_kein_endpunkt_kann_eine_provideroperation_schreiben(module):
-    """Die Bridge weist Schreiboperationen schon auf Clientebene ab."""
+def test_kein_endpunkt_kann_update_oder_delete_schreiben(module):
+    """Update und Delete weist die Bridge schon auf Clientebene ab."""
     from personaljarvis.contacts.bridge.client import ContactsBridgeClient
 
     for name in SCHREIB_OPERATIONEN:
@@ -675,16 +678,43 @@ def test_kein_endpunkt_kann_eine_provideroperation_schreiben(module):
             getattr(ContactsBridgeClient(None), name)()
 
 
-def test_der_sidecar_enthaelt_keinen_schreibpfad():
-    """Der stärkste Nachweis: `CNSaveRequest` kommt im Quelltext nicht als
-    Code vor — nur in einem erklärenden Kommentar."""
+def _sidecar_code() -> str:
     from pathlib import Path
 
     quelle = (Path(__file__).resolve().parents[3]
               / "native/contacts-bridge/src/sidecar.swift").read_text()
-    code = "\n".join(z.split("//", 1)[0] for z in quelle.splitlines())
-    assert "CNSaveRequest" not in code
-    assert "CNMutableContact" not in code
+    return "\n".join(z.split("//", 1)[0] for z in quelle.splitlines())
+
+
+def test_der_sidecar_hat_genau_einen_schreibpfad():
+    """Ein `CNSaveRequest` — und er steht ausschliesslich in `opCreate`.
+
+    Frueher lautete der Nachweis „gar kein CNSaveRequest". Seit ADR-0019 legt
+    der Sidecar Kontakte an; die Aussage muss deshalb schaerfer werden statt
+    zu verschwinden: **genau einer**, und zwar dort, wo er hingehoert.
+    """
+    code = _sidecar_code()
+    assert code.count("CNSaveRequest()") == 1
+    assert code.count("store.execute(") == 1
+    # Die eine Stelle liegt in opCreate und vor keiner Schleife.
+    nach_create = code.split("func opCreate")[1]
+    assert "CNSaveRequest()" in nach_create
+    assert "for " not in nach_create.split("store.execute(")[0].split(
+        "let req = CNSaveRequest()")[1]
+
+
+def test_der_sidecar_schreibt_nur_neue_kontakte():
+    """Kein Update-, Delete- oder Gruppenpfad am Store."""
+    code = _sidecar_code()
+    for verboten in ("req.update(", "req.delete(", "mutableCopy()",
+                     "CNMutableGroup", "addMember", "removeMember",
+                     "unifiedContact(withIdentifier"):
+        # `unifiedContact` bleibt erlaubt, wo es der reine Lesepfad benutzt.
+        if verboten == "unifiedContact(withIdentifier":
+            continue
+        assert verboten not in code, verboten
+    # `add` gibt es genau einmal — die Neuanlage.
+    assert code.count("req.add(") == 1
 
 
 # ═══ Fehlervertrag: nie ein nackter Klassenname ═════════════════════════════

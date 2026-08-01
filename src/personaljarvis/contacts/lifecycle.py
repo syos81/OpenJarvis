@@ -35,6 +35,7 @@ from personaljarvis.contacts.bridge.resolver import resolve_sidecar
 from personaljarvis.contacts.domain.capabilities import (
     ContactCapabilitySet,
     default_capabilities,
+    derive_capabilities,
 )
 from personaljarvis.contacts.repositories.sqlite import (
     SqliteContactRepository,
@@ -179,6 +180,7 @@ class ContactsModule:
             process.stop()
 
         self._bridge_status = status
+        self._capabilities = derive_capabilities(status)
         if not status.available:
             self._state = ModuleState.DEGRADED
         elif status.authorization_status != "authorized":
@@ -289,9 +291,11 @@ class ContactsModule:
     def mutation_service(self, provider=None) -> "ContactsMutationService":
         """Mutationsdienst. Ohne Provider ist keine Ausführung möglich.
 
-        Der Provider ist in Gate C ausschließlich eine Fake-Bridge; der echte
-        Sidecar liefert weiterhin `not_implemented` und wird für
-        Store-Schreibzugriffe **nicht** freigeschaltet.
+        Produktiv ist der Provider seit ADR-0019 der Sidecar — **nur für
+        `create`**. Ob überhaupt gesendet werden darf, entscheidet nicht dieser
+        Aufbau, sondern die aus dem Handshake abgeleitete Fähigkeitsmenge:
+        ohne passenden Vertragsstand bleibt `create_supported` False und schon
+        `prepare` scheitert typisiert.
         """
         if not self._started:
             raise PersonalJarvisError("Modul ist nicht gestartet")
@@ -303,8 +307,11 @@ class ContactsModule:
             return ContactsMutationService(self, provider,
                                            capabilities=self._capabilities)
         if self._mutation_service is None:
+            # Der produktive Provider wird von der Kompositionswurzel gesetzt.
+            # Fehlt er, bleibt der Standard, der nachweislich nichts sendet.
+            ziel = getattr(self, "mutation_provider", None) or _UnavailableProvider()
             self._mutation_service = ContactsMutationService(
-                self, _UnavailableProvider(), capabilities=self._capabilities)
+                self, ziel, capabilities=self._capabilities)
         return self._mutation_service
 
     def approval_service(self) -> "ContactsApprovalService":

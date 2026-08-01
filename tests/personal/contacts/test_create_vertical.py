@@ -1,0 +1,625 @@
+"""Vertikaler Create-Pfad: Identitäten, Fähigkeiten, Ausführung, Nachführung.
+
+**Kontaktfrei.** Kein Sidecar wird gestartet, kein `CNContactStore` berührt,
+keine Autorisierung angefragt. Alle Provider sind Attrappen; alle Datenbanken
+liegen in `tmp_path`.
+
+Die zentrale Invariante dieser Suite: **genau ein Send je Mutation.** Jeder
+Test, der einen zweiten Aufruf provozieren könnte — Doppelklick, Parallelität,
+Neustart, Timeout —, prüft den Aufrufzähler des Providers.
+"""
+
+from __future__ import annotations
+
+import threading
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from personaljarvis.contacts.api.redaction import container_ref
+from personaljarvis.contacts.api.routes import (
+    DEFAULT_WORKSPACE_HEADER,
+    PREFIX,
+    create_contacts_router,
+)
+from personaljarvis.contacts.application import ContactsMutationService
+from personaljarvis.contacts.application.field_contract import (
+    as_bridge_contact,
+    parse_canonical_payload,
+    project_bridge_contact,
+    readback_digest,
+)
+from personaljarvis.contacts.application.models import ProviderOutcome
+from personaljarvis.contacts.application.mutation_service import (
+    MutationState,
+    ProviderResponse,
+)
+from personaljarvis.contacts.domain.capabilities import ContactCapabilitySet
+from personaljarvis.contacts.domain.models import ContactSyncState
+from personaljarvis.contacts.repositories.sqlite import SqliteSyncStateRepository
+
+from .conftest import WORKSPACE
+
+KONTO = "apple-local"
+CONTAINER = "01234567-89AB-CDEF-0123-456789ABCDEF:ABAccount"
+MENSCH = "lukas"
+ERZEUGT = "NEU-PID-1"
+
+
+# ── Attrappen ───────────────────────────────────────────────────────────────
+class ZaehlProvider:
+    """Zählt jeden Sendeversuch. Der Zähler ist der eigentliche Nachweis."""
+
+    def __init__(self, outcome: str = ProviderOutcome.SUCCEEDED, *,
+                 error_code: str | None = None,
+                 raises: Exception | None = None,
+                 verzoegerung: float = 0.0) -> None:
+        self.outcome = outcome
+        self.error_code = error_code
+        self.raises = raises
+        self.verzoegerung = verzoegerung
+        self.calls = 0
+        self.lock = threading.Lock()
+
+    def apply(self, payload, *, mutation_id, idempotency_key, approval_id):
+        with self.lock:
+            self.calls += 1
+        if self.verzoegerung:
+            import time
+
+            time.sleep(self.verzoegerung)
+        if self.raises is not None:
+            raise self.raises
+        if self.outcome != ProviderOutcome.SUCCEEDED:
+            return ProviderResponse(self.outcome, error_code=self.error_code)
+        felder = parse_canonical_payload(payload.fields)
+        zurueck = as_bridge_contact(felder, provider_identifier=ERZEUGT)
+        return ProviderResponse(
+            ProviderOutcome.SUCCEEDED, provider_identifier=ERZEUGT,
+            container_identifier=payload.container_identifier,
+            readback=zurueck,
+            readback_digest=readback_digest(project_bridge_contact(zurueck)))
+
+
+CREATE_CAPS = ContactCapabilitySet(create_supported=True)
+
+
+@pytest.fixture
+def provider() -> ZaehlProvider:
+    return ZaehlProvider()
+
+
+@pytest.fixture
+def modul(module, provider):
+    """Modul mit bekanntem Container und freigeschaltetem `create`."""
+    with module.unit_of_work() as uow:
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO, container_identifier=CONTAINER,
+            key_set_version="v1", mode="delta", cursor_token="TOKEN"))
+    module._capabilities = CREATE_CAPS
+    module._mutation_service = ContactsMutationService(
+        module, provider, capabilities=CREATE_CAPS)
+    return module
+
+
+@pytest.fixture
+def client(modul):
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    return TestClient(app)
+
+
+def _kopf() -> dict:
+    return {DEFAULT_WORKSPACE_HEADER: WORKSPACE, "X-Personal-Actor": MENSCH}
+
+
+def _create_body(**kw) -> dict:
+    body = {"idempotency_key": "idem-" + str(id(kw)),
+            "correlation_id": "corr-1",
+            "container_ref": container_ref(CONTAINER),
+            "fields": {"given_name": "ZZZ-JarvisTest", "family_name": "Anlage"}}
+    body.update(kw)
+    return body
+
+
+def _vorbereitet(client, **kw) -> str:
+    r = client.post(PREFIX, headers=_kopf(), json=_create_body(**kw))
+    assert r.status_code == 201, r.text
+    return r.json()["mutation_id"]
+
+
+def _freigegeben(client, **kw) -> str:
+    mid = _vorbereitet(client, **kw)
+    r = client.post(f"{PREFIX}/mutations/{mid}/approve", headers=_kopf(),
+                    json={"decision_actor": MENSCH})
+    assert r.status_code == 200, r.text
+    return mid
+
+
+# ═══ Identitäten: keine rohe Kennung, in keiner Richtung ════════════════════
+def test_create_zielt_ueber_die_maskierte_containerreferenz(client, provider):
+    mid = _vorbereitet(client)
+    assert mid
+    assert provider.calls == 0
+
+
+def test_rohe_containerkennung_wird_vom_muster_abgewiesen(client):
+    r = client.post(PREFIX, headers=_kopf(),
+                    json=_create_body(container_ref=CONTAINER))
+    assert r.status_code == 422
+    assert "ABAccount" not in r.text
+
+
+def test_unbekannte_containerreferenz_scheitert_fail_closed(client, provider):
+    r = client.post(PREFIX, headers=_kopf(),
+                    json=_create_body(container_ref="C-000000"))
+    # 409: der Zielcontainer ist nicht verfuegbar — fail-closed, nie ein Raten.
+    assert r.status_code == 409
+    assert provider.calls == 0
+
+
+def test_mehrdeutige_referenz_scheitert_statt_zu_waehlen(modul, client, provider):
+    """Eine Maskenkollision darf nie zur Wahl des ersten Treffers führen."""
+    from unittest.mock import patch
+
+    echt = container_ref
+
+    def kollidierend(kennung: str) -> str:
+        return "C-aaaaaa" if kennung.endswith("ABAccount") else echt(kennung)
+
+    with modul.unit_of_work() as uow:
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO,
+            container_identifier="ZWEITER-CONTAINER:ABAccount",
+            key_set_version="v1", mode="delta", cursor_token="T2"))
+    with patch("personaljarvis.contacts.api.redaction.container_ref",
+               side_effect=kollidierend):
+        r = client.post(PREFIX, headers=_kopf(),
+                        json=_create_body(container_ref="C-aaaaaa"))
+    assert r.status_code == 409
+    assert "nicht eindeutig" in r.text
+    assert provider.calls == 0
+
+
+def test_interne_aufloesung_behaelt_die_echte_kennung(modul, client):
+    """Innen roh, aussen maskiert — sonst faende der Sidecar den Container nicht."""
+    mid = _vorbereitet(client)
+    with modul.unit_of_work() as uow:
+        zeile = uow.execute(
+            "SELECT provider_account_id, container_identifier "
+            "FROM contacts_mutations WHERE mutation_id = ?", (mid,)).fetchone()
+    assert zeile["container_identifier"] == CONTAINER
+    assert zeile["provider_account_id"] == KONTO
+
+
+def test_keine_antwort_traegt_eine_rohe_kennung(client):
+    mid = _freigegeben(client)
+    for pfad in (PREFIX, f"{PREFIX}/mutations",
+                 f"{PREFIX}/mutations/{mid}", f"{PREFIX}/approvals",
+                 f"{PREFIX}/sync/status"):
+        text = client.get(pfad, headers=_kopf()).text
+        for verboten in (CONTAINER, KONTO, "ABAccount", ERZEUGT,
+                         "provider_identifier", "container_identifier",
+                         "provider_account_id"):
+            assert verboten not in text, f"{verboten} in {pfad}"
+
+
+# ═══ Fähigkeiten: fail-closed ═══════════════════════════════════════════════
+def test_ohne_freigeschaltete_faehigkeit_wird_nicht_vorbereitet(module, provider):
+    module._capabilities = ContactCapabilitySet()      # alles False
+    module._mutation_service = ContactsMutationService(
+        module, provider, capabilities=module._capabilities)
+    with module.unit_of_work() as uow:
+        SqliteSyncStateRepository(uow).upsert(ContactSyncState(
+            provider_account_id=KONTO, container_identifier=CONTAINER,
+            key_set_version="v1", mode="delta", cursor_token="T"))
+    app = FastAPI()
+    app.include_router(create_contacts_router(module))
+    r = TestClient(app).post(PREFIX, headers=_kopf(), json=_create_body())
+    assert r.status_code == 422
+    assert provider.calls == 0
+
+
+@pytest.mark.parametrize("handshake,erwartet", [
+    ({"createImplemented": True, "mutationContractVersion": 1,
+      "fieldContractVersion": 1}, True),
+    ({"createImplemented": True, "mutationContractVersion": 0,
+      "fieldContractVersion": 1}, False),
+    ({"createImplemented": True, "mutationContractVersion": 2,
+      "fieldContractVersion": 1}, False),
+    ({"createImplemented": True, "fieldContractVersion": 1}, False),
+    ({"createImplemented": True, "mutationContractVersion": 1}, False),
+    ({"mutationContractVersion": 1, "fieldContractVersion": 1}, False),
+    ({}, False),
+])
+def test_capability_bruecke_ist_versionsgenau(handshake, erwartet):
+    from personaljarvis.contacts.bridge.models import BridgeCapabilities
+    from personaljarvis.contacts.domain.capabilities import derive_capabilities
+
+    class Status:
+        available = True
+        protocol_version = 1
+        capabilities = BridgeCapabilities.parse(handshake)
+
+    assert derive_capabilities(Status()).create_supported is erwartet
+
+
+def test_create_schaltet_update_und_delete_nicht_mit_frei():
+    """Je Operation einzeln — ein Sammelflag gaebe es hier nicht.
+
+    Der produktive Sidecar meldet `update`/`delete` als nicht implementiert
+    (siehe Test darunter). Diese Ableitung stellt sicher, dass ein `create`
+    allein sie auch dann nicht mitzieht, wenn beide Angaben fehlen — der
+    haeufigste Weg, wie ein Sammelflag versehentlich zu viel freischaltet.
+    """
+    from personaljarvis.contacts.bridge.models import BridgeCapabilities
+    from personaljarvis.contacts.domain.capabilities import derive_capabilities
+
+    class Status:
+        available = True
+        protocol_version = 1
+        capabilities = BridgeCapabilities.parse({
+            "createImplemented": True, "mutationsImplemented": True,
+            "mutationContractVersion": 1, "fieldContractVersion": 1})
+
+    caps = derive_capabilities(Status())
+    assert caps.create_supported is True
+    assert caps.update_supported is False
+    assert caps.delete_supported is False
+
+
+def test_fehlender_handshake_faellt_auf_nur_lesen_zurueck():
+    from personaljarvis.contacts.domain.capabilities import derive_capabilities
+
+    for status in (None, type("S", (), {"available": False})()):
+        caps = derive_capabilities(status)
+        assert caps.read_supported is True
+        assert not (caps.create_supported or caps.update_supported
+                    or caps.delete_supported)
+
+
+def test_der_produktive_sidecar_meldet_nur_create():
+    """Statisch am Quelltext: `create` ja, `update`/`delete` nein."""
+    from pathlib import Path
+
+    quelle = (Path(__file__).resolve().parents[3]
+              / "native/contacts-bridge/src/sidecar.swift").read_text()
+    assert '"createImplemented": true' in quelle
+    assert '"updateImplemented": false' in quelle
+    assert '"deleteImplemented": false' in quelle
+
+
+# ═══ Ausführung: eine eigene, ausdrückliche Aktion ══════════════════════════
+def test_freigabe_allein_sendet_nichts(client, provider):
+    _freigegeben(client)
+    assert provider.calls == 0
+
+
+def test_ausfuehrung_ohne_freigabe_scheitert(client, provider):
+    mid = _vorbereitet(client)
+    r = client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                    json={"user_initiated": True})
+    assert r.status_code in (409, 422)
+    assert provider.calls == 0
+
+
+@pytest.mark.parametrize("koerper", [{}, {"user_initiated": False},
+                                     {"user_initiated": "ja"},
+                                     {"user_initiated": True, "extra": 1}])
+def test_ohne_ausdrueckliche_nutzeraktion_wird_nicht_ausgefuehrt(
+        client, provider, koerper):
+    mid = _freigegeben(client)
+    r = client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                    json=koerper)
+    assert r.status_code == 422
+    assert provider.calls == 0
+
+
+def test_die_bestaetigung_ist_kein_query_parameter(client, provider):
+    mid = _freigegeben(client)
+    r = client.post(f"{PREFIX}/mutations/{mid}/execute?user_initiated=true",
+                    headers=_kopf(), json={})
+    assert r.status_code == 422
+    assert provider.calls == 0
+
+
+def test_erste_ausfuehrung_sendet_genau_einmal(client, provider):
+    mid = _freigegeben(client)
+    r = client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                    json={"user_initiated": True})
+    assert r.status_code == 200, r.text
+    assert provider.calls == 1
+    assert r.json()["state"] == MutationState.SUCCEEDED
+    assert r.json()["contact_id"]
+
+
+def test_zweiter_klick_sendet_nicht_erneut(client, provider):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    zweiter = client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                          json={"user_initiated": True})
+    assert zweiter.status_code == 409
+    assert provider.calls == 1
+
+
+def test_gleichzeitige_ausfuehrung_sendet_nur_einmal(modul, provider):
+    """Zwei Aufrufe zur selben Zeit — genau einer gewinnt den Outbox-Claim."""
+    provider.verzoegerung = 0.05
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+
+    ergebnisse: list[int] = []
+
+    def lauf() -> None:
+        r = c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                   json={"user_initiated": True})
+        ergebnisse.append(r.status_code)
+
+    faeden = [threading.Thread(target=lauf) for _ in range(4)]
+    for f in faeden:
+        f.start()
+    for f in faeden:
+        f.join()
+
+    assert provider.calls == 1
+    assert sorted(ergebnisse).count(200) == 1
+
+
+def test_timeout_endet_in_outcome_unknown_ohne_zweiten_send(modul, provider):
+    from personaljarvis.contacts.bridge.errors import (
+        MutationOutcomeUnknown,
+        ProcessDiagnostics,
+    )
+
+    provider.raises = MutationOutcomeUnknown(
+        "request_timeout",
+        ProcessDiagnostics(request_id=1, operation="create",
+                           elapsed_seconds=120.0, child_exit_code=None,
+                           child_signal=None, child_alive=True,
+                           stdout_eof=False, stderr_eof=False,
+                           detail="keine Antwort binnen 120.0 s"))
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+    r = c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+               json={"user_initiated": True})
+    assert r.status_code == 200
+    assert r.json()["state"] == MutationState.OUTCOME_UNKNOWN
+    assert r.json()["retryable"] is False
+    assert provider.calls == 1
+
+    # Und von dort führt kein Ausführungsweg zurück.
+    zweiter = c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                     json={"user_initiated": True})
+    assert zweiter.status_code == 409
+    assert provider.calls == 1
+
+
+def test_failed_before_send_ist_terminal(modul):
+    provider = ZaehlProvider(ProviderOutcome.REJECTED_BEFORE_SEND,
+                             error_code="invalid_request")
+    modul._mutation_service = ContactsMutationService(
+        modul, provider, capabilities=CREATE_CAPS)
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+    r = c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+               json={"user_initiated": True})
+    assert r.json()["state"] == MutationState.FAILED_BEFORE_SEND
+    assert c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                  json={"user_initiated": True}).status_code == 409
+    assert provider.calls == 1
+
+
+def test_prozessabbruch_setzt_nie_auf_sendbar_zurueck(modul, provider):
+    """`recover_interrupted` fasst eine bewiesene Providerwirkung nicht an."""
+    app = FastAPI()
+    app.include_router(create_contacts_router(modul))
+    c = TestClient(app)
+    mid = _freigegeben(c)
+    c.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+           json={"user_initiated": True})
+    # Zustand kuenstlich auf die Zwischenlage zuruecksetzen, als waere C2
+    # nach dem Providererfolg abgebrochen.
+    with modul.unit_of_work() as uow:
+        uow.execute("UPDATE contacts_mutations SET state = ?, completed_at = NULL "
+                    "WHERE mutation_id = ?",
+                    (MutationState.PROVIDER_APPLIED_PENDING_RECONCILE, mid))
+
+    erholt = modul.mutation_service().recover_interrupted()
+    assert mid not in erholt
+    with modul.unit_of_work() as uow:
+        zustand = uow.execute(
+            "SELECT state FROM contacts_mutations WHERE mutation_id = ?",
+            (mid,)).fetchone()["state"]
+    assert zustand == MutationState.PROVIDER_APPLIED_PENDING_RECONCILE
+    assert provider.calls == 1
+
+
+# ═══ C1/C2: lokale Nachführung ══════════════════════════════════════════════
+def _lokaler_kontakt(modul):
+    with modul.unit_of_work() as uow:
+        return uow.execute(
+            "SELECT c.id, c.display_name, e.provider_identifier, "
+            "e.container_identifier, e.provider_account_id "
+            "FROM contacts c JOIN contact_external_ids e ON e.contact_id = c.id "
+            "WHERE e.provider_identifier = ?", (ERZEUGT,)).fetchall()
+
+
+def test_erfolg_legt_genau_einen_lokalen_kontakt_an(modul, client, provider):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    zeilen = _lokaler_kontakt(modul)
+    assert len(zeilen) == 1
+    assert zeilen[0]["display_name"] == "ZZZ-JarvisTest Anlage"
+    assert zeilen[0]["container_identifier"] == CONTAINER
+    assert zeilen[0]["provider_account_id"] == KONTO
+
+
+def test_erfolg_verknuepft_die_mutation_mit_dem_kontakt(modul, client):
+    mid = _freigegeben(client)
+    antwort = client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                          json={"user_initiated": True}).json()
+    with modul.unit_of_work() as uow:
+        zeile = uow.execute(
+            "SELECT target_contact_id, readback_digest, state "
+            "FROM contacts_mutations WHERE mutation_id = ?", (mid,)).fetchone()
+    assert zeile["target_contact_id"] == antwort["contact_id"]
+    assert len(zeile["readback_digest"]) == 64
+    assert zeile["state"] == MutationState.SUCCEEDED
+
+
+def test_read_back_ist_die_quelle_der_nachfuehrung(modul, client):
+    """Gespiegelt wird, was der Provider zurueckgab — nicht der Entwurf."""
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    zeilen = _lokaler_kontakt(modul)
+    assert zeilen[0]["provider_identifier"] == ERZEUGT
+
+
+def test_nachfuehrung_erzeugt_kein_duplikat(modul, client, provider):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    # Eine zweite Nachfuehrung ist erlaubt und muss denselben Datensatz treffen.
+    modul.mutation_service().finalize_pending(mid)
+    assert len(_lokaler_kontakt(modul)) == 1
+    assert provider.calls == 1
+
+
+def test_nachfuehrung_laeuft_ohne_provideraufruf(modul, client, provider):
+    """Der Beleg traegt sie: der Entwurf ist beweisbar der Providerzustand."""
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    with modul.unit_of_work() as uow:
+        uow.execute("DELETE FROM contact_external_ids WHERE provider_identifier = ?",
+                    (ERZEUGT,))
+        uow.execute("UPDATE contacts_mutations SET state = ?, completed_at = NULL "
+                    "WHERE mutation_id = ?",
+                    (MutationState.PROVIDER_APPLIED_PENDING_RECONCILE, mid))
+
+    vorher = provider.calls
+    ergebnis = modul.mutation_service().finalize_pending(mid)
+    assert ergebnis.state == MutationState.SUCCEEDED
+    assert provider.calls == vorher
+    assert len(_lokaler_kontakt(modul)) == 1
+
+
+def test_ohne_passenden_beleg_wird_nichts_geraten(modul, client):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    with modul.unit_of_work() as uow:
+        uow.execute("UPDATE contacts_mutations SET state = ?, "
+                    "readback_digest = ?, completed_at = NULL "
+                    "WHERE mutation_id = ?",
+                    (MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
+                     "f" * 64, mid))
+    from personaljarvis.contacts.application.errors import MutationNotExecutable
+
+    with pytest.raises(MutationNotExecutable, match="Abgleich"):
+        modul.mutation_service().finalize_pending(mid)
+
+
+def test_die_ereignisfolge_ist_vollstaendig(modul, client):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    with modul.unit_of_work() as uow:
+        stufen = [r["stage"] for r in uow.execute(
+            "SELECT stage FROM personal_audit_log WHERE subject_id = ? "
+            "ORDER BY sequence", (mid,)).fetchall()]
+    assert stufen == [
+        "mutation_prepared", "approval_requested", "approval_granted",
+        "execution_claimed", "provider_send_started",
+        "provider_result_received", "mutation_completed"]
+
+
+# ═══ Datenschutz ════════════════════════════════════════════════════════════
+def test_audit_traegt_keinen_kontaktwert_und_keine_kennung(modul, client):
+    mid = _freigegeben(client)
+    client.post(f"{PREFIX}/mutations/{mid}/execute", headers=_kopf(),
+                json={"user_initiated": True})
+    with modul.unit_of_work() as uow:
+        text = " ".join(str(dict(r)) for r in uow.execute(
+            "SELECT * FROM personal_audit_log").fetchall())
+    for verboten in ("ZZZ-JarvisTest", "Anlage", CONTAINER, ERZEUGT,
+                     "ABAccount", "/Users/"):
+        assert verboten not in text, verboten
+
+
+def test_fehlerantwort_traegt_keinen_feldwert(client):
+    r = client.post(PREFIX, headers=_kopf(),
+                    json=_create_body(fields={"given_name": "Geheimname"}
+                                      | {"lieblingsfarbe": "blau"}))
+    assert r.status_code == 422
+    assert "Geheimname" not in r.text
+    assert "blau" not in r.text
+
+
+def test_oeffentliche_mutationsmodelle_kennen_keine_rohkennung():
+    from personaljarvis.contacts.api import schemas as S
+
+    for modell in (S.CreateContactIn, S.UpdateContactIn, S.DeleteContactIn,
+                   S.PreparedMutationOut, S.MutationOut, S.MutationDetailOut,
+                   S.ReconcileOut, S.ContactDetailOut, S.ContactSummaryOut,
+                   S.ExecutionResultOut):
+        for feld in ("provider_identifier", "container_identifier",
+                     "provider_account_id", "target_provider_identifier",
+                     "write_target", "cursor_token"):
+            assert feld not in modell.model_fields, f"{modell.__name__}.{feld}"
+
+
+# ═══ Komposition ════════════════════════════════════════════════════════════
+def test_ohne_registrierten_provider_wird_nichts_gesendet(module):
+    """Der Standard bleibt der Provider, der nachweislich nichts sendet."""
+    from personaljarvis.contacts.lifecycle import _UnavailableProvider
+
+    antwort = _UnavailableProvider().apply(
+        None, mutation_id="m", idempotency_key="k", approval_id="a")
+    assert antwort.outcome == ProviderOutcome.FAILED_BEFORE_SEND
+    assert antwort.error_code == "not_implemented"
+    assert module.mutation_service()._provider.__class__ is _UnavailableProvider
+
+
+def test_registrierung_startet_keinen_prozess_und_fuehrt_nichts_aus(tmp_path):
+    """Die Kompositionswurzel verdrahtet — sie loest nichts aus."""
+    import inspect
+
+    import personaljarvis as PJ
+
+    quelle = inspect.getsource(PJ._register_mutation_bridge)
+    code = "\n".join(z.split("#", 1)[0] for z in quelle.splitlines())
+    for verboten in (".execute(", ".apply(", "SidecarProcess(", ".start()",
+                     "finalize_pending", "Thread", "Timer", "schedule"):
+        assert verboten not in code, verboten
+
+
+def test_der_registrierte_provider_wird_tatsaechlich_benutzt(module):
+    marker = ZaehlProvider()
+    module.mutation_provider = marker
+    module._mutation_service = None
+    assert module.mutation_service()._provider is marker
+
+
+def test_kein_hintergrundexecutor_und_kein_scheduler():
+    """Im gesamten Kontaktmodul gibt es keinen zeitgesteuerten Sendeweg."""
+    from pathlib import Path
+
+    wurzel = Path(__file__).resolve().parents[3] / "src/personaljarvis"
+    for datei in wurzel.rglob("*.py"):
+        code = "\n".join(z.split("#", 1)[0] for z in
+                         datei.read_text().splitlines())
+        for verboten in ("threading.Timer", "sched.scheduler",
+                         "BackgroundTasks", "apscheduler", "add_job",
+                         "asyncio.create_task"):
+            assert verboten not in code, f"{datei.name}: {verboten}"

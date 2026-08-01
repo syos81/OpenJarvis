@@ -177,7 +177,7 @@ Alte Namen des Entwurfs bilden sich ab als: `draft`/`validated`/`previewed` → 
 
 **`outcome_unknown` ist weder Erfolg noch Fehlschlag.** Der Übergang nach `reconcile_required` löst **zuerst einen Lesevorgang** aus (Read/Reconcile gegen den Store), bevor irgendetwas anderes geschieht. Bleibt der Ausgang danach unklar, endet der Vorgang in `manual_decision_required` mit `attention_required` in der UI — **niemals** in einer automatischen Wiederholung. `failed` entsteht ausschließlich **nach** einem eindeutigen Abgleich; eine Wiederholung ist dann eine **neue freigabepflichtige Mutation**, kein Retry. **Auch `failed_before_send` ist terminal** (Gate-C-Audit 2026-07-29): dort wurde nachweislich nichts gesendet, aber Vorschau und Freigabe des Vorgangs sind verbraucht — sein Outbox-Eintrag wird geschlossen und erscheint nie wieder als fällig; ein neuer Versuch ist ebenfalls eine neue freigabepflichtige Mutation.
 
-**Präzisierung 2026-08-01 ([ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md), verbindlich).** Für die Provider-Implementierung wird der Erfolgspfad um einen Zustand erweitert: `executing → provider_applied_pending_reconcile → succeeded`. Der neue Zustand hält die Zwischenlage „Provideränderung bestätigt und belegt, kanonische Nachführung noch offen" fest; aus ihm ist **nie** ein weiterer Send erlaubt, `recover_interrupted()` fasst ihn nicht an, und die Auflösung läuft ausschließlich über den nutzergestarteten Abgleich. `succeeded` setzt fortan **alle vier** Bedingungen voraus: Provideränderung bestätigt, Read-back erfolgreich, kanonischer Spiegel nachgeführt, Audit abgeschlossen. Die Ausführung selbst ist eine **eigene ausdrückliche Nutzeraktion** über `POST …/mutations/{mutation_id}/execute` — `approve` löst sie niemals aus; es gibt keinen Hintergrundexecutor, keinen Scheduler und keinen automatischen Retry. Zieladressierung, Feldvertrag v1, Sidecar-Schreib- und Ergebnisvertrag, Capability-Brücke und die Reihenfolge Create → Update → Delete stehen normativ in ADR-0019.
+**Präzisierung 2026-08-01 ([ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md), verbindlich; seit demselben Tag im Code umgesetzt — Migration 0006).** Für die Provider-Implementierung wird der Erfolgspfad um einen Zustand erweitert: `executing → provider_applied_pending_reconcile → succeeded`. Der neue Zustand hält die Zwischenlage „Provideränderung bestätigt und belegt, kanonische Nachführung noch offen" fest; aus ihm ist **nie** ein weiterer Send erlaubt, `recover_interrupted()` fasst ihn nicht an, und die Auflösung läuft ausschließlich über den nutzergestarteten Abgleich. `succeeded` setzt fortan **alle vier** Bedingungen voraus: Provideränderung bestätigt, Read-back erfolgreich, kanonischer Spiegel nachgeführt, Audit abgeschlossen. Die Ausführung selbst ist eine **eigene ausdrückliche Nutzeraktion** über `POST …/mutations/{mutation_id}/execute` — `approve` löst sie niemals aus; es gibt keinen Hintergrundexecutor, keinen Scheduler und keinen automatischen Retry. Zieladressierung, Feldvertrag v1, Sidecar-Schreib- und Ergebnisvertrag, Capability-Brücke und die Reihenfolge Create → Update → Delete stehen normativ in ADR-0019.
 
 ### §7.3 Konfliktfälle und ihre definierte Behandlung
 
@@ -449,7 +449,7 @@ Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architektu
 
 **Blockiert weiterhin ausschließlich den Modulabschluss:**
 
-1. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen. Bis dahin bleibt der Sidecar bei `not_implemented`. **Die Architektur dafür ist seit dem 2026-08-01 eingefroren** ([ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md), DEC-044): verbindlicher Ablauf mit separater Execute-Nutzeraktion, geschlossener Feldvertrag v1, Identitätsvertrag ohne rohe Apple-Kennungen an der API, Sidecar-Schreib- und Ergebnisvertrag, Capability-Brücke, Reihenfolge M2 Create (x86_64) → M3 Create (arm64) → M4 Update → M5 Delete. **Delete zusätzlich verriegelt hinter DEC-D06.** Offen ist damit nur noch die Implementierung selbst, je Phase mit eigener Freigabe.
+1. **Provider-Mutationen — Anlegen ist implementiert, Bearbeiten und Löschen nicht.** Architektur eingefroren in [ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md) (DEC-044); **Phase M2 (`create`) ist seit dem 2026-08-01 im Code umgesetzt** und wartet auf die x86_64-Live-Abnahme. Danach M3 (arm64-Gegenprüfung), M4 (Update), M5 (Delete). **Delete zusätzlich verriegelt hinter DEC-D06.** `update` und `delete` liefern im Sidecar weiterhin `not_implemented`.
 2. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
 3. **Abschliessender Cross-Architecture-Test der Mutationen** — sobald sie existieren, auf beiden Architekturen auf echter Hardware.
 4. **Backup-/Restore-Roundtrip je Architektur**, soweit als Modulabschluss vorgesehen.
@@ -458,6 +458,26 @@ Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architektu
 **Erledigt am 2026-07-31: Datenschutz-Härtung des `SyncStatusOut`-Vertrags.** `GET /sync/status` gibt keine rohen Konto- oder Containerkennungen mehr heraus, sondern `provider_type`, `account_ref` und `container_ref`; `has_cursor` heisst `cursor_present`, dazu kommen `requires_full_diff` und `last_successful_run_at`. Die Maskierung ist dieselbe Bildung wie in der Auditspur (`sync.audit.container_ref`), damit ein `C-…` in Bericht, Datenbank und API denselben Container bezeichnet. Persistenz, Sync und Sidecar arbeiten unverändert mit den echten Kennungen — gehärtet ist ausschliesslich der Transport. Befund aus der x86_64-Abnahme (§8 C dort).
 
 **Noch offen an diesem Vertrag:** ein stabiler technischer Fehlercode, `retryable` und Aggregatzahlen je Zeile. `contacts_sync_state` hat dafür keine Spalten; sie zu ergänzen verlangte eine Migration **und** einen Schreibpfad in der Sync-Logik. **Entschieden am 2026-08-01 (ADR-0019 §8):** dafür wird **keine** eigene Migration angelegt; die Felder kommen erst, wenn eine verlässliche fachliche Quelle und ein klarer UI-Verbraucher existieren.
+
+### §15.1 Umsetzungsstand Create (Phase M2, 2026-08-01)
+
+| Baustein | Ort |
+|---|---|
+| Zustand `provider_applied_pending_reconcile` + `readback_digest` | Migration `0006` |
+| Geschlossener Feldvertrag v1 | `application/field_contract.py` |
+| Sidecar-`create` (ein `CNSaveRequest`, Read-back, Ergebnisvertrag) | `native/contacts-bridge/src/sidecar.swift` |
+| Provider und Abgleichleser | `application/bridge_provider.py` |
+| Ausführungsroute `POST …/mutations/{id}/execute` | `api/routes.py` |
+| C1/C2 und `finalize_pending` | `application/mutation_service.py` |
+| Capability-Brücke Handshake → `ContactCapabilitySet` | `domain/capabilities.py` |
+
+**Feldvertrag v1 — die geschlossene Feldmenge.** Zwölf skalare Textfelder (`given_name`, `middle_name`, `family_name`, `previous_family_name`, `name_prefix`, `name_suffix`, `nickname`, `phonetic_given_name`, `phonetic_family_name`, `organization_name`, `department_name`, `job_title`), dazu `contact_type` (nur beim Anlegen), `birthday` sowie die Listen `emails`, `phones` (je 10), `postal_addresses` (5), `urls` (10) und `dates` (5). Labels kommen aus geschlossenem Vorrat: `home`/`work`/`other`, bei Telefon zusätzlich `mobile`/`main`, bei Datumsangaben nur `other`. Listen werden kanonisch sortiert — die Reihenfolge ist in v1 nicht frei wählbar, dafür ist der Read-back-Vergleich unabhängig von der Reihenfolge, die Apple liefert.
+
+**Nicht in v1** und nur über eine Vertragsversion v2 erreichbar: Notizen, Kontaktbild, Me-Karte als Ziel, Link/Unlink, soziale Profile, Sofortnachrichten, Beziehungen, Gruppen, `sub_locality`.
+
+**Belegte Grenze des Abgleichs.** `CNChangeHistoryFetchRequest` kennt nur `excludedTransactionAuthors`; ein `includedTransactionAuthors` existiert nicht, und `CNChangeHistoryEvent` trägt keinen Autor (SDK-Befund macOS 12–13). Ein `create`, dessen Antwort verlorenging, lässt sich deshalb **nicht** über den eigenen Transaktionsautor wiederfinden. Der Abgleich urteilt dann mehrdeutig und ein Mensch entscheidet; eine Namens- oder Ähnlichkeitssuche findet nicht statt.
+
+**Live-Testplan für die x86_64-Abnahme** (noch nicht ausgeführt): genau **ein** eigens angelegter Testkontakt mit Präfix `ZZZ-JarvisTest-` (DEC-038) in einem ausdrücklich benannten Container. Ablauf: Anlage vorbereiten → Vorschau prüfen → freigeben → **getrennt** ausführen → Read-back und lokalen Spiegel prüfen → Auditkette prüfen → Kontakt anschliessend in Apple Kontakte von Hand entfernen. Bestehende private Kontakte bleiben unberührt; es wird nichts bearbeitet und nichts gelöscht.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 

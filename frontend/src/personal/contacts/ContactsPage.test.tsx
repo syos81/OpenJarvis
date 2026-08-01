@@ -53,7 +53,7 @@ const mock = api as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const zusammenfassung = (id: string, name: string, extra = {}) => ({
   id, display_name: name, organization_name: null, contact_type: 'person',
   is_me_card: false, field_completeness: 'complete', sync_state: 'synced',
-  conflict_state: null, roles: [], provider_account_ids: ['apple-local'],
+  conflict_state: null, roles: [], account_refs: ['A-9f2c11'],
   email_count: 1, phone_count: 0, address_count: 0,
   has_unavailable_fields: false, ...extra,
 });
@@ -69,8 +69,9 @@ const detail = (id: string, name: string, extra = {}) => ({
   urls: [], dates: [], social_profiles: [], instant_messages: [],
   relations: [], roles: [],
   field_availability: [{ field_name: 'note', state: 'unavailable_by_capability' }],
-  provider_accounts: ['apple-local'], containers: ['con-1'],
-  write_target: 'raw-1', unified_read_only: true, ...extra,
+  account_refs: ['A-9f2c11'], container_refs: ['C-1b3d99'],
+  provider_type: 'apple_contacts', writable: true, revision: '1',
+  unified_read_only: true, ...extra,
 });
 
 const seite = (items: unknown[], extra = {}) => ({

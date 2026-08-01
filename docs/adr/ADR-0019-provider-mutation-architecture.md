@@ -15,10 +15,16 @@ Verwandte DEC-Einträge: DEC-031, DEC-042, DEC-043, DEC-044 (dieser ADR); DEC-D0
 
 Dieser ADR friert die Architektur ein, nach der Personal Jarvis Kontakte bei
 Apple Contacts anlegt, ändert und löscht. Er entscheidet **Architektur**, keine
-Implementierung: bei seiner Annahme existiert im Produktcode weiterhin kein
-`CNSaveRequest`, kein `CNMutableContact` und kein produktiver Aufrufer von
-`execute()`. Jede Implementierung folgt der Phasenfolge in §9 und beginnt erst
-nach ausdrücklicher Freigabe des Eigentümers je Phase.
+Implementierung: bei seiner Annahme existierte im Produktcode weder ein
+`CNSaveRequest` noch ein produktiver Aufrufer von `execute()`. Jede
+Implementierung folgt der Phasenfolge in §9 und beginnt erst nach
+ausdrücklicher Freigabe des Eigentümers je Phase.
+
+> **Umsetzungsstand 2026-08-01:** Phase **M2 (nur `create`)** ist im Code
+> umgesetzt. Der Sidecar hat seither **genau einen** Schreibpfad; `update` und
+> `delete` bleiben `not_implemented`. Die Live-Abnahme auf x86_64 steht noch
+> aus. Die drei Präzisierungen aus der Umsetzung sind unten jeweils an ihrer
+> Stelle vermerkt (Read-back-Digest, Abgleichgrenze, Ergebnisvertrag).
 
 ## Kontext: verifizierter Ist-Zustand (2026-08-01, Commit `0892459`)
 
@@ -111,8 +117,10 @@ Verbindlich:
 - **`outcome_unknown` führt ausschließlich in den Abgleich** (`reconcile`).
 - **Der Abgleich sucht niemals über Namen oder Ähnlichkeit.** Zuordnung
   ausschließlich über einen belegten stabilen Bezug: die vom Provider
-  gemeldete Identität oder den Transaktionsautor-Marker in der
-  Change-History. Fehlt beides ⇒ `manual_decision_required`.
+  gemeldete Identität. *(Präzisierung 2026-08-01: der ursprünglich zusätzlich
+  vorgesehene Transaktionsautor-Marker ist über die öffentliche Apple-API
+  nicht erreichbar — Begründung in §4.)* Fehlt die Identität ⇒
+  `manual_decision_required`.
 
 ### 2. Öffentliche und interne Identitäten
 
@@ -269,7 +277,7 @@ Vorschau gesehen hat** — oder nichts.
 
 | Ausgang | Bedeutung | Inhalt |
 |---|---|---|
-| `applied` | Provideränderung bestätigt **und** belegt | `providerIdentifier`; vollständiger Read-back-DTO des geschriebenen Kontakts (bei `delete` stattdessen der Beleg der bestätigten Abwesenheit: gezielter Fetch ⇒ `recordDoesNotExist`); `readBackDigest` über den kanonisch serialisierten DTO als **stabiler Revisionsbeleg** — Apple stellt keine Revisionsnummer bereit, der Digest des Read-backs ist der Beleg |
+| `applied` | Provideränderung bestätigt **und** belegt | `providerIdentifier`; vollständiger Read-back-DTO des geschriebenen Kontakts (bei `delete` stattdessen der Beleg der bestätigten Abwesenheit: gezielter Fetch ⇒ `recordDoesNotExist`) |
 | `not_sent` | nachweislich kein `execute(save)` an den Store übergeben | `errorCode` aus der geschlossenen Menge (`invalid_request`, `not_found`, `conflict`, `forbidden`, `tcc_denied`, `unsupported`, `provider_error`); terminal für diesen Vorgang |
 | `outcome_unknown` | Save möglicherweise übergeben | `errorCode`; gilt auch, wenn der Save bestätigt wurde, aber der Read-back scheitert (`readback_failed_after_save`) — der geschlossene Vertrag kennt kein „angewandt ohne Beleg", der Abgleich liefert den Beleg nach |
 
@@ -277,6 +285,8 @@ Aus Kernsicht gilt zusätzlich: Timeout, Prozessabbruch oder Protokollfehler
 während einer mutierenden Operation ⇒ `outcome_unknown`. Für Mutationen gilt
 ein eigener Anfrage-Timeout (Vorgabe 120 s statt der allgemeinen 30 s), denn
 ein Timeout ist hier nie folgenlos, sondern erzeugt Abgleicharbeit.
+
+**Präzisierung 2026-08-01 (Umsetzung M2): der Read-back-Digest entsteht im Kern.** Dieser ADR nannte `readBackDigest` ursprünglich als Feld der Sidecar-Antwort. Bei der Umsetzung stellte sich heraus, dass seine Bildung die **Rücknormalisierung der Apple-Rohlabels** verlangt (`_$!<Work>!$_` → `work`) — und Normalisierung ist nach ADR-0016 Punkt 4 ausdrücklich Kernaufgabe und dem Sidecar verboten. Ein im Sidecar gebildeter Digest wäre für den Kern ausserdem nicht nachrechenbar, und zwei Digest-Bildungen wären zwei Wahrheiten. **Deshalb:** der Sidecar liefert den zurückgelesenen Datensatz als DTO, der Kern projiziert ihn auf den Feldvertrag v1 und bildet daraus den Beleg (`application.field_contract.readback_digest`). Die Eigenschaft bleibt unverändert — deterministisch, plattformstabil, ohne Kennung, Pfad oder Zeitstempel, mit eingebundener Vertragsversion.
 
 **Idempotenz im Sidecar:** Der Sidecar darf sich prozesslokal
 (`idempotencyKey` → Ergebnis) erinnern und eine Wiederholung mit demselben

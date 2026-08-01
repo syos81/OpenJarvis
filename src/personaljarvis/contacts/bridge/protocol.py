@@ -22,6 +22,9 @@ from typing import Any, Final
 
 __all__ = [
     "PROTOCOL_VERSION",
+    "MUTATION_CONTRACT_VERSION",
+    "FIELD_CONTRACT_VERSION",
+    "MutationOutcome",
     "Operation",
     "READ_OPERATIONS",
     "MUTATING_OPERATIONS",
@@ -34,6 +37,30 @@ __all__ = [
 
 #: Version der Protokollhülle. Änderung erzwingt beidseitige Anpassung.
 PROTOCOL_VERSION: Final[int] = 1
+
+#: Version der Mutationshülle (Pflichtfelder, Ergebnisvertrag) und des
+#: Feldvertrags. Beide Seiten nennen sie im Handshake und in jeder
+#: Mutationsanfrage; Ungleichheit schaltet die Fähigkeit fail-closed ab
+#: (ADR-0019 §6). Die Werte spiegeln `application.field_contract` — dort steht
+#: die fachliche Wahrheit, hier die Protokollsicht darauf.
+MUTATION_CONTRACT_VERSION: Final[int] = 1
+FIELD_CONTRACT_VERSION: Final[int] = 1
+
+
+class MutationOutcome:
+    """Geschlossener Ergebnisvertrag einer Mutation (ADR-0019 §4).
+
+    Die drei Werte sind **nicht** austauschbar: `NOT_SENT` behauptet, dass
+    nachweislich nichts übergeben wurde, `OUTCOME_UNKNOWN` behauptet gerade
+    das Gegenteil einer Behauptung. Ein Ausgang ausserhalb dieser Menge wird
+    fail-closed als `OUTCOME_UNKNOWN` gewertet.
+    """
+
+    APPLIED = "applied"
+    NOT_SENT = "not_sent"
+    OUTCOME_UNKNOWN = "outcome_unknown"
+
+    ALL = frozenset({APPLIED, NOT_SENT, OUTCOME_UNKNOWN})
 
 
 class Operation:
@@ -84,6 +111,13 @@ MUTATION_REQUIRED_FIELDS: Final[tuple[str, ...]] = (
     "mutationId", "idempotencyKey", "approvalId",
 )
 MUTATION_TARGET_FIELD: Final[str] = "targetProviderIdentifier"
+
+#: Zusätzliche Pflichtfelder jeder Mutation ab Vertragsversion 1. Ohne sie
+#: könnte ein Kern einem fremden Sidecar Felder schicken, die dieser still
+#: verwirft.
+MUTATION_VERSION_FIELDS: Final[tuple[str, ...]] = (
+    "mutationContractVersion", "fieldContractVersion",
+)
 
 
 class ErrorCode:

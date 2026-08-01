@@ -92,6 +92,8 @@ class MutationState:
     SUCCEEDED = "succeeded"
     FAILED_BEFORE_SEND = "failed_before_send"
     OUTCOME_UNKNOWN = "outcome_unknown"
+    #: Beim Provider bewiesen angewandt, lokal noch nicht nachgeführt.
+    PROVIDER_APPLIED_PENDING_RECONCILE = "provider_applied_pending_reconcile"
     RECONCILE_REQUIRED = "reconcile_required"
     MANUAL_DECISION_REQUIRED = "manual_decision_required"
     FAILED = "failed"
@@ -106,28 +108,50 @@ class MutationState:
     #: ausführbar, und sein Outbox-Eintrag stünde dauerhaft als fällig.
     TERMINAL = frozenset({SUCCEEDED, REJECTED, EXPIRED, CANCELLED, FAILED,
                           FAILED_BEFORE_SEND})
-    #: Zustände, aus denen nur der Abgleich weiterführt.
-    NEEDS_RECONCILE = frozenset({OUTCOME_UNKNOWN, RECONCILE_REQUIRED})
+    #: Zustände, aus denen nur der Abgleich weiterführt — **nie** ein Send.
+    #: `PROVIDER_APPLIED_PENDING_RECONCILE` gehört ausdrücklich dazu: dort ist
+    #: die Providerwirkung bewiesen, ein zweiter Send legte einen zweiten
+    #: Kontakt an.
+    NEEDS_RECONCILE = frozenset({OUTCOME_UNKNOWN, RECONCILE_REQUIRED,
+                                 PROVIDER_APPLIED_PENDING_RECONCILE})
+    #: Zustand, der ausschliesslich eine **lokale** Nacharbeit braucht.
+    PENDING_LOCAL_CATCHUP = frozenset({PROVIDER_APPLIED_PENDING_RECONCILE})
 
 
 class ProviderResponse:
-    """Antwort des Ausführungsziels — Fake-Bridge oder später echte Bridge."""
+    """Antwort des Ausführungsziels — Fake-Bridge oder echte Bridge.
+
+    `readback` und `readback_digest` sind bei `SUCCEEDED` **Pflicht**: ohne
+    zurückgelesenen Datensatz gilt ein Vorgang nicht als angewandt, sondern
+    als `outcome_unknown` (ADR-0019 §4). Der Konstruktor erzwingt das, damit
+    kein Aufrufer versehentlich einen Erfolg ohne Beleg meldet.
+    """
 
     def __init__(self, outcome: str, *, error_code: str | None = None,
-                 provider_identifier: str | None = None) -> None:
+                 provider_identifier: str | None = None,
+                 readback=None, readback_digest: str | None = None,
+                 container_identifier: str | None = None) -> None:
         if outcome not in ProviderOutcome.ALL:
             raise ValueError(f"Unbekanntes Provider-Ergebnis: {outcome}")
+        if outcome == ProviderOutcome.SUCCEEDED and not provider_identifier:
+            raise ValueError(
+                "Ein angewandter Vorgang ohne Provider-Identifier waere ein "
+                "Erfolg ohne Ziel")
         self.outcome = outcome
         self.error_code = error_code
         self.provider_identifier = provider_identifier
+        #: Der zurückgelesene Providerdatensatz — die **einzige**
+        #: Providerwahrheit für die lokale Nachführung.
+        self.readback = readback
+        self.readback_digest = readback_digest
+        self.container_identifier = container_identifier
 
 
 class MutationProvider(Protocol):
     """Das Ausführungsziel einer freigegebenen Mutation.
 
-    In Gate C ist das ausschließlich eine Fake-Bridge. Der echte Sidecar
-    liefert weiterhin `not_implemented` und wird **nicht** für Schreibzugriffe
-    freigeschaltet.
+    Produktiv ist das seit ADR-0019 der Sidecar — **ausschliesslich für
+    `create`**. `update` und `delete` liefern weiterhin `not_implemented`.
     """
 
     def apply(self, payload: MutationPayload, *, mutation_id: str,
@@ -252,6 +276,10 @@ class ContactsMutationService:
         # ── Phase A: beanspruchen, prüfen, Freigabe verbrauchen ─────────────
         with self._persistence.unit_of_work() as uow:
             zeile = self._require_row(uow, mutation_id)
+            # Die Fähigkeit wurde bei `prepare` geprüft. Zwischen Vorbereitung
+            # und Ausführung kann ein Neustart mit anderem Sidecar liegen —
+            # deshalb hier erneut, bevor irgendetwas beansprucht wird.
+            self._require_capability_named(zeile["command"])
             zustand = zeile["state"]
             if zustand in MutationState.TERMINAL:
                 raise AlreadySettled(
@@ -321,7 +349,7 @@ class ContactsMutationService:
                 ProviderOutcome.OUTCOME_UNKNOWN,
                 error_code=type(exc).__name__)
 
-        # ── Phase C: Ergebnis festschreiben ────────────────────────────────
+        # ── Phase C1: Providerergebnis festschreiben ───────────────────────
         with self._persistence.unit_of_work() as uow:
             outbox = ExternalActionOutbox(uow)
             audit = AuditTrail(uow, module=MODULE)
@@ -329,8 +357,129 @@ class ContactsMutationService:
                          subject_type=SUBJECT_TYPE, subject_id=mutation_id,
                          facts={"outcome": antwort.outcome,
                                 "errorCode": antwort.error_code})
-            return self._settle(uow, outbox, audit, mutation_id, outbox_id,
-                                token, antwort, versuche)
+            ergebnis = self._settle(uow, outbox, audit, mutation_id, outbox_id,
+                                    token, antwort, versuche)
+
+        if not ergebnis.pending_local_catchup:
+            return ergebnis
+
+        # ── Phase C2: kanonische Nachführung, eigene Arbeitseinheit ────────
+        #
+        # Bewusst **nach** C1 und in einer eigenen Transaktion: scheitert sie,
+        # bleibt die bewiesene Providerwirkung festgeschrieben und sichtbar.
+        # Eine gemeinsame Transaktion würde bei einem Fehler auch den Beweis
+        # zurückrollen — und der Vorgang stünde wieder auf `executing`, als
+        # wäre nie etwas geschehen.
+        return self.finalize_pending(mutation_id, readback=antwort.readback,
+                                     attempt_count=ergebnis.attempt_count)
+
+    # ── C2: kanonische lokale Nachführung ───────────────────────────────────
+    def finalize_pending(self, mutation_id: str, *, readback=None,
+                         attempt_count: int = 0) -> ExecutionResult:
+        """Führt den kanonischen Spiegel nach und schliesst den Vorgang ab.
+
+        **Löst nie einen Provideraufruf aus.** Die Providerwahrheit kommt
+        entweder als `readback` aus dem Lauf, der eben geschrieben hat, oder —
+        bei einer Wiederholung — aus dem Entwurf, sofern `readback_digest`
+        belegt, dass Entwurf und Providerzustand identisch sind. Weicht der
+        Providerzustand ab und liegt kein Read-back vor, bleibt der Vorgang in
+        der Zwischenlage; dann ist der Abgleich zuständig, und der liest.
+
+        Der Aufruf ist wiederholbar: findet er den Kontakt bereits unter der
+        Provider-Identität, aktualisiert er ihn, statt einen zweiten anzulegen.
+        """
+        with self._persistence.unit_of_work() as uow:
+            zeile = self._require_row(uow, mutation_id)
+            zustand = zeile["state"]
+            if zustand == MutationState.SUCCEEDED:
+                return ExecutionResult(
+                    mutation_id=mutation_id, state=MutationState.SUCCEEDED,
+                    outcome="succeeded",
+                    provider_identifier=zeile["target_provider_identifier"],
+                    contact_id=zeile["target_contact_id"],
+                    readback_digest=zeile["readback_digest"],
+                    attempt_count=zeile["attempt_count"])
+            if zustand not in MutationState.PENDING_LOCAL_CATCHUP:
+                raise MutationNotExecutable(
+                    f"Mutation ist '{zustand}' und wartet nicht auf eine "
+                    f"lokale Nachfuehrung")
+
+            quelle = readback if readback is not None else self._aus_entwurf(zeile)
+            if quelle is None:
+                raise MutationNotExecutable(
+                    "Der Providerzustand weicht vom Entwurf ab; die "
+                    "Nachfuehrung braucht einen Abgleich mit dem Provider")
+
+            contact_id = self._spiegeln(uow, zeile, quelle)
+            self._set_state(uow, mutation_id, MutationState.SUCCEEDED,
+                            outcome="succeeded", completed=True)
+            uow.execute(
+                "UPDATE contacts_mutations SET target_contact_id = ? "
+                "WHERE mutation_id = ?", (contact_id, mutation_id))
+            AuditTrail(uow, module=MODULE).record(
+                AuditStage.MUTATION_COMPLETED, subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id,
+                facts={"outcome": "succeeded", "localMirrorUpdated": True})
+            return ExecutionResult(
+                mutation_id=mutation_id, state=MutationState.SUCCEEDED,
+                outcome="succeeded",
+                provider_identifier=zeile["target_provider_identifier"],
+                contact_id=contact_id, readback_digest=zeile["readback_digest"],
+                attempt_count=attempt_count or zeile["attempt_count"])
+
+    @staticmethod
+    def _aus_entwurf(zeile):
+        """Der Entwurf als Providerwahrheit — **nur** wenn der Beleg passt.
+
+        `readback_digest` wurde aus dem tatsächlich zurückgelesenen Datensatz
+        gebildet. Stimmt er mit dem Digest des Entwurfs überein, sind beide
+        beweisbar derselbe Feldstand — dann darf der Entwurf die Nachführung
+        speisen, ohne dass jemand den Provider erneut fragt. Stimmt er nicht,
+        wird nichts geraten.
+        """
+        from personaljarvis.contacts.application.field_contract import (
+            as_bridge_contact,
+            parse_canonical_payload,
+            readback_digest,
+        )
+
+        beleg = zeile["readback_digest"]
+        kennung = zeile["target_provider_identifier"]
+        if not beleg or not kennung or zeile["command"] != "create":
+            return None
+        payload = ContactsMutationService._payload_from_row(zeile)
+        entwurf = parse_canonical_payload(payload.fields)
+        if readback_digest(entwurf) != beleg:
+            return None
+        return as_bridge_contact(entwurf, provider_identifier=kennung)
+
+    def _spiegeln(self, uow: UnitOfWork, zeile, quelle) -> str:
+        """Schreibt den Providerdatensatz in den kanonischen Bestand.
+
+        Es entsteht **kein** Duplikat: existiert die Provider-Identität lokal
+        bereits, wird derselbe Datensatz aktualisiert. Lokale Rollen und
+        Kategorien bleiben unberührt — sie gehören dem Bestand, nicht dem
+        Provider.
+        """
+        from personaljarvis.contacts.sync.mapper import map_bridge_contact
+
+        repos = self._persistence.repositories(uow)
+        vorhanden = repos.external_ids.find_contact_id(
+            zeile["provider_account_id"], quelle.provider_identifier)
+        abbildung = map_bridge_contact(
+            quelle, workspace_id=zeile["workspace_id"],
+            provider_account_id=zeile["provider_account_id"],
+            container_identifier=zeile["container_identifier"] or "",
+            contact_id=vorhanden, observed_at=utc_now())
+        if vorhanden is None:
+            repos.contacts.add(abbildung.contact)
+        else:
+            repos.contacts.update(abbildung.contact)
+        repos.external_ids.upsert(abbildung.contact.id,
+                                  abbildung.external_identifier)
+        repos.field_availability.set_for_contact(abbildung.contact.id,
+                                                 abbildung.field_availability)
+        return abbildung.contact.id
 
     # ── Erholung nach Prozessabbruch ────────────────────────────────────────
     def recover_interrupted(self) -> tuple[str, ...]:
@@ -344,6 +493,13 @@ class ContactsMutationService:
         und wartet auf den Abgleich. **Nie** wird er erneut gesendet, und nie
         wird er als `failed_before_send` eingestuft (unbekannte Phase ist nie
         „nichts gesendet").
+
+        **`provider_applied_pending_reconcile` wird hier nicht angefasst.**
+        Dort ist die Providerwirkung bewiesen; ihn auf `outcome_unknown`
+        zurückzusetzen hiesse, einen Beweis gegen eine Ungewissheit zu
+        tauschen. Die Abfrage unten trifft ausschliesslich `executing` — der
+        Zustand bleibt sichtbar und wird über die **lokale** Nachführung
+        aufgelöst, nie über einen Send.
 
         Ausdrücklicher Verwaltungsaufruf: darf nur laufen, wenn kein Executor
         aktiv ist (im Serve-Betrieb sichert das die Prozesssperre). Es gibt
@@ -383,17 +539,22 @@ class ContactsMutationService:
     def _settle(self, uow, outbox, audit, mutation_id, outbox_id, token,
                 antwort, versuche) -> ExecutionResult:
         if antwort.outcome == ProviderOutcome.SUCCEEDED:
+            # C1 — die Providerwirkung ist bewiesen und wird sofort
+            # festgeschrieben. `succeeded` ist das aber noch **nicht**: der
+            # kanonische Spiegel steht noch aus. Ohne diese Trennung waere ein
+            # Abbruch zwischen Provider und Spiegel von einem ungewissen
+            # Ausgang nicht zu unterscheiden (ADR-0019 §5).
             outbox.mark_succeeded(outbox_id, token)
-            self._set_state(uow, mutation_id, MutationState.SUCCEEDED,
-                            outcome="succeeded", completed=True,
-                            provider_identifier=antwort.provider_identifier)
-            audit.record(AuditStage.MUTATION_COMPLETED,
-                         subject_type=SUBJECT_TYPE, subject_id=mutation_id,
-                         facts={"outcome": "succeeded"})
+            self._set_state(uow, mutation_id,
+                            MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
+                            provider_identifier=antwort.provider_identifier,
+                            readback_digest=antwort.readback_digest)
             return ExecutionResult(
-                mutation_id=mutation_id, state=MutationState.SUCCEEDED,
-                outcome="succeeded",
+                mutation_id=mutation_id,
+                state=MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
+                outcome=None,
                 provider_identifier=antwort.provider_identifier,
+                readback_digest=antwort.readback_digest,
                 attempt_count=versuche)
 
         if antwort.outcome in (ProviderOutcome.REJECTED_BEFORE_SEND,
@@ -429,12 +590,15 @@ class ContactsMutationService:
 
     # ── Hilfen ──────────────────────────────────────────────────────────────
     def _require_capability(self, command: MutationCommand) -> None:
+        self._require_capability_named(command.command_name)
+
+    def _require_capability_named(self, command_name: str) -> None:
         if self._capabilities is None:
             return
-        name = {"create": "create", "update": "update",
-                "delete": "delete"}[command.command_name]
+        if command_name not in ("create", "update", "delete"):
+            raise InvalidCommand(f"Unbekannter Command: {command_name}")
         try:
-            self._capabilities.require(name)
+            self._capabilities.require(command_name)
         except Exception as exc:                        # noqa: BLE001
             raise CapabilityNotDeclared(str(exc)) from exc
 
@@ -455,7 +619,8 @@ class ContactsMutationService:
             preview=MutationPreview(
                 command=zeile["command"],
                 target_provider_identifier=zeile["target_provider_identifier"],
-                container_identifier=zeile["container_identifier"]),
+                container_identifier=zeile["container_identifier"],
+                target_contact_id=zeile["target_contact_id"]),
             reused=True)
 
     def _resolve_target(self, uow: UnitOfWork, command: MutationCommand) -> dict:
@@ -509,11 +674,17 @@ class ContactsMutationService:
                        ziel: dict) -> MutationPreview:
         """Vorschau mit konkreten Werten — wird zurückgegeben, nie gespeichert."""
         if isinstance(command, CreateContact):
+            # Die Vorschau nennt die **API**-Feldnamen, nicht die kanonischen
+            # Schlüssel: der Mensch sieht dieselbe Bezeichnung wie im Formular.
+            from personaljarvis.contacts.application.field_contract import (
+                preview_items,
+            )
+
             return MutationPreview(
                 command="create", target_provider_identifier=None,
                 container_identifier=command.container_identifier,
-                changes=tuple(FieldChange(k, None, v) for k, v
-                              in sorted(command.draft.fields.items())))
+                changes=tuple(FieldChange(name, None, wert) for name, wert
+                              in preview_items(command.draft.contract)))
         vorher = {}
         if ziel.get("contact_id"):
             zeile = uow.execute(
@@ -529,13 +700,15 @@ class ContactsMutationService:
                 changes=tuple(
                     FieldChange(k, vorher.get(k), v) for k, v
                     in sorted(command.patch.fields.items())),
-                target_label=vorher.get("display_name"))
+                target_label=vorher.get("display_name"),
+                target_contact_id=ziel.get("contact_id"))
         # delete: Zielkontakt knapp benennen, sonst keine PII.
         return MutationPreview(
             command="delete",
             target_provider_identifier=command.target_provider_identifier,
             container_identifier=None,
             target_label=vorher.get("display_name"),
+            target_contact_id=ziel.get("contact_id"),
             warnings=("Der Datensatz wird beim Provider geloescht.",))
 
     def _precheck(self, uow: UnitOfWork, zeile, payload: MutationPayload) -> None:
@@ -633,9 +806,12 @@ class ContactsMutationService:
     def _set_state(uow: UnitOfWork, mutation_id: str, state: str, *,
                    outcome: str | None = None, error_code: str | None = None,
                    completed: bool = False, execution_started: bool = False,
-                   provider_identifier: str | None = None) -> None:
+                   provider_identifier: str | None = None,
+                   readback_digest: str | None = None) -> None:
         felder = ["state = ?"]
         werte: list = [state]
+        if readback_digest is not None:
+            felder.append("readback_digest = ?"); werte.append(readback_digest)
         if outcome is not None:
             felder.append("outcome = ?"); werte.append(outcome)
         if error_code is not None:

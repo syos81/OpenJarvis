@@ -16,7 +16,8 @@ from dataclasses import dataclass, field
 from personaljarvis.contacts.domain.enums import FieldAvailabilityState
 from personaljarvis.errors import CapabilityError
 
-__all__ = ["ContactCapabilitySet", "NOTE_FIELD", "default_capabilities"]
+__all__ = [
+    "derive_capabilities","ContactCapabilitySet", "NOTE_FIELD", "default_capabilities"]
 
 # Der Feldname, unter dem die Nicht-Verfügbarkeit von Notizen geführt wird.
 NOTE_FIELD = "note"
@@ -83,6 +84,57 @@ class ContactCapabilitySet:
             raise CapabilityError(f"Unbekannte Operation: {operation}")
         if not supported[operation]:
             raise CapabilityError(f"Operation '{operation}' ist nicht deklariert")
+
+
+def derive_capabilities(status) -> ContactCapabilitySet:
+    """Handshake → Fähigkeitsmenge. Die Capability-Brücke (ADR-0019 §6).
+
+    Bis hierher endete der Handshake in `BridgeStatus` und kam nie im Kern an:
+    `mutationsImplemented` war eine Angabe, die niemand las. Ohne diese
+    Ableitung liesse sich eine Schreiboperation nie freischalten — und, was
+    schlimmer wäre, mit einer laxeren Ableitung liesse sie sich versehentlich
+    freischalten.
+
+    Vier Regeln, alle fail-closed:
+
+    1. **Standard ist überall `False`.** Kein Handshake, keine Fähigkeit.
+    2. **Fehlende Angaben zählen als `False`**, nicht als „vermutlich ja".
+    3. **Die Vertragsversionen müssen exakt übereinstimmen.** Ein älterer
+       Sidecar wird nie von einem neueren Kern freigeschaltet und umgekehrt;
+       sonst schickte der Kern Felder, die die Gegenseite still verwirft.
+    4. **Je Operation einzeln.** `create` schaltet `update` und `delete`
+       nicht mit frei — auch dann nicht, wenn der Sidecar es behauptete.
+    """
+    from personaljarvis.contacts.application.field_contract import (
+        FIELD_CONTRACT_VERSION,
+        MUTATION_CONTRACT_VERSION,
+    )
+
+    if status is None or not getattr(status, "available", False):
+        return default_capabilities()
+    caps = getattr(status, "capabilities", None)
+    if caps is None:
+        return default_capabilities()
+
+    vertrag_passt = (
+        getattr(caps, "mutation_contract_version", -1) == MUTATION_CONTRACT_VERSION
+        and getattr(caps, "field_contract_version", -1) == FIELD_CONTRACT_VERSION)
+
+    def schreibbar(flag: str) -> bool:
+        return bool(vertrag_passt and getattr(caps, flag, False))
+
+    return ContactCapabilitySet(
+        read_supported=True,
+        create_supported=schreibbar("create_implemented"),
+        update_supported=schreibbar("update_implemented"),
+        delete_supported=schreibbar("delete_implemented"),
+        change_history_supported=bool(
+            getattr(caps, "change_history_supported", False)),
+        full_diff_supported=bool(
+            getattr(caps, "full_diff_fallback_supported", False)),
+        unified_read_supported=bool(getattr(caps, "unified_read_only", False)),
+        key_set_version=str(getattr(status, "protocol_version", "unset")),
+    )
 
 
 def default_capabilities() -> ContactCapabilitySet:

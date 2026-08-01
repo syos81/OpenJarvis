@@ -28,7 +28,11 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
-from personaljarvis.contacts.application.errors import InvalidCommand
+from personaljarvis.contacts.application.errors import (
+    ContainerNotAvailable,
+    InvalidCommand,
+    TargetBindingError,
+)
 from personaljarvis.contacts.domain.enums import FieldAvailabilityState
 from personaljarvis.contacts.domain.models import Contact
 from personaljarvis.contacts.repositories.sqlite import (
@@ -385,6 +389,66 @@ class ContactsQueryService:
             return self._approval(zeile, now or utc_now()) if zeile else None
 
     # ── Sync-Status ─────────────────────────────────────────────────────────
+    def resolve_contact_target(self, contact_id: str, *, workspace_id: str
+                               ) -> tuple[str, str]:
+        """Lokale Kontaktkennung → (Providerkonto, Providerkennung).
+
+        Fail-closed: ohne externe Identität gibt es kein Ziel, und bei mehreren
+        wäre unklar, welcher Rohdatensatz gemeint ist. Beides ist ein Fehler —
+        nie eine Auswahl.
+        """
+        with self._persistence.unit_of_work() as uow:
+            rows = uow.execute(
+                "SELECT e.provider_account_id, e.provider_identifier "
+                "FROM contact_external_ids e JOIN contacts c ON c.id = e.contact_id "
+                "WHERE e.contact_id = ? AND c.workspace_id = ? "
+                "ORDER BY e.provider_account_id, e.provider_identifier",
+                (contact_id, workspace_id)).fetchall()
+        if not rows:
+            raise TargetBindingError(
+                "Dieser Kontakt hat keine Provideridentität und ist deshalb "
+                "kein Mutationsziel")
+        if len(rows) > 1:
+            raise TargetBindingError(
+                "Dieser Kontakt hat mehrere Provideridentitäten; das Ziel ist "
+                "nicht eindeutig")
+        return rows[0]["provider_account_id"], rows[0]["provider_identifier"]
+
+    def resolve_container_ref(self, container_ref: str) -> tuple[str, str]:
+        """Maskierte Containerreferenz → (Providerkonto, Containerkennung).
+
+        Fail-closed in beide Richtungen: kein Treffer und mehrere Treffer sind
+        beides ein Fehler. Es wird **nie** der erste Treffer genommen — eine
+        Kollision der Maskierung darf niemals dazu führen, dass ein Kontakt im
+        falschen Container landet (ADR-0019 §2).
+
+        Die Kandidatenmenge ist der bekannte Bestand aus `contacts_sync_state`:
+        ein Container, der nie synchronisiert wurde, ist auch kein gültiges
+        Ziel — dann fehlten Fähigkeiten und Feldzustände.
+        """
+        from personaljarvis.contacts.api.redaction import (
+            container_ref as maskieren,
+        )
+
+        with self._persistence.unit_of_work() as uow:
+            rows = uow.execute(
+                "SELECT DISTINCT provider_account_id, container_identifier "
+                "FROM contacts_sync_state "
+                "ORDER BY provider_account_id, container_identifier"
+            ).fetchall()
+        treffer = [(r["provider_account_id"], r["container_identifier"])
+                   for r in rows
+                   if maskieren(r["container_identifier"]) == container_ref]
+        if not treffer:
+            raise ContainerNotAvailable(
+                "Der gewaehlte Container ist nicht bekannt. Bekannt werden "
+                "Container erst durch eine Synchronisation.")
+        if len(treffer) > 1:
+            raise ContainerNotAvailable(
+                "Die Containerreferenz ist nicht eindeutig; es wird nichts "
+                "geraten.")
+        return treffer[0]
+
     def sync_status(self, *, provider_account_id: str | None = None
                     ) -> tuple[SyncStatusView, ...]:
         bedingung = ""
