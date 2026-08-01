@@ -477,7 +477,18 @@ Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architektu
 
 **Belegte Grenze des Abgleichs.** `CNChangeHistoryFetchRequest` kennt nur `excludedTransactionAuthors`; ein `includedTransactionAuthors` existiert nicht, und `CNChangeHistoryEvent` trägt keinen Autor (SDK-Befund macOS 12–13). Ein `create`, dessen Antwort verlorenging, lässt sich deshalb **nicht** über den eigenen Transaktionsautor wiederfinden. Der Abgleich urteilt dann mehrdeutig und ein Mensch entscheidet; eine Namens- oder Ähnlichkeitssuche findet nicht statt.
 
-**Live-Testplan für die x86_64-Abnahme** (noch nicht ausgeführt): genau **ein** eigens angelegter Testkontakt mit Präfix `ZZZ-JarvisTest-` (DEC-038) in einem ausdrücklich benannten Container. Ablauf: Anlage vorbereiten → Vorschau prüfen → freigeben → **getrennt** ausführen → Read-back und lokalen Spiegel prüfen → Auditkette prüfen → Kontakt anschliessend in Apple Kontakte von Hand entfernen. Bestehende private Kontakte bleiben unberührt; es wird nichts bearbeitet und nichts gelöscht.
+**Live-Abnahme x86_64 am 2026-08-01: NICHT BESTANDEN** — [Bericht](../../testing/contacts-x86_64-create-live-2026-08-01.md). Der funktionale Create-Pfad hat sein Ziel verfehlt: der Sidecar starb an einer ungefangenen Objective-C-Ausnahme **in Apples eigener Speicherlogik** (`CNCDSaveRequestExecutor` → `ABManagedObjectContext save:` → SIGABRT), nachdem der Speicherauftrag übergeben war. Die manuelle Sichtprüfung ergab: **kein Kontakt entstanden**, kein bestehender Kontakt verändert.
+
+Alle Sicherungen haben gehalten: genau **ein** Sendversuch, korrekte Einstufung als `outcome_unknown` (nicht als „nichts gesendet"), zweiter Ausführungsversuch mit 409 abgewiesen, Freigabe verbraucht, Bestand unverändert bei 117 Kontakten und 0 Tombstones. Die gesendete Nutzlast war vertragskonform; der Zielcontainer existierte.
+
+**Die Ursache ist nicht bewiesen.** Der Grundtext der Ausnahme fehlt im Absturzbericht; die `stderr`-Übernahme der Bridge hatte ihn redigiert — dieser Diagnoseverlust ist seither behoben. Als Hypothese, ausdrücklich **nicht** als Produktregel: geschrieben wurde in einen kontogebundenen Container, während der arm64-Spike erfolgreich in den lokalen schrieb.
+
+**Zwei offene Lücken aus diesem Lauf:**
+
+1. **Kein manueller Abschlussweg.** Nach externer Sichtprüfung lässt sich „Provideränderung nicht beobachtet; Vorgang ohne erneuten Send schliessen" nirgends festhalten: `reject`/`cancel`/`expire` verlangen eine wartende Freigabe (diese ist verbraucht), `execute` ist gesperrt, `reconcile` verlangt einen Providerzugriff. Zusätzlich ist `manual_decision_required` eine Sackgasse — der Zustand wird gesetzt, aber von keinem Übergang verlassen. Das ist eine eigene Entscheidung, kein Fehlerbehebungsdetail.
+2. **`attempt_count` in `contacts_mutations` bleibt 0**, während die Outbox 1 zählt. Die Ausführungsantwort nennt den richtigen Wert; die Mutationsliste nennt den falschen.
+
+**Live-Testplan für den nächsten Versuch** (eigene Freigabe erforderlich): genau **ein** Testkontakt mit Präfix `ZZZ-JarvisTest-` (DEC-038), diesmal ausdrücklich im **lokalen** Container. Ablauf unverändert: Anlage vorbereiten → Vorschau prüfen → freigeben → **getrennt** ausführen → Read-back und lokalen Spiegel prüfen → Auditkette prüfen → Kontakt anschliessend in Apple Kontakte von Hand entfernen. Bestehende private Kontakte bleiben unberührt; es wird nichts bearbeitet und nichts gelöscht.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 

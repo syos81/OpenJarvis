@@ -52,6 +52,54 @@ _STDERR_ALLOWED = re.compile(r"^\[contacts-bridge\][^@]*$")
 _STDERR_MAX_LINES = 20
 _STDERR_MAX_LEN = 200
 
+# ── Ungefangene Objective-C-Ausnahmen ────────────────────────────────────────
+#
+# Warum es diese zweite Erkennung gibt: Stirbt der Sidecar an einer nicht
+# abgefangenen ObjC-Ausnahme, schreibt die Laufzeit einen mehrzeiligen Dump
+# nach stderr — und **keine** dieser Zeilen beginnt mit `[contacts-bridge]`.
+# Die Allowlist oben ersetzte deshalb den gesamten technischen Befund durch
+# identische Platzhalter. Beim Create-Livetest am 2026-08-01 blieb von einem
+# SIGABRT mitten in Apples Save-Pfad nichts übrig; die Ursache liess sich nur
+# noch aus dem Absturzbericht des Systems rekonstruieren.
+#
+# Erhalten bleibt deshalb **die Ausnahmeklasse** — sie ist ein Bezeichner aus
+# Apples Typsystem und trägt keine Nutzdaten. Der `reason` dagegen ist
+# Freitext, den Apple mit beliebigen Werten füllen darf: er wird nicht
+# übernommen, sondern nur als vorhanden gemeldet. Ein Kontaktwert, ein Pfad
+# oder eine Kennung kann so nicht durchrutschen, und die Frage „welche
+# Ausnahme?" bleibt trotzdem beantwortbar.
+_OBJC_EXCEPTION = re.compile(
+    r"uncaught exception(?: of type)?\s+'?(?P<klasse>[A-Za-z_][\w:.]*)'?")
+#: Der Abschluss-Marker der C++-Laufzeit. Er trägt nie Nutzdaten.
+_OBJC_TERMINATING = re.compile(r"^(?:libc\+\+abi|\*\*\* Terminating app)")
+#: Eine Stapelzeile: laufende Nummer, Abbildname, Adresse, Symbol. Übernommen
+#: werden ausschliesslich Abbildname und Symbol — Adressen sind wertlos und
+#: der Rest der Zeile könnte alles enthalten. Die Zeichenklasse des Symbols
+#: lässt Objective-C-Selektoren zu (`-[Klasse methode:]`), aber bewusst
+#: **kein** `/`: damit kann keine Pfadangabe als Symbol durchrutschen.
+_OBJC_FRAME = re.compile(
+    r"^\s*\d+\s+(?P<bild>[\w.+-]+)\s+0x[0-9a-fA-F]+\s+"
+    r"(?P<symbol>[\w:.$+\-\[\] ]{1,80})")
+
+
+def _technische_stderr_zeile(line: str) -> str | None:
+    """Der technische Kern einer nativen Absturzzeile — oder `None`.
+
+    Gibt niemals Freitext des Systems zurück, sondern ausschliesslich
+    zusammengesetzte Angaben aus geprüften Bestandteilen.
+    """
+    treffer = _OBJC_EXCEPTION.search(line)
+    if treffer:
+        grund = "reason vorhanden" if "reason:" in line else "ohne reason"
+        return f"[nativ] uncaught {treffer.group('klasse')} ({grund})"
+    if _OBJC_TERMINATING.match(line):
+        return "[nativ] Laufzeit beendet den Prozess (uncaught exception)"
+    rahmen = _OBJC_FRAME.match(line)
+    if rahmen:
+        symbol = rahmen.group("symbol").strip()
+        return f"[nativ] frame {rahmen.group('bild')} {symbol}"[:_STDERR_MAX_LEN]
+    return None
+
 _EOF = object()
 
 
@@ -91,9 +139,20 @@ class SidecarProcess:
         return -code
 
     def safe_stderr(self) -> tuple[str, ...]:
+        """stderr in diagnosetauglicher, PII-freier Form.
+
+        Drei Klassen, in dieser Reihenfolge: eigene `[contacts-bridge]`-Zeilen
+        unverändert (sie sind schon technisch), native Absturzzeilen in
+        zusammengesetzter Form (siehe `_technische_stderr_zeile`), alles
+        Übrige redigiert. Es wird nie eine fremde Zeile wörtlich übernommen.
+        """
         out = []
         for line in self._stderr_tail[-_STDERR_MAX_LINES:]:
-            out.append(line[:_STDERR_MAX_LEN] if _STDERR_ALLOWED.match(line)
+            if _STDERR_ALLOWED.match(line):
+                out.append(line[:_STDERR_MAX_LEN])
+                continue
+            technisch = _technische_stderr_zeile(line)
+            out.append(technisch if technisch is not None
                        else "[redigiert: nicht-technische stderr-Zeile]")
         return tuple(out)
 
