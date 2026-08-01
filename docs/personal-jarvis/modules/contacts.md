@@ -177,6 +177,8 @@ Alte Namen des Entwurfs bilden sich ab als: `draft`/`validated`/`previewed` → 
 
 **`outcome_unknown` ist weder Erfolg noch Fehlschlag.** Der Übergang nach `reconcile_required` löst **zuerst einen Lesevorgang** aus (Read/Reconcile gegen den Store), bevor irgendetwas anderes geschieht. Bleibt der Ausgang danach unklar, endet der Vorgang in `manual_decision_required` mit `attention_required` in der UI — **niemals** in einer automatischen Wiederholung. `failed` entsteht ausschließlich **nach** einem eindeutigen Abgleich; eine Wiederholung ist dann eine **neue freigabepflichtige Mutation**, kein Retry. **Auch `failed_before_send` ist terminal** (Gate-C-Audit 2026-07-29): dort wurde nachweislich nichts gesendet, aber Vorschau und Freigabe des Vorgangs sind verbraucht — sein Outbox-Eintrag wird geschlossen und erscheint nie wieder als fällig; ein neuer Versuch ist ebenfalls eine neue freigabepflichtige Mutation.
 
+**Präzisierung 2026-08-01 ([ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md), verbindlich).** Für die Provider-Implementierung wird der Erfolgspfad um einen Zustand erweitert: `executing → provider_applied_pending_reconcile → succeeded`. Der neue Zustand hält die Zwischenlage „Provideränderung bestätigt und belegt, kanonische Nachführung noch offen" fest; aus ihm ist **nie** ein weiterer Send erlaubt, `recover_interrupted()` fasst ihn nicht an, und die Auflösung läuft ausschließlich über den nutzergestarteten Abgleich. `succeeded` setzt fortan **alle vier** Bedingungen voraus: Provideränderung bestätigt, Read-back erfolgreich, kanonischer Spiegel nachgeführt, Audit abgeschlossen. Die Ausführung selbst ist eine **eigene ausdrückliche Nutzeraktion** über `POST …/mutations/{mutation_id}/execute` — `approve` löst sie niemals aus; es gibt keinen Hintergrundexecutor, keinen Scheduler und keinen automatischen Retry. Zieladressierung, Feldvertrag v1, Sidecar-Schreib- und Ergebnisvertrag, Capability-Brücke und die Reihenfolge Create → Update → Delete stehen normativ in ADR-0019.
+
 ### §7.3 Konfliktfälle und ihre definierte Behandlung
 
 | Fall | Verhalten |
@@ -205,6 +207,8 @@ Es wird **keine neue Berechtigungsarchitektur** entworfen. Verwendet werden auss
 | Lokale Rolle/Kategorie setzen | R0 | rein lokal, kein Provider-Push |
 
 **Trennung von Freigabe und Ausführung:** Die Freigabe erzeugt einen Datensatz in `contacts_mutations` mit `approval_id`; die Ausführung erfolgt danach über die ExternalActionOutbox durch den R1-Executor — **nie** synchron im Request. Abgelaufene Freigaben (`expired`) werden nicht ausgeführt; der Vorgang beginnt neu mit frischer Vorschau. `outcome_unknown` erscheint als eigener, sichtbarer Zustand mit der Handlungsanweisung „zuerst abgleichen", nicht als Fehler.
+
+**Präzisierung 2026-08-01 ([ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md), verbindlich):** Der „R1-Executor" ist **kein Hintergrundprozess**. Ausgeführt wird ausschließlich auf eine **eigene ausdrückliche Nutzeraktion** (`POST …/mutations/{mutation_id}/execute` mit `user_initiated: true`) — auch bei `initiation_context = user_direct` sind Freigabe und Ausführung zwei getrennte Aktionen; ein Klick bestätigt nie beides. Die Risikoklassen-Tabelle oben nennt für „Kontakt löschen" den Stand R1; ADR-0019 §7 schlägt **Delete als R2** vor (ausdrücklich nicht beschlossen) — vor jeder Delete-Implementierung ist DEC-D06 zu entscheiden.
 
 **Audit** (10 §5): je Pipeline-Stufe ein Eintrag in derselben Transaktion wie die Fachänderung — `command_received`, `validated`, `previewed`, `approved`, `dispatched`, `provider_result`, `verified`, `reconciled`. R1 erzeugt keine signierten Checkpoints (das ist R2-Mechanik).
 
@@ -445,16 +449,15 @@ Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architektu
 
 **Blockiert weiterhin ausschließlich den Modulabschluss:**
 
-1. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen. Bis dahin bleibt der Sidecar bei `not_implemented`.
-2. **Vorschau-, Freigabe- und Ausführungsablauf** für diese Mutationen — jede Änderung am Provider braucht eine sichtbare Vorschau, eine ausdrückliche Freigabe und einen getrennten Ausführungsschritt.
-3. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
-4. **Abschliessender Cross-Architecture-Test der Mutationen** — sobald sie existieren, auf beiden Architekturen auf echter Hardware.
-5. **Backup-/Restore-Roundtrip je Architektur**, soweit als Modulabschluss vorgesehen.
-6. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
+1. **Provider-Mutationen** — Anlegen, Bearbeiten, Löschen. Bis dahin bleibt der Sidecar bei `not_implemented`. **Die Architektur dafür ist seit dem 2026-08-01 eingefroren** ([ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md), DEC-044): verbindlicher Ablauf mit separater Execute-Nutzeraktion, geschlossener Feldvertrag v1, Identitätsvertrag ohne rohe Apple-Kennungen an der API, Sidecar-Schreib- und Ergebnisvertrag, Capability-Brücke, Reihenfolge M2 Create (x86_64) → M3 Create (arm64) → M4 Update → M5 Delete. **Delete zusätzlich verriegelt hinter DEC-D06.** Offen ist damit nur noch die Implementierung selbst, je Phase mit eigener Freigabe.
+2. **Alter OpenJarvis-Apple-Contacts-Connector** — deaktivieren, entfernen oder auf die kanonische Personal-Jarvis-Datenbank umleiten (§13.2, §16 Nr. 7).
+3. **Abschliessender Cross-Architecture-Test der Mutationen** — sobald sie existieren, auf beiden Architekturen auf echter Hardware.
+4. **Backup-/Restore-Roundtrip je Architektur**, soweit als Modulabschluss vorgesehen.
+5. **Übernahme auf `jarvis/rebuild-v1`** — der Stand liegt bis dahin ausschliesslich auf dem Handoff-Branch.
 
 **Erledigt am 2026-07-31: Datenschutz-Härtung des `SyncStatusOut`-Vertrags.** `GET /sync/status` gibt keine rohen Konto- oder Containerkennungen mehr heraus, sondern `provider_type`, `account_ref` und `container_ref`; `has_cursor` heisst `cursor_present`, dazu kommen `requires_full_diff` und `last_successful_run_at`. Die Maskierung ist dieselbe Bildung wie in der Auditspur (`sync.audit.container_ref`), damit ein `C-…` in Bericht, Datenbank und API denselben Container bezeichnet. Persistenz, Sync und Sidecar arbeiten unverändert mit den echten Kennungen — gehärtet ist ausschliesslich der Transport. Befund aus der x86_64-Abnahme (§8 C dort).
 
-**Noch offen an diesem Vertrag:** ein stabiler technischer Fehlercode, `retryable` und Aggregatzahlen je Zeile. `contacts_sync_state` hat dafür keine Spalten; sie zu ergänzen verlangte eine Migration **und** einen Schreibpfad in der Sync-Logik. Beides war für die Härtung nicht erforderlich und bleibt eine eigene Entscheidung.
+**Noch offen an diesem Vertrag:** ein stabiler technischer Fehlercode, `retryable` und Aggregatzahlen je Zeile. `contacts_sync_state` hat dafür keine Spalten; sie zu ergänzen verlangte eine Migration **und** einen Schreibpfad in der Sync-Logik. **Entschieden am 2026-08-01 (ADR-0019 §8):** dafür wird **keine** eigene Migration angelegt; die Felder kommen erst, wenn eine verlässliche fachliche Quelle und ein klarer UI-Verbraucher existieren.
 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 
@@ -490,5 +493,5 @@ Es gilt 19 unverändert und vollständig. Zusätzlich modulspezifisch:
 ## §18 Verweise
 
 Primärdokumente: 04 (Bootstrap/Ports), 05 (CommandBus/Pipeline), 06 (Datenhoheit), 07 (Persistenz/Migrationen), 08 (Adaptermodell, Capability-Grenzen), 09 (Auth/Credentials), 10 (Risiko/Approvals/Audit), 11 (Sync/Outboxes/Konflikte), 12 (Egress), 13 (Backup), 14 (UI/Lifecycle), 15 §7/§8 (Abnahme), 16 §2/§3/§4.1 (Modulkarte), 17 (Deferred Decisions), 18 (DEV-2/DEV-3/DEV-4/DEV-5), 19 (Definition of Done).
-ADRs: [ADR-0001](../../adr/ADR-0001-personal-runtime-facade.md), [ADR-0003](../../adr/ADR-0003-canonical-personal-database.md), [ADR-0005](../../adr/ADR-0005-command-bus-and-action-pipeline.md), [ADR-0006](../../adr/ADR-0006-risk-r0-r1-r2.md), [ADR-0007](../../adr/ADR-0007-transactional-outboxes.md), [ADR-0012](../../adr/ADR-0012-vertical-module-development.md), [ADR-0015](../../adr/ADR-0015-personal-integration-touchpoints.md), [ADR-0016](../../adr/ADR-0016-swift-contacts-bridge.md), [ADR-0018](../../adr/ADR-0018-dual-architecture-macos-support.md).
+ADRs: [ADR-0001](../../adr/ADR-0001-personal-runtime-facade.md), [ADR-0003](../../adr/ADR-0003-canonical-personal-database.md), [ADR-0005](../../adr/ADR-0005-command-bus-and-action-pipeline.md), [ADR-0006](../../adr/ADR-0006-risk-r0-r1-r2.md), [ADR-0007](../../adr/ADR-0007-transactional-outboxes.md), [ADR-0012](../../adr/ADR-0012-vertical-module-development.md), [ADR-0015](../../adr/ADR-0015-personal-integration-touchpoints.md), [ADR-0016](../../adr/ADR-0016-swift-contacts-bridge.md), [ADR-0018](../../adr/ADR-0018-dual-architecture-macos-support.md), [ADR-0019](../../adr/ADR-0019-provider-mutation-architecture.md).
 Spike-Evidenz (historisch, unverändert), Einstiegspunkt: [contacts-bridge-arm64-phase-b-live-2026-07-28.md](../../testing/contacts-bridge-arm64-phase-b-live-2026-07-28.md) — die weiteren sechs Berichte sind in ADR-0016 verlinkt. Spike-Quellen (Referenz, kein Produktcode), Vertragsstand: `spikes/contacts-bridge-g3a/PROTOCOL.md` (im Repository, außerhalb des Doku-Baums).

@@ -4,7 +4,7 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-07-27
 Baseline-Tag: openjarvis-baseline-2026-07-27
 Maßgebliche AV-Regeln: — (Navigationsdokument; Normenhierarchie siehe 01 §2)
-Zugehörige ADRs: ADR-0001 bis ADR-0018 (Übersicht)
+Zugehörige ADRs: ADR-0001 bis ADR-0019 (Übersicht)
 Verwandte DEC-Einträge: siehe decisions-register.md
 ---
 
@@ -41,7 +41,7 @@ Dieses Dokument ist **nicht normativ**. Es dient der Navigation durch den Archit
 | — | [Entscheidungsregister](decisions-register.md) | normativ (Index) | Akzeptierte und vertagte Entscheidungen |
 | — | [Traceability-Matrix](traceability-matrix.md) | normativ (Index) | AV-Regel → Primärdokument → Testtyp → Durchsetzungsstelle |
 
-ADRs: [docs/adr/](../adr/) — ADR-0001 bis ADR-0018, alle im Status `accepted` (ADR-0001–0012: Baseline-Rückdokumentation; ADR-0013/0014: eigene ADRs der Upstream-Abweichungen DEV-1/DEV-2; ADR-0015–0017: Entscheidungen der Kontakte-Phase — Integrationspunkte DEV-4/DEV-5, Swift-Kontakte-Bridge, Keychain-Anbindung; [ADR-0018](../adr/ADR-0018-dual-architecture-macos-support.md): gleichwertige Dual-Architektur-Unterstützung für macOS arm64 und x86_64 mit Mindestversion 12.3 — ändert AV-29).
+ADRs: [docs/adr/](../adr/) — ADR-0001 bis ADR-0019, alle im Status `accepted` (ADR-0001–0012: Baseline-Rückdokumentation; ADR-0013/0014: eigene ADRs der Upstream-Abweichungen DEV-1/DEV-2; ADR-0015–0017: Entscheidungen der Kontakte-Phase — Integrationspunkte DEV-4/DEV-5, Swift-Kontakte-Bridge, Keychain-Anbindung; [ADR-0018](../adr/ADR-0018-dual-architecture-macos-support.md): gleichwertige Dual-Architektur-Unterstützung für macOS arm64 und x86_64 mit Mindestversion 12.3 — ändert AV-29; [ADR-0019](../adr/ADR-0019-provider-mutation-architecture.md): Architektur der Apple-Contacts-Provider-Mutationen — Ablauf, Feldvertrag v1, Identitäts-, Sidecar- und Ergebnisvertrag, Capability-Brücke, Reihenfolge Create → Update → Delete).
 
 ## 2. Lesereihenfolge
 
