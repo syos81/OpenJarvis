@@ -110,18 +110,57 @@ class AnalyticsClient:
         except Exception:
             pass
 
+    #: Obergrenze fuer den Shutdown-Flush. Nach Ablauf werden noch nicht
+    #: uebertragene Analytics-Events verworfen — beim Prozessende verzichtbar.
+    SHUTDOWN_TIMEOUT_SECONDS = 1.5
+
     def shutdown(self) -> None:
-        """Flush and close the SDK. Call once on process exit."""
+        """Flush mit Frist und SDK schliessen — blockiert nie unbegrenzt.
+
+        `posthog.Client.shutdown()` joint seine Consumer-Threads **ohne**
+        Timeout, und ein Consumer wartet in `queue.get()` bis zu
+        `flush_interval` (hier 30 s) auf das naechste Event. Der
+        ASGI-Lifespan hing dadurch nach SIGTERM genau in diesem Join —
+        live belegt am 2026-08-02 (Stackdump: `_shutdown_analytics` ->
+        `posthog.client.join` -> `_wait_for_tstate_lock`, waehrend der
+        Consumer in `consumer.next` -> `queue.get` stand); der Desktop
+        musste deshalb regelmaessig nach 8 s per SIGKILL nachraeumen.
+
+        Deshalb laeuft Flush+Shutdown in einem daemon-Traegerthread mit
+        fester Frist: Der Lifespan wartet hoechstens
+        `SHUTDOWN_TIMEOUT_SECONDS`; die posthog-Consumer sind selbst
+        daemon und halten den Interpreter nicht. Idempotent — der Client
+        wird unter dem Lock ausgehaengt, ein zweiter Aufruf ist ein No-op.
+        """
         with self._lock:
             if self._posthog is None:
                 return
-            try:
-                self._posthog.flush()
-                self._posthog.shutdown()
-            except Exception:
-                pass
+            client = self._posthog
             self._posthog = None
             self._enabled = False
+
+        def _close() -> None:
+            # Getrennt abgesichert: ein Fehler im Flush darf den
+            # SDK-Shutdown nicht verhindern (und umgekehrt).
+            try:
+                client.flush()
+            except Exception:
+                pass
+            try:
+                client.shutdown()
+            except Exception:
+                pass
+
+        traeger = threading.Thread(
+            target=_close, name="analytics-shutdown", daemon=True
+        )
+        traeger.start()
+        traeger.join(timeout=self.SHUTDOWN_TIMEOUT_SECONDS)
+        if traeger.is_alive():
+            logger.debug(
+                "Analytics shutdown exceeded %.1fs; dropping queued events",
+                self.SHUTDOWN_TIMEOUT_SECONDS,
+            )
 
 
 __all__ = ["AnalyticsClient"]
