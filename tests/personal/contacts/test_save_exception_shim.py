@@ -193,7 +193,10 @@ def test_swift_kennt_keinen_direkten_execute_mehr():
 
 def test_die_exception_antwort_ist_outcome_unknown_mit_terminierung():
     code = _quelle("sidecar.swift")
-    zweig = code.split("case .exception:")[1].split("@unknown default")[0]
+    # Gezielt der Exception-Zweig des SAVE — der Preflight hat seinen eigenen
+    # (`not_sent`/`write_stack_unavailable`, test_write_stack_preflight).
+    nach_save = code.split("JCExecuteSaveRequestGuarded(store, req)")[1]
+    zweig = nach_save.split("case .exception:")[1].split("@unknown default")[0]
     assert '"outcome_unknown"' in zweig
     assert '"objc_exception"' in zweig
     assert '"processMustTerminate": true' in zweig

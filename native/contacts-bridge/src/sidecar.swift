@@ -675,6 +675,72 @@ func buildMutableContact(_ f: [String: Any]) throws -> CNMutableContact {
     return c
 }
 
+// ── Schreibstack-Preflight ───────────────────────────────────────────────────
+
+/// Fester technischer Praefix der Preflight-Kennung. Er macht die Kennung als
+/// Kunstprodukt kenntlich; zusammen mit einer Zufalls-UUID ist sie garantiert
+/// keine reale Kontakt- oder Providerkennung. Sie wird NIRGENDS protokolliert.
+let kPreflightIdentifierPrefix = "JC-PREFLIGHT-"
+
+enum WriteStackPreflight {
+    case ready
+    case unavailable(domain: String, code: Int)
+    case exception(name: String)
+    case unexpectedHit
+}
+
+/// NSError-Domain fuer die Antwort bereinigen: Domains sind Konstanten
+/// (`NSCocoaErrorDomain`, …), aber es verlaesst nichts Ungepruefte den Prozess.
+func sanitizedErrorDomain(_ domain: String) -> String {
+    let erlaubt = domain.unicodeScalars.filter {
+        CharacterSet.alphanumerics.contains($0) || $0 == "." || $0 == "_"
+    }
+    let s = String(String.UnicodeScalarView(erlaubt))
+    return s.isEmpty ? "UnknownDomain" : String(s.prefix(64))
+}
+
+/// Genau EIN rein lesender Kontakt-Fetch auf der globalen Store-Instanz —
+/// derselben, die anschliessend den Save traegt. Er laeuft durch dieselbe
+/// Objective-C-@try/@catch-Grenze wie der Save (`JCExecuteSaveGuardedWith
+/// Attempt`), damit auch eine lesend geworfene NSException typisiert ankommt
+/// statt den Prozess still zu toeten. Kein zweiter Fetch, keine Schleife,
+/// kein Container-Ersatz: entweder der Kontakt-Persistenzstack antwortet auf
+/// einen echten Fetch, oder der Vorgang endet vor jeder Uebergabe.
+func performCreateWriteStackPreflight() -> WriteStackPreflight {
+    let probe = kPreflightIdentifierPrefix + UUID().uuidString
+    var treffer = false
+    let wache = JCExecuteSaveGuardedWithAttempt { fehler in
+        let req = CNContactFetchRequest(
+            keysToFetch: [CNContactIdentifierKey as CNKeyDescriptor])
+        req.unifyResults = false
+        req.mutableObjects = false
+        req.predicate = CNContact.predicateForContacts(withIdentifiers: [probe])
+        do {
+            try store.enumerateContacts(with: req) { _, stop in
+                treffer = true
+                stop.pointee = true
+            }
+            return true
+        } catch let e as NSError {
+            fehler?.pointee = e
+            return false
+        }
+    }
+    switch wache.kind {
+    case .success:
+        return treffer ? .unexpectedHit : .ready
+    case .error:
+        guard let e = wache.error as NSError? else {
+            return .unavailable(domain: "JCContactsSaveShim", code: -1)
+        }
+        return .unavailable(domain: sanitizedErrorDomain(e.domain), code: e.code)
+    case .exception:
+        return .exception(name: wache.exceptionName ?? "UnknownException")
+    @unknown default:
+        return .exception(name: "UnknownOutcome")
+    }
+}
+
 func opCreate(_ id: Any, _ payload: [String: Any]) {
     // ── Phase 1: alles Pruefbare VOR jeder Uebergabe an den Store ───────────
     func notSent(_ code: String, _ message: String) {
@@ -748,6 +814,39 @@ func opCreate(_ id: Any, _ payload: [String: Any]) {
         notSent("invalid_request", "Feldvertrag verletzt"); return
     }
     let identifier = neu.identifier
+
+    // ── Preflight des Schreibstacks (ADR-0019 §4b) ──────────────────────────
+    // Alle vier x86_64-Livetests starben an `NSInternalInconsistencyException`
+    // („no persistent stores"): der Save setzt einen geladenen Persistenzstack
+    // voraus, initialisiert ihn aber nicht selbst — der Kontakt-LESEpfad tut
+    // das. Deshalb hier, VOR der CNSaveRequest-Erzeugung und vor jeder
+    // moeglichen Uebergabe, genau EIN rein lesender Fetch auf DERSELBEN
+    // globalen Store-Instanz. Scheitert er, ist beweisbar nichts gesendet.
+    // Ein Erfolg garantiert den Save ausdruecklich NICHT — er macht ihn nur
+    // erstmals moeglich; wirft der Save danach, greift die Uncaught-Diagnose.
+    switch performCreateWriteStackPreflight() {
+    case .ready:
+        break
+    case .unavailable(let domain, let code):
+        notSent("write_stack_unavailable", "preflight: \(domain)/\(code)")
+        return
+    case .unexpectedHit:
+        // Ein Treffer auf eine Zufallskennung ist ein Vertragsbruch — und ein
+        // Zustand, dem kein Save anvertraut wird.
+        notSent("internal", "Preflight traf einen Datensatz")
+        return
+    case .exception(let name):
+        // Rein lesend geworfen: beweisbar VOR jeder Uebergabe, also not_sent —
+        // aber der Store-Zustand ist danach undefiniert. Genau eine Antwort,
+        // dann kontrolliertes Ende; kein Save mit diesem Prozess.
+        diag("create preflight objc_exception: \(name)")
+        ok(id, mutationResult("not_sent",
+                              errorCode: "write_stack_unavailable",
+                              extra: ["processMustTerminate": true]))
+        fflush(stdout)
+        fflush(stderr)
+        exit(0)
+    }
 
     let req = CNSaveRequest()
     req.transactionAuthor = kTransactionAuthor   // Grundlage der Echo-Unterdrueckung

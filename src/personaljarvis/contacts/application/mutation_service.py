@@ -703,7 +703,11 @@ class ContactsMutationService:
                             completed=True)
             audit.record(AuditStage.FAILED_BEFORE_SEND,
                          subject_type=SUBJECT_TYPE, subject_id=mutation_id,
-                         facts={"errorCode": code, "sent": False})
+                         # `sent: False` ist der historische Kernfakt;
+                         # `providerContacted`/`resend` machen ihn wortgleich
+                         # zum manuellen Abschluss (ADR-0019 §5a) lesbar.
+                         facts={"errorCode": code, "sent": False,
+                                "providerContacted": False, "resend": False})
             return ExecutionResult(
                 mutation_id=mutation_id,
                 state=MutationState.FAILED_BEFORE_SEND, outcome="failed",

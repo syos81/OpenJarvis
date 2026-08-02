@@ -92,6 +92,13 @@ Pflichtfelder je Mutation: `mutationId`, `idempotencyKey`, `approvalId`,
 `containerIdentifier` und `fields` (Feldvertrag v1). `update`/`delete`
 antworten weiterhin `not_implemented` — ohne Store-Zugriff.
 
+**Schreibstack-Preflight (seit 2026-08-02, ADR-0019 §4b):** Vor der
+`CNSaveRequest`-Erzeugung führt `create` genau einen rein lesenden
+Kontakt-Fetch auf derselben Store-Instanz aus. Scheitert er, antwortet die
+Bridge `not_sent` mit `errorCode: write_stack_unavailable` — beweisbar vor
+jeder Übergabe; nach einer dabei gefangenen NSException endet der Prozess
+nach der Antwort kontrolliert (`processMustTerminate: true`).
+
 Geschlossener Ergebnisvertrag von `create` (immer `ok:true`):
 `outcome ∈ {applied, not_sent, outcome_unknown}`. `applied` trägt
 `providerIdentifier`, `containerIdentifier` und den Read-back-DTO;

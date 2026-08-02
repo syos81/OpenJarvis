@@ -196,3 +196,21 @@ Bestand 117/117/0.
 dem Save, `write(2)`-Diagnose im Todesmoment, PII-arme stderr-Zeile,
 Klassifikation unverändert. Der nächste einzelne Diagnose-Create soll damit
 erstmals Ausnahmeklasse und geschützten Reason liefern.
+
+## Nachtrag 2026-08-02 (zweiter Teil): Ursache benannt, Preflight eingebaut
+
+Der Diagnose-Create mit Uncaught-Letztdiagnose lieferte erstmals den Befund:
+**`NSInternalInconsistencyException`** — Save auf einem
+`NSPersistentStoreCoordinator` **ohne angehängte Persistent Stores**
+(Reason 106 Zeichen, digest-verifiziert, vollständig PII-frei; Artefakt
+0600 im geschützten Diagnoseordner). Sichtprüfung erneut: kein Kontakt
+entstanden; alle fünf Mutationen sauber terminal.
+
+Konsequenz: **Schreibstack-Preflight** (ADR-0019 §4b) — genau ein rein
+lesender Kontakt-Fetch auf derselben Store-Instanz vor der
+`CNSaveRequest`-Erzeugung; Fehlschlag ist beweisbar `not_sent`
+(`write_stack_unavailable` → `failed_before_send`). Der zwischengeschaltete
+rein lesende Shell-Test konnte die Same-Stack-These TCC-bedingt nicht
+entscheiden (`notDetermined` außerhalb der App-Prozesskette); die
+Entscheidung fällt im nächsten, einzeln freizugebenden minimalen
+Create-Livetest.

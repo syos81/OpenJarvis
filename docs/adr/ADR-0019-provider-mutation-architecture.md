@@ -361,6 +361,46 @@ Prozess nicht fort, sendet keine stdout-Antwort und ruft einen zuvor
 registrierten fremden Handler weiterhin auf. Die Klassifikation bleibt
 unverändert `child_signalled` → `outcome_unknown`, `attempt_count` bleibt 1.
 
+### 4b. Schreibstack-Preflight vor dem Create-Send (Ergänzung 2026-08-02)
+
+**Bewiesene Ursache der vier Livetest-Abstürze:** `NSInternalInconsistency-
+Exception` — der Save lief auf einem `NSPersistentStoreCoordinator` **ohne
+angehängte Persistent Stores** (Reason digest-verifiziert erfasst). Der
+Kontakt-**Lese**pfad initialisiert den In-Process-Persistenzstack; der
+Save-Pfad setzt ihn nur voraus. Alle vier Absturzprozesse hatten vor dem
+Save nie einen Kontakt-Fetch ausgeführt — alle lesenden Prozesse liefen
+fehlerfrei.
+
+**Verbindlich seit dieser Ergänzung:** Unmittelbar vor der
+`CNSaveRequest`-Erzeugung — und damit vor jeder möglichen Übergabe — führt
+`opCreate` genau **einen** rein lesenden Kontakt-Fetch auf **derselben
+globalen Store-Instanz** aus (`performCreateWriteStackPreflight`:
+`enumerateContacts`, `unifyResults=false`, minimale Keys, Zufalls-Kennung
+mit festem Präfix `JC-PREFLIGHT-`, die nirgends protokolliert wird). Der
+Fetch läuft durch dieselbe Objective-C-`@try/@catch`-Grenze wie der Save.
+
+* Erfolg (kein Treffer, kein Fehler) → der Create läuft unverändert weiter.
+  Ein erfolgreicher Preflight garantiert den Save ausdrücklich **nicht** —
+  wirft der Save danach, greift unverändert die Uncaught-Diagnose
+  (`outcome_unknown`, ein Send).
+* `NSError` oder gefangene `NSException` im Preflight → **`not_sent`** mit
+  `errorCode: write_stack_unavailable` (bereinigte Domain + numerischer
+  Code in der Meldung; nach einer Exception endet der Prozess kontrolliert,
+  denn der Store-Zustand ist undefiniert). Beweisbar wurde nichts gesendet:
+  der Kern klassifiziert `failed_before_send`, die Freigabe bleibt
+  verbraucht, die Outbox wird terminal, `attempt_count` bleibt 1, kein
+  automatischer Retry.
+* Ein Treffer auf die Zufallskennung ist ein interner Vertragsfehler und
+  endet ebenfalls vor dem Send.
+
+Der Warm-up-Charakter (Same-Stack-Initialisierung) ist **PROBABLE, nicht
+bewiesen** — der Preflight ist zuallererst ein sicheres Pre-Send-Gate und
+zugleich der Hypothesentest; ein weiterer Live-Create braucht eine eigene
+Freigabe. `provider_send_started` bleibt bewusst **vor** dem Provider-Aufruf
+in der Kette (Crash-Wahrheit); der Beweis „nichts gesendet" liegt im
+`failed_before_send`-Abschluss (`sent: false`, `providerContacted: false`,
+`resend: false`).
+
 ### 5. Providererfolg und lokale Nachführung
 
 Das bestehende Zustandsmodell kann die Zwischenlage „Provideränderung
