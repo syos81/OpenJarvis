@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 
 import click
@@ -183,7 +184,6 @@ def serve(
     # If cloud API keys are set, prepare a cloud engine. We build the
     # MultiEngine after local discovery so healthy local fallbacks such as
     # Ollama stay visible even when the configured preferred engine is MLX.
-    import os
 
     cloud_engine = None
     _has_cloud = (
@@ -732,5 +732,16 @@ def serve(
         )
 
     import uvicorn
+
+    # Shutdown-Diagnose (standardmaessig AUS): Mit
+    # OPENJARVIS_SHUTDOWN_DIAGNOSTICS=1 dumpt SIGUSR1 die Python-Stacks
+    # ALLER Threads nach stderr. Eingefuehrt zur Ursachenanalyse des
+    # SIGTERM-Hangs (Desktop-Timeout, 2026-08-02); bewusst behalten, weil
+    # ein haengender Shutdown ohne Stacks nicht diagnostizierbar ist.
+    if os.environ.get("OPENJARVIS_SHUTDOWN_DIAGNOSTICS") == "1":
+        import faulthandler
+        import signal as _signal
+
+        faulthandler.register(_signal.SIGUSR1, all_threads=True)
 
     uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")
