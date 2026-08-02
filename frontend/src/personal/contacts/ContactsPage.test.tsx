@@ -42,6 +42,9 @@ vi.mock('./api', async () => {
     reconcileMutation: vi.fn(),
     resolveOutcomeNotObserved: vi.fn(),
     listContainers: vi.fn(),
+    appSaveSpikeStatus: vi.fn(),
+    appSaveSpikePrepare: vi.fn(),
+    appSaveSpikeExecute: vi.fn(),
   };
 });
 
@@ -109,6 +112,7 @@ function standard() {
   mock.listApprovals.mockResolvedValue([]);
   mock.listMutations.mockResolvedValue([]);
   mock.listContainers.mockResolvedValue([]);
+  mock.appSaveSpikeStatus.mockResolvedValue({ enabled: false, phase: 'not_started' });
 }
 
 beforeEach(() => {
@@ -964,5 +968,86 @@ describe('Ablageort im Anlagedialog', () => {
     const text = document.body.textContent ?? '';
     expect(text).not.toMatch(/ABAccount/);
     expect(text).not.toMatch(/[0-9A-F]{8}-[0-9A-F]{4}-/i);
+  });
+});
+
+// ═══ App-Prozess-Save-Spike (isolierter Branch) ═════════════════════════════
+describe('AppSave-Spike-Sektion', () => {
+  const previewFixture = {
+    given_name: 'ZZZ-JarvisTest-AppSave', contact_type: 'person',
+    container_type_label: 'Lokal · Auf meinem Mac',
+    confirmation_phrase: 'APP-SAVE-SPIKE JETZT AUSFÜHREN',
+    preview_digest: 'd'.repeat(64), nonce: 'n'.repeat(32),
+    notice: 'Es wird genau ein Testkontakt angelegt. '
+      + 'Kein automatischer Wiederholungsversuch.',
+  };
+
+  it('bleibt ohne Freigabe vollständig unsichtbar', async () => {
+    mock.appSaveSpikeStatus.mockResolvedValue({
+      enabled: false, phase: 'not_started',
+    });
+    await seiteRendern();
+    expect(screen.queryByTestId('app-save-spike')).toBeNull();
+  });
+
+  it('führt genau einmal aus und sperrt den Knopf dauerhaft', async () => {
+    mock.appSaveSpikeStatus.mockResolvedValue({
+      enabled: true, phase: 'not_started',
+    });
+    mock.appSaveSpikePrepare.mockResolvedValue(previewFixture);
+    mock.appSaveSpikeExecute.mockResolvedValue({
+      outcome: 'applied', save_attempts: 1, applied: true,
+      outcome_unknown: false, provider_identifier_present: true,
+      provider_identifier_digest: 'a'.repeat(64), readback_succeeded: true,
+      given_name_matched: true, container_type: 'local', error_domain: null,
+      error_code: null, exception_name: null, reason_present: false,
+      reason_digest: null, diagnostics_artifact_written: false,
+    });
+    const u = nutzer();
+    await seiteRendern();
+    await u.click(await screen.findByTestId('spike-vorbereiten'));
+    expect(mock.appSaveSpikePrepare).toHaveBeenCalledTimes(1);
+    // Ohne die wörtliche Phrase bleibt Ausführen gesperrt.
+    const knopf = await screen.findByTestId('spike-ausfuehren');
+    expect(knopf).toBeDisabled();
+    await u.type(screen.getByTestId('spike-phrase'),
+                 previewFixture.confirmation_phrase);
+    expect(knopf).toBeEnabled();
+    await u.click(knopf);
+    await screen.findByTestId('spike-ergebnis');
+    expect(mock.appSaveSpikeExecute).toHaveBeenCalledTimes(1);
+    expect(mock.appSaveSpikeExecute).toHaveBeenCalledWith(
+      previewFixture.confirmation_phrase, previewFixture.nonce,
+      previewFixture.preview_digest);
+    // Dauerhaft gesperrt — ein zweiter Klick löst nichts aus.
+    expect(knopf).toBeDisabled();
+    await u.click(knopf);
+    expect(mock.appSaveSpikeExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('zeigt im Ergebnis nur Digests, nie eine rohe Kennung', async () => {
+    mock.appSaveSpikeStatus.mockResolvedValue({
+      enabled: true, phase: 'not_started',
+    });
+    mock.appSaveSpikePrepare.mockResolvedValue(previewFixture);
+    mock.appSaveSpikeExecute.mockResolvedValue({
+      outcome: 'caught_exception', save_attempts: 1, applied: false,
+      outcome_unknown: true, provider_identifier_present: false,
+      provider_identifier_digest: null, readback_succeeded: false,
+      given_name_matched: false, container_type: null, error_domain: null,
+      error_code: null, exception_name: 'NSInternalInconsistencyException',
+      reason_present: true, reason_digest: 'b'.repeat(64),
+      diagnostics_artifact_written: true,
+    });
+    const u = nutzer();
+    await seiteRendern();
+    await u.click(await screen.findByTestId('spike-vorbereiten'));
+    await u.type(screen.getByTestId('spike-phrase'),
+                 previewFixture.confirmation_phrase);
+    await u.click(screen.getByTestId('spike-ausfuehren'));
+    const text = (await screen.findByTestId('spike-ergebnis')).textContent ?? '';
+    expect(text).toContain('NSInternalInconsistencyException');
+    expect(text).not.toMatch(/ABPerson|ABAccount/);
+    expect(text).not.toMatch(/reason":\s*"(?!null)/);
   });
 });

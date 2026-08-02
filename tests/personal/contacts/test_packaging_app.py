@@ -122,7 +122,12 @@ def test_keine_spike_identitaet_im_paket():
     plist = str(_info_plist(app))
     for verboten in ("Spike", "spike", "contacts-bridge-g3a", "JarvisContactsSpike"):
         assert verboten not in plist, verboten
-    assert "Spike" not in ausgaben
+    # Die `Executable=`-Zeile traegt den Checkout-Pfad — in einem Spike-
+    # WORKTREE steht dort naturgemaess "Spike", ohne dass das Paket eine
+    # Spike-Identitaet truege. Geprueft wird die Signatur, nicht der Pfad.
+    ohne_pfadzeilen = "\n".join(
+        z for z in ausgaben.splitlines() if not z.startswith("Executable="))
+    assert "Spike" not in ohne_pfadzeilen
 
 
 def test_keine_upstream_identitaet_mehr_im_paket():

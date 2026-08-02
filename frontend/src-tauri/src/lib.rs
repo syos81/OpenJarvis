@@ -1,3 +1,4 @@
+mod contacts_app_save_spike;
 mod contacts_authorization;
 
 use std::sync::Arc;
@@ -1727,6 +1728,32 @@ fn get_api_base() -> String {
 /// The sidecar can read this too, and the Contacts page still does so through
 /// the HTTP API. This command exists so the app can answer the same question
 /// about *itself* — the process a prompt would actually be attributed to.
+/// SPIKE: Status des App-Prozess-Save-Spikes — kein Contacts-Zugriff.
+#[tauri::command]
+fn contacts_app_save_spike_status() -> contacts_app_save_spike::SpikeStatus {
+    contacts_app_save_spike::status()
+}
+
+/// SPIKE: feste Vorschau + Nonce/Digest — kein Store-Zugriff, kein Save.
+#[tauri::command]
+fn contacts_app_save_spike_prepare()
+    -> Result<contacts_app_save_spike::SpikePreview, String> {
+    contacts_app_save_spike::prepare()
+}
+
+/// SPIKE: genau eine Ausfuehrung je App-Prozess, vierfach gebunden
+/// (user_initiated, Phrase, Nonce, Payload-Digest). Kein Retry.
+#[tauri::command]
+fn contacts_app_save_spike_execute(
+    user_initiated: bool,
+    confirmation: String,
+    nonce: String,
+    preview_digest: String,
+) -> Result<contacts_app_save_spike::SpikeResult, String> {
+    contacts_app_save_spike::execute(
+        user_initiated, &confirmation, &nonce, &preview_digest)
+}
+
 #[tauri::command]
 fn personal_contacts_authorization_status() -> contacts_authorization::AuthorizationOutcome {
     contacts_authorization::environment()
@@ -3051,6 +3078,9 @@ pub fn run() {
             toggle_overlay,
             hide_overlay,
             get_overlay_conversation,
+            contacts_app_save_spike_status,
+            contacts_app_save_spike_prepare,
+            contacts_app_save_spike_execute,
             personal_contacts_authorization_status,
             personal_contacts_request_authorization,
         ])

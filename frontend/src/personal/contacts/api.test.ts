@@ -297,8 +297,11 @@ describe('Abgleich', () => {
     for (const verboten of ['retry', 'resend', 'send', 'force']) {
       expect(namen.filter((n) => n.toLowerCase().includes(verboten))).toEqual([]);
     }
-    expect(namen.filter((n) => n.toLowerCase().includes('execute')))
-      .toEqual(['executeMutation']);
+    // `appSaveSpikeExecute` ist der bewusst isolierte Spike-Einstieg dieses
+    // Branches (fester Payload, einmalig je App-Prozess, kein Produktpfad) —
+    // als benannte Ausnahme gefuehrt, damit alles Unbenannte weiter auffliegt.
+    expect(namen.filter((n) => n.toLowerCase().includes('execute')).sort())
+      .toEqual(['appSaveSpikeExecute', 'executeMutation']);
   });
 });
 

@@ -673,3 +673,62 @@ export function reconcileMutation(id: string): Promise<ReconcileResult> {
     `/mutations/${encodeURIComponent(id)}/reconcile`, { method: 'POST' },
   );
 }
+
+// ── App-Prozess-Save-SPIKE (isolierter Branch, kein Produktpfad) ───────────
+//
+// Beweisführung, ob EIN minimaler CNSaveRequest im Prozess von Jarvis.app
+// speichert, während er im CLI-Sidecar am Null-Store-Coordinator stirbt.
+// Nur sichtbar mit OPENJARVIS_CONTACTS_APP_SAVE_SPIKE=1 im App-Prozess;
+// fester Payload, genau eine Ausführung je App-Prozess, kein Retry.
+// Dies ist bewusst KEINE generische Schreib-API: keine Felder, keine
+// Container, keine Wiederverwendung durch Produktcode.
+
+export interface AppSaveSpikeStatus { enabled: boolean; phase: string }
+
+export interface AppSaveSpikePreview {
+  given_name: string;
+  contact_type: string;
+  container_type_label: string;
+  confirmation_phrase: string;
+  preview_digest: string;
+  nonce: string;
+  notice: string;
+}
+
+export interface AppSaveSpikeResult {
+  outcome: string;
+  save_attempts: number;
+  applied: boolean;
+  outcome_unknown: boolean;
+  provider_identifier_present: boolean;
+  provider_identifier_digest: string | null;
+  readback_succeeded: boolean;
+  given_name_matched: boolean;
+  container_type: string | null;
+  error_domain: string | null;
+  error_code: number | null;
+  exception_name: string | null;
+  reason_present: boolean;
+  reason_digest: string | null;
+  diagnostics_artifact_written: boolean;
+}
+
+export async function appSaveSpikeStatus(): Promise<AppSaveSpikeStatus> {
+  if (!isTauri()) return { enabled: false, phase: 'not_started' };
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<AppSaveSpikeStatus>('contacts_app_save_spike_status');
+}
+
+export async function appSaveSpikePrepare(): Promise<AppSaveSpikePreview> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<AppSaveSpikePreview>('contacts_app_save_spike_prepare');
+}
+
+export async function appSaveSpikeExecute(
+  confirmation: string, nonce: string, previewDigest: string,
+): Promise<AppSaveSpikeResult> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<AppSaveSpikeResult>('contacts_app_save_spike_execute', {
+    userInitiated: true, confirmation, nonce, previewDigest,
+  });
+}

@@ -1530,6 +1530,93 @@ function MutationList({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ═══ Seite ══════════════════════════════════════════════════════════════════
+
+// ── App-Prozess-Save-SPIKE (isolierter Branch) ──────────────────────────────
+//
+// Nur sichtbar, wenn der App-Prozess mit OPENJARVIS_CONTACTS_APP_SAVE_SPIKE=1
+// gestartet wurde. Fester Payload, genau eine Ausführung je App-Prozess,
+// kein Retry — die Bestätigungsphrase muss wörtlich eingetippt werden.
+function AppSaveSpikeSection() {
+  const [status, setStatus] = useState<api.AppSaveSpikeStatus | null>(null);
+  const [preview, setPreview] = useState<api.AppSaveSpikePreview | null>(null);
+  const [eingabe, setEingabe] = useState('');
+  const [ausgefuehrt, setAusgefuehrt] = useState(false);
+  const [ergebnis, setErgebnis] = useState<api.AppSaveSpikeResult | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.appSaveSpikeStatus().then(setStatus).catch(() => setStatus(null));
+  }, []);
+
+  if (!status?.enabled) return null;
+
+  const vorbereiten = async () => {
+    setFehler(null);
+    try { setPreview(await api.appSaveSpikePrepare()); }
+    catch (e) { setFehler(String(e)); }
+  };
+
+  const ausfuehren = async () => {
+    if (!preview || ausgefuehrt) return;
+    setAusgefuehrt(true);          // sofort und dauerhaft — kein zweiter Klick
+    setFehler(null);
+    try {
+      setErgebnis(await api.appSaveSpikeExecute(
+        eingabe, preview.nonce, preview.preview_digest));
+    } catch (e) { setFehler(String(e)); }
+  };
+
+  return (
+    <div data-testid="app-save-spike" className="mt-8 rounded-md border p-4"
+         style={{ borderColor: 'var(--color-border, rgba(200,80,80,0.6))' }}>
+      <h3 className="text-sm font-semibold">Contacts App-Process Save Spike</h3>
+      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        Nur für isolierte Entwicklungsprüfung. Es wird genau ein Testkontakt
+        angelegt. Kein automatischer Wiederholungsversuch.
+      </p>
+      {!preview && (
+        <button type="button" data-testid="spike-vorbereiten"
+                onClick={vorbereiten}
+                className="mt-2 rounded-md border px-3 py-1.5 text-sm">
+          Spike vorbereiten
+        </button>
+      )}
+      {preview && (
+        <div className="mt-2 text-sm">
+          <div>Vorname: <code>{preview.given_name}</code></div>
+          <div>Ziel: {preview.container_type_label}</div>
+          <div className="text-xs mt-1"
+               style={{ color: 'var(--color-text-muted)' }}>
+            {preview.notice}
+          </div>
+          <label className="block mt-2 text-xs">
+            Zum Bestätigen wörtlich eintippen:{' '}
+            <code>{preview.confirmation_phrase}</code>
+            <input value={eingabe} data-testid="spike-phrase"
+                   onChange={(e) => setEingabe(e.target.value)}
+                   className="mt-1 w-full rounded-md border px-2 py-1" />
+          </label>
+          <button type="button" data-testid="spike-ausfuehren"
+                  onClick={ausfuehren}
+                  disabled={ausgefuehrt
+                            || eingabe !== preview.confirmation_phrase}
+                  className="mt-2 rounded-md border px-3 py-1.5 text-sm">
+            Genau einmal ausführen
+          </button>
+        </div>
+      )}
+      {ergebnis && (
+        <pre data-testid="spike-ergebnis" className="mt-2 text-xs overflow-auto">
+          {JSON.stringify(ergebnis, null, 2)}
+        </pre>
+      )}
+      {fehler && (
+        <div data-testid="spike-fehler" className="mt-2 text-xs">{fehler}</div>
+      )}
+    </div>
+  );
+}
+
 export default function ContactsPage() {
   const [tab, setTab] = useState<Tab>('contacts');
   const [kontaktId, setKontaktId] = useState<string | null>(null);
@@ -1595,6 +1682,8 @@ export default function ContactsPage() {
             : <MutationList onOpen={setMutationId} />
         )}
       </div>
+
+      <AppSaveSpikeSection />
 
       {anlegen && (
         <CreateDialog onClose={() => setAnlegen(false)}
