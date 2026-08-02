@@ -1567,8 +1567,9 @@ function AppSaveSpikeSection() {
   };
 
   return (
-    <div data-testid="app-save-spike" className="mt-8 rounded-md border p-4"
-         style={{ borderColor: 'var(--color-border, rgba(200,80,80,0.6))' }}>
+    <div data-testid="app-save-spike"
+         className="mb-4 rounded-md border p-4 overflow-auto"
+         style={{ maxHeight: '60vh', borderColor: 'var(--color-border, rgba(200,80,80,0.6))' }}>
       <h3 className="text-sm font-semibold">Contacts App-Process Save Spike</h3>
       <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
         Nur für isolierte Entwicklungsprüfung. Es wird genau ein Testkontakt
@@ -1633,6 +1634,8 @@ export default function ContactsPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-6">
+      <AppSaveSpikeSection />
+
       <h1 className="text-xl font-semibold">Kontakte</h1>
       <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
         Änderungen werden immer erst vorbereitet und von dir freigegeben.
@@ -1682,8 +1685,6 @@ export default function ContactsPage() {
             : <MutationList onOpen={setMutationId} />
         )}
       </div>
-
-      <AppSaveSpikeSection />
 
       {anlegen && (
         <CreateDialog onClose={() => setAnlegen(false)}
