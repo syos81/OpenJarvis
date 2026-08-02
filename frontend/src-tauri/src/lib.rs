@@ -3,7 +3,7 @@ mod contacts_authorization;
 
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
@@ -3054,6 +3054,58 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+
+            // macOS-App-Menue mit EIGENEM Quit-Item.
+            //
+            // Warum: Tauris vordefiniertes Quit-Item ruft `NSApp terminate:`
+            // direkt auf. Dabei feuert `RunEvent::ExitRequested` nachweislich
+            // NICHT (instrumentierte Spur 2026-08-02) — nur `RunEvent::Exit`,
+            // also erst, wenn die Event-Loop bereits steht. Der Shutdown lief
+            // dann blockierend im Fangnetz statt im regulaeren Pfad.
+            //
+            // `app.exit(0)` fuehrt den Menue-Quit durch dieselbe Tuer wie das
+            // Fensterschliessen: ExitRequested -> prevent_exit -> ein
+            // Shutdown -> Exit. Das Fangnetz bleibt fuer Pfade, die wir nicht
+            // steuern (etwa ein Quit-Apple-Event aus einem Skript).
+            //
+            // AUSDRUECKLICH NICHT behoben: Der SIGKILL-Fallback bleibt. Live
+            // belegt (2026-08-02) benoetigt `jarvis serve` nach SIGTERM in
+            // beiden Pfaden — auch beim Fensterschliessen — laenger als die
+            // 8-s-Frist: es gibt den Port sofort frei, haengt danach aber in
+            // `pthread_cond_wait` an einem eigenen Thread. Das ist ein
+            // Shutdown-Problem des Python-Backends, kein Lifecycle-Problem
+            // dieses Prozesses.
+            #[cfg(target_os = "macos")]
+            {
+                let quit_item = MenuItemBuilder::with_id("app-quit", "Quit Jarvis")
+                    .accelerator("CmdOrCtrl+Q")
+                    .build(app)?;
+                let app_menu = SubmenuBuilder::new(app, "Jarvis")
+                    .item(&PredefinedMenuItem::hide(app, None)?)
+                    .item(&PredefinedMenuItem::hide_others(app, None)?)
+                    .item(&PredefinedMenuItem::show_all(app, None)?)
+                    .separator()
+                    .item(&quit_item)
+                    .build()?;
+                let edit_menu = SubmenuBuilder::new(app, "Edit")
+                    .item(&PredefinedMenuItem::undo(app, None)?)
+                    .item(&PredefinedMenuItem::redo(app, None)?)
+                    .separator()
+                    .item(&PredefinedMenuItem::cut(app, None)?)
+                    .item(&PredefinedMenuItem::copy(app, None)?)
+                    .item(&PredefinedMenuItem::paste(app, None)?)
+                    .item(&PredefinedMenuItem::select_all(app, None)?)
+                    .build()?;
+                let menu = MenuBuilder::new(app)
+                    .items(&[&app_menu, &edit_menu])
+                    .build()?;
+                app.set_menu(menu)?;
+                app.on_menu_event(|app, event| {
+                    if event.id() == "app-quit" {
+                        app.exit(0);
+                    }
+                });
+            }
 
             // Create native macOS overlay panel
             #[cfg(target_os = "macos")]
