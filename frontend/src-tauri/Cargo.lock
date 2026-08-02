@@ -2773,6 +2773,7 @@ dependencies = [
  "cc",
  "dispatch",
  "keyring",
+ "libc",
  "objc",
  "reqwest 0.12.28",
  "serde",

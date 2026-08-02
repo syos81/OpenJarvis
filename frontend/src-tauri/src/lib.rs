@@ -1,3 +1,4 @@
+mod backend_shutdown;
 mod contacts_authorization;
 
 use std::sync::Arc;
@@ -483,6 +484,46 @@ impl BackendManager {
             h.kill().await;
         }
         self.ollama = None;
+    }
+
+    /// Geordneter Exit-Shutdown: beendet die **Prozessgruppen** beider
+    /// Kinder (SIGTERM -> Frist -> SIGKILL) statt nur der direkten Kinder,
+    /// und raeumt die `serve.lock` genau dann, wenn ihre PID nachweislich zu
+    /// unserer jarvis-Gruppe gehoerte. Fremde Prozesse — auch ein fremder
+    /// Inhaber von Port 8000 — werden nie beruehrt: signalisiert wird
+    /// ausschliesslich ueber die beim Start gemerkten Gruppen.
+    #[cfg(unix)]
+    async fn shutdown_for_exit(&mut self) {
+        use backend_shutdown::{
+            cleanup_serve_lock, lock_pid_belongs_to_group, serve_lock_path,
+            terminate_group, TERM_TIMEOUT,
+        };
+
+        if let Some(ref mut h) = self.jarvis {
+            // Zugehoerigkeit der Lock-Datei VOR dem Signal erheben — danach
+            // gibt es die Gruppe nicht mehr, gegen die man pruefen koennte.
+            let lock = serve_lock_path();
+            let owned = match (h.child.id(), lock.as_deref()) {
+                (Some(pid), Some(pfad)) => {
+                    lock_pid_belongs_to_group(pfad, pid as i32)
+                }
+                _ => false,
+            };
+            let _ = terminate_group(&mut h.child, TERM_TIMEOUT).await;
+            if let Some(pfad) = lock.as_deref() {
+                cleanup_serve_lock(pfad, owned);
+            }
+        }
+        self.jarvis = None;
+        if let Some(ref mut h) = self.ollama {
+            let _ = terminate_group(&mut h.child, TERM_TIMEOUT).await;
+        }
+        self.ollama = None;
+    }
+
+    #[cfg(not(unix))]
+    async fn shutdown_for_exit(&mut self) {
+        self.stop_all().await;
     }
 }
 
@@ -1051,9 +1092,18 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                     .stderr(std::process::Stdio::null());
                 // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
                 prepare_subprocess_for_appimage(&mut sidecar_cmd);
-                match sidecar_cmd.spawn() {
+                // Eigene Prozessgruppe — gleicher Shutdown-Vertrag wie jarvis.
+                #[cfg(unix)]
+                sidecar_cmd.process_group(0);
+                match (backend_shutdown::phase::start_allowed())
+                    .then(|| sidecar_cmd.spawn())
+                    .transpose()
+                    .ok()
+                    .flatten()
+                    .ok_or(())
+                {
                     Ok(child) => Some(child),
-                    Err(_) => None,
+                    Err(()) => None,
                 }
             };
 
@@ -1570,6 +1620,19 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     if let Some(sidecar) = bundled_contacts_sidecar() {
         cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1");
         cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR", &sidecar);
+    }
+
+    // Eigene Unix-Prozessgruppe: uv wird Gruppenleiter, python3 erbt die
+    // Gruppe — der Shutdown beendet damit das ganze Gebilde, nicht nur das
+    // direkte Kind (der zehnfach reproduzierte Verwaisungsfehler).
+    #[cfg(unix)]
+    cmd.process_group(0);
+
+    // Waehrend eines laufenden App-Shutdowns startet kein Backend mehr.
+    if !backend_shutdown::phase::start_allowed() {
+        let mut s = status.lock().await;
+        s.error = Some("App is shutting down; backend start refused.".into());
+        return;
     }
 
     let jarvis_child = cmd.spawn();
@@ -3056,12 +3119,49 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building OpenJarvis Desktop")
-        .run(move |_app, event| {
-            if let tauri::RunEvent::ExitRequested { .. } = event {
-                let b = backend.clone();
-                tauri::async_runtime::spawn(async move {
-                    b.lock().await.stop_all().await;
-                });
+        .run(move |app, event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = &event {
+                use backend_shutdown::phase::{self, ExitDecision};
+                match phase::on_exit_requested() {
+                    ExitDecision::BeginShutdown => {
+                        // Exit anhalten, GENAU EINEN Shutdown fahren, dann den
+                        // Exit selbst ausloesen. Der von `handle.exit(0)`
+                        // erzeugte zweite ExitRequested faellt in den
+                        // AllowExit-Zweig und laeuft durch.
+                        api.prevent_exit();
+                        let b = backend.clone();
+                        let handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            b.lock().await.shutdown_for_exit().await;
+                            phase::mark_completed();
+                            handle.exit(0);
+                        });
+                    }
+                    ExitDecision::WaitForShutdown => {
+                        // Paralleles Close-/Quit-Ereignis: der eine Shutdown
+                        // laeuft bereits — Exit weiter anhalten.
+                        api.prevent_exit();
+                    }
+                    ExitDecision::AllowExit => {}
+                }
+            }
+            // Fangnetz fuer Terminate-Pfade, die ExitRequested umgehen
+            // (belegt: das Quit-Apple-Event — AppleScript/Cmd+Q — beendete
+            // die App, waehrend der Fenster-Pfad sauber durch ExitRequested
+            // lief; exakt so entstanden alle zehn Verwaisungen). RunEvent::
+            // Exit feuert synchron auf dem Main Thread unmittelbar vor dem
+            // Prozessende: hier wird der Shutdown BLOCKIEREND nachgeholt.
+            // Idempotent ueber dieselbe Phase — nach einem regulaeren
+            // ExitRequested-Shutdown ist das ein No-op.
+            if let tauri::RunEvent::Exit = &event {
+                use backend_shutdown::phase::{self, ExitDecision};
+                if !matches!(phase::on_exit_requested(), ExitDecision::AllowExit) {
+                    let b = backend.clone();
+                    tauri::async_runtime::block_on(async move {
+                        b.lock().await.shutdown_for_exit().await;
+                    });
+                    phase::mark_completed();
+                }
             }
         });
 }
