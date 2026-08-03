@@ -212,9 +212,9 @@ provider_channel_disabled_before_send`.
 
 | Gate | Ergebnis |
 |---|---|
-| `pytest tests/personal/contacts` | 1103 gesammelt, 1065 bestanden, 38 übersprungen, 0 fehlgeschlagen |
-| `pytest tests/personal` | 1065 bestanden, 38 übersprungen |
-| `make test` | 8297 bestanden, 94 übersprungen |
+| `pytest tests/personal/contacts` | 1103 gesammelt, 1094 bestanden, 9 übersprungen, 0 fehlgeschlagen |
+| `pytest tests/personal` | 1094 bestanden, 9 übersprungen |
+| `make test` | 8326 bestanden, 65 übersprungen |
 | Vitest Kontakte (`src/personal/contacts`) | 5 Dateien, 121 bestanden |
 | `npm test` (gesamt) | 6 Dateien, 127 bestanden |
 | `npx tsc --noEmit` | fehlerfrei |
@@ -224,6 +224,18 @@ provider_channel_disabled_before_send`.
 | `git diff --check` | sauber |
 | Ruff (Kontakte/Base/Tests) | 80 Befunde — **unverändert** gegenüber der Basis; die sieben neuen Python-Dateien: 0 |
 | `mkdocs build --strict` | 18 Warnungen — **unverändert** gegenüber der Basis, keine betrifft Kontakte |
+
+Die neun verbleibenden Übersprungenen sind **sämtlich** arm64-Artefakte, die
+auf diesem Intel-Gerät nicht gebaut werden können (Sidecar, Bundle,
+Cross-Build) — keiner betrifft den Kanal.
+
+**Erst spät bemerkt, deshalb ausdrücklich:** Die ersten Läufe meldeten 1065
+bestanden bei 38 Übersprungenen. Ursache war ein unvollständiges
+Environment — dem Worktree fehlten zwischenzeitlich optionale
+Abhängigkeiten, wodurch 29 Tests still übersprungen wurden, darunter die
+Paketierungstests, die anschliessend einen echten Fehler fanden (12.2).
+Nach `uv sync` mit allen benötigten Extras laufen sie. Die hier
+ausgewiesenen Zahlen stammen aus dem vollständigen Environment.
 
 Zwei Läufe von `npm test` **unter gleichzeitiger Volllast** (Python-Suite und
 Rust-Build parallel) meldeten 4 bzw. 3 Fehler, sämtlich Zeitüberschreitungen
@@ -235,23 +247,46 @@ Kanal — festgehalten, weil sie unter Last erneut auftreten wird.
 ### 12.2 Gepackte App
 
 Release-Bau `--target x86_64-apple-darwin --bundles app`, danach von innen
-nach aussen mit „Personal Jarvis Contacts Spike" neu versiegelt:
+nach aussen mit dem **produktiven** Zertifikat „de.kluender.jarvis" neu
+versiegelt:
 
-* `codesign --verify --deep --strict`: gültig, erfüllt sein Designated
-  Requirement.
-* DR App: `identifier "de.kluender.jarvis" and certificate leaf = H"f378…"`;
+* `codesign --verify --deep --strict`: gültig.
+* DR App: `identifier "de.kluender.jarvis" and certificate leaf = H"34a4…"`;
   DR Sidecar: `identifier "de.kluender.jarvis.contacts-bridge"` mit demselben
-  Blatt — die TCC-Zuordnung bleibt über Rebuilds stabil.
-* Entitlement `com.apple.security.personal-information.addressbook` in App
-  **und** Sidecar vorhanden.
+  Blatt — zertifikatsgebunden statt cdhash-gebunden, damit eine einmal
+  erteilte TCC-Berechtigung Neubauten überlebt.
+* Hardened Runtime aktiv; Entitlement
+  `com.apple.security.personal-information.addressbook` in App **und**
+  Sidecar vorhanden.
+
+**Korrektur im Verlauf, offen protokolliert:** Zwischenzeitlich war das
+Bundle mit dem Zertifikat „Personal Jarvis Contacts Spike" versiegelt — aus
+der Gewohnheit der Spike-Phase. Das widerspricht dem eigenen Vertrag des
+Repos: `test_keine_spike_identitaet_im_paket` verbietet jede Spike-Identität
+in Info.plist und Signatur des Pakets, während
+`test_sidecar_signatur_ist_nicht_ad_hoc` und
+`test_sidecar_designated_requirement_ist_zertifikatsgebunden` zugleich eine
+zertifikatsgebundene Signatur verlangen — zusammen also genau das produktive
+Zertifikat. Diese drei Tests waren zunächst **übersprungen**, weil dem
+Environment die Paketierungsabhängigkeiten fehlten (siehe 12.1); nach deren
+Nachinstallation haben sie den Fehler gefunden, und das Bundle wurde mit
+`de.kluender.jarvis` neu versiegelt. Für Phase A ist der Zwischenstand
+folgenlos, weil in diesem Durchlauf ohnehin kein Kontaktzugriff und damit
+keine TCC-Entscheidung stattfand.
 
 Statische Befunde am Release-Binary:
 
-| Prüfung | Befund |
+| Prüfung (App-Binary `openjarvis-desktop`) | Befund |
 |---|---|
 | `OPENJARVIS_CONTACTS_FAKE_EXECUTION` als Zeichenkette | **0 Treffer** — das Gate ist im Release nicht einmal benennbar |
 | `CNSaveRequest` / `CNMutableContact` (Symbole und Zeichenketten) | **0 Treffer** |
 | `provider_channel_disabled_before_send` | vorhanden — der einkompilierte Zweig ist der fail-closed |
+
+Im **Sidecar**-Binary finden sich weiterhin vier Treffer auf
+`CNSaveRequest`/`CNMutableContact`: das ist der stillgelegte Save-Pfad, der
+als Beweis- und Diagnosehistorie erhalten bleibt (§10) und seit ADR-0020
+nicht mehr erreicht wird — `opCreate` antwortet davor mit
+`capability_denied`, das ebenfalls im Binary steht.
 
 ### 12.3 Sicherer Livedurchlauf
 
