@@ -1,0 +1,115 @@
+/* Design-Tokens der Kontakte-Oberfläche (Namespace --pjc-*).
+ *
+ * VERBINDLICHE REFERENZ ist die macOS-Kontakte-App auf dem M2-Pro-Mac;
+ * sie stand beim Bau dieser Datei nicht zur Verfügung. Jeder mit
+ * M2-VORLÄUFIG markierte Wert ist eine begründete Intel-Schätzung und wird
+ * bei der M2-Abnahme hier zentral nachgezogen. Komponenten dürfen keine
+ * eigenen Pixelwerte tragen — wer eine Zahl braucht, definiert sie hier.
+ *
+ * Farben bauen auf den bestehenden Jarvis-Tokens aus src/index.css auf,
+ * damit Light/Dark ohne eigene Logik funktionieren. Drei Altlasten-Tokens
+ * (--color-text-muted, --color-danger, --color-surface-2) waren im Bestand
+ * benutzt, aber nie definiert — sie werden hier repariert, damit auch die
+ * wiederverwendeten Bausteine (components.tsx) korrekte Farben zeigen. */
+
+:root {
+  /* Altlasten-Reparatur (vom Bestand benutzt, vorher undefiniert) */
+  --color-text-muted: var(--color-text-secondary);
+  --color-danger: var(--color-error);
+  --color-surface-2: var(--color-bg-tertiary);
+
+  /* ── Spalten (M2-VORLÄUFIG) ─────────────────────────────────────────── */
+  --pjc-sidebar-width: 200px;
+  --pjc-sidebar-min: 160px;
+  --pjc-sidebar-max: 320px;
+  --pjc-list-width: 280px;
+  --pjc-list-min: 220px;
+  --pjc-list-max: 460px;
+  --pjc-detail-min: 320px;
+
+  /* ── Toolbar (M2-VORLÄUFIG) ─────────────────────────────────────────── */
+  --pjc-toolbar-height: 52px;
+  --pjc-toolbar-gap: 8px;
+  --pjc-search-width: 220px;
+  /* Freiraum rechts: dort schwebt die globale Approval-Glocke der App
+     (fixed top-2 right-3) ueber allem — Toolbar-Knoepfe muessen davor enden. */
+  --pjc-toolbar-reserve: 56px;
+
+  /* ── Zeilen und Abstände (M2-VORLÄUFIG) ─────────────────────────────── */
+  --pjc-row-height: 36px;          /* Kontaktzeile in der Liste */
+  --pjc-section-height: 24px;      /* Abschnittsmarker (A, B, …) */
+  --pjc-sidebar-row-height: 28px;
+  --pjc-pane-pad: 10px;
+  --pjc-detail-pad: 24px;
+  --pjc-detail-gap: 16px;          /* Abstand zwischen Feldgruppen */
+  --pjc-field-label-width: 96px;   /* Label-Spalte im Detail */
+  --pjc-hit-target: 24px;          /* Mindestklickziel */
+  --pjc-list-overscan: 8;          /* Zeilen Überhang bei Fensterung */
+
+  /* ── Typografie (M2-VORLÄUFIG; Systemschrift kommt aus index.css) ───── */
+  --pjc-font-hero: 600 1.375rem/1.25 var(--font-sans, system-ui);
+  --pjc-font-title: 600 0.8125rem/1.3 var(--font-sans, system-ui);
+  --pjc-font-body: 400 0.8125rem/1.45 var(--font-sans, system-ui);
+  --pjc-font-label: 400 0.75rem/1.3 var(--font-sans, system-ui);
+  --pjc-font-section: 600 0.6875rem/1.2 var(--font-sans, system-ui);
+
+  /* ── Avatare und Icons (M2-VORLÄUFIG) ───────────────────────────────── */
+  --pjc-avatar-list: 24px;
+  --pjc-avatar-hero: 64px;
+  --pjc-icon-size: 15px;
+  --pjc-icon-stroke: 1.75;
+
+  /* ── Flächen, Divider, Auswahl (M2-VORLÄUFIG) ───────────────────────── */
+  --pjc-bg-sidebar: var(--color-bg-secondary);
+  --pjc-bg-list: var(--color-bg);
+  --pjc-bg-detail: var(--color-bg);
+  --pjc-divider: var(--color-border-subtle, var(--color-border));
+  --pjc-divider-width: 1px;
+  --pjc-selection-bg: var(--color-accent);
+  --pjc-selection-fg: #ffffff;
+  --pjc-selection-inactive-bg: var(--color-bg-tertiary);
+  --pjc-hover-bg: color-mix(in srgb, var(--color-text) 6%, transparent);
+  --pjc-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+
+  /* ── Radien und Bewegung (M2-VORLÄUFIG) ─────────────────────────────── */
+  --pjc-radius-row: 5px;
+  --pjc-radius-control: 6px;
+  --pjc-duration-fast: 120ms;
+  --pjc-duration-medium: 180ms;
+}
+
+/* Hover-Affordanz (Nutzerwunsch 2026-08-02): Zeilen und Schaltflächen
+ * zeigen beim Überfahren eine kurze Hintergrund-Animation, gefüllte
+ * Primärknöpfe (.pjc-primary) hellen stattdessen auf. Auswahl- und
+ * Deaktiviert-Zustände bleiben unberührt. */
+[data-testid="contacts-workspace"] button {
+  cursor: pointer;
+  transition: background-color var(--pjc-duration-fast) ease,
+    filter var(--pjc-duration-fast) ease;
+}
+[data-testid="contacts-workspace"] button:hover:not(:disabled):not(.pjc-primary) {
+  background-color: var(--pjc-hover-bg);
+}
+[data-testid="contacts-workspace"] .pjc-primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+[data-testid="contacts-workspace"] [role="option"] {
+  transition: background-color var(--pjc-duration-fast) ease;
+}
+[data-testid="contacts-workspace"] [role="option"]:hover:not([aria-selected="true"]) {
+  background-color: var(--pjc-hover-bg);
+}
+
+/* Fokusring als Klasse, damit er überall identisch ist und nie nur über
+ * Farbe kommuniziert. */
+.pjc-focusable:focus-visible {
+  outline: none;
+  box-shadow: var(--pjc-focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --pjc-duration-fast: 0ms;
+    --pjc-duration-medium: 0ms;
+  }
+}

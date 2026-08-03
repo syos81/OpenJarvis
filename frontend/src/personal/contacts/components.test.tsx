@@ -191,9 +191,49 @@ function nurCode(text: string): string {
     .join('\n');
 }
 
+// Alle UI- und Datenschicht-Dateien des Moduls. Der Umbau auf den
+// dreispaltigen Workspace hat den Seitencode auf mehrere Dateien verteilt;
+// die Verträge gelten unverändert für jede davon.
+const MODULDATEIEN = [
+  'ContactsPage.tsx',
+  'workspace/ContactsWorkspace.tsx',
+  'workspace/ContactsToolbar.tsx',
+  'workspace/PaneDivider.tsx',
+  'workspace/fehler.ts',
+  'sidebar/ContactsSidebar.tsx',
+  'list/ContactsListPane.tsx',
+  'detail/ContactDetailPane.tsx',
+  'editor/ContactEditor.tsx',
+  'editor/dialogs.tsx',
+  'status/ContactsStatusSurface.tsx',
+  'data/source.ts',
+  'data/fixtureSource.ts',
+  'data/fixtures.ts',
+  'data/sortierung.ts',
+];
+
 describe('Seitencode', () => {
-  const seite = nurCode(quelle('ContactsPage.tsx'));
+  const seite = nurCode(MODULDATEIEN.map(quelle).join('\n'));
   const klient = nurCode(quelle('api.ts'));
+
+  it('deckt mit der Dateiliste das ganze Modul ab', async () => {
+    const { readdirSync, statSync } = await import('node:fs');
+    const alle: string[] = [];
+    const sammle = (rel: string) => {
+      for (const name of readdirSync(join(HIER, rel))) {
+        const relPfad = rel === '.' ? name : `${rel}/${name}`;
+        if (statSync(join(HIER, relPfad)).isDirectory()) sammle(relPfad);
+        else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)
+          && !name.endsWith('.d.ts')) alle.push(relPfad);
+      }
+    };
+    sammle('.');
+    const erwartet = new Set([...MODULDATEIEN, 'api.ts', 'components.tsx']);
+    for (const datei of alle) {
+      expect(erwartet.has(datei), `unbekannte Moduldatei ${datei} — in die `
+        + 'Statikprüfliste aufnehmen').toBe(true);
+    }
+  });
 
   it('ruft keinen Provider, Sidecar oder Store direkt auf', () => {
     // `requestAuthorization` steht bewusst NICHT mehr auf dieser Liste: die
@@ -265,7 +305,7 @@ describe('Seitencode', () => {
 });
 
 describe('Berechtigungsweg im Seitencode', () => {
-  const seite = nurCode(quelle('ContactsPage.tsx'));
+  const seite = nurCode(MODULDATEIEN.map(quelle).join('\n'));
   const klient = nurCode(quelle('api.ts'));
 
   it('fordert die Berechtigung nirgends beim Laden an', () => {

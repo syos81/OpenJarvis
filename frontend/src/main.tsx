@@ -24,6 +24,16 @@ function applyTheme() {
 
 applyTheme();
 
+// Dev-Szenarien der Kontakte-Baseline: ?pjcTheme=… setzt das Thema synchron
+// vor dem ersten Render (nur im Vite-Dev-Betrieb; im Bundle toter Code).
+if (import.meta.env.DEV) {
+  const pjcTheme = new URLSearchParams(window.location.search).get('pjcTheme');
+  if (pjcTheme === 'dark' || pjcTheme === 'light') {
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(pjcTheme);
+  }
+}
+
 // Fetch the API base URL from the Tauri backend before rendering.
 // This ensures JARVIS_PORT is defined in one place (the Rust backend).
 // In non-Tauri environments this is a no-op.

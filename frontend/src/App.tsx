@@ -49,8 +49,11 @@ export default function App() {
   const markOptInModalSeen = useAppStore((s) => s.markOptInModalSeen);
   const savings = useAppStore((s) => s.savings);
 
-  // Apply theme class to <html>
+  // Apply theme class to <html>. Dev-Szenarien der Kontakte-Baseline
+  // (?pjcTheme=…) setzen die Klasse selbst; nur im Vite-Dev-Betrieb.
   useEffect(() => {
+    if (import.meta.env.DEV
+      && new URLSearchParams(window.location.search).has('pjcTheme')) return;
     const root = document.documentElement;
     root.classList.remove('dark', 'light');
     if (settings.theme === 'dark') root.classList.add('dark');
@@ -120,8 +123,11 @@ export default function App() {
     return () => clearInterval(interval);
   }, [optInEnabled, optInDisplayName, optInAnonId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show opt-in modal on first visit
+  // Show opt-in modal on first visit. In Dev-Screenshot-Szenarien
+  // (?pjc…-Parameter) bleibt er zu, damit Baselines die Oberfläche zeigen.
   useEffect(() => {
+    if (import.meta.env.DEV && [...new URLSearchParams(window.location.search)
+      .keys()].some((k) => k.startsWith('pjc'))) return;
     if (!optInModalSeen) {
       setOptInModalOpen(true);
       markOptInModalSeen();

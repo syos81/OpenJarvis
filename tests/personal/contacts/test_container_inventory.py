@@ -465,8 +465,10 @@ def test_die_schreibweise_ist_zwischen_sidecar_und_kern_identisch():
 def test_die_schreibweise_ist_zwischen_kern_und_oberflaeche_identisch():
     from pathlib import Path
 
+    # Seit dem Apple-Neuaufbau (2026-08-02) lebt die Ablageort-Beschriftung
+    # im Anlage-Dialog des Kontakte-Moduls, nicht mehr im Seitenmonolithen.
     quelle = Path(__file__).resolve().parents[3] / (
-        "frontend/src/personal/contacts/ContactsPage.tsx")
+        "frontend/src/personal/contacts/editor/dialogs.tsx")
     text = quelle.read_text(encoding="utf-8")
     block = text.split("const CONTAINER_ART", 1)[1].split("};", 1)[0]
     for art in SPECIFIC_CONTAINER_TYPES | {CONTAINER_TYPE_UNKNOWN}:
