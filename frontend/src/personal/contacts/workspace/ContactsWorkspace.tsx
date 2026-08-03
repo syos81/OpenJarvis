@@ -40,12 +40,38 @@ function tokenPx(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+/**
+ * Die Datenquelle des ersten Renders.
+ *
+ * Ein Dev-Fixture-Szenario (`?pjcDemo=<n>`) muss **vor** dem ersten Render
+ * feststehen: Die Lade-Effekte des Workspace laufen im selben Commit und
+ * noch vor dem Szenario-Effekt. Wird die Quelle erst dort getauscht, hat
+ * die API-Quelle bereits vier lesende Anfragen abgesetzt (Kontakte,
+ * Kategorien, Capabilities, Freigaben) — für einen isolierten
+ * Fixture-Lauf unnötig und irreführend.
+ *
+ * Ausschliesslich unter `import.meta.env.DEV`; im Produktionsbundle wird
+ * der Block zu totem Code und der Parametername verschwindet vollständig.
+ * Der bewusst aktivierbare Produkt-Demo-Modus (Statusfläche, zwei
+ * Schritte) ist davon unberührt und bleibt standardmässig aus.
+ */
+export function startQuelle(): ContactsDataSource {
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const roh = new URLSearchParams(window.location.search).get('pjcDemo');
+    const anzahl = Number(roh);
+    if (roh !== null && Number.isFinite(anzahl) && anzahl > 0) {
+      return fixtureDataSource(anzahl);
+    }
+  }
+  return apiDataSource();
+}
+
 export function ContactsWorkspace({ testListenHoehe }: {
   /** Nur für Tests ohne Layout (jsdom): Höhe der Liste in Pixeln. */
   testListenHoehe?: number;
 }) {
   // ── Quelle und Grunddaten ────────────────────────────────────────────────
-  const [quelle, setQuelle] = useState<ContactsDataSource>(() => apiDataSource());
+  const [quelle, setQuelle] = useState<ContactsDataSource>(startQuelle);
   const demoModus = quelle.art === 'fixtures';
 
   const [kontakte, setKontakte] = useState<ContactSummary[]>([]);
@@ -250,9 +276,10 @@ export function ContactsWorkspace({ testListenHoehe }: {
     const p = new URLSearchParams(window.location.search);
     if (![...p.keys()].some((k) => k.startsWith('pjc'))) return;
     szeneAngewendet.current = true;
-    // pjcTheme wird bereits synchron in main.tsx angewendet (vor dem Paint).
-    const demo = Number(p.get('pjcDemo'));
-    if (Number.isFinite(demo) && demo > 0) demoStart(demo);
+    // pjcTheme wird bereits synchron in main.tsx angewendet (vor dem Paint),
+    // `pjcDemo` bereits in `startQuelle()` vor dem ersten Render. Hier wird
+    // die Quelle deshalb nicht noch einmal getauscht — das erzwaenge einen
+    // zweiten Ladevorgang und verwuerfe die Szenario-Auswahl.
     const suche = p.get('pjcSuche');
     if (suche) setSucheEingabe(suche);
     if (p.get('pjcStatus')) setStatusOffen(true);

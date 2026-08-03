@@ -307,3 +307,55 @@ Aus dieser Abnahme stammen die in Abschnitt 7 beschriebenen
 WKWebView-Korrekturen (Trenner-Neuzeichnung, Hover-Affordanz, Freiraum
 für die global schwebende Approval-Glocke) sowie die leise Notiz-Zeile
 und die im Demo-Modus aktiven Update-/Delete-Capabilities.
+
+## 12. Nachtrag 2026-08-03: Zwei Hardening-Punkte
+
+### 12.1 Tombstone-Zahl im Abnahmebericht war falsch beschriftet
+
+Der Integrationsbericht vom 2026-08-03 nannte „offene Tombstones: 116".
+Diese Zahl entstand aus `SELECT COUNT(*) FROM contacts_tombstones` — der
+**gesamten Historie**. `contacts_tombstones` behält jede je gesetzte
+Grabsteinzeile; abgeschlossen wird sie nicht gelöscht, sondern auf
+`reason = reconciled_after_suspicious_empty_enumeration` gesetzt. Genau so
+zählt der produktive Wiederherstellungsdienst
+(`ContactsRecoveryService._offene_tombstones`: `reason != RECONCILED_REASON`).
+
+Lesende Nachmessung auf der produktiven Datenbank (SQLite `immutable=1`):
+alle 116 Zeilen tragen den Abschlussgrund, aus **einem** Recovery-Lauf.
+
+| Grösse | Wert |
+|---|---|
+| aktive Kontakte (`is_tombstone = 0 AND deleted_at IS NULL`) | 117 |
+| getombstonete Kontaktzeilen (`is_tombstone = 1`) | **0** |
+| Tombstone-Zeilen gesamt (Historie) | 116 |
+| **offene Tombstones** (`reason != RECONCILED_REASON`) | **0** |
+| abgeschlossene Tombstones | 116 |
+
+Damit gilt weiterhin der historisch belegte Stand **0 aktive Tombstones**;
+es liegt **kein** Datenfehler vor, und es wurde nichts korrigiert oder
+migriert. Zwei Dinge im Schema heissen „Tombstone" und dürfen nie
+verwechselt werden: `contacts.is_tombstone` (die Kontaktzeile gilt als
+gelöscht) und `contacts_tombstones` (der Provider-Löschnachweis als
+Historie).
+
+Kanonisch definiert ist das jetzt in
+`src/personaljarvis/contacts/diagnostics.py` (`bestandsaggregate`,
+ausschliesslich lesend); der Abschlussgrund wird von dort **importiert**
+statt kopiert, damit Bericht und Produktivcode nicht auseinanderdriften.
+Regressionstests: `tests/personal/contacts/test_diagnostics_aggregates.py`.
+
+### 12.2 Dev-Fixture-Bootstrap ist jetzt aufruffrei
+
+Bis dahin legte `useState(() => apiDataSource())` die API-Quelle beim
+ersten Render fest; ihre Lade-Effekte liefen im selben Commit **vor** dem
+später deklarierten Szenario-Effekt. Ein Fixture-Lauf setzte deshalb
+zuerst vier lesende Anfragen ab (Kontakte, Kategorien, Capabilities,
+Freigaben) und schaltete erst danach auf die Demo-Quelle.
+
+Die Entscheidung fällt jetzt in `startQuelle()` — dem Lazy-Initializer
+desselben Zustands — und damit **vor** dem ersten Render: Demo-Quelle und
+Demo-Banner stehen ab dem ersten Bild, ohne einen einzigen Client-Aufruf.
+Ausschliesslich unter `import.meta.env.DEV`; im Produktionsbundle bleibt
+der Zweig toter Code und die Parameternamen verschwinden vollständig. Der
+Produktionsstart, der normale API-Modus und der bewusst aktivierbare
+Produkt-Demo-Modus (Statusfläche, zwei Schritte) sind unverändert.
