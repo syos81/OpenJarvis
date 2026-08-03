@@ -326,6 +326,187 @@ produktive Datenbank über alle 26 Tabellen:
 Kein Datensatz ging verloren, keiner wurde verändert. Wer Byteidentität
 braucht, hat sie in der Sicherung.
 
+> **Nachtrag 2026-08-03 (Härtung).** Dieser Zustand wurde zurückgenommen:
+> Die produktive Datenbank steht wieder byteidentisch auf dem Vor-0008-Stand,
+> und der Smoke läuft seither in einem Wegwerfprofil. Was oben steht, bleibt
+> als Protokoll des Fehlstands stehen; der aktuelle Stand ist Abschnitt 13.
+
+## 13. Härtung der Abnahme (2026-08-03, Nachtrag)
+
+Drei Punkte des ersten Phase-A-Abschlusses waren nicht tragfähig. Sie sind
+hier geschlossen; kein Satz der Abschnitte 1–12 wurde dafür gelöscht oder
+umgeschrieben.
+
+### 13.1 Der Smoke lief gegen die produktive Datenbank
+
+**Ursache, belegt.** `open` startet über LaunchServices; die geerbte
+Umgebung ist die von `launchd`, nicht die der Shell. Ein `export
+OPENJARVIS_HOME=…` vor dem Aufruf erreicht die App also nicht. Die App
+selbst reicht an ihr Backend nur weiter, was sie ausdrücklich setzt
+(`OPENJARVIS_PERSONAL_ENABLED`, `PERSONAL_JARVIS_CONTACTS_SIDECAR` in
+`lib.rs`); alles Übrige stammt aus ihrer eigenen Umgebung. Ohne Zutun endet
+`openjarvis.core.paths.get_config_dir` damit bei `~/.openjarvis`, und
+`PersonalBootstrap` migriert die dortige Datei. Es war kein Tippfehler im
+Aufruf, sondern ein fehlender Vertrag.
+
+**Wiederherstellung.** Die migrierte Datei wurde zuerst forensisch gesichert
+(`personal/jarvis.db.post-0008.forensic.bak`), dann durch eine Kopie der
+Vor-Migrationssicherung ersetzt — über `os.replace`, also atomar innerhalb
+desselben Dateisystems, mit vorherigem `fsync` und anschliessendem
+Verzeichnis-`fsync`. Die WAL- und SHM-Beidateien wurden dabei entfernt: sie
+gehören zur ersetzten Datenbank, und ein Neustart mit fremdem WAL ist ein
+Datenverlustrisiko. Keine Gegenmigration, kein einzelnes `UPDATE`.
+
+| Nachweis | Wert |
+|---|---|
+| SHA-256 vor Migration | `f73bab74…7852b855` |
+| SHA-256 nach Fehl-Smoke | `ccff1189…10407c1f` |
+| SHA-256 nach Wiederherstellung | `f73bab74…7852b855` (byteidentisch zur Sicherung) |
+| Ledger nach Wiederherstellung | 7 Einträge, `0008` **nicht** enthalten |
+| Outbox-Schema | wieder 0007 (16 Spalten, `claim_token`) |
+| `PRAGMA integrity_check` | ok |
+| Kontakte / External Identities | 117 / 117 |
+| Mutationen / Audit-Ereignisse | 5 / 40 |
+| offene Tombstones | 0 |
+| Rechte | Datei 0600, Verzeichnis 0700 |
+
+Beide Sicherungen bleiben liegen (0600 im 0700-Ordner) und werden nicht
+automatisch entfernt.
+
+**Neuer Vertrag.** `scripts/personal/phase_a_smoke.py` legt ein
+0700-Wegwerfprofil an (eigenes `OPENJARVIS_HOME`, eigene `config.toml` mit
+abgeschaltetem Analytics, eigene Datenbank, eigene Sperre) und übergibt es
+über `open --env OPENJARVIS_HOME=…`. Vor dem Start prüft er fail-closed:
+Profil vorhanden und 0700, Analytics aus, **wirksamer** Datenbankpfad —
+erfragt beim Produktivcode selbst, nicht nachgebaut — liegt im Profil, zeigt
+nicht auf die produktive Datei und nicht in `~/.openjarvis`, und die
+produktive Datei existiert mit einem Vergleichshash. Der produktive Pfad
+wird dabei **ohne** `OPENJARVIS_HOME` bestimmt; sonst prüfte die Bedingung
+gegen genau die Datei, die sie meiden soll. Scheitert eine Bedingung,
+startet nichts.
+
+Das Werkzeug liegt bewusst unter `scripts/` und nicht im Paket: ein
+Abnahmehelfer im Wheel wäre Testlogik im Produktpfad. Am Produktpfad selbst
+wurde nichts geändert — `OPENJARVIS_HOME` gab es vorher.
+
+### 13.2 Ein Release meldete Create als unterstützt
+
+Der erste Stand meldete `create_supported: true` bei
+`provider_write_enabled: false`. Das war irreführend: Phase B hat nicht
+begonnen, ein nativer Save existiert nicht. **Unterstützt heisst ab jetzt
+ausführbar.**
+
+| Feld | Release (jeder Build dieses Stands) |
+|---|---|
+| `channel` | `app_process` |
+| `channel_mode` | `disabled` |
+| `provider_write_enabled` | `false` |
+| `create_supported` | `false` |
+| `update_supported` | `false` |
+| `delete_supported` | `false` |
+
+Der synthetische Kanal (`fake_debug_capabilities`) ist die einzige Stelle,
+die überhaupt eine Schreibfähigkeit erzeugt. Er ist ein Aufruf, kein
+Schalter: er steht in keiner Route, keinem Startpfad und keiner
+Umgebungsvariablen — ein gepacktes Release erreicht ihn nicht. Sein
+`channel_mode` heisst ausdrücklich `fake_debug`, damit niemand die Wahrheit
+im Flag sucht statt im Modus.
+
+Weiter gilt:
+
+* Der Claim prüft **`provider_write_enabled` UND** die Fähigkeit *genau
+  dieser* Operation (`darf_ausfuehren`). Ein Kanal mit `create` beansprucht
+  damit kein `delete`. Ohne Fähigkeitssatz gibt es gar keinen Auftrag.
+* Widersprüchliche oder unbekannte Handshakes werfen
+  (`InconsistentCapabilities`): Operation ohne Schreibrecht, Schreibrecht bei
+  abgeschaltetem Kanal, fremder Kanal, unbekannter Modus.
+* Das Frontend wendet dieselbe Konjunktion an (`kanalErlaubt`) und kann
+  nichts freischalten — es liest ausschliesslich die Serverantwort.
+* Der Sidecar bleibt bei allen Schreibfähigkeiten `false`.
+* Die Statusfläche sagt im Klartext: **„Transport vorbereitet,
+  Provider-Schreiben deaktiviert."**
+
+### 13.3 Die Fixture-Tests waren unter Last unzuverlässig
+
+**Ursache, belegt und nicht geraten.** In jsdom gibt es kein Layout, also
+meldet der Listencontainer `clientHeight === 0`. Die Fensterung der Liste
+hing an `viewport > 0` — sie war damit **inert**, und jeder Render stellte
+*alle* Zeilen in den DOM (1.000 im Bootstrap-Szenario). Jeder Tastendruck
+von `userEvent.type` löste einen weiteren solchen Render aus. Darüber lag
+die entprellte Suche (150 ms), deren Ergebnis die Liste **nach** dem
+`waitFor` noch einmal austauschte: ein offener Timer, der den Test
+überholte. Die Zusicherungen hingen an RTLs Standardfenster von **1000 ms**
+— nicht am 5-Sekunden-Testtimeout. Unter paralleler Last reichte das nicht.
+
+**Behebung.**
+
+* Die Liste fenstert jetzt auch ohne gemessene Höhe (`ANNAHME_VIEWPORT`,
+  2000 px). Das ist kein Testzugeständnis, sondern behebt dieselbe
+  Verschwendung im ersten Browser-Frame vor der Messung.
+* Die Bootstrap-Tests warten nicht mehr auf Uhrzeit: `montiere` rendert in
+  `act`, lässt Mikrotasks und den Entprell-Timer ablaufen und hinterlässt
+  keinen offenen Timer.
+* Der Demo-Endpunkttest wartet auf einen echten Endzustand — die Änderung
+  von `aria-setsize`, die erst *nach* der entprellten Suche eintreten kann —
+  statt auf „die Liste existiert", was schon vorher wahr war.
+
+Keine Wiederholung, kein pauschal erhöhter Timeout, kein serialisierter oder
+entfernter Test.
+
+| Test | vorher (unter Last) | jetzt (unter Last) |
+|---|---|---|
+| Nullaufruf, volles Szenario | 4906 ms → Fehler | 676 ms |
+| Nullaufruf, Bearbeiten | 1485 ms → Fehler | 438 ms |
+| Demo-Endpunkte | 5243 ms → Fehler | 754 ms |
+
+**Stabilitätsnachweis:** Kontakte-Suite 5× nacheinander (je 130/130),
+`npm test` 5× (je 136/136), zusätzlich 3× parallel zu `make test` und einem
+Cargo-Build (je 136/136). Null Timeouts, null Wiederholungen, in jedem Lauf
+dieselbe Testanzahl.
+
+### 13.4 Gepackte App und isolierter Smoke
+
+Neu gebaut (`--target x86_64-apple-darwin`), von innen nach aussen mit dem
+produktiven Zertifikat `de.kluender.jarvis` versiegelt:
+
+| Prüfung | Befund |
+|---|---|
+| Architektur App / Sidecar | Mach-O 64-bit x86_64 / x86_64 |
+| `codesign --verify --deep --strict` | gültig |
+| Hardened Runtime | `flags=0x10000(runtime)` in App **und** Sidecar |
+| DR App | `identifier "de.kluender.jarvis" and certificate leaf = H"34a4…"` |
+| DR Sidecar | `identifier "de.kluender.jarvis.contacts-bridge"`, dasselbe Blatt |
+| Spike-Identität | 0 Treffer in beiden Signaturen |
+| Entitlement `…addressbook` | in App und Sidecar vorhanden |
+| `OPENJARVIS_CONTACTS_FAKE_EXECUTION` im App-Binary | 0 Treffer |
+| `CNSaveRequest`/`CNMutableContact` im App-Binary | 0 Treffer |
+| Binary im Git-Diff | keins (`binaries/.gitignore`, `target/` ungetrackt) |
+
+Der Smoke lief ausschliesslich im Wegwerfprofil:
+
+| Prüfung | Befund |
+|---|---|
+| Vorbedingungen | erfüllt (Profil 0700, wirksamer Pfad im Profil, produktive Datei mit Vergleichshash) |
+| App startet, temporäres Backend gesund | ja |
+| Migration 0008 | **nur** in der temporären Datenbank (Ledger 1–8, 0 Kontakte) |
+| Release-Handshake | `channel_mode: disabled`, `provider_write_enabled: false`, `create/update/delete_supported: false` |
+| Sidecar-Prozesse während der Laufzeit | 0 |
+| Sidecar-Handshake aus dem Bundle | alle vier Schreibfähigkeiten `false` |
+| Kontaktebereich / Sync / Mutation / Tauri-Kommando | nicht geöffnet, nicht ausgelöst |
+| Cmd+Q bis Prozessende | **1,07 s** — nur `quit`, **kein** Signal geschickt, weder SIGTERM noch SIGKILL |
+| Restprozesse | 0 |
+| Port 8000 | frei |
+| Temporäre Sperre | freigegeben; die `serve.lock`-Datei bleibt nach `ProcessLock.release` bewusst liegen (Sperre hängt am Deskriptor, Datei dient der Port-Discovery) und verschwindet mit dem Profil |
+| Produktive Datenbank vor/nach | `f73bab74…7852b855` = `f73bab74…7852b855`, Ledger weiterhin 7 |
+
+**Nebenbefund, festgehalten:** Die gepackte App startet ihr Backend über
+`uv run jarvis serve`. `uv run` synchronisiert dabei die Projektumgebung auf
+die Standardgruppen des Lockfiles und **entfernt** die optionalen Extras
+(dev, server, docs). Wer nach einem Smoke Tests, Ruff oder MkDocs laufen
+lässt, muss vorher `uv sync` mit den Extras wiederholen — sonst wirken
+fehlende Werkzeuge wie ein Testbefund. Das betrifft nur den Arbeitsbaum,
+nicht das Produkt.
+
 ## 13. Offen
 
 Phase B (nativer Create-Pfad im App-Prozess) ist **nicht begonnen**. Es gibt

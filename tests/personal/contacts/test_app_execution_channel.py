@@ -64,11 +64,19 @@ class NieGerufenerProvider:
 CAPS = ContactCapabilitySet(create_supported=True)
 
 
-class Kanal:
-    """Minimale Kanalfähigkeit — Phase A schaltet den Transport frei."""
+def Kanal(verfuegbar: bool = True):
+    """Der Fähigkeitssatz für einen synthetischen Lauf.
 
-    def __init__(self, verfuegbar: bool = True) -> None:
-        self.channel_available = verfuegbar
+    Seit der Härtung gibt es keinen halben Zustand mehr: Ein Kanal, der
+    ausführen darf, sagt das über `provider_write_enabled` **und** die
+    Operation. `fake_debug_capabilities` ist die einzige Stelle, die das
+    erzeugt — und sie ist von keinem Build erreichbar.
+    """
+    from personaljarvis.contacts.application.app_channel import (
+        app_channel_capabilities,
+        fake_debug_capabilities,
+    )
+    return fake_debug_capabilities() if verfuegbar else app_channel_capabilities()
 
 
 @pytest.fixture

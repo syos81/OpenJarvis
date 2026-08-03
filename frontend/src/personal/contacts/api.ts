@@ -684,6 +684,12 @@ export function reconcileMutation(id: string): Promise<ReconcileResult> {
 export interface AppChannelCapabilities {
   schema_version: number;
   channel: 'app_process';
+  /**
+   * Warum nichts geht. In jedem Build dieses Stands `disabled`;
+   * `fake_debug` lebt nur im Backendprozess und erreicht diese Antwort nie.
+   */
+  channel_mode: 'disabled' | 'fake_debug';
+  /** In Phase A alle drei `false` — unterstützt ist nur, was ausführbar ist. */
   create_supported: boolean;
   update_supported: boolean;
   delete_supported: boolean;
@@ -692,6 +698,37 @@ export interface AppChannelCapabilities {
   architecture: string;
   app_version: string;
   native_bridge_version: string;
+}
+
+/**
+ * Der Satz, den die Statusoberfläche für Phase A zeigt.
+ *
+ * Bewusst hier und nicht in einer Komponente: Die Aussage ist ein Vertrag,
+ * kein Text. Sie darf sich nicht zwischen zwei Ansichten unterscheiden.
+ */
+export const PHASE_A_KANALTEXT =
+  'Transport vorbereitet, Provider-Schreiben deaktiviert';
+
+/**
+ * Ob eine Operation angeboten werden darf — dieselbe Konjunktion wie im Kern.
+ *
+ * Das Frontend kann damit nichts freischalten: Es liest ausschliesslich die
+ * Serverantwort. Ein `create_supported: true` ohne `provider_write_enabled`
+ * ist ein widersprüchlicher Handshake und ergibt hier `false`.
+ */
+export function kanalErlaubt(
+  caps: AppChannelCapabilities | null | undefined,
+  operation: 'create' | 'update' | 'delete',
+): boolean {
+  if (!caps || caps.channel !== 'app_process') return false;
+  if (caps.channel_mode !== 'disabled' && caps.channel_mode !== 'fake_debug') {
+    return false;
+  }
+  if (!caps.provider_write_enabled) return false;
+  const feld = operation === 'create' ? caps.create_supported
+    : operation === 'update' ? caps.update_supported
+      : caps.delete_supported;
+  return feld === true;
 }
 
 export interface ExecutionOrderV1 {

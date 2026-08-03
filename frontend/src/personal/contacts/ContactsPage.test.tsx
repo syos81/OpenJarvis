@@ -575,10 +575,24 @@ describe('Sicherheit', () => {
     await u.click(screen.getByTestId('demo-starten'));
     await screen.findByTestId('demo-banner');
     vi.clearAllMocks();
-    // Suche, Auswahl und Detail in der Demo-Quelle:
-    await u.type(screen.getByTestId('toolbar-suche'), 'Attrappe');
+    // Suche, Auswahl und Detail in der Demo-Quelle.
+    //
+    // Gesucht wird nach einem **Vornamen**, der in den Fixtures genau einmal
+    // vorkommt. Das ist kein Detail: Die Suche ist entprellt, und die
+    // Zusicherung „die Liste existiert" wäre schon vor dem Entprellen wahr —
+    // der spätere Austausch der Liste liefe dann unter dem laufenden Test
+    // weiter. „Genau eine Option" kann dagegen erst gelten, **nachdem** die
+    // entprellte Suche angekommen ist: ein echter Endzustand statt einer
+    // Wartezeit, die unter Last reisst.
+    const unGefiltert = screen.getAllByRole('option')[0]
+      .getAttribute('aria-setsize');
+    await u.type(screen.getByTestId('toolbar-suche'), 'Alva');
     await waitFor(() => {
-      expect(screen.getByTestId('contacts-liste')).toBeInTheDocument();
+      // `aria-setsize` nennt die **volle** Treffermenge, unabhängig davon,
+      // wie viele Zeilen gerade im DOM stehen. Sobald sie sich ändert, ist
+      // die entprellte Suche nachweislich angekommen.
+      expect(screen.getAllByRole('option')[0])
+        .not.toHaveAttribute('aria-setsize', unGefiltert);
     });
     const erste = screen.getAllByRole('option')[0];
     await u.click(erste);

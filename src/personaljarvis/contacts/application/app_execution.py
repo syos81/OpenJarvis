@@ -109,7 +109,9 @@ class AppExecutionService:
         die Audit-Stufe erst nach der Antwort schriebe, verlöre bei einem
         Absturz genau die Information, dass gesendet worden sein könnte.
         """
-        if self._caps is not None and not self._caps.channel_available:
+        if self._caps is None or not self._caps.channel_available:
+            # Fail-closed: ohne Fähigkeitssatz gibt es keinen Auftrag. Ein
+            # fehlender Handshake ist kein Freibrief.
             raise ChannelNotEnabled(
                 "Der App-Prozess-Schreibkanal ist nicht freigeschaltet")
 
@@ -119,6 +121,15 @@ class AppExecutionService:
                 (mutation_id,)).fetchone()
             if zeile is None:
                 raise MutationNotFound("Vorgang existiert nicht")
+
+            # Erst hier steht fest, **welche** Operation ansteht: geprüft
+            # wird Schreibrecht UND die Fähigkeit genau dieser Operation.
+            # Ein Kanal, der `create` kann, darf deshalb noch lange kein
+            # `delete` beanspruchen.
+            if not self._caps.darf_ausfuehren(zeile["command"]):
+                raise ChannelNotEnabled(
+                    f"Operation '{zeile['command']}' ist im App-Prozess-Kanal "
+                    "nicht freigeschaltet")
 
             zustand = zeile["state"]
             if zustand != _MUTATION_STATES_APPROVED:

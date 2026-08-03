@@ -13,7 +13,7 @@
 // Alle Daten sind synthetisch; es gibt weder Netz noch Datenbank.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 
 const aufrufe: string[] = [];
 
@@ -62,6 +62,25 @@ function szenario(suche: string): void {
   window.history.replaceState({}, '', `/contacts${suche}`);
 }
 
+/** Die entprellte Suche des Workspace (`SUCH_VERZOEGERUNG_MS`) plus Reserve. */
+const ENTPRELLUNG_MS = 150;
+
+/**
+ * Rendert und wartet, bis nichts mehr aussteht — ohne Wanduhr.
+ *
+ * Zwei Dinge stehen nach dem Mount noch aus: die Zusagen der Fixture-Quelle
+ * (reine Mikrotasks) und der Entprell-Timer der Suche. Beides wird hier
+ * gezielt abgearbeitet: `act` leert die React-Warteschlange, der zweite
+ * Durchlauf die Timer. Danach ist der Baum stabil und kein Timer offen —
+ * ein `waitFor`, das den Entprellvorgang überholt, kann so nicht entstehen.
+ */
+async function montiere(element: React.ReactElement): Promise<void> {
+  await act(async () => { render(element); });
+  await act(async () => {
+    await new Promise<void>((fertig) => setTimeout(fertig, ENTPRELLUNG_MS));
+  });
+}
+
 beforeEach(() => {
   aufrufe.length = 0;
   szenario('');
@@ -107,17 +126,21 @@ describe('A · Bootstrap-Reihenfolge', () => {
 });
 
 // ═══ B · Nullaufruf-Vertrag ═════════════════════════════════════════════════
+//
+// Gewartet wird hier **nicht** auf Uhrzeit, sondern auf Erledigung:
+// `montiere` rendert innerhalb von `act` und lässt danach alle bereits
+// fälligen Mikrotasks und die entprellte Suche ablaufen. Die Fixture-Quelle
+// löst ihre Zusagen ohne Timer auf; nach `montiere` steht der Endzustand
+// also fest, und es bleibt kein Timer offen, der die nächste Zusicherung
+// unter der Hand noch verändern könnte. Vorher hing derselbe Beweis an
+// `waitFor` mit seinem Ein-Sekunden-Fenster — und riss unter Last.
 describe('B · Nullaufruf-Vertrag', () => {
   it('loest im vollstaendigen Szenario keinen einzigen Client-Aufruf aus', async () => {
     szenario('?pjcDemo=1000&pjcAuswahl=3&pjcSuche=Attrappe&pjcStatus=freigaben');
-    render(<ContactsPage />);
-    await waitFor(() => {
-      expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
-    });
-    // Auswahl, Detail, Suche und Statusfläche sind alle angelaufen:
-    await waitFor(() => {
-      expect(screen.getByTestId('contact-detail')).toBeInTheDocument();
-    });
+    await montiere(<ContactsPage />);
+    // Liste, Auswahl, Detail, Suche und Statusfläche sind alle angelaufen:
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('contact-detail')).toBeInTheDocument();
     expect(screen.getByTestId('status-flaeche')).toBeInTheDocument();
     expect(aufrufe, `unerwartete Aufrufe: ${aufrufe.join(', ')}`).toEqual([]);
   });
@@ -126,20 +149,16 @@ describe('B · Nullaufruf-Vertrag', () => {
     szenario('?pjcDemo=100');
     const invoke = vi.fn();
     vi.stubGlobal('__TAURI_INTERNALS__', { invoke });
-    render(<ContactsPage />);
-    await waitFor(() => {
-      expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
-    });
+    await montiere(<ContactsPage />);
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
     expect(invoke).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 
   it('bleibt auch beim Bearbeiten und Vorbereiten aufruffrei', async () => {
     szenario('?pjcDemo=100&pjcAuswahl=2&pjcEditor=1');
-    render(<ContactsPage />);
-    await waitFor(() => {
-      expect(screen.getByTestId('contact-editor')).toBeInTheDocument();
-    });
+    await montiere(<ContactsPage />);
+    expect(screen.getByTestId('contact-editor')).toBeInTheDocument();
     expect(aufrufe).toEqual([]);
   });
 });

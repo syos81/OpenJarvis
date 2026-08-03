@@ -443,9 +443,12 @@ def create_contacts_router(module) -> APIRouter:
     def app_channel() -> Any:
         """Was der App-Prozess-Kanal kann — serverseitig, nie aus dem Client.
 
-        In Phase A meldet die Route `provider_write_enabled: false`. Das ist
-        keine Momentaufnahme, sondern eine Konstante des Stands: Es gibt
-        keinen nativen Save.
+        In Phase A meldet die Route `provider_write_enabled: false` **und**
+        `create/update/delete_supported: false` bei
+        `channel_mode: "disabled"`. Das ist keine Momentaufnahme, sondern
+        eine Konstante des Stands: Es gibt keinen nativen Save, also auch
+        keine unterstützte Operation. Der Fake-Modus ist hier unerreichbar —
+        er wird aus keiner Anfrage konstruiert.
         """
         return S.AppChannelCapabilitiesOut(**kanal.as_dict())
 

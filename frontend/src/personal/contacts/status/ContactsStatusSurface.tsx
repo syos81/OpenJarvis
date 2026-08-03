@@ -298,6 +298,33 @@ function ApprovalBoard({ quelle, onOpenMutation }: {
 }
 
 // ── Vorgänge ───────────────────────────────────────────────────────────────
+/**
+ * Der Stand des App-Prozess-Kanals, im Klartext.
+ *
+ * Bewusst **ohne** Abruf: In Phase A ist der Kanalzustand eine Konstante des
+ * Kerns (`channel_mode: "disabled"`), kein Laufzeitwert. Ein Abruf brächte
+ * keine zusätzliche Wahrheit, würde aber im Demo-Modus einen Endpunkt
+ * anfassen — und dort ist die Zahl der Client-Aufrufe vertraglich null.
+ * Ein Test hält den Satz mit der Kernkonstante deckungsgleich.
+ */
+function KanalHinweis() {
+  return (
+    <section style={statusKarte()} aria-label="Ausführungskanal"
+             data-testid="kanal-hinweis">
+      <p style={{ font: 'var(--pjc-font-body)', margin: 0 }}>
+        {api.PHASE_A_KANALTEXT}.
+      </p>
+      <p style={{
+        font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
+        margin: '4px 0 0',
+      }}>
+        Vorgänge lassen sich vorbereiten und freigeben; an Apple Kontakte
+        überträgt dieser Stand nichts.
+      </p>
+    </section>
+  );
+}
+
 function kannAusfuehren(m: MutationDetail, caps: Capabilities | null): boolean {
   if (m.state !== 'approved') return false;
   if (m.command === 'create') return Boolean(caps?.create_supported);
@@ -787,10 +814,13 @@ export function ContactsStatusSurface({
             : <ApprovalBoard quelle={quelle} onOpenMutation={setMutationId} />
         )}
         {tab === 'vorgaenge' && (
-          mutationId
-            ? <MutationDetailView id={mutationId} quelle={quelle}
-                                  onBack={() => setMutationId(null)} />
-            : <MutationList quelle={quelle} onOpen={setMutationId} />
+          <>
+            <KanalHinweis />
+            {mutationId
+              ? <MutationDetailView id={mutationId} quelle={quelle}
+                                    onBack={() => setMutationId(null)} />
+              : <MutationList quelle={quelle} onOpen={setMutationId} />}
+          </>
         )}
       </div>
     </aside>

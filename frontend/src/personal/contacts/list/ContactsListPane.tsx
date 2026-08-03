@@ -5,9 +5,16 @@
 // Überhang) in den DOM gestellt. Auswahl, Tastaturnavigation und die
 // ARIA-Angaben (`aria-setsize`/`aria-posinset` je Option,
 // `aria-activedescendant` am Listbox-Container) arbeiten auf der vollen
-// Datenmenge und sind vom Fenster unabhängig. In Umgebungen ohne Layout
-// (jsdom) misst der Container 0 Pixel — dann rendert die Liste vollständig,
-// es sei denn, der Test gibt die Höhe explizit vor.
+// Datenmenge und sind vom Fenster unabhängig.
+//
+// Solange keine Höhe gemessen ist, gilt `ANNAHME_VIEWPORT` statt „alles
+// rendern". Das betrifft zwei reale Fälle: den ersten Render vor dem
+// Messeffekt (Browser) und eine Umgebung ganz ohne Layout (jsdom meldet
+// dauerhaft 0 Pixel). Vorher entstand in beiden Fällen der vollständige
+// DOM — bei 10.000 Kontakten ein Baum, den niemand sieht und den der
+// Browser sofort wieder verwirft. Die Annahme ist absichtlich grosszügig:
+// sie deckt mehr als jeden üblichen Bildschirm ab, sodass vor der ersten
+// Messung nichts Sichtbares fehlt.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ContactSummary } from '../api';
@@ -15,6 +22,9 @@ import { abschnittsBuchstabe } from '../data/sortierung';
 import { EmptyState } from '../components';
 
 export const FENSTER_AB = 400;
+
+/** Angenommene Sichthöhe in Pixeln, solange keine gemessen wurde. */
+export const ANNAHME_VIEWPORT = 2000;
 
 type Zeile =
   | { typ: 'abschnitt'; schluessel: string; buchstabe: string }
@@ -118,7 +128,9 @@ export function ContactsListPane({
     return () => ro.disconnect();
   }, [testHoehe]);
 
-  const fenstert = zeilen.length > FENSTER_AB && viewport > 0;
+  // Ungemessen heisst „noch nicht", nicht „unbegrenzt".
+  const sichtHoehe = viewport > 0 ? viewport : ANNAHME_VIEWPORT;
+  const fenstert = zeilen.length > FENSTER_AB;
 
   let von = 0;
   let bis = zeilen.length;
@@ -132,7 +144,7 @@ export function ContactsListPane({
     }
     von = Math.max(0, lo - overscan);
     let ende = lo;
-    while (ende < zeilen.length && offsets[ende] < scrollTop + viewport) ende += 1;
+    while (ende < zeilen.length && offsets[ende] < scrollTop + sichtHoehe) ende += 1;
     bis = Math.min(zeilen.length, ende + overscan);
   }
 

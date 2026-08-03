@@ -365,13 +365,19 @@ class SettleResultOut(_Strict):
 class AppChannelCapabilitiesOut(_Strict):
     """Was der App-Prozess-Kanal kann — fail-closed voreingestellt.
 
-    In Phase A ist `provider_write_enabled` **immer** falsch: Der Transport
-    steht, der native Save nicht. Eine Oberfläche, die daraus „geht schon"
-    liest, hätte einen Knopf ohne Deckung.
+    In Phase A sind `provider_write_enabled` **und** alle drei
+    Operationsflags falsch: Der Transport steht, der native Save nicht.
+    Unterstützt ist erst, was auch ausgeführt werden kann; alles andere wäre
+    ein Knopf ohne Deckung.
+
+    `channel_mode` benennt, *warum* nichts geht: `disabled` in jedem Build
+    dieses Stands. `fake_debug` existiert ausschliesslich prozessintern und
+    verlässt diese Route nie.
     """
 
     schema_version: int
     channel: Literal["app_process"]
+    channel_mode: Literal["disabled", "fake_debug"]
     create_supported: bool
     update_supported: bool
     delete_supported: bool
