@@ -586,7 +586,7 @@ def test_reconcile_liest_nur(client, module, provider):
         uow.execute("UPDATE contacts_mutations SET state = ? WHERE mutation_id = ?",
                     (MutationState.OUTCOME_UNKNOWN, mid))
         uow.execute("UPDATE personal_external_action_outbox SET state = ?, "
-                    "claim_token = NULL WHERE subject_id = ?",
+                    "claim_token_digest = NULL WHERE subject_id = ?",
                     ("outcome_unknown", mid))
 
     class Leser:

@@ -44,6 +44,12 @@ class AuditStage:
     #: eine externe Beobachtung dazu.
     MUTATION_OUTCOME_MANUALLY_RESOLVED = "mutation_outcome_manually_resolved"
     MUTATION_COMPLETED = "mutation_completed"
+    #: Der Ausfuehrungsauftrag hat das Backend verlassen (ADR-0020 §3). Ab
+    #: dieser Stufe ist ein zweiter Claim ausgeschlossen — auch nach
+    #: Verfall, denn ob irgendwo gesendet wurde, ist danach unbeweisbar.
+    EXECUTION_ORDER_ISSUED = "execution_order_issued"
+    #: Ein Bericht aus dem App-Prozess wurde serverseitig bewertet.
+    MUTATION_SETTLED = "mutation_settled"
 
     ALL = frozenset({
         MUTATION_PREPARED, APPROVAL_REQUESTED, APPROVAL_GRANTED,
@@ -52,6 +58,7 @@ class AuditStage:
         FAILED_BEFORE_SEND, OUTCOME_UNKNOWN, RECONCILE_STARTED,
         RECONCILE_SUCCEEDED, MANUAL_DECISION_REQUIRED,
         MUTATION_OUTCOME_MANUALLY_RESOLVED, MUTATION_COMPLETED,
+        EXECUTION_ORDER_ISSUED, MUTATION_SETTLED,
     })
 
 

@@ -310,11 +310,13 @@ def test_freigabe_bleibt_verbraucht_und_outbox_terminal(module, aufbau):
         freigabe = uow.execute(
             "SELECT state FROM personal_approvals").fetchone()["state"]
         outbox = uow.execute(
-            "SELECT state, claim_token FROM personal_external_action_outbox"
+            "SELECT state, claim_token_digest "
+            "FROM personal_external_action_outbox"
         ).fetchone()
     assert freigabe == "consumed"
     assert outbox["state"] == "abandoned"       # terminal
-    assert outbox["claim_token"] is None
+    # Seit 0008 nur der Digest — beim Abschluss wird er geleert.
+    assert outbox["claim_token_digest"] is None
 
 
 def test_recover_interrupted_fasst_den_zustand_nicht_an(module, aufbau):

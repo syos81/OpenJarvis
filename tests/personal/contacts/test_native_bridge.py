@@ -134,9 +134,10 @@ def test_kontaktfreier_handshake_ping_caps_shutdown():
         assert handshake.capabilities.notes_supported is False
         assert handshake.capabilities.link_unlink_supported is False
         assert handshake.capabilities.unified_read_only is True
-        # Seit ADR-0019 schreibt der Sidecar — aber ausschliesslich `create`.
-        assert handshake.capabilities.mutations_implemented is True
-        assert handshake.capabilities.create_implemented is True
+        # Seit ADR-0020 hat der Sidecar **keinen** produktiven Schreibpfad
+        # mehr; produktive Writes laufen im Tauri-App-Prozess.
+        assert handshake.capabilities.mutations_implemented is False
+        assert handshake.capabilities.create_implemented is False
         assert handshake.capabilities.update_implemented is False
         assert handshake.capabilities.delete_implemented is False
         assert handshake.capabilities.mutation_contract_version == \
@@ -179,7 +180,11 @@ def test_create_bricht_ohne_pflichtfelder_vor_dem_store_ab():
         assert envelope["ok"] is True
         ergebnis = envelope["result"]
         assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
-        assert ergebnis["errorCode"] == protocol.ErrorCode.INVALID_REQUEST
+        # Seit ADR-0020 endet jeder Create bereits an der Kanalgrenze —
+        # noch vor der Pflichtfeldpruefung, aber ebenso beweisbar ohne
+        # Uebergabe an den Store.
+        assert ergebnis["errorCode"] in (protocol.ErrorCode.INVALID_REQUEST,
+                                         "capability_denied")
 
         # Auch mit Pflichtfeldern, aber ohne Container: weiterhin not_sent.
         envelope = proc.request(
@@ -265,9 +270,13 @@ def test_objc_shim_ist_reine_weiterleitung():
 # ── Mutationsvertrag: kontaktfrei am laufenden Sidecar ──────────────────────
 #
 # Ausgefuehrt werden ausschliesslich Anfragen, die **vor** jedem Store-Zugriff
-# abbrechen: fehlende Pflichtfelder und eine falsche Vertragsversion. Beide
-# Wege enden im Sidecar vor `store.execute` — es wird kein Kontakt angelegt,
-# gelesen oder veraendert, und es gibt keinen TCC-Dialog.
+# abbrechen. Seit ADR-0020 endet jeder Create schon an der Kanalgrenze
+# (`capability_denied`) — der Sidecar hat keinen produktiven Schreibpfad mehr.
+# Die frueheren Abbruchgruende (fehlende Pflichtfelder, fremde
+# Vertragsversion) bleiben als zulaessige Antworten stehen, damit die Suite
+# auch gegen einen aelteren gebauten Sidecar gruen bleibt. In beiden Faellen
+# gilt dasselbe: kein Kontakt wird angelegt, gelesen oder veraendert, und es
+# gibt keinen TCC-Dialog.
 def _mutationsantwort(payload: dict) -> dict:
     proc = SidecarProcess(resolve_sidecar(_native()))
     proc.start()
@@ -282,7 +291,7 @@ def test_create_ohne_pflichtfelder_meldet_not_sent():
     assert antwort["ok"] is True
     ergebnis = antwort["result"]
     assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
-    assert ergebnis["errorCode"] == "invalid_request"
+    assert ergebnis["errorCode"] in ("invalid_request", "capability_denied")
 
 
 def test_create_mit_fremder_vertragsversion_meldet_not_sent():
@@ -293,7 +302,7 @@ def test_create_mit_fremder_vertragsversion_meldet_not_sent():
         "mutationContractVersion": 99, "fieldContractVersion": 99})
     ergebnis = antwort["result"]
     assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
-    assert ergebnis["errorCode"] == "protocol_mismatch"
+    assert ergebnis["errorCode"] in ("protocol_mismatch", "capability_denied")
 
 
 def test_die_mutationsantwort_nennt_ihre_vertragsversionen():

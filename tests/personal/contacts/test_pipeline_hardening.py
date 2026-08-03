@@ -148,13 +148,15 @@ def test_prozessabbruch_hinterlaesst_executing_und_claim(module):
     mutation_id = _abgestuerzt(module)
     with module.unit_of_work() as uow:
         zeile = uow.execute(
-            "SELECT m.state AS ms, o.state AS os, o.claim_token "
+            "SELECT m.state AS ms, o.state AS os, o.claim_token_digest "
             "FROM contacts_mutations m JOIN personal_external_action_outbox o "
             "ON o.outbox_id = m.outbox_id WHERE m.mutation_id = ?",
             (mutation_id,)).fetchone()
     assert zeile["ms"] == MutationState.EXECUTING
     assert zeile["os"] == OutboxState.CLAIMED
-    assert zeile["claim_token"] is not None
+    # Seit 0008 nur der Digest — der Rohtoken existiert nur im Auftrag.
+    assert zeile["claim_token_digest"] is not None
+    assert len(zeile["claim_token_digest"]) == 64
 
 
 def test_recover_interrupted_fuehrt_nach_outcome_unknown(module):

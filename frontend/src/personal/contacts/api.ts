@@ -673,3 +673,94 @@ export function reconcileMutation(id: string): Promise<ReconcileResult> {
     `/mutations/${encodeURIComponent(id)}/reconcile`, { method: 'POST' },
   );
 }
+
+// ── App-Prozess-Ausführungskanal (ADR-0020, Phase A) ────────────────────────
+//
+// Der Kanal hat drei Berührungspunkte mit dem Server: Fähigkeiten lesen,
+// **einen** Versuch beanspruchen, **einen** Bericht melden. Sie liegen hier,
+// weil hier der gesamte HTTP-Verkehr des Moduls liegt — der Transportdienst
+// darüber ist reine Ablauflogik ohne eigene Netzschicht.
+
+export interface AppChannelCapabilities {
+  schema_version: number;
+  channel: 'app_process';
+  create_supported: boolean;
+  update_supported: boolean;
+  delete_supported: boolean;
+  /** In Phase A immer `false`: Der Transport steht, der native Save nicht. */
+  provider_write_enabled: boolean;
+  architecture: string;
+  app_version: string;
+  native_bridge_version: string;
+}
+
+export interface ExecutionOrderV1 {
+  schema_version: number;
+  operation_id: string;
+  mutation_id: string;
+  /** Der einzige Rohwert des Kanals — nur für die Dauer eines Versuchs. */
+  claim_token: string;
+  operation_type: 'create' | 'update' | 'delete';
+  payload_digest: string;
+  preview_digest: string;
+  canonical_payload: Record<string, unknown>;
+  readback_requirements: Record<string, unknown>;
+  issued_at: string;
+  expires_at: string;
+  mutation_contract_version: number;
+  field_contract_version: number;
+  transaction_author: string;
+  expected_revision: string | null;
+  provider_target: Record<string, string | null>;
+}
+
+export interface ExecutionReportV1 {
+  schema_version: number;
+  operation_id: string;
+  mutation_id: string;
+  operation_type: 'create' | 'update' | 'delete';
+  outcome: 'applied' | 'not_sent' | 'outcome_unknown';
+  send_attempted: boolean;
+  save_request_count: number;
+  readback_status: 'confirmed' | 'absent_confirmed' | 'failed' | 'not_attempted';
+  provider_identifier_digest: string | null;
+  readback_revision: string | null;
+  readback_digest: string | null;
+  error_class: string | null;
+  error_digest: string | null;
+  diagnostic_artifact_present: boolean;
+  provider_completed_at: string | null;
+}
+
+export interface SettleResult {
+  mutation_id: string;
+  state: string;
+  outcome: string | null;
+  error_class: string | null;
+  idempotent: boolean;
+}
+
+export function getAppChannel(): Promise<AppChannelCapabilities> {
+  return request<AppChannelCapabilities>('/app-channel');
+}
+
+/** Beansprucht **einen** Versuch. Nie automatisch wiederholen. */
+export function claimAppExecution(mutationId: string): Promise<ExecutionOrderV1> {
+  return request<ExecutionOrderV1>(
+    `/mutations/${encodeURIComponent(mutationId)}/claim-app-execution`,
+    { method: 'POST', body: JSON.stringify({ user_initiated: true }) });
+}
+
+/** Meldet den Bericht. Darf mit **demselben** Bericht wiederholt werden. */
+export function settleAppExecution(
+  mutationId: string, claimToken: string, report: ExecutionReportV1,
+): Promise<SettleResult> {
+  return request<SettleResult>(
+    `/mutations/${encodeURIComponent(mutationId)}/settle-app-execution`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        user_initiated: true, claim_token: claimToken, report,
+      }),
+    });
+}

@@ -542,6 +542,7 @@ Feldvertrag übertragbar"):
 | `revision_conflict` / `conflict` | vor Send | nein | `failed_before_send` | nein | nein | nein | `failed_before_send` |
 | `invalid_payload` / `unsupported_field` | vor Send | nein | `failed_before_send` | nein | nein | nein | `failed_before_send` |
 | `container_unavailable` / `write_stack_unavailable` | vor Send | nein | `failed_before_send` | nein | nein | nein | `failed_before_send` |
+| `provider_channel_disabled_before_send` | vor Send | nein | `failed_before_send` | nein | nein | nein | `failed_before_send` |
 | `provider_exception` (`objc_exception`) | nach Send | ja | `outcome_unknown` | **nie** | ja | ggf. | `outcome_unknown` |
 | `provider_save_error` | nach Übergabe | ja | `outcome_unknown` | nie | ja | ggf. | `outcome_unknown` |
 | `readback_failed` (`readback_failed_after_save`) | nach Send | ja | `outcome_unknown` | nie | ja | ggf. | `outcome_unknown` |
@@ -555,6 +556,12 @@ ein ungültiger Claim **im Report** ist `settle_conflict`.
 \** Verfall nach Auftragsausgabe: ob gesendet wurde, ist unbeweisbar —
 fail-closed `outcome_unknown` (lehnt Tauri selbst vor dem FFI ab und liefert
 das beweisbar, darf das Settle `not_sent` tragen ⇒ `failed_before_send`).
+
+**Präzisierung 2026-08-03 (Phase A):** `provider_channel_disabled_before_send`
+ist die Klasse des Stands, in dem der Transport steht und der native Save
+noch nicht existiert (Phase A) bzw. das Produktgate aus ist. Sie gehört zu
+den Vor-Send-Klassen: Der App-Prozess lehnt **vor** jeder Übergabe ab, es
+wurde beweisbar nichts gesendet.
 
 Diagnose ist überall PII-arm: Fehlerklassen sind geschlossene Bezeichner;
 Rohgründe existieren nur als `error_digest` bzw. — ausdrücklich aktiviert —

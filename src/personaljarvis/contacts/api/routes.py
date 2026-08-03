@@ -67,6 +67,18 @@ from personaljarvis.contacts.application.queries import (
     MAX_PAGE_SIZE,
     ContactsQueryService,
 )
+from personaljarvis.contacts.application.app_channel import (
+    app_channel_capabilities,
+)
+from personaljarvis.contacts.application.app_execution import (
+    AppExecutionService,
+    ChannelNotEnabled,
+    SettleConflict,
+)
+from personaljarvis.contacts.application.execution_contracts import (
+    ExecutionContractError,
+    parse_execution_report,
+)
 from personaljarvis.contacts.application.roles import ContactsRoleService
 from personaljarvis.contacts.domain.enums import InitiationContext, SyncMode
 from personaljarvis.contacts.domain.models import Contact
@@ -201,6 +213,9 @@ def create_contacts_router(module) -> APIRouter:
         """Der handelnde Mensch. In Gate D aus dem Kopf-Feld; mit dem
         Session-Token-Fluss (DEV-4) wird daraus die Sitzungsidentität."""
         return request.headers.get("X-Personal-Actor") or "desktop-user"
+
+    kanal = app_channel_capabilities()
+    app_execution = AppExecutionService(module, channel_capabilities=kanal)
 
     def _mutation_service():
         # Welcher Provider dahintersteht, bleibt Sache der Komposition.
@@ -424,6 +439,75 @@ def create_contacts_router(module) -> APIRouter:
             detail=ergebnis.detail)
 
     # ── Ausführung: eine eigene, ausdrückliche Nutzeraktion ─────────────────
+    @router.get("/app-channel", response_model=S.AppChannelCapabilitiesOut)
+    def app_channel() -> Any:
+        """Was der App-Prozess-Kanal kann — serverseitig, nie aus dem Client.
+
+        In Phase A meldet die Route `provider_write_enabled: false`. Das ist
+        keine Momentaufnahme, sondern eine Konstante des Stands: Es gibt
+        keinen nativen Save.
+        """
+        return S.AppChannelCapabilitiesOut(**kanal.as_dict())
+
+    @router.post("/mutations/{mutation_id}/claim-app-execution",
+                 response_model=S.ExecutionOrderOut)
+    def claim_app_execution(mutation_id: str, body: S.ClaimAppExecutionIn,
+                            request: Request) -> Any:
+        """Beansprucht **einen** Ausfuehrungsversuch und gibt den Auftrag aus.
+
+        Hoechstens einmal je Vorgang: Ein zweiter Aufruf bekommt nie erneut
+        einen Rohtoken, sondern einen typisierten Konflikt — auch dann,
+        wenn der erste Auftrag verfallen ist. Ob irgendwo gesendet wurde,
+        ist nach der Ausgabe unbeweisbar; der Weg heisst dann Abgleich.
+        """
+        assert body.user_initiated is True   # von Pydantic erzwungen
+        ws = workspace(request)
+        if queries.get_mutation(mutation_id, workspace_id=ws) is None:
+            raise _http_error(MutationNotFound("Mutation existiert nicht"))
+        try:
+            auftrag = app_execution.claim(mutation_id)
+        except ChannelNotEnabled as exc:
+            raise HTTPException(status_code=503, detail={
+                "code": "channel_unavailable", "message": str(exc),
+                "retryable": False}) from exc
+        except (MutationError, ApprovalError) as exc:
+            raise _http_error(exc) from exc
+        return S.ExecutionOrderOut(**auftrag.as_dict())
+
+    @router.post("/mutations/{mutation_id}/settle-app-execution",
+                 response_model=S.SettleResultOut)
+    def settle_app_execution(mutation_id: str, body: S.SettleAppExecutionIn,
+                             request: Request) -> Any:
+        """Nimmt genau einen Bericht entgegen — idempotent, ohne Providerkontakt.
+
+        Diese Route sendet nichts, ruft kein Tauri und keinen Sidecar. Sie
+        liest einen geschlossenen Bericht, rechnet seinen Digest selbst und
+        entscheidet allein serverseitig ueber den Zustand.
+        """
+        assert body.user_initiated is True
+        ws = workspace(request)
+        if queries.get_mutation(mutation_id, workspace_id=ws) is None:
+            raise _http_error(MutationNotFound("Mutation existiert nicht"))
+        try:
+            bericht = parse_execution_report(body.report)
+        except ExecutionContractError as exc:
+            raise HTTPException(status_code=422, detail={
+                "code": exc.error_class, "message": str(exc),
+                "retryable": False}) from exc
+        try:
+            ergebnis = app_execution.settle(mutation_id, bericht,
+                                            claim_token=body.claim_token)
+        except SettleConflict as exc:
+            raise HTTPException(status_code=409, detail={
+                "code": "settle_conflict", "message": str(exc),
+                "retryable": False}) from exc
+        except (MutationError, ApprovalError) as exc:
+            raise _http_error(exc) from exc
+        return S.SettleResultOut(
+            mutation_id=ergebnis.mutation_id, state=ergebnis.state,
+            outcome=ergebnis.outcome, error_class=ergebnis.error_class,
+            idempotent=ergebnis.idempotent)
+
     @router.post("/mutations/{mutation_id}/execute",
                  response_model=S.ExecutionResultOut)
     def execute_mutation(mutation_id: str, body: S.ExecuteMutationIn,

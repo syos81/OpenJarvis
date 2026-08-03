@@ -1,5 +1,6 @@
 mod backend_shutdown;
 mod contacts_authorization;
+mod contacts_execution;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -1785,6 +1786,47 @@ fn get_api_base() -> String {
     api_base()
 }
 
+/// Führt einen `ExecutionOrderV1` im App-Prozess aus (ADR-0020, Phase A).
+///
+/// **In Phase A berührt dieses Command kein Contacts.framework.** Es
+/// validiert den Auftrag, rechnet den Payload-Digest nach und antwortet
+/// typisiert. Ohne Entwicklungs-Gate ist die Antwort fail-closed
+/// `not_sent / provider_channel_disabled_before_send`; im Release-Profil
+/// ist der Fake-Zweig auskompiliert.
+///
+/// Genau ein Command je Claim: Ein zweiter Aufruf mit derselben
+/// `operation_id` bekommt das gemerkte Ergebnis, ohne den nativen Pfad
+/// erneut zu betreten.
+#[tauri::command]
+fn personal_contacts_execute_mutation(order_json: String) -> serde_json::Value {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    static GEDAECHTNIS: OnceLock<Mutex<HashMap<String, serde_json::Value>>> =
+        OnceLock::new();
+    let speicher = GEDAECHTNIS.get_or_init(|| Mutex::new(HashMap::new()));
+
+    let kennung: Option<String> = serde_json::from_str::<serde_json::Value>(&order_json)
+        .ok()
+        .and_then(|w| w.get("operation_id").and_then(|k| k.as_str()).map(str::to_string));
+
+    if let Some(id) = kennung.as_ref() {
+        if let Ok(gemerkt) = speicher.lock() {
+            if let Some(vorher) = gemerkt.get(id) {
+                return vorher.clone();
+            }
+        }
+    }
+
+    let bericht = contacts_execution::execute_order(&order_json);
+    let wert = serde_json::to_value(&bericht).unwrap_or(serde_json::Value::Null);
+    if let Some(id) = kennung {
+        if let Ok(mut gemerkt) = speicher.lock() {
+            gemerkt.insert(id, wert.clone());
+        }
+    }
+    wert
+}
 /// Reads the Contacts authorization status. Shows no dialog.
 ///
 /// The sidecar can read this too, and the Contacts page still does so through
@@ -3168,6 +3210,7 @@ pub fn run() {
             get_overlay_conversation,
             personal_contacts_authorization_status,
             personal_contacts_request_authorization,
+            personal_contacts_execute_mutation,
         ])
         .build(tauri::generate_context!())
         .expect("error while building OpenJarvis Desktop")

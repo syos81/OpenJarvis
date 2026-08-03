@@ -285,15 +285,25 @@ def test_fehlender_handshake_faellt_auf_nur_lesen_zurueck():
                     or caps.delete_supported)
 
 
-def test_der_produktive_sidecar_meldet_nur_create():
-    """Statisch am Quelltext: `create` ja, `update`/`delete` nein."""
+def test_der_sidecar_meldet_keinen_schreibpfad_mehr():
+    """Statisch am Quelltext: seit ADR-0020 schreibt der Sidecar nicht mehr.
+
+    Vier x86_64-Livetests starben im Sidecar-Save
+    (`NSInternalInconsistencyException`, Koordinator ohne Stores); derselbe
+    Save im App-Prozess gelang. Produktive Writes laufen deshalb dort — der
+    Sidecar bleibt Lese-, Sync- und Diagnosewerkzeug.
+    """
     from pathlib import Path
 
     quelle = (Path(__file__).resolve().parents[3]
               / "native/contacts-bridge/src/sidecar.swift").read_text()
-    assert '"createImplemented": true' in quelle
+    assert '"createImplemented": false' in quelle
     assert '"updateImplemented": false' in quelle
     assert '"deleteImplemented": false' in quelle
+    assert '"mutationsImplemented": false' in quelle
+    # Der Create-Einstieg lehnt **vor** jeder Store-Beruehrung ab.
+    einstieg = quelle.split("func opCreate(")[1][:1200]
+    assert "capability_denied" in einstieg
 
 
 # ═══ Ausführung: eine eigene, ausdrückliche Aktion ══════════════════════════

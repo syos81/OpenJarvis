@@ -101,8 +101,10 @@ def aufgeruestet(tmp_path):
 # ═══ Grundlagen ═════════════════════════════════════════════════════════════
 def test_frische_datenbank_laeuft_bis_0007(tmp_path):
     bericht = MigrationRunner(_factory(tmp_path), ALL_MIGRATIONS).run()
-    assert bericht.applied[-1] == "0007"
-    assert bericht.schema_version == 7
+    # 0007 muss durchlaufen sein; die Liste waechst mit jeder neuen
+    # Migration weiter (0008 kam mit dem App-Prozess-Kanal dazu).
+    assert "0007" in bericht.applied
+    assert bericht.schema_version >= 7
 
 
 def test_0007_haengt_an_0006(tmp_path):

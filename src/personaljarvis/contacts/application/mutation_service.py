@@ -642,7 +642,7 @@ class ContactsMutationService:
         with self._persistence.unit_of_work() as uow:
             rows = uow.execute(
                 "SELECT m.mutation_id, m.outbox_id, o.state AS outbox_state, "
-                "o.claim_token FROM contacts_mutations m "
+                "o.claim_token_digest FROM contacts_mutations m "
                 "JOIN personal_external_action_outbox o "
                 "ON o.outbox_id = m.outbox_id WHERE m.state = ? "
                 "ORDER BY m.created_at, m.mutation_id",
@@ -650,11 +650,14 @@ class ContactsMutationService:
             outbox = ExternalActionOutbox(uow)
             audit = AuditTrail(uow, module=MODULE)
             for row in rows:
-                if row["outbox_state"] != OutboxState.CLAIMED                         or row["claim_token"] is None:
+                if row["outbox_state"] != OutboxState.CLAIMED \
+                        or row["claim_token_digest"] is None:
                     continue
-                outbox.mark_outcome_unknown(row["outbox_id"],
-                                            row["claim_token"],
-                                            error_code="interrupted")
+                # Ohne Rohtoken — er starb mit dem Prozess (siehe
+                # `recover_claimed_as_unknown`). Der Weg fuehrt ausschliesslich
+                # nach `outcome_unknown`, nie zurueck in die Warteschlange.
+                outbox.recover_claimed_as_unknown(row["outbox_id"],
+                                                  error_code="interrupted")
                 self._set_state(uow, row["mutation_id"],
                                 MutationState.OUTCOME_UNKNOWN,
                                 outcome="outcome_unknown",

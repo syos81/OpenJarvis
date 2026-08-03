@@ -191,12 +191,20 @@ class ApprovalStore:
         return self._decide(approval, ApprovalState.EXPIRED, None)
 
     # ── Verbrauchen ─────────────────────────────────────────────────────────
-    def consume(self, approval_id: str, *, payload_digest: str) -> Approval:
-        """Bindet die Ausführung an die freigegebene Nutzlast.
+    def consume(self, approval_id: str, *, payload_digest: str,
+                preview_digest: str | None = None) -> Approval:
+        """Bindet die Ausführung an die freigegebene Nutzlast **und Vorschau**.
 
         Fail-closed bei: nicht freigegeben, abgelaufen, Digest abweichend,
         bereits verbraucht. Eine verbrauchte Freigabe deckt **keinen** zweiten
         Sendeversuch.
+
+        Der Vorschau-Digest wurde bis 2026-08-03 zwar gespeichert, aber nie
+        geprüft (ADR-0020 Lücke L1). Das war eine echte Lücke: Der Mensch gibt
+        frei, was er **gesehen** hat — die Nutzlast allein belegt nicht, dass
+        die Anzeige dieselbe Operation zeigte. Wird `preview_digest`
+        übergeben, muss er zur Freigabe passen; `None` bedeutet
+        „nicht mitgeführt" (Altpfade), nie „egal".
         """
         approval = self.require(approval_id)
         if approval.state == ApprovalState.CONSUMED:
@@ -211,6 +219,12 @@ class ApprovalStore:
             raise ApprovalPayloadMismatch(
                 "Die Nutzlast hat sich nach der Freigabe geaendert; "
                 "die Freigabe deckt sie nicht mehr"
+            )
+        if preview_digest is not None \
+                and approval.preview_digest != preview_digest:
+            raise ApprovalPayloadMismatch(
+                "Die Vorschau passt nicht zur Freigabe; freigegeben wurde "
+                "eine andere Darstellung derselben Nutzlast"
             )
         jetzt = utc_now()
         self._uow.execute(

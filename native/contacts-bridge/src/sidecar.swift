@@ -120,13 +120,18 @@ func capabilityStates() -> [String: Any] {
         "meCardReadOnly": true,
         "changeHistorySupported": true,
         "fullDiffFallbackSupported": true,
-        // Einzeln je Operation, nie pauschal: `create` ist implementiert,
-        // `update` und `delete` bleiben not_implemented (ADR-0019 §9).
-        // Ein pauschales Flag haette Update und Delete mitfreigeschaltet.
-        "createImplemented": true,
+        // Seit ADR-0020 (2026-08-03) hat der CLI-Sidecar **keinen**
+        // produktiven Schreibpfad mehr. Der Grund ist kein Stilwunsch,
+        // sondern ein Livebefund: Vier x86_64-Create-Versuche starben in
+        // `NSInternalInconsistencyException` — der Save lief auf einem
+        // Koordinator ohne angehaengte Stores. Derselbe Save im
+        // Jarvis.app-Prozess funktionierte (AppSave-Spike, APPLIED).
+        // Produktive Writes laufen deshalb im App-Prozess; der Sidecar
+        // bleibt Lese-, Sync- und Diagnosewerkzeug.
+        "createImplemented": false,
         "updateImplemented": false,
         "deleteImplemented": false,
-        "mutationsImplemented": true,    // mindestens eine Operation schreibt
+        "mutationsImplemented": false,   // kein produktiver Schreibpfad
         "mutationContractVersion": kMutationContractVersion,
         "fieldContractVersion": kFieldContractVersion,
     ]
@@ -747,6 +752,16 @@ func opCreate(_ id: Any, _ payload: [String: Any]) {
         diag("create not_sent: \(code) — \(message)")
         ok(id, mutationResult("not_sent", errorCode: code))
     }
+
+    // ADR-0020: Der produktive Schreibkanal liegt im Tauri-App-Prozess.
+    // Der Sidecar lehnt jede Schreiboperation **vor** jeder Store-Beruehrung
+    // ab — beweisbar nichts uebergeben. Der darunter liegende Save-Code
+    // bleibt als Beweis- und Diagnosehistorie erhalten (Preflight,
+    // ObjC-Grenze, Uncaught-Letztdiagnose), wird aber nie mehr erreicht.
+    notSent("capability_denied",
+            "Der Sidecar hat keinen produktiven Schreibpfad mehr "
+            + "(ADR-0020: Writes laufen im App-Prozess)")
+    return
 
     var missing: [String] = []
     for key in ["mutationId", "idempotencyKey", "approvalId", "containerIdentifier"]

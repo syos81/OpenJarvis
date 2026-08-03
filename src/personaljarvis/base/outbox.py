@@ -18,6 +18,8 @@ Verbindliche Eigenschaften:
 
 from __future__ import annotations
 
+import hashlib
+import secrets
 import uuid
 from dataclasses import dataclass
 
@@ -26,6 +28,7 @@ from personaljarvis.contacts.domain.models import utc_now
 from personaljarvis.errors import PersonalJarvisError
 
 __all__ = [
+    "token_digest",
     "OutboxState",
     "OutboxError",
     "OutboxEntryNotFound",
@@ -33,6 +36,16 @@ __all__ = [
     "OutboxEntry",
     "ExternalActionOutbox",
 ]
+
+
+def token_digest(token: str) -> str:
+    """SHA-256-Hex eines Claim-Tokens.
+
+    Der Rohtoken verlaesst den Kern genau einmal (im Ausfuehrungsauftrag)
+    und wird nie gespeichert oder protokolliert; verglichen wird immer der
+    Digest.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 class OutboxState:
@@ -77,9 +90,24 @@ class OutboxEntry:
     available_at: str
     created_at: str
     claimed_at: str | None = None
-    claim_token: str | None = None
+    #: **Nur der Digest.** Der Rohtoken existiert einmal im
+    #: Ausfuehrungsauftrag und wird nie persistiert (ADR-0020 §3).
+    claim_token_digest: str | None = None
+    operation_id: str | None = None
+    claim_expires_at: str | None = None
+    execution_order_issued_at: str | None = None
+    execution_report_digest: str | None = None
+    provider_completed_at: str | None = None
+    error_class: str | None = None
+    error_digest: str | None = None
     settled_at: str | None = None
     last_error_code: str | None = None
+
+    @property
+    def auftrag_ausgegeben(self) -> bool:
+        """Ab hier ist kein zweiter Claim mehr zulaessig — auch nicht nach
+        Verfall: ob gesendet wurde, ist von da an unbeweisbar."""
+        return self.execution_order_issued_at is not None
 
     @property
     def is_claimable(self) -> bool:
@@ -151,12 +179,15 @@ class ExternalActionOutbox:
         if not entry.is_claimable:
             raise OutboxNotClaimable(
                 f"Eintrag ist '{entry.state}' und nicht beanspruchbar")
-        token = str(uuid.uuid4())
+        # CSPRNG statt UUID: das Token ist ein Berechtigungsnachweis, kein
+        # Bezeichner. 32 Bytes, hex — und nur sein Digest wird gespeichert.
+        token = secrets.token_hex(32)
         cursor = self._uow.execute(
             "UPDATE personal_external_action_outbox SET state = ?, "
-            "claimed_at = ?, claim_token = ?, attempt_count = attempt_count + 1 "
+            "claimed_at = ?, claim_token_digest = ?, "
+            "attempt_count = attempt_count + 1 "
             "WHERE outbox_id = ? AND state IN (?, ?)",
-            (OutboxState.CLAIMED, utc_now(), token, outbox_id,
+            (OutboxState.CLAIMED, utc_now(), token_digest(token), outbox_id,
              OutboxState.PENDING, OutboxState.FAILED_BEFORE_SEND),
         )
         if cursor.rowcount != 1:
@@ -169,9 +200,9 @@ class ExternalActionOutbox:
                 error_code: str | None) -> OutboxEntry:
         cursor = self._uow.execute(
             "UPDATE personal_external_action_outbox SET state = ?, "
-            "settled_at = ?, last_error_code = ?, claim_token = NULL "
-            "WHERE outbox_id = ? AND claim_token = ?",
-            (state, utc_now(), error_code, outbox_id, claim_token))
+            "settled_at = ?, last_error_code = ?, claim_token_digest = NULL "
+            "WHERE outbox_id = ? AND claim_token_digest = ?",
+            (state, utc_now(), error_code, outbox_id, token_digest(claim_token)))
         if cursor.rowcount != 1:
             raise OutboxNotClaimable(
                 "Abschluss ohne gueltigen Claim — der Eintrag gehoert einem "
@@ -193,6 +224,30 @@ class ExternalActionOutbox:
         return self._settle(outbox_id, claim_token,
                             OutboxState.OUTCOME_UNKNOWN, error_code)
 
+    def recover_claimed_as_unknown(self, outbox_id: str, *,
+                                   error_code: str) -> OutboxEntry:
+        """Schliesst einen beanspruchten Eintrag **ohne** Token als ungewiss.
+
+        Der Wiederanlauf ist genau der Fall, in dem es kein Token mehr gibt:
+        Der Prozess, der es hielt, ist gestorben — sonst haette er selbst
+        abgeschlossen. Ein Tokenzwang waere hier kein Schutz, sondern eine
+        Sackgasse.
+
+        Sicher bleibt es, weil der Weg ausschliesslich nach
+        `outcome_unknown` fuehrt: er behauptet nie einen Erfolg, gibt den
+        Eintrag nie wieder frei und erlaubt damit keinen zweiten Send.
+        """
+        cursor = self._uow.execute(
+            "UPDATE personal_external_action_outbox SET state = ?, "
+            "settled_at = ?, last_error_code = ?, claim_token_digest = NULL "
+            "WHERE outbox_id = ? AND state = ?",
+            (OutboxState.OUTCOME_UNKNOWN, utc_now(), error_code, outbox_id,
+             OutboxState.CLAIMED))
+        if cursor.rowcount != 1:
+            raise OutboxNotClaimable(
+                "Nur ein beanspruchter Eintrag kann wiederangelaufen werden")
+        return self.require(outbox_id)
+
     def abandon(self, outbox_id: str, *, error_code: str) -> OutboxEntry:
         """Nach abgeschlossenem Abgleich endgültig aus der Warteschlange nehmen."""
         entry = self.require(outbox_id)
@@ -200,7 +255,7 @@ class ExternalActionOutbox:
             raise OutboxNotClaimable("Eintrag ist bereits abgeschlossen")
         self._uow.execute(
             "UPDATE personal_external_action_outbox SET state = ?, "
-            "settled_at = ?, last_error_code = ?, claim_token = NULL "
+            "settled_at = ?, last_error_code = ?, claim_token_digest = NULL "
             "WHERE outbox_id = ?",
             (OutboxState.ABANDONED, utc_now(), error_code, outbox_id))
         return self.require(outbox_id)
@@ -228,5 +283,12 @@ class ExternalActionOutbox:
             payload_digest=row["payload_digest"], state=row["state"],
             attempt_count=row["attempt_count"],
             available_at=row["available_at"], created_at=row["created_at"],
-            claimed_at=row["claimed_at"], claim_token=row["claim_token"],
+            claimed_at=row["claimed_at"],
+            claim_token_digest=row["claim_token_digest"],
+            operation_id=row["operation_id"],
+            claim_expires_at=row["claim_expires_at"],
+            execution_order_issued_at=row["execution_order_issued_at"],
+            execution_report_digest=row["execution_report_digest"],
+            provider_completed_at=row["provider_completed_at"],
+            error_class=row["error_class"], error_digest=row["error_digest"],
             settled_at=row["settled_at"], last_error_code=row["last_error_code"])

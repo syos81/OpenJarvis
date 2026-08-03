@@ -426,7 +426,7 @@ def test_bundle_layout_handshake_kontaktfrei(tmp_path):
         assert handshake.capabilities.notes_supported is False
         # Aus dem gepackten Bundle heraus gilt derselbe Vertrag wie direkt:
         # `create` implementiert, `update`/`delete` nicht.
-        assert handshake.capabilities.create_implemented is True
+        assert handshake.capabilities.create_implemented is False
         assert handshake.capabilities.update_implemented is False
         assert handshake.capabilities.delete_implemented is False
 

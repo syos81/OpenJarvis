@@ -210,10 +210,20 @@ const MODULDATEIEN = [
   'data/fixtureSource.ts',
   'data/fixtures.ts',
   'data/sortierung.ts',
+  'data/executionTransport.ts',
 ];
 
+/**
+ * Der Transport des App-Prozess-Kanals ist die **einzige** Stelle des
+ * Moduls, die ein Tauri-Kommando aufrufen darf (ADR-0020 §5). Sie wird
+ * deshalb aus der modulweiten Verbotsprüfung herausgenommen — und dafür
+ * eigens geprüft: genau ein Kommando, genau eine Aufrufstelle.
+ */
+const TRANSPORT = 'data/executionTransport.ts';
+
 describe('Seitencode', () => {
-  const seite = nurCode(MODULDATEIEN.map(quelle).join('\n'));
+  const ohneTransport = MODULDATEIEN.filter((d) => d !== TRANSPORT);
+  const seite = nurCode(ohneTransport.map(quelle).join('\n'));
   const klient = nurCode(quelle('api.ts'));
 
   it('deckt mit der Dateiliste das ganze Modul ab', async () => {
@@ -293,6 +303,26 @@ describe('Seitencode', () => {
 
   it('warnt beim Loeschen vor der Unumkehrbarkeit', () => {
     expect(seite.toLowerCase()).toContain('nicht rückgängig');
+  });
+
+  it('ruft im Transport genau ein Tauri-Kommando auf', () => {
+    const transport = nurCode(quelle(TRANSPORT));
+    const treffer = transport.match(/invoke</g) ?? [];
+    expect(treffer).toHaveLength(1);
+    expect(transport).toContain("'personal_contacts_execute_mutation'");
+    // Kein zweiter Weg nach draussen:
+    for (const verboten of ['fetch(', 'sidecar', 'jarvis-contacts',
+                            'CNContact', 'CNSaveRequest', 'AddressBook']) {
+      expect(transport.toLowerCase()).not.toContain(verboten.toLowerCase());
+    }
+  });
+
+  it('haelt den Transport frei von Digest- und Zustandslogik', () => {
+    const transport = nurCode(quelle(TRANSPORT));
+    for (const verboten of ['sha256', 'createHash', 'digest_of',
+                            'canonical_json', 'crypto.subtle']) {
+      expect(transport).not.toContain(verboten);
+    }
   });
 
   it('bindet die Seite genau einmal in Route und Navigation ein', () => {

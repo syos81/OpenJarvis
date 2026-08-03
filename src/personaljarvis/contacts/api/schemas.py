@@ -41,6 +41,11 @@ __all__ = [
     "ExecutionResultOut",
     "CONTAINER_REF_PATTERN",
     "PreparedMutationOut",
+    "ClaimAppExecutionIn",
+    "ExecutionOrderOut",
+    "SettleAppExecutionIn",
+    "SettleResultOut",
+    "AppChannelCapabilitiesOut",
     "FieldChangeOut",
     "MutationOut",
     "MutationDetailOut",
@@ -294,6 +299,86 @@ class ExecuteMutationIn(_Strict):
     """
 
     user_initiated: Literal[True]
+
+
+# ── App-Prozess-Kanal (ADR-0020, Phase A) ───────────────────────────────────
+class ClaimAppExecutionIn(_Strict):
+    """Die ausdrückliche Nutzeraktion, die **einen** Versuch beansprucht.
+
+    Wie bei `ExecuteMutationIn` ein `Literal[True]` im Rumpf: Ein Claim ist
+    der Moment, ab dem gesendet werden könnte — er darf nie aus einem
+    Query-Parameter oder einem Hintergrundlauf entstehen.
+    """
+
+    user_initiated: Literal[True]
+
+
+class ExecutionOrderOut(_Strict):
+    """Der kurzlebige Ausführungsauftrag.
+
+    `claim_token` ist der einzige Rohwert, den diese API je herausgibt — er
+    lebt für die Dauer eines Versuchs, wird nie persistiert (nur sein
+    Digest) und darf im Frontend nicht dauerhaft abgelegt werden.
+    """
+
+    schema_version: int
+    operation_id: str
+    mutation_id: str
+    claim_token: str
+    operation_type: str
+    payload_digest: str
+    preview_digest: str
+    canonical_payload: dict[str, Any]
+    readback_requirements: dict[str, Any]
+    issued_at: str
+    expires_at: str
+    mutation_contract_version: int
+    field_contract_version: int
+    transaction_author: str
+    expected_revision: str | None = None
+    provider_target: dict[str, str | None] = Field(default_factory=dict)
+
+
+class SettleAppExecutionIn(_Strict):
+    """Der Bericht aus dem App-Prozess plus seine Claim-Bindung.
+
+    Der Bericht wird **unverändert** durchgereicht: Das Frontend ist Transport,
+    kein Interpret. Serverseitig wird er gegen das geschlossene Schema
+    geprüft und sein Digest neu gerechnet.
+    """
+
+    user_initiated: Literal[True]
+    claim_token: str
+    report: dict[str, Any]
+
+
+class SettleResultOut(_Strict):
+    """Das serverseitige Urteil — die einzige Wahrheit über den Zustand."""
+
+    mutation_id: str
+    state: str
+    outcome: str | None = None
+    error_class: str | None = None
+    idempotent: bool = False
+
+
+class AppChannelCapabilitiesOut(_Strict):
+    """Was der App-Prozess-Kanal kann — fail-closed voreingestellt.
+
+    In Phase A ist `provider_write_enabled` **immer** falsch: Der Transport
+    steht, der native Save nicht. Eine Oberfläche, die daraus „geht schon"
+    liest, hätte einen Knopf ohne Deckung.
+    """
+
+    schema_version: int
+    channel: Literal["app_process"]
+    create_supported: bool
+    update_supported: bool
+    delete_supported: bool
+    provider_write_enabled: bool
+    architecture: str
+    app_version: str
+    native_bridge_version: str
 
 
 class FieldChangeOut(_Strict):
