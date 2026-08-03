@@ -281,3 +281,29 @@ keine M2-Referenz. Erzeugt mit puppeteer-core gegen den Vite-Dev-Server
   Produktionsverhalten wirkungslos.
 - `tokens.css` definiert die vom Bestand benutzten, vorher undefinierten
   Variablen `--color-text-muted`, `--color-danger`, `--color-surface-2`.
+
+## 11. Intel-Liveabnahme: tatsächlicher Verlauf (2026-08-02/03)
+
+Damit der Nachweis nicht mehr sagt, als er belegt: die interaktive
+Abnahme lief **nicht vollständig synthetisch**.
+
+- Beim Öffnen der Kontakte-Seite lud und zeigte die Oberfläche den
+  **produktiven, real synchronisierten Kontaktbestand** (117 Kontakte)
+  — ausschliesslich **lesend**.
+- Es wurde **kein** Sync gestartet, **kein** Provider-Write ausgeführt und
+  **keine** produktive Mutation vorbereitet oder ausgeführt.
+- Die interaktiven Prüfungen von Bearbeitungsmodus, Statusflächen
+  (Freigaben, `outcome_unknown`, manuelle Klärung) und Performance liefen
+  anschliessend im Demo-Modus mit synthetischen Daten.
+- Die produktiven Datenbankaggregate (Kontakte, externe Identitäten,
+  Tombstones, Freigaben, Mutationen, Audit-Ereignisse) waren vor und nach
+  der gesamten Abnahme **identisch**.
+
+Die Screenshots der Intel-Strukturbaseline (Abschnitt 9) enthalten
+dagegen ausschliesslich synthetische Kontakte; sie entstanden im
+Demo-Modus gegen den Dev-Server.
+
+Aus dieser Abnahme stammen die in Abschnitt 7 beschriebenen
+WKWebView-Korrekturen (Trenner-Neuzeichnung, Hover-Affordanz, Freiraum
+für die global schwebende Approval-Glocke) sowie die leise Notiz-Zeile
+und die im Demo-Modus aktiven Update-/Delete-Capabilities.
