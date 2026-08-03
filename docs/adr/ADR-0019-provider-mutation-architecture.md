@@ -13,6 +13,15 @@ Verwandte DEC-Einträge: DEC-031, DEC-042, DEC-043, DEC-044 (dieser ADR); DEC-D0
 - **ADR-Status:** accepted
 - **Datum:** 2026-08-01
 
+> **Nachtrag 2026-08-03:** Der **Transportkanal** aus §4 (CLI-Sidecar als
+> Schreibkanal) ist durch
+> [ADR-0020](ADR-0020-app-process-mutation-channel.md) additiv ersetzt:
+> produktive Writes laufen im Tauri-App-Prozess (Claim → ExecutionOrder →
+> Tauri → Settle). Alle übrigen Festlegungen dieses ADRs — Freigabekern,
+> at-most-once, Feldvertrag v1, Ergebnisvertrag, Zustandserweiterungen,
+> Red-Team — gelten unverändert; ADR-0020 präzisiert nur, was der
+> Kanalwechsel erzwingt.
+
 Dieser ADR friert die Architektur ein, nach der Personal Jarvis Kontakte bei
 Apple Contacts anlegt, ändert und löscht. Er entscheidet **Architektur**, keine
 Implementierung: bei seiner Annahme existierte im Produktcode weder ein
