@@ -109,4 +109,73 @@ void jc_contacts_create_run_scenario(int32_t scenario,
                                      const char *payload_json,
                                      JCContactsCreateResult *out);
 
+
+// ── Update und Delete (ADR-0020 §8.2/§8.3, DEC-046) ─────────────────────────
+//
+// Beide teilen sich mit `create` den einen Ablauf und die eine Projektion;
+// nur die Mitte unterscheidet sich. Beide zielen **ausschliesslich** über den
+// Provider-Identifier, lesen unmittelbar vor dem Save, vergleichen das
+// Gelesene strukturell mit `expected_previous_json` und brechen bei
+// Abweichung **vor** jeder Uebergabe ab.
+
+typedef enum {
+    JCContactsWriteOutcomeNotAuthorized       = 1,
+    JCContactsWriteOutcomeTargetNotFound      = 2,
+    JCContactsWriteOutcomeRevisionConflict    = 3,
+    JCContactsWriteOutcomeInvalidPayload      = 4,
+    JCContactsWriteOutcomeApplied             = 5,
+    JCContactsWriteOutcomeSaveError           = 6,
+    JCContactsWriteOutcomeCaughtException     = 7,
+    JCContactsWriteOutcomeReadbackFailed      = 8,
+    /// Delete: gespeichert, aber die Abwesenheit ist nicht belegt.
+    JCContactsWriteOutcomeAbsenceUnproven     = 9,
+    /// Delete: das Ziel ist die Me-Karte — nie ein Mutationsziel.
+    JCContactsWriteOutcomeMeCardProtected     = 10,
+    /// Delete: das Ziel liegt nicht im erwarteten Container.
+    JCContactsWriteOutcomeContainerMismatch   = 11,
+} JCContactsWriteOutcome;
+
+/// Genau ein Update. `patch_json` nennt **nur** die zu ändernden Felder:
+/// ein fehlender Schlüssel lässt das Feld unangetastet, `null` (Skalar) und
+/// `[]` (Liste) löschen ausdrücklich. `expected_previous_json` ist der
+/// Zustand, den der Mensch freigegeben hat.
+void jc_contacts_update_run(const char *provider_identifier,
+                            const char *patch_json,
+                            const char *expected_previous_json,
+                            const char *transaction_author,
+                            JCContactsCreateResult *out);
+
+/// Genau ein Delete. `expected_container` ist die ausdrückliche
+/// Containerbindung aus der External-ID; ein leerer String heisst „nicht
+/// gebunden" und ist zulässig, wenn das Backend keine kennt.
+void jc_contacts_delete_run(const char *provider_identifier,
+                            const char *expected_previous_json,
+                            const char *expected_container,
+                            const char *transaction_author,
+                            JCContactsCreateResult *out);
+
+/// Kontaktfreie Testeinstiege — derselbe Ablauf, Fake-Anbindung.
+typedef enum {
+    JCWriteScenarioNotAuthorized     = 1,
+    JCWriteScenarioTargetMissing     = 2,
+    JCWriteScenarioRevisionConflict  = 3,
+    JCWriteScenarioSaveSucceeds      = 4,
+    JCWriteScenarioSaveNSError       = 5,
+    JCWriteScenarioSaveThrows        = 6,
+    JCWriteScenarioReadbackMissing   = 7,
+    JCWriteScenarioStillPresent      = 8,
+    JCWriteScenarioReadUnavailable   = 9,
+    JCWriteScenarioMeCard            = 10,
+    JCWriteScenarioContainerMismatch = 11,
+} JCWriteScenario;
+
+void jc_contacts_update_run_scenario(int32_t scenario,
+                                     const char *patch_json,
+                                     const char *expected_previous_json,
+                                     JCContactsCreateResult *out);
+
+void jc_contacts_delete_run_scenario(int32_t scenario,
+                                     const char *expected_previous_json,
+                                     JCContactsCreateResult *out);
+
 #endif /* JC_CONTACTS_CREATE_H */

@@ -795,10 +795,21 @@ export function getAppChannel(): Promise<AppChannelCapabilities> {
 }
 
 /** Beansprucht **einen** Versuch. Nie automatisch wiederholen. */
-export function claimAppExecution(mutationId: string): Promise<ExecutionOrderV1> {
+export function claimAppExecution(
+  mutationId: string, confirmDelete = false,
+): Promise<ExecutionOrderV1> {
+  // `confirm_delete` ist die **zweite** Handlung des Menschen (R2,
+  // ADR-0020 §8.3, DEC-046) — sie ersetzt die Freigabe nicht. Der Server
+  // weist einen Löschanspruch ohne sie ab; hier wird sie nur weitergereicht,
+  // nie erfunden.
   return request<ExecutionOrderV1>(
     `/mutations/${encodeURIComponent(mutationId)}/claim-app-execution`,
-    { method: 'POST', body: JSON.stringify({ user_initiated: true }) });
+    {
+      method: 'POST',
+      body: JSON.stringify(confirmDelete
+        ? { user_initiated: true, confirm_delete: true }
+        : { user_initiated: true }),
+    });
 }
 
 /** Meldet den Bericht. Darf mit **demselben** Bericht wiederholt werden. */

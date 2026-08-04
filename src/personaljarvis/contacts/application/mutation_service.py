@@ -24,6 +24,8 @@ Verbindliche Regeln, die hier durchgesetzt werden:
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import uuid
 from typing import Protocol
 
@@ -228,6 +230,22 @@ class ContactsMutationService:
 
             ziel = self._resolve_target(uow, command)
             payload = self._build_payload(command)
+            # Update und Delete brauchen den Zustand, den der Mensch gleich
+            # sieht — und zwar **in** der Nutzlast, damit der Digest ihn
+            # deckt. Wird er erst beim Claim angehängt, verglichen der native
+            # Pfad gegen etwas, das nie freigegeben wurde (ADR-0020 §8.2/8.3).
+            if payload.command in ("update", "delete"):
+                from personaljarvis.contacts.application.field_contract import (
+                    canonical_payload,
+                    project_local_contact,
+                    readback_digest,
+                )
+
+                vorher = project_local_contact(uow, ziel["contact_id"])
+                payload = replace(
+                    payload,
+                    expected_previous=canonical_payload(vorher),
+                    expected_fields_digest=readback_digest(vorher))
             preview = self._build_preview(uow, command, ziel)
 
             approval_id = command.approval_id or str(uuid.uuid4())
@@ -599,10 +617,22 @@ class ContactsMutationService:
         repos = self._persistence.repositories(uow)
         vorhanden = repos.external_ids.find_contact_id(
             zeile["provider_account_id"], quelle.provider_identifier)
+        # Ein `update` nennt keinen Container — es verschiebt nichts. Der
+        # richtige Wert steht in der bestehenden Identität; ihn dort zu holen
+        # ist genauer, als ihn im Auftrag mitzuschleppen (Containerwechsel
+        # ist ausdrücklich v2, ADR-0020 §7).
+        container = zeile["container_identifier"] or ""
+        if not container:
+            bestehend = uow.execute(
+                "SELECT container_identifier FROM contact_external_ids "
+                "WHERE provider_account_id = ? AND provider_identifier = ?",
+                (zeile["provider_account_id"],
+                 quelle.provider_identifier)).fetchone()
+            container = bestehend["container_identifier"] if bestehend else ""
         abbildung = map_bridge_contact(
             quelle, workspace_id=zeile["workspace_id"],
             provider_account_id=zeile["provider_account_id"],
-            container_identifier=zeile["container_identifier"] or "",
+            container_identifier=container,
             contact_id=vorhanden, observed_at=utc_now())
         if vorhanden is None:
             repos.contacts.add(abbildung.contact)
@@ -800,13 +830,22 @@ class ContactsMutationService:
                 target_provider_identifier=None, expected_revision=None,
                 fields=dict(command.draft.fields))
         if isinstance(command, UpdateContact):
+            from personaljarvis.contacts.application.field_contract import (
+                canonical_patch,
+            )
+
+            # Kanonisch, nicht roh: Der native Pfad kennt nur die Schlüssel
+            # des Feldvertrags. Ein Patch mit API-Namen (`family_name`) wird
+            # dort als `unsupported_field` abgewiesen — richtig, aber der
+            # Fehler gehört hierher, nicht an die Providergrenze
+            # (Livetest-Befund 2026-08-04).
             return MutationPayload(
                 command="update",
                 provider_account_id=command.provider_account_id,
                 container_identifier=None,
                 target_provider_identifier=command.target_provider_identifier,
                 expected_revision=command.expected_revision,
-                fields=dict(command.patch.fields))
+                fields=canonical_patch(command.patch.fields))
         if isinstance(command, DeleteContact):
             return MutationPayload(
                 command="delete",
@@ -946,7 +985,9 @@ class ContactsMutationService:
             container_identifier=roh["containerIdentifier"],
             target_provider_identifier=roh["targetProviderIdentifier"],
             expected_revision=roh["expectedRevision"],
-            fields=roh["fields"])
+            fields=roh["fields"],
+            expected_previous=roh.get("expectedPrevious"),
+            expected_fields_digest=roh.get("expectedFieldsDigest"))
 
     @staticmethod
     def _set_state(uow: UnitOfWork, mutation_id: str, state: str, *,

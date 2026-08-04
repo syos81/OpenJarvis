@@ -684,3 +684,165 @@ Approval-Digestbindung (`consume(...digest)`-Aufrufstelle vorhanden).
 - Delete ist verbindlich R2 und doppelt verriegelt (Phase F + DEC-D06).
 - Offen und unberührt: ARM64-Abnahmen (Phase C/D; DEC-042), M2-Pixelabnahme
   des Frontends (unabhängig vom Mutationskanal), DEC-D17.
+
+---
+
+## Nachtrag 2026-08-04 — DEC-D06 entschieden (DEC-046)
+
+Der Riegel aus §8.3 und §12 ist aufgelöst. Nichts oberhalb dieser Zeile
+wurde geändert; die Sätze „vor deren Entscheidung wird Delete nicht
+implementiert" und „zuerst DEC-D06 entscheiden" bleiben als Protokoll des
+damaligen Standes stehen und beschreiben ab jetzt eine erfüllte Bedingung.
+
+**Entscheidung (DEC-046, Eigentümer, 2026-08-04):** Für R2 genügt die
+**zusätzliche In-App-Bestätigung** im Ausführungsschritt. Ein
+Betriebssystemdialog als zweite Instanz wird nicht gefordert.
+
+**Begründung.** Der Systemdialog käme aus demselben Prozess, dem der Mensch
+die Freigabe bereits erteilt hat; er belegte nichts, was die
+In-App-Bestätigung nicht schon belegt. Der Schutzwert von R2 liegt in der
+Zweistufigkeit — Freigabe ist nicht Ausführung — und in den fachlichen
+Schranken: Ziel ausschliesslich über den Provider-Identifier,
+Pflicht-`expected_revision` **und** erwarteter Felddigest, Me-Card-Schutz,
+Container- und Kontobindung, genau ein Datensatz je Vorgang, Abwesenheits-
+nachweis nach dem Save. Ein weiteres Fenster hätte davon nichts verbessert.
+
+**Unverändert verbindlich bleiben:** Delete ist R2; der Execute-Claim
+verlangt `{"user_initiated": true, "confirm_delete": true}`; ADR-0014 wird
+**nicht** um einen nativen Zweitdialog erweitert — der ApprovalClient-
+Vertrag bleibt transportneutral.
+
+## Nachtrag 2026-08-04 — Ergänzung des Order-Payloads für Update und Delete
+
+§8.2 verlangt den Vergleich mit `expected_previous`, §8.3 zusätzlich den
+`expected_fields_digest` des lokalen v1-Feldstands. Beides muss der Mensch
+**vor** der Freigabe gesehen haben, sonst bindet der `payload_digest` es
+nicht. Der Entwurf trägt deshalb ab Update/Delete zwei zusätzliche
+Schlüssel, die zum Zeitpunkt von `prepare` entstehen und danach unverändert
+bleiben:
+
+| Schlüssel | Inhalt | Operation |
+|---|---|---|
+| `expectedPrevious` | kanonische v1-Projektion des **lokalen** Zielzustands | update, delete |
+| `expectedFieldsDigest` | `readback_digest` genau dieser Projektion | update, delete |
+
+Der native Pfad bekommt `expectedPrevious` als JSON übergeben und vergleicht
+es **strukturell** mit dem, was er unmittelbar vor dem Save liest — kein
+Digest in Objective-C, keine zweite Kanonisierung. Weicht auch nur ein
+benanntes Feld ab, endet der Vorgang vor jeder Übergabe als
+`not_sent / revision_conflict`. Rust prüft zusätzlich, dass
+`expectedFieldsDigest` zum mitgelieferten `expectedPrevious` passt; damit
+hängt die Konfliktprüfung an derselben Freigabe wie die Nutzlast.
+
+---
+
+## Nachtrag 2026-08-04 — §10 korrigiert: der Save gehört in einen opferbaren Prozess
+
+Dieser Nachtrag ändert **keinen** Satz oberhalb. Er widerlegt eine Annahme
+von §10 mit Livebefunden und ersetzt sie.
+
+### Was §10 annahm
+
+Vier CLI-Sidecar-Abstürze (`NSInternalInconsistencyException: no persistent
+stores`) gegen einen geglückten AppSave-Spike führten zu dem Schluss:
+**der Save gehört in den App-Prozess, dort ist er sicher.** Diese Annahme
+ist falsch.
+
+### Was der 2026-08-04 belegt hat
+
+| Befund | Beleg |
+|---|---|
+| Der Save kann **auch im GUI-Prozess** sterben | SIGABRT 13:34:55, Crashreport `openjarvis-desktop-2026-08-04-133455.ips` |
+| Die Ausnahme ist **nicht fangbar** | Wurf in `NSPersistentStoreCoordinator executeRequest:` innerhalb `performBlockAndWait` → Dispatch-Grenze → `std::terminate` |
+| Die wirkliche Ursache | Diagnoseartefakt: `This NSPersistentStoreCoordinator has no persistent stores. It cannot perform a save operation.` |
+| Die Regel | **Ein Prozess, der noch nie wirklich gelesen hat, kann nicht speichern** — unabhängig davon, ob er GUI, Sidecar oder Helfer heisst |
+
+Das erklärt alle bisherigen Beobachtungen widerspruchsfrei: der geglückte
+Vormittags-Create (GUI hatte gelesen), der SIGABRT (frische GUI, sofort
+geschrieben), der AppSave-Spike (zog vorher ein Container-Inventar), die
+Sidecar-Abstürze (nackter Prozess), der erste Helfer-Spike (frischer
+Prozess, Preflight auf eine erfundene Kennung — findet nichts, hängt nichts
+an).
+
+### Die Korrektur (normativ ab hier)
+
+**1. Warmlauf vor jedem Save.** Zwei echte, read-only Lesevorgänge:
+volles Container-Inventar (`containersMatchingPredicate:nil`) und eine
+echte Enumeration im Zielcontainer (Abbruch nach dem ersten Datensatz,
+leeres Ergebnis zulässig, Aufzählfehler nicht). Schlägt einer fehl, gibt es
+keinen Save — bei Update/Delete gilt das Ziel dann als „nicht lesbar", und
+nicht lesbar heisst nicht schreibbar.
+
+**2. Der Save läuft in einem opferbaren Einmalprozess.** Der GUI-Prozess
+führt **keinen** `CNSaveRequest` mehr aus. Statt dessen:
+`contacts-write-helper`, ein eigenes signiertes Binary im App-Bundle.
+
+| Vertragspunkt | Regel |
+|---|---|
+| Start | ausschliesslich durch die Tauri-App (`posix_spawn`), **kein** fork |
+| Umfang | genau **eine** ExecutionOrder je Prozess, von stdin, ≤ 64 KiB |
+| Torwächter | Freigabedatei, Digest, Feldvorrat, Vorzustand — **erneut** im Helfer; er vertraut der GUI nicht |
+| Save | höchstens **ein** `CNSaveRequest` |
+| Bericht | genau einer über stdout; nur parsbar **und** zur Order gehörig zählt |
+| Signatur | eigener Identifier `de.kluender.jarvis.contacts-write-helper`, zertifikatsgebundene DR mit demselben Blatt wie die App, Hardened Runtime, **ein** Entitlement (Addressbook) |
+| Fallback | **keiner** — ohne Helfer gibt es keinen Schreibweg |
+
+**3. Der `save_started`-Marker entscheidet über den Ausgang eines
+Helfertods** (0600, `O_EXCL`, PII-frei: Phase und Operation):
+
+* Marker **fehlt** → `not_sent / write_stack_unavailable` — beweisbar
+  nichts übergeben.
+* Marker **vorhanden** → `outcome_unknown / app_process_crash`.
+* In keinem Fall ein zweiter Start.
+
+Ein hängender Helfer wird nach 90 s geopfert; GUI und Backend überleben
+jeden dieser Fälle. **Live belegt:** Helfer-Spike 17:52 — Helfer tot,
+Jarvis lief weiter, Vorgang sauber `outcome_unknown`.
+
+**4. Diagnose je nativem Write.** Die GUI stellt dem Helfer
+`~/.openjarvis/personal/diagnostics` (0700); bei einer gefangenen wie einer
+unfangbaren Ausnahme entsteht dort ein 0600-Artefakt mit Exceptionname und
+Rohgrund. Öffentlich reisen nur Klasse und Digest. Ohne dieses Artefakt
+wäre die Ursache des 13:34-Absturzes bis heute Spekulation.
+
+**5. Backend-Waisen.** Ein GUI-Absturz sendet keine Signale; die
+Prozessgruppen-Kopplung greift nur beim geordneten Beenden. Der überlebende
+Serve-Prozess hielt Port und Datenbank, und der nächste App-Start hängte
+sich an ihn — womit `recover_interrupted()` nie lief und die
+At-most-once-Zusage stillschweigend ausgehebelt war. Der Server überwacht
+jetzt PID **und Startzeit** der GUI (`OPENJARVIS_GUI_PID`) und beendet sich
+über den regulären SIGTERM-Pfad. `getppid()` genügt nicht: der direkte
+Elternteil ist `uv`.
+
+### §7 präzisiert: Reihenfolge ist Position
+
+Der Feldvertrag sortierte etikettierte Listen intern nach `(label, value)`
+— entgegen dem hier zugesagten „Reihenfolge = Position". Das verdrehte die
+Absicht des Menschen und entkoppelte den Digest von der Ordnung, die der
+Provider zurückliest. Beim Create mit je einem Wert unsichtbar, im
+Update-Livetest mit zwei E-Mails sichtbar. Sortierung entfernt, in beiden
+Richtungen (Entwurf und Read-back).
+
+### §8.2 ergänzt: der Patch reist kanonisch
+
+Der Update-Patch wurde roh durchgereicht und trug die API-Namen
+(`family_name`); der native Pfad kennt nur die kanonischen Schlüssel und
+wies ihn korrekt als `unsupported_field` **vor** jeder Übergabe ab. Der
+Kern kanonisiert ihn jetzt (`canonical_patch`), einschliesslich der
+Unterscheidung „genanntes `null`/`[]` löscht" gegen „weggelassen ändert
+nichts".
+
+### Phase B: Exit erreicht
+
+x86_64, ein kontrollierter Livetest je Operation, je genau ein Claim, ein
+Helferstart, ein `CNSaveRequest`, kein Retry:
+
+| Operation | Ergebnis | Beleg |
+|---|---|---|
+| Create | `succeeded` | Read-back-Digest identisch zum freigegebenen Entwurf |
+| Update | `succeeded` | nicht genannte Felder unangetastet, Listenreihenfolge erhalten |
+| Delete | `succeeded` | Abwesenheitsnachweis, Tombstone `deleted_by_own_mutation`, External Identity erhalten, extern sichtgeprüft |
+
+**ARM64 (Phase C) bleibt offen** — auf diesem Gerät nicht führbar. Der
+`provider_write_enabled`-Standard bleibt **falsch**; jeder Write verlangt
+weiterhin eine ausdrückliche, zeitlich begrenzte Freigabedatei je Operation.

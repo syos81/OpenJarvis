@@ -53,6 +53,23 @@ def _smoke_modul():
 smoke = _smoke_modul()
 
 
+
+@pytest.fixture(autouse=True)
+def ohne_produktive_freigabe(tmp_path, monkeypatch):
+    """Diese Datei prüft den **Standardzustand** — nicht die Maschine.
+
+    `app_channel_capabilities()` ohne Pfad liest die produktive
+    Freigabedatei. Läuft gerade ein Livetest, ist sie da, und fünf Tests
+    behaupteten plötzlich, der Kanal sei offen — obwohl sie über den
+    Auslieferungszustand reden. Der Fehler lag nicht im Kanal, sondern in
+    der Annahme, das Dateisystem sei leer. Hier bekommt jeder Test ein
+    eigenes, leeres `OPENJARVIS_HOME`.
+    """
+    heim = tmp_path / "openjarvis-home"
+    (heim / "personal").mkdir(parents=True)
+    monkeypatch.setenv("OPENJARVIS_HOME", str(heim))
+    return heim
+
 # ═══ A · Release meldet nichts, was er nicht kann ═══════════════════════════
 class TestReleaseFaehigkeiten:
     def test_release_meldet_jede_schreibfaehigkeit_falsch(self):

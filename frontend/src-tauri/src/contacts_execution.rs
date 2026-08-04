@@ -54,7 +54,8 @@ pub struct ExecutionOrderV1 {
     pub provider_target: BTreeMap<String, Option<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ExecutionReportV1 {
     pub schema_version: u32,
     pub operation_id: String,
@@ -303,15 +304,33 @@ pub fn execute_order(roh: &str) -> ExecutionReportV1 {
     // fail-closed. Der Fake ist damit nie eine Alternative zum echten Weg,
     // sondern nur das, was uebrig bleibt, wenn es keinen echten gibt.
     #[cfg(target_os = "macos")]
-    if order.operation_type == "create" {
+    {
         let jetzt = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
+        // Die Freigabe bindet **je Operation**: wer `create` freigibt, hat
+        // damit kein `delete` freigegeben.
         if crate::contacts_create::write_release_erlaubt(
-            &crate::contacts_create::default_release_path(), "create", jetzt)
+            &crate::contacts_create::default_release_path(),
+            &order.operation_type, jetzt)
         {
-            return crate::contacts_create::fuehre_create_aus(&order, jetzt);
+            // Seit dem 2026-08-04 läuft der Save NIE mehr in diesem Prozess:
+            // Die CoreData-Ausnahme aus `performBlockAndWait` ist hier nicht
+            // fangbar und riss die ganze App (SIGABRT, Livetest-Beleg). Der
+            // opferbare Helfer stirbt an ihr allein; sein Tod wird über den
+            // save_started-Marker zu not_sent oder outcome_unknown — nie zu
+            // einem zweiten Versuch, und nie zum Ende von GUI und Backend.
+            return match crate::contacts_create::helper_pfad() {
+                Some(helper) => crate::contacts_create::fuehre_im_helfer_aus(
+                    &helper, &order, roh,
+                    std::time::Duration::from_secs(
+                        crate::contacts_create::HELPER_TIMEOUT_SECONDS)),
+                // Ohne Helfer gibt es keinen Schreibweg — ein „zur Not doch
+                // in-Prozess" wäre exakt der widerlegte Zustand.
+                None => ExecutionReportV1::not_sent(
+                    &order, "write_stack_unavailable"),
+            };
         }
     }
 

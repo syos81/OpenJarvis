@@ -79,9 +79,17 @@ class MutationPayload:
     target_provider_identifier: str | None
     expected_revision: str | None
     fields: Mapping[str, Any] = field(default_factory=dict)
+    #: Der kanonische v1-Zustand des Ziels, wie ihn der Mensch in der
+    #: Vorschau sieht (ADR-0020 §8.2/§8.3). Nur bei `update` und `delete`.
+    #: Er gehört in die Nutzlast und nicht in einen Seitenkanal: Nur so
+    #: deckt ihn der `payload_digest` — und damit die Freigabe.
+    expected_previous: Mapping[str, Any] | None = None
+    #: `readback_digest` genau dieser Projektion. Der native Pfad prüft
+    #: damit, dass der Vergleichsmassstab derselbe ist wie der freigegebene.
+    expected_fields_digest: str | None = None
 
     def as_dict(self) -> dict:
-        return {
+        out = {
             "command": self.command,
             "providerAccountId": self.provider_account_id,
             "containerIdentifier": self.container_identifier,
@@ -89,6 +97,12 @@ class MutationPayload:
             "expectedRevision": self.expected_revision,
             "fields": dict(sorted(self.fields.items())),
         }
+        # Bewusst nur wenn vorhanden: Ein `create` hat keinen Vorzustand,
+        # und ein `null` im Payload änderte seinen Digest ohne Aussage.
+        if self.expected_previous is not None:
+            out["expectedPrevious"] = dict(self.expected_previous)
+            out["expectedFieldsDigest"] = self.expected_fields_digest
+        return out
 
     @property
     def digest(self) -> str:

@@ -121,6 +121,31 @@ extern "C" {
         payload_json: *const c_char,
         out: *mut JCContactsCreateResult,
     );
+    fn jc_contacts_update_run(
+        provider_identifier: *const c_char,
+        patch_json: *const c_char,
+        expected_previous_json: *const c_char,
+        transaction_author: *const c_char,
+        out: *mut JCContactsCreateResult,
+    );
+    fn jc_contacts_delete_run(
+        provider_identifier: *const c_char,
+        expected_previous_json: *const c_char,
+        expected_container: *const c_char,
+        transaction_author: *const c_char,
+        out: *mut JCContactsCreateResult,
+    );
+    fn jc_contacts_update_run_scenario(
+        scenario: c_int,
+        patch_json: *const c_char,
+        expected_previous_json: *const c_char,
+        out: *mut JCContactsCreateResult,
+    );
+    fn jc_contacts_delete_run_scenario(
+        scenario: c_int,
+        expected_previous_json: *const c_char,
+        out: *mut JCContactsCreateResult,
+    );
 }
 
 fn c_string_to_rust(puffer: &[c_char]) -> String {
@@ -135,7 +160,7 @@ fn c_string_to_rust(puffer: &[c_char]) -> String {
 // ── Die Schreibfreigabe ─────────────────────────────────────────────────────
 
 /// Vertragskennung — wortgleich zu `write_release.WRITE_RELEASE_CONTRACT`.
-pub const WRITE_RELEASE_CONTRACT: &str = "contacts-create-v1";
+pub const WRITE_RELEASE_CONTRACT: &str = "contacts-write-v1";
 /// Dateiname — wortgleich zu `write_release.WRITE_RELEASE_FILENAME`.
 pub const WRITE_RELEASE_FILENAME: &str = "contacts-write-release.json";
 /// Längste zulässige Geltungsdauer, in Stunden.
@@ -371,7 +396,7 @@ pub fn fuehre_create_aus(order: &ExecutionOrderV1, jetzt_unix: i64) -> Execution
     use std::ffi::CString;
 
     if order.operation_type != "create" {
-        return ExecutionReportV1::not_sent(order, "unsupported_operation");
+        return ExecutionReportV1::not_sent(order, "schema_mismatch");
     }
     if !write_release_erlaubt(&default_release_path(), "create", jetzt_unix) {
         return ExecutionReportV1::not_sent(order, "provider_channel_disabled_before_send");
@@ -496,7 +521,7 @@ mod tests {
 
     fn gueltig(bis: &str) -> String {
         format!(
-            r#"{{"contract":"contacts-create-v1","operations":["create"],
+            r#"{{"contract":"contacts-write-v1","operations":["create"],
                  "expires_at":"{bis}","reason":"kontrollierter Intel-Livetest"}}"#
         )
     }
@@ -573,7 +598,7 @@ mod tests {
         let dir = privates_verzeichnis("ohnegrund");
         let pfad = schreibe_freigabe(
             &dir,
-            r#"{"contract":"contacts-create-v1","operations":["create"],
+            r#"{"contract":"contacts-write-v1","operations":["create"],
                 "expires_at":"2026-08-04T02:00:00+00:00","reason":"   "}"#,
             0o600,
         );
@@ -758,5 +783,824 @@ mod tests {
         assert_eq!(b.outcome, "not_sent");
         assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
         assert_eq!(b.save_request_count, 0);
+    }
+}
+
+// ═══ Update und Delete (ADR-0020 §8.2/§8.3, DEC-046) ════════════════════════
+
+/// Ausgänge des Schreibpfads — deckungsgleich mit `JCContactsWriteOutcome`.
+const W_NOT_AUTHORIZED: i32 = 1;
+const W_TARGET_NOT_FOUND: i32 = 2;
+const W_REVISION_CONFLICT: i32 = 3;
+const W_INVALID_PAYLOAD: i32 = 4;
+const W_APPLIED: i32 = 5;
+const W_SAVE_ERROR: i32 = 6;
+const W_CAUGHT_EXCEPTION: i32 = 7;
+const W_READBACK_FAILED: i32 = 8;
+const W_ABSENCE_UNPROVEN: i32 = 9;
+const W_ME_CARD_PROTECTED: i32 = 10;
+const W_CONTAINER_MISMATCH: i32 = 11;
+
+/// Übersetzt ein Schreibergebnis in den typisierten Bericht.
+///
+/// Die Trennlinie ist dieselbe wie beim Create und wichtiger als jede
+/// Feinheit: Alles **vor** dem Save wird `not_sent` — nachweislich nichts
+/// übergeben. Alles **danach** ohne Beleg wird `outcome_unknown`, nie ein
+/// zweiter Versuch.
+pub fn bericht_aus_schreibergebnis(
+    order: &ExecutionOrderV1,
+    r: &JCContactsCreateResult,
+) -> ExecutionReportV1 {
+    let mut bericht = ExecutionReportV1::not_sent(order, "provider_unavailable");
+    bericht.save_request_count = r.save_attempts.clamp(0, 1) as u32;
+    bericht.send_attempted = r.save_attempts > 0;
+    bericht.diagnostic_artifact_present = r.diagnostics_artifact_written != 0;
+
+    let domaene = c_string_to_rust(&r.error_domain);
+    let ausnahme = c_string_to_rust(&r.exception_name);
+    let reason_digest = c_string_to_rust(&r.reason_digest);
+    if !reason_digest.is_empty() {
+        bericht.error_digest = Some(reason_digest);
+    } else if !domaene.is_empty() {
+        bericht.error_digest = Some(sha256_hex(&format!(
+            "{}:{}:{}",
+            domaene, r.error_code, ausnahme
+        )));
+    }
+
+    let vor_dem_send = |klasse: &str, b: &mut ExecutionReportV1| {
+        b.outcome = "not_sent".into();
+        b.send_attempted = false;
+        b.save_request_count = 0;
+        b.readback_status = "not_attempted".into();
+        b.error_class = Some(klasse.into());
+    };
+
+    match r.outcome {
+        W_NOT_AUTHORIZED => vor_dem_send("not_authorized", &mut bericht),
+        W_TARGET_NOT_FOUND => vor_dem_send("target_not_found", &mut bericht),
+        W_REVISION_CONFLICT => vor_dem_send("revision_conflict", &mut bericht),
+        W_INVALID_PAYLOAD => vor_dem_send("invalid_payload", &mut bericht),
+        // `me_card_protected` ist keine Vertragsklasse (der 0008-CHECK ist
+        // produktiv angewandt und geschlossen): Die Schutzregel verweigert
+        // die Operation gegen dieses Ziel — das ist `capability_denied`.
+        W_ME_CARD_PROTECTED => vor_dem_send("capability_denied", &mut bericht),
+        W_CONTAINER_MISMATCH => vor_dem_send("container_unavailable", &mut bericht),
+        W_SAVE_ERROR => {
+            // Der Save wurde übergeben und meldete einen Fehler. Ob dabei
+            // etwas geschrieben wurde, weiss niemand — also Abgleich.
+            bericht.outcome = "outcome_unknown".into();
+            bericht.readback_status = "not_attempted".into();
+            bericht.error_class = Some("provider_save_error".into());
+        }
+        W_CAUGHT_EXCEPTION => {
+            bericht.outcome = "outcome_unknown".into();
+            bericht.readback_status = "not_attempted".into();
+            bericht.error_class = Some("provider_exception".into());
+        }
+        W_READBACK_FAILED => {
+            bericht.outcome = "outcome_unknown".into();
+            bericht.readback_status = "failed".into();
+            bericht.error_class = Some("readback_failed".into());
+        }
+        W_ABSENCE_UNPROVEN => {
+            // Gespeichert, aber die Abwesenheit ist nicht belegt. „Nicht
+            // lesbar" ist kein Löschnachweis (ADR-0020 §8.3).
+            bericht.outcome = "outcome_unknown".into();
+            bericht.readback_status = "failed".into();
+            bericht.error_class = Some("readback_failed".into());
+            bericht.provider_identifier_digest =
+                Some(c_string_to_rust(&r.provider_identifier_digest));
+        }
+        W_APPLIED => {
+            bericht.outcome = "applied".into();
+            bericht.error_class = None;
+            bericht.error_digest = None;
+            bericht.provider_identifier_digest =
+                Some(c_string_to_rust(&r.provider_identifier_digest));
+            bericht.provider_identifier = Some(c_string_to_rust(&r.provider_identifier));
+            if order.operation_type == "delete" {
+                bericht.readback_status = "absent_confirmed".into();
+                bericht.readback_contact = None;
+            } else {
+                bericht.readback_status = "confirmed".into();
+                let roh = c_string_to_rust(&r.readback_json);
+                bericht.readback_contact = serde_json::from_str(&roh).ok();
+                if bericht.readback_contact.is_none() {
+                    bericht.outcome = "outcome_unknown".into();
+                    bericht.readback_status = "failed".into();
+                    bericht.error_class = Some("readback_failed".into());
+                }
+            }
+        }
+        _ => {
+            bericht.outcome = "outcome_unknown".into();
+            bericht.error_class = Some("provider_unavailable".into());
+        }
+    }
+    bericht
+}
+
+/// Liest die drei Pflichtstücke eines Update-/Delete-Auftrags.
+///
+/// Sie stehen im **digest-gebundenen** Payload, nicht in einem Seitenkanal:
+/// Was hier gelesen wird, hat der Mensch in der Vorschau gesehen.
+fn schreibziel(order: &ExecutionOrderV1) -> Option<(String, serde_json::Value)> {
+    let ziel = order
+        .provider_target
+        .get("provider_identifier")?
+        .clone()?;
+    if ziel.is_empty() {
+        return None;
+    }
+    let vorher = order.canonical_payload.get("expectedPrevious")?.clone();
+    if !vorher.is_object() {
+        return None;
+    }
+    Some((ziel, vorher))
+}
+
+/// Prüft, dass der erwartete Vorzustand zu seinem Digest passt.
+///
+/// Ohne diese Prüfung liesse sich der Vergleichsmassstab austauschen, ohne
+/// dass der `payload_digest` es merkte — der Konflikt-Check prüfte dann
+/// gegen etwas, das nie freigegeben wurde.
+fn vorzustand_ist_gebunden(order: &ExecutionOrderV1, vorher: &serde_json::Value) -> bool {
+    let Some(erwartet) = order
+        .canonical_payload
+        .get("expectedFieldsDigest")
+        .and_then(|w| w.as_str())
+    else {
+        return false;
+    };
+    let gerechnet = crate::contacts_execution::payload_digest(&serde_json::json!({
+        "fieldContractVersion": order.field_contract_version,
+        "fields": vorher,
+    }));
+    gerechnet == erwartet
+}
+
+#[cfg(target_os = "macos")]
+fn fuehre_schreiben_aus(
+    order: &ExecutionOrderV1,
+    jetzt_unix: i64,
+    loeschen: bool,
+) -> ExecutionReportV1 {
+    use std::ffi::CString;
+
+    let operation = if loeschen { "delete" } else { "update" };
+    if order.operation_type != operation {
+        return ExecutionReportV1::not_sent(order, "schema_mismatch");
+    }
+    if !write_release_erlaubt(&default_release_path(), operation, jetzt_unix) {
+        return ExecutionReportV1::not_sent(order, "provider_channel_disabled_before_send");
+    }
+    let Some((ziel, vorher)) = schreibziel(order) else {
+        return ExecutionReportV1::not_sent(order, "invalid_payload");
+    };
+    if !vorzustand_ist_gebunden(order, &vorher) {
+        return ExecutionReportV1::not_sent(order, "digest_mismatch");
+    }
+    if !loeschen && !felder_sind_v1(&order.canonical_payload) {
+        return ExecutionReportV1::not_sent(order, "unsupported_field");
+    }
+
+    let (Ok(c_ziel), Ok(c_vorher), Ok(c_autor)) = (
+        CString::new(ziel),
+        CString::new(serde_json::to_string(&vorher).unwrap_or_default()),
+        CString::new(order.transaction_author.clone()),
+    ) else {
+        return ExecutionReportV1::not_sent(order, "invalid_payload");
+    };
+
+    let mut ergebnis = JCContactsCreateResult::default();
+    if loeschen {
+        let container = order
+            .provider_target
+            .get("container_identifier")
+            .and_then(|w| w.clone())
+            .unwrap_or_default();
+        let Ok(c_container) = CString::new(container) else {
+            return ExecutionReportV1::not_sent(order, "invalid_payload");
+        };
+        unsafe {
+            jc_contacts_delete_run(
+                c_ziel.as_ptr(),
+                c_vorher.as_ptr(),
+                c_container.as_ptr(),
+                c_autor.as_ptr(),
+                &mut ergebnis,
+            );
+        }
+    } else {
+        let Some(felder) = order.canonical_payload.get("fields") else {
+            return ExecutionReportV1::not_sent(order, "invalid_payload");
+        };
+        let Ok(c_patch) = CString::new(serde_json::to_string(felder).unwrap_or_default()) else {
+            return ExecutionReportV1::not_sent(order, "invalid_payload");
+        };
+        unsafe {
+            jc_contacts_update_run(
+                c_ziel.as_ptr(),
+                c_patch.as_ptr(),
+                c_vorher.as_ptr(),
+                c_autor.as_ptr(),
+                &mut ergebnis,
+            );
+        }
+    }
+    bericht_aus_schreibergebnis(order, &ergebnis)
+}
+
+/// Führt den nativen Update aus — den einen Save, oder gar nichts.
+#[cfg(target_os = "macos")]
+pub fn fuehre_update_aus(order: &ExecutionOrderV1, jetzt_unix: i64) -> ExecutionReportV1 {
+    fuehre_schreiben_aus(order, jetzt_unix, false)
+}
+
+/// Führt den nativen Delete aus — den einen Save, oder gar nichts.
+#[cfg(target_os = "macos")]
+pub fn fuehre_delete_aus(order: &ExecutionOrderV1, jetzt_unix: i64) -> ExecutionReportV1 {
+    fuehre_schreiben_aus(order, jetzt_unix, true)
+}
+
+/// Kontaktfreie Testeinstiege — derselbe Ablauf, Fake-Anbindung im Shim.
+#[cfg(all(target_os = "macos", debug_assertions))]
+pub fn fuehre_schreibszenario_aus(
+    order: &ExecutionOrderV1,
+    szenario: i32,
+    loeschen: bool,
+) -> Option<ExecutionReportV1> {
+    use std::ffi::CString;
+
+    let (_, vorher) = schreibziel(order)?;
+    let c_vorher = CString::new(serde_json::to_string(&vorher).ok()?).ok()?;
+    let mut ergebnis = JCContactsCreateResult::default();
+    if loeschen {
+        unsafe {
+            jc_contacts_delete_run_scenario(szenario, c_vorher.as_ptr(), &mut ergebnis);
+        }
+    } else {
+        let felder = order.canonical_payload.get("fields")?;
+        let c_patch = CString::new(serde_json::to_string(felder).ok()?).ok()?;
+        unsafe {
+            jc_contacts_update_run_scenario(
+                szenario,
+                c_patch.as_ptr(),
+                c_vorher.as_ptr(),
+                &mut ergebnis,
+            );
+        }
+    }
+    Some(bericht_aus_schreibergebnis(order, &ergebnis))
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod schreib_tests {
+    use super::*;
+    use crate::contacts_execution::payload_digest;
+
+    const W_SZENARIO_NICHT_AUTORISIERT: i32 = 1;
+    const W_SZENARIO_ZIEL_FEHLT: i32 = 2;
+    const W_SZENARIO_KONFLIKT: i32 = 3;
+    const W_SZENARIO_SAVE_OK: i32 = 4;
+    const W_SZENARIO_SAVE_NSERROR: i32 = 5;
+    const W_SZENARIO_SAVE_WIRFT: i32 = 6;
+    const W_SZENARIO_READBACK_FEHLT: i32 = 7;
+    const W_SZENARIO_NOCH_DA: i32 = 8;
+    const W_SZENARIO_NICHT_LESBAR: i32 = 9;
+    const W_SZENARIO_ME_CARD: i32 = 10;
+    const W_SZENARIO_CONTAINER: i32 = 11;
+
+    fn vorher() -> serde_json::Value {
+        serde_json::json!({
+            "contactType": "person",
+            "givenName": "Synthetisch",
+            "familyName": "Attrappe",
+            "emails": [{"label": "work", "value": "a@example.invalid"}]
+        })
+    }
+
+    fn auftrag(operation: &str, patch: serde_json::Value) -> ExecutionOrderV1 {
+        let vor = vorher();
+        let mut payload = serde_json::json!({
+            "fields": patch,
+            "expectedPrevious": vor,
+        });
+        let digest = payload_digest(&serde_json::json!({
+            "fieldContractVersion": 1,
+            "fields": vor,
+        }));
+        payload["expectedFieldsDigest"] = serde_json::Value::String(digest);
+        let roh = serde_json::json!({
+            "schema_version": 1,
+            "operation_id": "0".repeat(36),
+            "mutation_id": "1".repeat(36),
+            "claim_token": "a".repeat(64),
+            "operation_type": operation,
+            "payload_digest": payload_digest(&payload),
+            "preview_digest": "c".repeat(64),
+            "canonical_payload": payload,
+            "readback_requirements": {"required": true},
+            "issued_at": "2026-08-04T10:00:00+00:00",
+            "expires_at": "2026-08-04T10:10:00+00:00",
+            "mutation_contract_version": 1,
+            "field_contract_version": 1,
+            "transaction_author": "de.kluender.jarvis.contacts-bridge",
+            "provider_target": {"provider_identifier": "ZIEL",
+                                "container_identifier": "erwarteter-container"}
+        });
+        serde_json::from_value(roh).unwrap()
+    }
+
+    fn lauf(operation: &str, szenario: i32, patch: serde_json::Value)
+        -> ExecutionReportV1
+    {
+        let o = auftrag(operation, patch);
+        fuehre_schreibszenario_aus(&o, szenario, operation == "delete").unwrap()
+    }
+
+    // ── Vor dem Save: nichts uebergeben ─────────────────────────────────────
+    #[test]
+    fn ohne_autorisierung_wird_nichts_uebergeben() {
+        let b = lauf("update", W_SZENARIO_NICHT_AUTORISIERT,
+                     serde_json::json!({"jobTitle": "X"}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.save_request_count, 0);
+        assert!(!b.send_attempted);
+        assert_eq!(b.error_class.as_deref(), Some("not_authorized"));
+    }
+
+    #[test]
+    fn ein_fehlendes_ziel_ist_kein_send() {
+        let b = lauf("update", W_SZENARIO_ZIEL_FEHLT,
+                     serde_json::json!({"jobTitle": "X"}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("target_not_found"));
+    }
+
+    #[test]
+    fn ein_abweichender_vorzustand_endet_als_konflikt() {
+        let b = lauf("update", W_SZENARIO_KONFLIKT,
+                     serde_json::json!({"jobTitle": "X"}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.save_request_count, 0);
+        assert_eq!(b.error_class.as_deref(), Some("revision_conflict"));
+    }
+
+    #[test]
+    fn nicht_lesbar_ist_kein_befund_ueber_die_existenz() {
+        let b = lauf("delete", W_SZENARIO_NICHT_LESBAR, serde_json::json!({}));
+        assert_eq!(b.outcome, "outcome_unknown");
+        assert_eq!(b.save_request_count, 0);
+        assert_eq!(b.error_class.as_deref(), Some("readback_failed"));
+    }
+
+    #[test]
+    fn die_me_karte_wird_nie_geloescht() {
+        let b = lauf("delete", W_SZENARIO_ME_CARD, serde_json::json!({}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.save_request_count, 0);
+        assert_eq!(b.error_class.as_deref(), Some("capability_denied"));
+    }
+
+    #[test]
+    fn ein_fremder_container_wird_nicht_geloescht() {
+        let b = lauf("delete", W_SZENARIO_CONTAINER, serde_json::json!({}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("container_unavailable"));
+    }
+
+    // ── Genau ein Save ──────────────────────────────────────────────────────
+    #[test]
+    fn ein_erfolgreicher_update_meldet_genau_einen_save() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK,
+                     serde_json::json!({"jobTitle": "Neu"}));
+        assert_eq!(b.outcome, "applied");
+        assert_eq!(b.save_request_count, 1);
+        assert!(b.send_attempted);
+        assert_eq!(b.readback_status, "confirmed");
+        let gelesen = b.readback_contact.expect("Read-back fehlt");
+        assert_eq!(gelesen["jobTitle"], "Neu");
+        // Der Patch laesst alles Uebrige stehen.
+        assert_eq!(gelesen["givenName"], "Synthetisch");
+    }
+
+    #[test]
+    fn ein_erfolgreiches_delete_belegt_die_abwesenheit() {
+        let b = lauf("delete", W_SZENARIO_SAVE_OK, serde_json::json!({}));
+        assert_eq!(b.outcome, "applied");
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(b.readback_status, "absent_confirmed");
+        assert!(b.readback_contact.is_none());
+        assert!(b.provider_identifier.is_some());
+    }
+
+    #[test]
+    fn ein_noch_vorhandener_datensatz_ist_kein_loeschbeweis() {
+        let b = lauf("delete", W_SZENARIO_NOCH_DA, serde_json::json!({}));
+        assert_eq!(b.outcome, "outcome_unknown");
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(b.error_class.as_deref(), Some("readback_failed"));
+    }
+
+    // ── Nach dem Save ohne Beleg: ungewiss, nie ein zweiter Versuch ─────────
+    #[test]
+    fn ein_savefehler_endet_ungewiss() {
+        let b = lauf("update", W_SZENARIO_SAVE_NSERROR,
+                     serde_json::json!({"jobTitle": "X"}));
+        assert_eq!(b.outcome, "outcome_unknown");
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(b.error_class.as_deref(), Some("provider_save_error"));
+        assert!(b.error_digest.is_some());
+    }
+
+    #[test]
+    fn eine_ausnahme_endet_ungewiss() {
+        let b = lauf("update", W_SZENARIO_SAVE_WIRFT,
+                     serde_json::json!({"jobTitle": "X"}));
+        assert_eq!(b.outcome, "outcome_unknown");
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(b.error_class.as_deref(), Some("provider_exception"));
+    }
+
+    #[test]
+    fn ein_fehlender_readback_endet_ungewiss() {
+        let b = lauf("update", W_SZENARIO_READBACK_FEHLT,
+                     serde_json::json!({"jobTitle": "X"}));
+        assert_eq!(b.outcome, "outcome_unknown");
+        assert_eq!(b.readback_status, "failed");
+    }
+
+    // ── Patch- und Loeschsemantik ───────────────────────────────────────────
+    #[test]
+    fn ein_fehlendes_feld_bleibt_unveraendert() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK,
+                     serde_json::json!({"jobTitle": "Neu"}));
+        let gelesen = b.readback_contact.unwrap();
+        assert_eq!(gelesen["familyName"], "Attrappe");
+        assert!(gelesen["emails"].is_array());
+    }
+
+    #[test]
+    fn ein_ausdrueckliches_null_loescht_einen_skalar() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK,
+                     serde_json::json!({"familyName": serde_json::Value::Null}));
+        let gelesen = b.readback_contact.unwrap();
+        // Geloescht heisst: erscheint in der kanonischen Form nicht mehr.
+        assert!(gelesen.get("familyName").is_none());
+        assert_eq!(gelesen["givenName"], "Synthetisch");
+    }
+
+    #[test]
+    fn eine_leere_liste_loescht_alle_werte() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK,
+                     serde_json::json!({"emails": []}));
+        let gelesen = b.readback_contact.unwrap();
+        assert!(gelesen.get("emails").is_none());
+    }
+
+    #[test]
+    fn eine_ersetzte_liste_traegt_label_und_reihenfolge() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK, serde_json::json!({
+            "emails": [{"label": "home", "value": "b@example.invalid"},
+                       {"label": "work", "value": "c@example.invalid"}]
+        }));
+        let mails = b.readback_contact.unwrap()["emails"].clone();
+        assert_eq!(mails[0]["label"], "home");
+        assert_eq!(mails[0]["value"], "b@example.invalid");
+        assert_eq!(mails[1]["label"], "work");
+    }
+
+    #[test]
+    fn ein_unbekanntes_feld_wird_abgewiesen() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK,
+                     serde_json::json!({"note": "verboten"}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.save_request_count, 0);
+    }
+
+    #[test]
+    fn ein_typwechsel_wird_abgewiesen() {
+        let b = lauf("update", W_SZENARIO_SAVE_OK,
+                     serde_json::json!({"contactType": "organization"}));
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+    }
+
+    // ── Bindung des Vergleichsmassstabs ────────────────────────────────────
+    #[test]
+    fn ein_ungebundener_vorzustand_wird_abgewiesen() {
+        // Direkt an der Bindungspruefung: `fuehre_update_aus` haette hier
+        // schon an der Freigabe angehalten — richtig so, aber dann prueft
+        // der Test das Tor und nicht die Bindung.
+        let mut o = auftrag("update", serde_json::json!({"jobTitle": "X"}));
+        let (_, vorher) = schreibziel(&o).unwrap();
+        assert!(vorzustand_ist_gebunden(&o, &vorher));
+        o.canonical_payload["expectedFieldsDigest"] =
+            serde_json::Value::String("f".repeat(64));
+        assert!(!vorzustand_ist_gebunden(&o, &vorher));
+    }
+
+    #[test]
+    fn ein_ausgetauschter_vorzustand_faellt_auf() {
+        let o = auftrag("update", serde_json::json!({"jobTitle": "X"}));
+        let gefaelscht = serde_json::json!({"contactType": "person",
+                                            "givenName": "Jemand anders"});
+        assert!(!vorzustand_ist_gebunden(&o, &gefaelscht));
+    }
+
+    #[test]
+    fn ohne_freigabe_geschieht_nichts() {
+        let o = auftrag("delete", serde_json::json!({}));
+        let b = fuehre_delete_aus(&o, 0);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.save_request_count, 0);
+        assert_eq!(b.error_class.as_deref(),
+                   Some("provider_channel_disabled_before_send"));
+    }
+
+    #[test]
+    fn eine_fremde_operation_wird_abgewiesen() {
+        let o = auftrag("create", serde_json::json!({}));
+        let b = fuehre_update_aus(&o, 0);
+        assert_eq!(b.error_class.as_deref(), Some("schema_mismatch"));
+    }
+}
+
+// ═══ Der opferbare Schreibhelfer — GUI-Seite (ADR-0020-Nachtrag 2026-08-04) ═
+
+/// Wie lange die GUI auf den Helfer wartet. Grosszügig: ein Save gegen
+/// contactsd braucht Sekunden, nicht Minuten — aber ein zäher erster
+/// TCC-Kontakt soll nicht künstlich zum Absturzbefund werden.
+pub const HELPER_TIMEOUT_SECONDS: u64 = 90;
+
+/// Name des Helfers im App-Bundle (neben dem Hauptbinary in Contents/MacOS).
+pub const HELPER_BINARY_NAME: &str = "contacts-write-helper";
+
+/// Der Helfer neben dem eigenen Binary — oder nichts.
+///
+/// Kein Fallback auf einen In-Prozess-Save: fehlt der Helfer, gibt es
+/// **keinen** Schreibweg. Der SIGABRT vom 2026-08-04 hat gezeigt, dass die
+/// CoreData-Ausnahme im eigenen Prozess nicht fangbar ist — ein „zur Not
+/// eben doch hier" wäre exakt der widerlegte Zustand.
+pub fn helper_pfad() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let pfad = exe.parent()?.join(HELPER_BINARY_NAME);
+    pfad.is_file().then_some(pfad)
+}
+
+/// Verzeichnis der Diagnoseartefakte: `~/.openjarvis/personal/diagnostics`,
+/// 0700. Der Shim verlangt genau diese Rechte und verweigert sonst still —
+/// deshalb wird hier angelegt **und** nachgezogen.
+fn diagnose_verzeichnis() -> Option<std::path::PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    let basis = default_release_path().parent()?.join("diagnostics");
+    std::fs::create_dir_all(&basis).ok()?;
+    std::fs::set_permissions(&basis, std::fs::Permissions::from_mode(0o700)).ok()?;
+    Some(basis)
+}
+
+fn juengstes_artefakt_nach(
+    verzeichnis: &std::path::Path,
+    seit: std::time::SystemTime,
+) -> bool {
+    let Ok(eintraege) = std::fs::read_dir(verzeichnis) else {
+        return false;
+    };
+    eintraege
+        .flatten()
+        .filter_map(|e| e.metadata().ok()?.modified().ok())
+        .any(|m| m >= seit)
+}
+
+/// Führt die Order im Helfer aus — genau ein Start, genau ein Bericht.
+///
+/// Die Abbildung eines Helfertods folgt dem Marker, nicht dem Exit-Code:
+///
+/// * Marker **fehlt** → der Shim hat die Übergabe nie begonnen →
+///   `not_sent / write_stack_unavailable` (beweisbar nichts gesendet).
+/// * Marker **da** → möglicherweise gesendet → `outcome_unknown /
+///   app_process_crash`. Nie ein zweiter Start.
+pub fn fuehre_im_helfer_aus(
+    helper: &std::path::Path,
+    order: &ExecutionOrderV1,
+    order_json: &str,
+    timeout: std::time::Duration,
+) -> ExecutionReportV1 {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let start = std::time::SystemTime::now();
+
+    // Markerpfad: einmalig je Versuch, garantiert nicht vorhanden.
+    let marker = std::env::temp_dir().join(format!(
+        "jc-save-marker-{}-{}", std::process::id(), order.operation_id));
+    let _ = std::fs::remove_file(&marker);
+
+    let mut cmd = Command::new(helper);
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .env("OPENJARVIS_CONTACTS_SAVE_MARKER", &marker);
+    if let Some(diag) = diagnose_verzeichnis() {
+        cmd.env("OPENJARVIS_CONTACTS_EXCEPTION_DIAGNOSTICS_PATH", &diag);
+    }
+
+    let mut kind = match cmd.spawn() {
+        Ok(k) => k,
+        Err(_) => {
+            return ExecutionReportV1::not_sent(order, "write_stack_unavailable");
+        }
+    };
+
+    // Order hinueber, stdin schliessen — der Helfer liest genau eine.
+    if let Some(mut stdin) = kind.stdin.take() {
+        let _ = stdin.write_all(order_json.as_bytes());
+    }
+
+    // Warten mit Frist. `try_wait`-Polling statt Zusatzabhaengigkeit.
+    let frist = std::time::Instant::now() + timeout;
+    let status = loop {
+        match kind.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if std::time::Instant::now() >= frist => {
+                // Haengender Helfer: er ist opferbar, die GUI nicht.
+                let _ = kind.kill();
+                let _ = kind.wait();
+                break None;
+            }
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+            Err(_) => break None,
+        }
+    };
+
+    let marker_da = marker.is_file();
+    let _ = std::fs::remove_file(&marker);
+    let artefakt = diagnose_verzeichnis()
+        .map(|d| juengstes_artefakt_nach(&d, start))
+        .unwrap_or(false);
+
+    // Nur ein sauber beendeter Helfer mit parsbarem, zugehörigem Bericht
+    // zaehlt als Antwort. Alles andere entscheidet der Marker.
+    if let Some(status) = status {
+        if status.success() {
+            if let Some(mut stdout) = kind.stdout.take() {
+                let mut roh = String::new();
+                use std::io::Read;
+                if stdout.read_to_string(&mut roh).is_ok() {
+                    if let Ok(bericht) =
+                        serde_json::from_str::<ExecutionReportV1>(roh.trim())
+                    {
+                        if bericht.operation_id == order.operation_id {
+                            return bericht;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut bericht = if marker_da {
+        let mut b = ExecutionReportV1::not_sent(order, "app_process_crash");
+        b.outcome = "outcome_unknown".into();
+        b.send_attempted = true;
+        b.save_request_count = 1;
+        b.readback_status = "not_attempted".into();
+        b
+    } else {
+        ExecutionReportV1::not_sent(order, "write_stack_unavailable")
+    };
+    bericht.diagnostic_artifact_present = artefakt;
+    bericht
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod helfer_tests {
+    use super::*;
+    use crate::contacts_execution::payload_digest;
+    use std::io::Write as _;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn order() -> (ExecutionOrderV1, String) {
+        let payload = serde_json::json!({"fields": {"givenName": "Synthetisch"}});
+        let roh = serde_json::json!({
+            "schema_version": 1,
+            "operation_id": "9".repeat(36),
+            "mutation_id": "8".repeat(36),
+            "claim_token": "a".repeat(64),
+            "operation_type": "create",
+            "payload_digest": payload_digest(&payload),
+            "preview_digest": "c".repeat(64),
+            "canonical_payload": payload,
+            "readback_requirements": {"required": true},
+            "issued_at": "2026-08-04T10:00:00+00:00",
+            "expires_at": "2026-08-04T10:10:00+00:00",
+            "mutation_contract_version": 1,
+            "field_contract_version": 1,
+            "transaction_author": "de.kluender.jarvis.contacts-bridge",
+            "provider_target": {"container_identifier": "C1"}
+        });
+        let json = roh.to_string();
+        (serde_json::from_value(roh).unwrap(), json)
+    }
+
+    fn fake_helper(inhalt: &str) -> std::path::PathBuf {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        inhalt.hash(&mut h);
+        let pfad = std::env::temp_dir().join(format!(
+            "fake-helper-{}-{:x}", std::process::id(), h.finish()));
+        std::fs::write(&pfad, format!("#!/bin/sh\n{inhalt}\n")).unwrap();
+        std::fs::set_permissions(&pfad, std::fs::Permissions::from_mode(0o700))
+            .unwrap();
+        pfad
+    }
+
+    #[test]
+    fn ein_gueltiger_bericht_wird_durchgereicht() {
+        let (o, json) = order();
+        let mut bericht = ExecutionReportV1::not_sent(&o, "not_authorized");
+        bericht.operation_id = o.operation_id.clone();
+        let script = format!(
+            "cat >/dev/null\nprintf '%s' '{}'",
+            serde_json::to_string(&bericht).unwrap().replace('\'', ""));
+        let helper = fake_helper(&script);
+        let ergebnis = fuehre_im_helfer_aus(
+            &helper, &o, &json, std::time::Duration::from_secs(10));
+        std::fs::remove_file(&helper).ok();
+        assert_eq!(ergebnis.outcome, "not_sent");
+        assert_eq!(ergebnis.error_class.as_deref(), Some("not_authorized"));
+    }
+
+    #[test]
+    fn absturz_vor_dem_marker_ist_beweisbar_nichts_gesendet() {
+        let (o, json) = order();
+        let helper = fake_helper("cat >/dev/null\nexit 134");
+        let ergebnis = fuehre_im_helfer_aus(
+            &helper, &o, &json, std::time::Duration::from_secs(10));
+        std::fs::remove_file(&helper).ok();
+        assert_eq!(ergebnis.outcome, "not_sent");
+        assert!(!ergebnis.send_attempted);
+        assert_eq!(ergebnis.save_request_count, 0);
+        assert_eq!(ergebnis.error_class.as_deref(),
+                   Some("write_stack_unavailable"));
+    }
+
+    #[test]
+    fn absturz_nach_dem_marker_ist_ungewiss() {
+        let (o, json) = order();
+        let helper = fake_helper(
+            "cat >/dev/null\n: > \"$OPENJARVIS_CONTACTS_SAVE_MARKER\"\nexit 134");
+        let ergebnis = fuehre_im_helfer_aus(
+            &helper, &o, &json, std::time::Duration::from_secs(10));
+        std::fs::remove_file(&helper).ok();
+        assert_eq!(ergebnis.outcome, "outcome_unknown");
+        assert!(ergebnis.send_attempted);
+        assert_eq!(ergebnis.save_request_count, 1);
+        assert_eq!(ergebnis.error_class.as_deref(), Some("app_process_crash"));
+    }
+
+    #[test]
+    fn ein_haengender_helfer_wird_geopfert_nicht_die_gui() {
+        let (o, json) = order();
+        let helper = fake_helper("cat >/dev/null\nsleep 300");
+        let start = std::time::Instant::now();
+        let ergebnis = fuehre_im_helfer_aus(
+            &helper, &o, &json, std::time::Duration::from_secs(1));
+        std::fs::remove_file(&helper).ok();
+        assert!(start.elapsed() < std::time::Duration::from_secs(20));
+        // Kein Marker: der Fake hat nie eine Uebergabe begonnen.
+        assert_eq!(ergebnis.outcome, "not_sent");
+        assert_eq!(ergebnis.error_class.as_deref(),
+                   Some("write_stack_unavailable"));
+    }
+
+    #[test]
+    fn ein_fremder_bericht_zaehlt_nicht_als_antwort() {
+        let (o, json) = order();
+        let mut fremd = ExecutionReportV1::not_sent(&o, "not_authorized");
+        fremd.operation_id = "f".repeat(36);
+        let script = format!(
+            "cat >/dev/null\nprintf '%s' '{}'",
+            serde_json::to_string(&fremd).unwrap().replace('\'', ""));
+        let helper = fake_helper(&script);
+        let ergebnis = fuehre_im_helfer_aus(
+            &helper, &o, &json, std::time::Duration::from_secs(10));
+        std::fs::remove_file(&helper).ok();
+        // Sauberer Exit, aber falscher Bericht: kein Marker -> not_sent.
+        assert_eq!(ergebnis.error_class.as_deref(),
+                   Some("write_stack_unavailable"));
+    }
+
+    #[test]
+    fn ohne_helper_binary_gibt_es_keinen_schreibweg() {
+        let (o, json) = order();
+        let ergebnis = fuehre_im_helfer_aus(
+            std::path::Path::new("/nonexistent/helper"), &o, &json,
+            std::time::Duration::from_secs(1));
+        assert_eq!(ergebnis.outcome, "not_sent");
+        assert_eq!(ergebnis.error_class.as_deref(),
+                   Some("write_stack_unavailable"));
     }
 }

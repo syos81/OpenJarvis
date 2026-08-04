@@ -57,9 +57,11 @@ __all__ = [
     "parse_create_fields",
     "parse_canonical_payload",
     "canonical_payload",
+    "canonical_patch",
     "preview_items",
     "readback_digest",
     "project_bridge_contact",
+    "project_local_contact",
     "as_bridge_contact",
     "NEVER_WRITABLE",
 ]
@@ -281,7 +283,14 @@ def _wert_liste(roh: Any, *, feld: str, grenze: int, vorrat: frozenset[str],
             label=_label(e.get("label"), feld=f"{feld}[{i}].label",
                          vorrat=vorrat),
             value=wert))
-    return tuple(sorted(ergebnis, key=lambda x: (x.label or "", x.value)))
+    # **Reihenfolge ist Position, nicht Sortierung** (ADR-0020 §7). Hier
+    # wurde früher nach `(label, value)` sortiert — eine stille Kanonisierung,
+    # die zweierlei kaputt macht: Sie verdreht die Absicht des Menschen (wer
+    # die Arbeitsadresse zuerst nennt, will sie zuerst haben), und sie
+    # entkoppelt den Digest von dem, was der Provider zurückliest. Aufgefallen
+    # im Update-Livetest 2026-08-04 mit zwei E-Mails; beim Create mit je einem
+    # Wert war es unsichtbar.
+    return tuple(ergebnis)
 
 
 def _pruefe_mail(wert: str, feld: str) -> None:
@@ -391,15 +400,12 @@ def parse_create_fields(roh: Mapping[str, Any]) -> CreateFields:
                            pruefer=_pruefe_mail),
         phones=_wert_liste(roh.get("phones") or [], feld="phones", grenze=10,
                            vorrat=PHONE_LABELS, textgrenze=MAX_PHONE),
-        postal_addresses=tuple(sorted(
-            adressen,
-            key=lambda a: (a.label or "", a.street, a.city, a.postal_code,
-                           a.country))),
+        # Ebenfalls Position, nicht Sortierung (siehe `_wert_liste`).
+        postal_addresses=tuple(adressen),
         urls=_wert_liste(roh.get("urls") or [], feld="urls", grenze=10,
                          vorrat=URL_LABELS, textgrenze=MAX_URL,
                          pruefer=_pruefe_url),
-        dates=tuple(sorted(daten, key=lambda d: (d.label or "", d.year or -1,
-                                                 d.month, d.day))),
+        dates=tuple(daten),
     )
     if felder.is_empty:
         raise InvalidCommand(
@@ -577,7 +583,10 @@ def project_bridge_contact(kontakt) -> CreateFields:
             LabeledText(label=normalize_label(w.label),
                         value=unicodedata.normalize("NFC", w.value).strip())
             for w in werte if (w.value or "").strip()]
-        return tuple(sorted(eintraege, key=lambda x: (x.label or "", x.value)))
+        # Auch hier Position statt Sortierung: Der Read-back muss dieselbe
+        # Ordnung liefern wie der Entwurf, sonst vergleicht der Digest zwei
+        # verschiedene Ordnungen desselben Inhalts.
+        return tuple(eintraege)
 
     adressen: list[PostalAddressValue] = []
     if sichtbar("postalAddresses"):
@@ -606,13 +615,10 @@ def project_bridge_contact(kontakt) -> CreateFields:
         birthday=geburtstag,
         emails=texte(kontakt.emails, "emails"),
         phones=texte(kontakt.phones, "phones"),
-        postal_addresses=tuple(sorted(
-            adressen,
-            key=lambda a: (a.label or "", a.street, a.city, a.postal_code,
-                           a.country))),
+        # Ebenfalls Position, nicht Sortierung (siehe `_wert_liste`).
+        postal_addresses=tuple(adressen),
         urls=texte(kontakt.urls, "urlAddresses"),
-        dates=tuple(sorted(daten, key=lambda d: (d.label or "", d.year or -1,
-                                                 d.month, d.day))),
+        dates=tuple(daten),
     )
 
 
@@ -701,3 +707,144 @@ def as_bridge_contact(felder: CreateFields, *, provider_identifier: str,
         birthday=geburtstag,
         **{name: felder.scalars.get(name, "") for name in SCALAR_FIELDS},
     )
+
+
+# ── Lokaler Zielzustand: die Grundlage jedes Update- und Delete-Vergleichs ───
+#: Spalten der Kontaktzeile, die zu einem v1-Skalar gehören. Bewusst
+#: aufgezählt statt hergeleitet: Was hier fehlt, wird auch nicht verglichen —
+#: und das soll man sehen, nicht erraten.
+_LOKALE_SKALARE: dict[str, str] = {
+    "given_name": "given_name",
+    "middle_name": "middle_name",
+    "family_name": "family_name",
+    "previous_family_name": "previous_family_name",
+    "name_prefix": "name_prefix",
+    "name_suffix": "name_suffix",
+    "nickname": "nickname",
+    "phonetic_given_name": "phonetic_given_name",
+    "phonetic_family_name": "phonetic_family_name",
+    "organization_name": "organization_name",
+    "department_name": "department_name",
+    "job_title": "job_title",
+}
+
+
+def project_local_contact(uow, contact_id: str) -> CreateFields:
+    """Projiziert den **lokalen** Spiegel auf die v1-Feldmenge.
+
+    Das ist der Zustand, den der Mensch in der Vorschau sieht — und damit der
+    einzige, gegen den sich vor einem Update oder Delete sinnvoll vergleichen
+    lässt. Der Providerzustand wird nicht geraten: Ob er noch derselbe ist,
+    entscheidet der native Pfad, indem er unmittelbar vor dem Save liest.
+
+    Leere Werte werden ausgelassen, nicht als leer geführt: `canonical_payload`
+    behandelt Fehlen und Leere gleich, und der Digest darf nicht davon
+    abhängen, ob eine Spalte `NULL` oder `''` enthält.
+    """
+    zeile = uow.execute(
+        "SELECT * FROM contacts WHERE id = ?", (contact_id,)).fetchone()
+    if zeile is None:
+        raise InvalidCommand("Zielkontakt existiert lokal nicht")
+
+    roh: dict[str, Any] = {}
+    for api_name, spalte in _LOKALE_SKALARE.items():
+        wert = zeile[spalte]
+        if wert:
+            roh[api_name] = wert
+    if zeile["contact_type"]:
+        roh["contact_type"] = zeile["contact_type"]
+    if zeile["birthday_month"] and zeile["birthday_day"]:
+        roh["birthday"] = {"year": zeile["birthday_year"],
+                           "month": zeile["birthday_month"],
+                           "day": zeile["birthday_day"]}
+
+    def liste(tabelle: str, wertspalte: str) -> list[dict]:
+        return [{"label": r["label_normalized"], "value": r[wertspalte]}
+                for r in uow.execute(
+                    f"SELECT label_normalized, {wertspalte} FROM {tabelle} "
+                    "WHERE contact_id = ? ORDER BY position", (contact_id,))
+                if r[wertspalte]]
+
+    for name, tabelle, spalte in (("emails", "contact_emails", "value_raw"),
+                                  ("phones", "contact_phones", "value_raw"),
+                                  ("urls", "contact_urls", "value_raw")):
+        werte = liste(tabelle, spalte)
+        if werte:
+            roh[name] = werte
+
+    anschriften = []
+    for r in uow.execute(
+            "SELECT label_normalized, street, city, state, postal_code, "
+            "country, iso_country_code FROM contact_postal_addresses "
+            "WHERE contact_id = ? ORDER BY position", (contact_id,)):
+        eintrag: dict[str, Any] = {"label": r["label_normalized"]}
+        for feld in ("street", "city", "state", "country"):
+            if r[feld]:
+                eintrag[feld] = r[feld]
+        if r["postal_code"]:
+            eintrag["postal_code"] = r["postal_code"]
+        if r["iso_country_code"]:
+            eintrag["iso_country_code"] = r["iso_country_code"]
+        anschriften.append(eintrag)
+    if anschriften:
+        roh["postal_addresses"] = anschriften
+
+    termine = [{"label": r["label_normalized"], "year": r["year"],
+                "month": r["month"], "day": r["day"]}
+               for r in uow.execute(
+                   "SELECT label_normalized, year, month, day FROM "
+                   "contact_dates WHERE contact_id = ? AND kind != 'birthday' "
+                   "ORDER BY position", (contact_id,))
+               if r["month"] and r["day"]]
+    if termine:
+        roh["dates"] = termine
+
+    return parse_create_fields(roh)
+
+
+def canonical_patch(roh: Mapping[str, Any]) -> dict:
+    """Bringt einen **Patch** in die kanonische Form — nur die genannten Felder.
+
+    Nötig geworden im Livetest am 2026-08-04: Der Update-Payload trug die
+    API-Namen (`family_name`), der native Pfad erwartet die kanonischen
+    Schlüssel (`familyName`). Beim Create fiel das nie auf, weil dort der
+    ganze Entwurf durch `parse_create_fields` und `canonical_payload` läuft;
+    der Patch wurde roh durchgereicht. Der native Torwächter hat es korrekt
+    als `unsupported_field` abgewiesen — vor jeder Übergabe.
+
+    Der Unterschied zu `canonical_payload`: Hier ist **Fehlen** bedeutsam.
+    Ein nicht genanntes Feld bleibt unangetastet, ein genanntes `null`
+    (Skalar) beziehungsweise `[]` (Liste) löscht ausdrücklich. Beides muss
+    den Digest erreichen — sonst hinge die Löschung an einer Auslassung.
+    """
+    out: dict[str, Any] = {}
+    for name, wert in roh.items():
+        if name in SCALAR_FIELDS:
+            if wert is None:
+                out[SCALAR_FIELDS[name]] = None
+            else:
+                out[SCALAR_FIELDS[name]] = _text(wert, feld=name)
+            continue
+        if name == "contact_type":
+            raise InvalidCommand(
+                "Ein Typwechsel ist in v1 nicht zugesagt (ADR-0020 §7)")
+        if name == "birthday":
+            if wert is None:
+                out["birthday"] = None
+            else:
+                felder = parse_create_fields({"birthday": wert})
+                out["birthday"] = canonical_payload(felder)["birthday"]
+            continue
+        if name in LIST_FIELDS:
+            schluessel, _ = LIST_FIELDS[name]
+            if wert is None or (isinstance(wert, list) and not wert):
+                # Ausdrückliches Leeren — nicht dasselbe wie Weglassen.
+                out[schluessel] = []
+                continue
+            felder = parse_create_fields({name: wert})
+            out[schluessel] = canonical_payload(felder)[schluessel]
+            continue
+        raise InvalidCommand(f"Feld ist in v1 nicht schreibbar: {name}")
+    if not out:
+        raise InvalidCommand("Ein Patch ohne Feld waere eine Mutation ohne Wirkung")
+    return dict(sorted(out.items()))

@@ -52,6 +52,7 @@ __all__ = [
     "SettleErgebnis",
     "SettleConflict",
     "ChannelNotEnabled",
+    "DeleteConfirmationRequired",
 ]
 
 MODULE = "contacts"
@@ -71,6 +72,10 @@ class SettleConflict(RuntimeError):
 
 class ChannelNotEnabled(RuntimeError):
     """Der App-Prozess-Schreibkanal ist nicht freigeschaltet."""
+
+
+class DeleteConfirmationRequired(RuntimeError):
+    """R2: Löschen ohne die zusätzliche Bestätigung im Ausführungsschritt."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +118,8 @@ class AppExecutionService:
         return self._caps_quelle()
 
     # ── Claim ───────────────────────────────────────────────────────────────
-    def claim(self, mutation_id: str) -> ExecutionOrderV1:
+    def claim(self, mutation_id: str, *,
+              confirm_delete: bool = False) -> ExecutionOrderV1:
         """Beansprucht genau einen Versuch und gibt den Auftrag heraus.
 
         Reihenfolge ist Absicht: Erst alle Prüfungen, die **vor** jedem Send
@@ -138,6 +144,18 @@ class AppExecutionService:
             # wird Schreibrecht UND die Fähigkeit genau dieser Operation.
             # Ein Kanal, der `create` kann, darf deshalb noch lange kein
             # `delete` beanspruchen.
+            # R2: Löschen verlangt eine **zweite**, eigene Bestätigung im
+            # Ausführungsschritt (ADR-0020 §8.3, DEC-046). Sie ersetzt die
+            # Freigabe nicht, sie kommt hinzu.
+            if zeile["command"] == "delete" and not confirm_delete:
+                raise DeleteConfirmationRequired(
+                    "Löschen verlangt die ausdrückliche Bestätigung im "
+                    "Ausführungsschritt")
+            if zeile["command"] != "delete" and confirm_delete:
+                # Ein `confirm_delete` bei einer Nicht-Löschung ist kein
+                # harmloser Zusatz, sondern ein falsch gebauter Aufruf.
+                raise MutationNotExecutable(
+                    "confirm_delete gehört ausschliesslich zu 'delete'")
             if not self._caps.darf_ausfuehren(zeile["command"]):
                 raise ChannelNotEnabled(
                     f"Operation '{zeile['command']}' ist im App-Prozess-Kanal "
@@ -353,7 +371,12 @@ class AppExecutionService:
         liest, statt zu schreiben. Ein zweiter Providerkontakt findet hier
         unter keinen Umstaenden statt.
         """
-        if not bericht.provider_identifier or not bericht.readback_contact:
+        if not bericht.provider_identifier:
+            return
+        if bericht.operation_type == "delete":
+            self._loeschung_nachfuehren(mutation_id, bericht)
+            return
+        if not bericht.readback_contact:
             return
         from personaljarvis.contacts.application.field_contract import (
             as_bridge_contact,
@@ -372,6 +395,60 @@ class AppExecutionService:
             return
         ContactsMutationService(self._persistence, None).finalize_pending(
             mutation_id, readback=rueckgabe)
+
+    def _loeschung_nachfuehren(self, mutation_id: str,
+                               bericht: ExecutionReportV1) -> None:
+        """Schreibt den lokalen Grabstein — nur bei belegter Abwesenheit.
+
+        Der Beleg ist `absent_confirmed`: gezielt über die Kennung gelesen
+        und **nicht** gefunden, bei weiterhin gültigem Zugriff. „Nicht
+        lesbar" hat der App-Prozess längst als `outcome_unknown` gemeldet und
+        kommt hier gar nicht an.
+
+        Die External Identity bleibt stehen. Sie ist der Beleg, wovon der
+        Grabstein überhaupt spricht — wer sie löscht, verliert die Zuordnung
+        und kann eine spätere Wiederkehr desselben Datensatzes nicht mehr
+        erkennen.
+        """
+        if bericht.readback_status != "absent_confirmed":
+            return
+        from personaljarvis.contacts.application.mutation_service import (
+            MODULE,
+            SUBJECT_TYPE,
+        )
+        from personaljarvis.contacts.domain.models import utc_now as _jetzt
+
+        jetzt = _jetzt()
+        with self._persistence.unit_of_work() as uow:
+            zeile = uow.execute(
+                "SELECT contact_id, provider_account_id, container_identifier "
+                "FROM contact_external_ids WHERE provider_identifier = ?",
+                (bericht.provider_identifier,)).fetchone()
+            if zeile is None:
+                # Ohne lokale Identität gibt es nichts nachzuführen — und
+                # nichts zu erfinden.
+                return
+            uow.execute(
+                "UPDATE contacts SET is_tombstone = 1, deleted_at = ?, "
+                "updated_at = ? WHERE id = ?",
+                (jetzt, jetzt, zeile["contact_id"]))
+            # Löschnachweis-Historie mit eigenem Grund: diese Löschung war
+            # die eigene, nicht die eines fremden Geräts (ADR-0020 §8.3).
+            uow.execute(
+                "INSERT OR IGNORE INTO contacts_tombstones "
+                "(provider_account_id, provider_identifier, contact_id, "
+                "deleted_at, reason, retain_until) VALUES (?,?,?,?,?,?)",
+                (zeile["provider_account_id"], bericht.provider_identifier,
+                 zeile["contact_id"], jetzt, "deleted_by_own_mutation", jetzt))
+            uow.execute(
+                "UPDATE contacts_mutations SET state = ?, outcome = ?, "
+                "completed_at = ? WHERE mutation_id = ?",
+                ("succeeded", "succeeded", jetzt, mutation_id))
+            AuditTrail(uow, module=MODULE).record(
+                "mutation_completed", subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id,
+                facts={"outcome": "succeeded", "localMirrorUpdated": True,
+                       "tombstoned": True})
 
 
 def _readback_digest(bericht: ExecutionReportV1) -> str | None:

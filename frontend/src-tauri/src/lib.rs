@@ -1,7 +1,7 @@
 mod backend_shutdown;
 mod contacts_authorization;
-mod contacts_create;
-mod contacts_execution;
+pub mod contacts_create;
+pub mod contacts_execution;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -1623,6 +1623,12 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1");
         cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR", &sidecar);
     }
+
+    // Die eigene PID, damit das Backend den Tod der GUI erkennt — auch den
+    // harten (SIGABRT im nativen Save, 2026-08-04). Die Prozessgruppe unten
+    // deckt nur das geordnete Beenden; ein Absturz sendet nichts, und der
+    // Waise unterdrueckte beim naechsten Start den frischen Bootstrap.
+    cmd.env("OPENJARVIS_GUI_PID", std::process::id().to_string());
 
     // Eigene Unix-Prozessgruppe: uv wird Gruppenleiter, python3 erbt die
     // Gruppe — der Shutdown beendet damit das ganze Gebilde, nicht nur das

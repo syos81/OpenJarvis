@@ -170,15 +170,34 @@ def test_unicode_wird_kanonisch_normalisiert():
     assert readback_digest(zusammen) == readback_digest(zerlegt)
 
 
-def test_listenreihenfolge_ist_deterministisch():
-    a = parse_create_fields({"emails": [
-        {"label": "work", "value": "b@x.invalid"},
-        {"label": "home", "value": "a@x.invalid"}]})
-    b = parse_create_fields({"emails": [
-        {"label": "home", "value": "a@x.invalid"},
-        {"label": "work", "value": "b@x.invalid"}]})
+def test_gleiche_eingabe_ergibt_denselben_digest():
+    """Determinismus heisst: derselbe Eingang, derselbe Digest."""
+    eingang = {"emails": [{"label": "work", "value": "b@x.invalid"},
+                          {"label": "home", "value": "a@x.invalid"}]}
+    a = parse_create_fields(dict(eingang))
+    b = parse_create_fields(dict(eingang))
     assert canonical_payload(a) == canonical_payload(b)
     assert readback_digest(a) == readback_digest(b)
+
+
+def test_die_reihenfolge_ist_position_und_bedeutungstragend():
+    """Zwei Reihenfolgen sind zwei Zustände (ADR-0020 §7).
+
+    Früher sortierte der Vertrag die Listen nach `(label, value)` und machte
+    sie damit gleich. Das verdrehte die Absicht des Menschen — wer die
+    Arbeitsadresse zuerst nennt, will sie zuerst haben — und entkoppelte den
+    Digest von dem, was der Provider zurückliest. Aufgefallen im
+    Update-Livetest am 2026-08-04 mit zwei E-Mails.
+    """
+    zuerst_arbeit = parse_create_fields({"emails": [
+        {"label": "work", "value": "b@x.invalid"},
+        {"label": "home", "value": "a@x.invalid"}]})
+    zuerst_privat = parse_create_fields({"emails": [
+        {"label": "home", "value": "a@x.invalid"},
+        {"label": "work", "value": "b@x.invalid"}]})
+    assert canonical_payload(zuerst_arbeit)["emails"][0]["label"] == "work"
+    assert canonical_payload(zuerst_privat)["emails"][0]["label"] == "home"
+    assert readback_digest(zuerst_arbeit) != readback_digest(zuerst_privat)
 
 
 def test_weglassen_und_null_ergeben_denselben_digest():

@@ -73,6 +73,7 @@ from personaljarvis.contacts.application.app_channel import (
 from personaljarvis.contacts.application.app_execution import (
     AppExecutionService,
     ChannelNotEnabled,
+    DeleteConfirmationRequired,
     SettleConflict,
 )
 from personaljarvis.contacts.application.execution_contracts import (
@@ -478,7 +479,14 @@ def create_contacts_router(module) -> APIRouter:
         if queries.get_mutation(mutation_id, workspace_id=ws) is None:
             raise _http_error(MutationNotFound("Mutation existiert nicht"))
         try:
-            auftrag = app_execution.claim(mutation_id)
+            auftrag = app_execution.claim(
+                mutation_id, confirm_delete=body.confirm_delete)
+        except DeleteConfirmationRequired as exc:
+            # 409, nicht 400: Der Aufruf ist wohlgeformt, es fehlt die
+            # zweite Handlung des Menschen.
+            raise HTTPException(status_code=409, detail={
+                "code": "confirmation_required", "message": str(exc),
+                "retryable": False}) from exc
         except ChannelNotEnabled as exc:
             raise HTTPException(status_code=503, detail={
                 "code": "channel_unavailable", "message": str(exc),

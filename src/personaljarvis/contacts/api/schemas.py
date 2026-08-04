@@ -311,6 +311,12 @@ class ClaimAppExecutionIn(_Strict):
     """
 
     user_initiated: Literal[True]
+    #: Nur für `delete` (R2, ADR-0020 §8.3, DEC-046): die **zusätzliche**
+    #: Bestätigung im Ausführungsschritt. Sie ist nicht dieselbe Handlung
+    #: wie die Freigabe — deshalb ein zweites Feld und kein zweites Lesen
+    #: desselben. Für `create` und `update` muss sie fehlen oder falsch
+    #: sein; ein unnötiges `true` ist ein Vertragsbruch, kein Freibrief.
+    confirm_delete: bool = False
 
 
 class ExecutionOrderOut(_Strict):

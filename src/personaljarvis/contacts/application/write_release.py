@@ -49,13 +49,15 @@ WRITE_RELEASE_FILENAME = "contacts-write-release.json"
 
 #: Vertragskennung. Ändert sich der Freigabevertrag, wird jede alte Datei
 #: dadurch automatisch wirkungslos.
-WRITE_RELEASE_CONTRACT = "contacts-create-v1"
+WRITE_RELEASE_CONTRACT = "contacts-write-v1"
 
 #: Längste zulässige Geltungsdauer ab Ausstellung. Eine Freigabe ist ein
 #: Ereignis, kein Zustand.
 MAX_RELEASE_HOURS = 4
 
-_OPERATIONS = ("create",)
+#: Jede Operation wird **einzeln** freigegeben. Eine Datei, die
+#: `delete` nennt, gibt kein `update` frei und umgekehrt.
+_OPERATIONS = ("create", "update", "delete")
 
 
 @dataclass(frozen=True, slots=True)

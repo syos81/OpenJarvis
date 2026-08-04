@@ -395,14 +395,33 @@ describe('Bearbeitung', () => {
     expect(screen.queryAllByLabelText(/^E-Mail \d+$/)).toHaveLength(vorher - 1);
   });
 
-  it('kennzeichnet Mehrwertfelder im API-Betrieb als noch nicht übertragbar', async () => {
+  it('erlaubt Mehrwertfelder, sobald der Kanal Update traegt', async () => {
+    // Frueher hingen sie am Demo-Modus und waren im API-Betrieb hart
+    // gesperrt — eine Sperre aus der Zeit vor dem Update-Pfad. Der
+    // Feldvertrag v1 kennt die Listen laengst; die Sperre log den Nutzer an
+    // (Befund im Livetest 2026-08-04: „hinzufuegen geht nicht").
     mock.getCapabilities.mockResolvedValue(CAPS_UPDATE);
     await rendern();
     const u = nutzer();
     await u.click(within(liste()).getByText('Bruno Beispiel'));
     await u.click(await screen.findByTestId('detail-bearbeiten'));
-    expect(screen.getAllByText(/erst mit einem erweiterten Feldvertrag/).length)
-      .toBeGreaterThan(0);
+    expect(screen.queryByText(/erst mit einem erweiterten Feldvertrag/))
+      .not.toBeInTheDocument();
+    const knopf = screen.getByRole('button', { name: 'E-Mail hinzufügen' });
+    expect(knopf).toBeEnabled();
+  });
+
+  it('bietet ohne Update-Faehigkeit gar keine Bearbeitung an', async () => {
+    // Die Listensperre ist die zweite Schranke; die erste ist, dass es ohne
+    // `update_supported` keinen Editor gibt. Beide zusammen ergeben: nichts
+    // wird als speicherbar dargestellt, was der Kanal nicht traegt.
+    mock.getCapabilities.mockResolvedValue({
+      ...CAPS_UPDATE, update_supported: false });
+    await rendern();
+    const u = nutzer();
+    await u.click(within(liste()).getByText('Bruno Beispiel'));
+    await screen.findByTestId('contact-detail');
+    expect(screen.queryByTestId('detail-bearbeiten')).not.toBeInTheDocument();
   });
 
   it('öffnet den Löschdialog mit Unumkehrbarkeits-Warnung, ohne auszuführen', async () => {

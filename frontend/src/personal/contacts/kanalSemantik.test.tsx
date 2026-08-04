@@ -126,3 +126,95 @@ describe('Fensterung ohne gemessene Hoehe', () => {
     expect(ANNAHME_VIEWPORT).toBeGreaterThanOrEqual(1200);
   });
 });
+
+describe('Löschbestätigung (R2, DEC-046)', () => {
+  it('reicht die Bestätigung nur für delete weiter', async () => {
+    const gesehen: Array<[string, boolean]> = [];
+    const quelle = {
+      execute: async (id: string, confirmDelete = false) => {
+        gesehen.push([id, confirmDelete]);
+      },
+    };
+    await quelle.execute('m-update', false);
+    await quelle.execute('m-delete', true);
+    expect(gesehen).toEqual([['m-update', false], ['m-delete', true]]);
+  });
+
+  it('macht etikettierte Listen in der Vorschau lesbar', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(),
+                'src/personal/contacts/status/ContactsStatusSurface.tsx'),
+      'utf8');
+    // `String(wert)` ergab bei Listen `[object Object]` — genau das, was der
+    // Mensch vor der Freigabe nicht pruefen kann.
+    expect(quelle).toContain('function lesbar(');
+    expect(quelle).toContain('{lesbar(c.previous)}');
+    expect(quelle).not.toContain("String(c.planned ?? '—')");
+  });
+
+  it('laesst den Kanalhinweis dem tatsaechlichen Zustand folgen', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(),
+                'src/personal/contacts/status/ContactsStatusSurface.tsx'),
+      'utf8');
+    // Fest verdrahtet war er richtig, solange der Kanal konstant zu war;
+    // seit der Freigabe behauptete er das Gegenteil dessen, was gleich
+    // passiert.
+    expect(quelle).toContain('function KanalHinweis({ caps }');
+    expect(quelle).toContain('Provider-Schreiben ist zeitlich begrenzt freigegeben.');
+    expect(quelle).toContain('caps.create_supported || caps.update_supported');
+  });
+
+  it('nennt die Unumkehrbarkeit im Bestätigungstext', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(),
+                'src/personal/contacts/status/ContactsStatusSurface.tsx'),
+      'utf8');
+    const block = quelle.split('data-testid="delete-bestaetigung"')[1]
+      .slice(0, 600);
+    expect(block).toContain('löschen');
+    expect(block).toContain('nicht rückgängig');
+  });
+
+  it('sperrt den Ausführungsknopf, solange nicht bestätigt ist', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(),
+                'src/personal/contacts/status/ContactsStatusSurface.tsx'),
+      'utf8');
+    expect(quelle).toContain("(m.command === 'delete' && !bestaetigt)");
+  });
+});
+
+describe('Neuanlage: etikettierte Listen', () => {
+  it('bietet E-Mail und Telefon mit dem v1-Labelvorrat an', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(), 'src/personal/contacts/editor/dialogs.tsx'),
+      'utf8');
+    const block = quelle.split('const ANLAGE_LISTEN')[1].slice(0, 400);
+    expect(block).toContain("key: 'emails'");
+    expect(block).toContain("key: 'phones'");
+    // Genau der Vorrat des Feldvertrags v1 — nichts darüber hinaus.
+    expect(block).toContain("['home', 'work', 'other']");
+    expect(block).toContain("['mobile', 'home', 'work', 'main', 'other']");
+  });
+
+  it('zaehlt leere Zeilen nicht als Eingabe', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(), 'src/personal/contacts/editor/dialogs.tsx'),
+      'utf8');
+    // Sonst haenge der Digest daran, ob jemand eine Zeile geoeffnet hat.
+    expect(quelle).toContain("filter((e) => e.value.trim() !== '')");
+  });
+});

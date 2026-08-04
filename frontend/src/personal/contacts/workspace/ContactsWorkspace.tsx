@@ -201,7 +201,7 @@ export function ContactsWorkspace({ testListenHoehe }: {
   const [statusOffen, setStatusOffen] = useState(false);
   const [aktionsFehler, setAktionsFehler] = useState<Fehlerbild | null>(null);
 
-  const fertig = async (felder: Record<string, string>) => {
+  const fertig = async (felder: Record<string, unknown>) => {
     if (!detail) return;
     setEditorSendet(true);
     setEditorFehler(null);
@@ -424,6 +424,7 @@ export function ContactsWorkspace({ testListenHoehe }: {
                 kontakt={detail}
                 demoModus={demoModus}
                 onFertig={(felder) => void fertig(felder)}
+                listenSchreibbar={Boolean(caps?.update_supported)}
                 onAbbrechen={() => { setBearbeitet(false); setEditorFehler(null); }}
                 sendet={editorSendet}
                 fehler={editorFehler}

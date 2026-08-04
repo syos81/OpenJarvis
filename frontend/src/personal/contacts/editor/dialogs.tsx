@@ -168,6 +168,24 @@ const ANLAGE_FELDER = [
   { key: 'job_title', label: 'Position' },
 ] as const;
 
+/// Etikettierte Listen der Neuanlage. Der Feldvertrag v1 kennt fünf; hier
+/// stehen die beiden, die man beim Anlegen tatsächlich zur Hand hat. Die
+/// übrigen (Anschriften, Web, Termine) folgen im Editor — sie einzeln in
+/// diesen Dialog zu holen, machte ihn zu einem zweiten Editor.
+const ANLAGE_LISTEN = [
+  { key: 'emails', label: 'E-Mail', platzhalter: 'name@example.org',
+    labels: ['home', 'work', 'other'] },
+  { key: 'phones', label: 'Telefon', platzhalter: '+49 …',
+    labels: ['mobile', 'home', 'work', 'main', 'other'] },
+] as const;
+
+const LABEL_TEXT: Record<string, string> = {
+  home: 'Privat', work: 'Arbeit', other: 'Sonstige',
+  mobile: 'Mobil', main: 'Hauptnummer',
+};
+
+type ListenEintrag = { label: string; value: string };
+
 const CONTAINER_ART: Record<string, string> = {
   local: 'Lokal · Auf meinem Mac',
   cardDAV: 'CardDAV / iCloud',
@@ -182,6 +200,9 @@ export function CreateDialog({ caps, onClose, onPrepared }: {
   onPrepared: (m: PreparedMutation) => void;
 }) {
   const [werte, setWerte] = useState<Record<string, string>>({});
+  const [listen, setListen] = useState<Record<string, ListenEintrag[]>>({
+    emails: [], phones: [],
+  });
   const [orte, setOrte] = useState<api.ContainerOption[]>([]);
   const [ort, setOrt] = useState('');
   const [fehler, setFehler] = useState<Fehlerbild | null>(null);
@@ -202,8 +223,20 @@ export function CreateDialog({ caps, onClose, onPrepared }: {
     () => Object.entries(werte).filter(([, v]) => v.trim() !== ''),
     [werte],
   );
-  const vollstaendig = gefuellt.length > 0 && ort !== ''
-    && Boolean(caps?.create_supported);
+  // Leere Zeilen zählen nicht: Wer eine Zeile hinzufügt und nichts einträgt,
+  // hat nichts eingetragen — und der Digest darf nicht davon abhängen.
+  const gefuellteListen = useMemo(
+    () => Object.fromEntries(
+      Object.entries(listen)
+        .map(([k, v]) => [k, v.filter((e) => e.value.trim() !== '')
+          .map((e) => ({ label: e.label || null, value: e.value.trim() }))])
+        .filter(([, v]) => (v as ListenEintrag[]).length > 0),
+    ),
+    [listen],
+  );
+  const vollstaendig = (gefuellt.length > 0
+      || Object.keys(gefuellteListen).length > 0)
+    && ort !== '' && Boolean(caps?.create_supported);
 
   return (
     <Modal
@@ -228,7 +261,10 @@ export function CreateDialog({ caps, onClose, onPrepared }: {
                   idempotencyKey: globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}`,
                   correlationId: globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}`,
                   containerRef: ort,
-                  fields: Object.fromEntries(gefuellt.map(([k, v]) => [k, v.trim()])),
+                  fields: {
+                    ...Object.fromEntries(gefuellt.map(([k, v]) => [k, v.trim()])),
+                    ...gefuellteListen,
+                  },
                 }));
               } catch (e) { setFehler(fehlerbild(e)); } finally { setSendet(false); }
             }}
@@ -285,6 +321,88 @@ export function CreateDialog({ caps, onClose, onPrepared }: {
               }}
             />
           </label>
+        ))}
+        {ANLAGE_LISTEN.map((liste) => (
+          <fieldset key={liste.key} style={{
+            gridColumn: '1 / -1', border: 'none', padding: 0, margin: 0,
+          }}>
+            <legend style={{
+              font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
+              padding: 0,
+            }}>
+              {liste.label}
+            </legend>
+            {(listen[liste.key] ?? []).map((eintrag, i) => (
+              <div key={i} style={{
+                display: 'flex', gap: '6px', marginTop: '4px',
+                alignItems: 'center',
+              }}>
+                <select
+                  value={eintrag.label}
+                  data-testid={`anlage-${liste.key}-label-${i}`}
+                  onChange={(e) => setListen({
+                    ...listen,
+                    [liste.key]: (listen[liste.key] ?? []).map(
+                      (x, j) => (j === i ? { ...x, label: e.target.value } : x)),
+                  })}
+                  className="pjc-focusable"
+                  style={{
+                    font: 'var(--pjc-font-body)', flex: '0 0 8rem',
+                    border: 'var(--pjc-divider-width) solid var(--pjc-divider)',
+                    borderRadius: 'var(--pjc-radius-control)', padding: '3px 6px',
+                    background: 'transparent', color: 'var(--color-text)',
+                  }}
+                >
+                  <option value="">ohne Etikett</option>
+                  {liste.labels.map((l) => (
+                    <option key={l} value={l}>{LABEL_TEXT[l] ?? l}</option>
+                  ))}
+                </select>
+                <input
+                  value={eintrag.value}
+                  placeholder={liste.platzhalter}
+                  data-testid={`anlage-${liste.key}-wert-${i}`}
+                  onChange={(e) => setListen({
+                    ...listen,
+                    [liste.key]: (listen[liste.key] ?? []).map(
+                      (x, j) => (j === i ? { ...x, value: e.target.value } : x)),
+                  })}
+                  className="pjc-focusable"
+                  style={{
+                    font: 'var(--pjc-font-body)', flex: 1,
+                    border: 'var(--pjc-divider-width) solid var(--pjc-divider)',
+                    borderRadius: 'var(--pjc-radius-control)', padding: '3px 8px',
+                    background: 'transparent', color: 'var(--color-text)',
+                  }}
+                />
+                <button
+                  type="button" aria-label={`${liste.label} entfernen`}
+                  onClick={() => setListen({
+                    ...listen,
+                    [liste.key]: (listen[liste.key] ?? [])
+                      .filter((_, j) => j !== i),
+                  })}
+                  className="pjc-focusable"
+                  style={{ ...aktionsKnopf(false), padding: '2px 8px' }}
+                >
+                  −
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              data-testid={`anlage-${liste.key}-hinzufuegen`}
+              onClick={() => setListen({
+                ...listen,
+                [liste.key]: [...(listen[liste.key] ?? []),
+                              { label: liste.labels[0], value: '' }],
+              })}
+              className="pjc-focusable"
+              style={{ ...aktionsKnopf(false), marginTop: '4px' }}
+            >
+              + {liste.label}
+            </button>
+          </fieldset>
         ))}
       </div>
     </Modal>

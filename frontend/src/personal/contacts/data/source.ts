@@ -40,7 +40,7 @@ export interface ContactsDataSource {
   removeRole(id: string, role: string): Promise<{ roles: string[] }>;
 
   prepareUpdate(id: string, args: {
-    expectedRevision: string; fields: Record<string, string>;
+    expectedRevision: string; fields: Record<string, unknown>;
   }): Promise<PreparedMutation>;
   prepareDelete(id: string, args: { expectedRevision: string }): Promise<PreparedMutation>;
 
@@ -51,7 +51,7 @@ export interface ContactsDataSource {
   reject(id: string, actor: string): Promise<unknown>;
   cancel(id: string, actor: string): Promise<unknown>;
   expire(id: string): Promise<unknown>;
-  execute(id: string): Promise<unknown>;
+  execute(id: string, confirmDelete?: boolean): Promise<unknown>;
   reconcile(id: string): Promise<unknown>;
   resolveNotObserved(id: string): Promise<unknown>;
 }
@@ -105,11 +105,17 @@ export function apiDataSource(): ContactsDataSource {
     // der Vorgang über Claim → App-Prozess → Settle. Sonst bleibt der alte
     // Weg, der ohne Providerwrite in seinem eigenen fail-closed endet — so
     // verhält sich ein Build ohne Freigabe wie bisher.
-    execute: async (id) => {
+    execute: async (id, confirmDelete = false) => {
       const kanal = await api.getAppChannel().catch(() => null);
-      if (api.kanalErlaubt(kanal, 'create')) {
+      // Welche Operation ansteht, weiss der Server; das Frontend fragt
+      // deshalb nach **irgendeiner** offenen Schreibfähigkeit und lässt den
+      // Claim entscheiden. Ein Frontend, das die Operation selbst ableitet,
+      // wäre eine zweite Wahrheit neben dem Vorgang.
+      const offen = (['create', 'update', 'delete'] as const)
+        .some((op) => api.kanalErlaubt(kanal, op));
+      if (offen) {
         const { fuehreAus } = await import('./executionTransport');
-        return fuehreAus(id);
+        return fuehreAus(id, confirmDelete);
       }
       return api.executeMutation(id);
     },

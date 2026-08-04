@@ -4,4 +4,7 @@
 # (scripts/build-contacts-sidecar.sh, ADR-0016).
 ollama-*
 jarvis-contacts-*
+# `contacts-write-helper-*` ist der opferbare Schreibhelfer
+# (cargo --bin contacts-write-helper, ADR-0020-Nachtrag 2026-08-04).
+contacts-write-helper-*
 !.gitignore

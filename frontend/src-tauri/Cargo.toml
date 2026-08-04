@@ -1,9 +1,19 @@
 [package]
 name = "openjarvis-desktop"
+# Zwei Binaries seit dem Schreibhelfer — das Hauptbinary bleibt der Standard.
+default-run = "openjarvis-desktop"
 version = "1.0.1"
 description = "OpenJarvis Desktop — Native AI assistant with energy monitoring, trace debugging, and learning visualization"
 edition = "2021"
 license = "MIT"
+
+# Der opferbare Schreibhelfer (ADR-0020-Nachtrag 2026-08-04): genau eine
+# ExecutionOrder je Prozess, hoechstens ein CNSaveRequest, Bericht ueber
+# stdout. Stirbt er im Save (unfangbare CoreData-Ausnahme), ueberleben GUI
+# und Backend — der Absturz wird zum outcome_unknown statt zum Prozessende.
+[[bin]]
+name = "contacts-write-helper"
+path = "src/bin/contacts_write_helper.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

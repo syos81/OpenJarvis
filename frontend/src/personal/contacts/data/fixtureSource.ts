@@ -228,7 +228,8 @@ export function fixtureDataSource(anzahl: number): ContactsDataSource {
     expire: (id) => entscheiden(id, 'expired'),
     // Ausführen ist im Demo-Modus nicht erreichbar (Capabilities aus); der
     // Vertrag verlangt die Methode trotzdem — sie lehnt ab statt zu raten.
-    execute: () => Promise.reject(new ContactsApiError(
+    execute: (_id: string, _confirmDelete?: boolean) =>
+      Promise.reject(new ContactsApiError(
       409, 'demo_mode', 'Im Demo-Modus wird nichts ausgeführt.', false,
       'demo_execute_blocked',
     )),

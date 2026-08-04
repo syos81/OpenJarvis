@@ -31,7 +31,8 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/jarvis-contacts"
+      "binaries/jarvis-contacts",
+      "binaries/contacts-write-helper"
     ],
     "createUpdaterArtifacts": true,
     "icon": [

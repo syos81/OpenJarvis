@@ -171,15 +171,29 @@ function MehrwertEditor({ titel, eintraege, labels, onChange, gesperrt, fehlerTe
 
 export function ContactEditor({
   kontakt, demoModus, onFertig, onAbbrechen, sendet, fehler,
+  listenSchreibbar = true,
 }: {
   kontakt: ContactDetail;
   demoModus: boolean;
-  /** Übergibt die geänderten Skalarfelder (v1-Vertrag) zur Vorbereitung. */
-  onFertig: (felder: Record<string, string>) => void;
+  /**
+   * Ob etikettierte Listen übertragbar sind. Früher hing das am
+   * Demo-Modus — eine Sperre aus der Zeit vor dem Update-Pfad, die im
+   * API-Betrieb das Gegenteil dessen behauptete, was der Feldvertrag kann.
+   * Jetzt entscheidet die Fähigkeit des Kanals.
+   */
+  listenSchreibbar?: boolean;
+  /**
+   * Übergibt die geänderten Felder des v1-Vertrags zur Vorbereitung —
+   * Skalare **und** etikettierte Listen. Letztere waren im API-Betrieb
+   * gesperrt, solange der Feldvertrag sie nicht schreiben konnte; seit dem
+   * Update-Pfad kann er es, und die Sperre log den Nutzer an.
+   */
+  onFertig: (felder: Record<string, unknown>) => void;
   onAbbrechen: () => void;
   sendet: boolean;
   fehler: Fehlerbild | null;
 }) {
+  const listenGesperrt = !demoModus && !listenSchreibbar;
   const start = useMemo(() => entwurfAus(kontakt), [kontakt]);
   const [entwurf, setEntwurf] = useState<Entwurf>(start);
   const [fragtAbbruch, setFragtAbbruch] = useState(false);
@@ -192,16 +206,34 @@ export function ContactEditor({
     return d;
   }, [entwurf.skalar, start.skalar]);
 
-  const mehrwertGeaendert =
-    JSON.stringify(entwurf.emails) !== JSON.stringify(start.emails)
-    || JSON.stringify(entwurf.phones) !== JSON.stringify(start.phones);
+  const listenGeaendert = (a: MehrwertEintrag[], b: MehrwertEintrag[]) =>
+    JSON.stringify(a.map((e) => [e.label, e.value.trim()]))
+    !== JSON.stringify(b.map((e) => [e.label, e.value.trim()]));
+  const mehrwertGeaendert = listenGeaendert(entwurf.emails, start.emails)
+    || listenGeaendert(entwurf.phones, start.phones);
   const dreckig = Object.keys(skalarDiff).length > 0 || mehrwertGeaendert;
+
+  /**
+   * Der vollständige Patch: geänderte Skalare plus **ganze** geänderte
+   * Listen (v1 ersetzt je benannter Liste, ADR-0020 §8.2). Leere Zeilen
+   * zählen nicht; eine geleerte Liste reist als `[]` und löscht damit
+   * ausdrücklich — genau die Unterscheidung, die „weggelassen" von
+   * „gelöscht" trennt.
+   */
+  const patch = useMemo(() => {
+    const p: Record<string, unknown> = { ...skalarDiff };
+    const liste = (werte: MehrwertEintrag[]) => werte
+      .filter((e) => e.value.trim() !== '')
+      .map((e) => ({ label: e.label || null, value: e.value.trim() }));
+    if (listenGeaendert(entwurf.emails, start.emails)) p.emails = liste(entwurf.emails);
+    if (listenGeaendert(entwurf.phones, start.phones)) p.phones = liste(entwurf.phones);
+    return p;
+  }, [skalarDiff, entwurf.emails, entwurf.phones, start.emails, start.phones]);
 
   const mailFehler = entwurf.emails.some(
     (e) => e.value.trim() !== '' && !emailGueltig(e.value),
   );
-  const uebertragbar = Object.keys(skalarDiff).length > 0
-    || (demoModus && mehrwertGeaendert);
+  const uebertragbar = Object.keys(patch).length > 0;
   const fertigMoeglich = dreckig && !mailFehler && uebertragbar && !sendet;
 
   const abbrechen = () => {
@@ -238,7 +270,7 @@ export function ContactEditor({
           </button>
           <button
             type="button"
-            onClick={() => onFertig(skalarDiff)}
+            onClick={() => onFertig(patch)}
             disabled={!fertigMoeglich}
             data-testid="editor-fertig"
             className="pjc-focusable pjc-primary"
@@ -298,7 +330,7 @@ export function ContactEditor({
         titel="E-Mail"
         eintraege={entwurf.emails}
         labels={MAIL_LABELS}
-        gesperrt={!demoModus}
+        gesperrt={listenGesperrt}
         onChange={(emails) => setEntwurf({ ...entwurf, emails })}
         fehlerText={(w) => (emailGueltig(w) ? null : 'Keine gültige E-Mail-Adresse.')}
       />
@@ -306,7 +338,7 @@ export function ContactEditor({
         titel="Telefon"
         eintraege={entwurf.phones}
         labels={TEL_LABELS}
-        gesperrt={!demoModus}
+        gesperrt={listenGesperrt}
         onChange={(phones) => setEntwurf({ ...entwurf, phones })}
         fehlerText={() => null}
       />

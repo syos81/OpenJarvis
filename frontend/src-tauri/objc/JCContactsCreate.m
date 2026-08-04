@@ -319,6 +319,128 @@ static NSDictionary *_Nullable JCCreateDateDict(NSDateComponents *_Nullable k) {
 
 /// Baut den einen Kontakt. Gibt `nil` zurück, wenn die Nutzlast den v1-
 /// Vertrag verletzt — dann gibt es keinen Save.
+/// Setzt die fünf etikettierten Listen auf `ziel`.
+///
+/// `patch` unterscheidet die beiden Bedeutungen von `null`: beim Create ist
+/// eine fehlende Liste schlicht nicht gesetzt, beim Update ist ein
+/// ausdrückliches `null` beziehungsweise `[]` die Anweisung, alle Werte zu
+/// löschen. Ohne diese Unterscheidung könnte ein Update nichts leeren —
+/// oder, schlimmer, ein Weglassen würde löschen.
+static BOOL JCCreateApplyLists(CNMutableContact *ziel, NSDictionary *quelle,
+                               BOOL patch) {
+    // Etikettierte Listen — Reihenfolge ist Position, keine Sortierung.
+    NSArray *mails = quelle[@"emails"];
+    if (mails == NSNull.null && patch) { ziel.emailAddresses = @[]; }
+    else if (mails != nil && mails != NSNull.null) {
+        if (![mails isKindOfClass:NSArray.class]) { return NO; }
+        NSMutableArray *werte = [NSMutableArray array];
+        for (NSDictionary *e in mails) {
+            if (![e isKindOfClass:NSDictionary.class]) { return NO; }
+            NSString *v = e[@"value"];
+            if (![v isKindOfClass:NSString.class]) { return NO; }
+            [werte addObject:[[CNLabeledValue alloc]
+                initWithLabel:JCCreateCNLabel(e[@"label"]) value:v]];
+        }
+        ziel.emailAddresses = werte;
+    }
+
+    NSArray *rufnummern = quelle[@"phones"];
+    if (rufnummern == NSNull.null && patch) { ziel.phoneNumbers = @[]; }
+    else if (rufnummern != nil && rufnummern != NSNull.null) {
+        if (![rufnummern isKindOfClass:NSArray.class]) { return NO; }
+        NSMutableArray *werte = [NSMutableArray array];
+        for (NSDictionary *p in rufnummern) {
+            if (![p isKindOfClass:NSDictionary.class]) { return NO; }
+            NSString *v = p[@"value"];
+            if (![v isKindOfClass:NSString.class]) { return NO; }
+            [werte addObject:[[CNLabeledValue alloc]
+                initWithLabel:JCCreateCNLabel(p[@"label"])
+                        value:[CNPhoneNumber phoneNumberWithStringValue:v]]];
+        }
+        ziel.phoneNumbers = werte;
+    }
+
+    NSArray *adressen = quelle[@"postalAddresses"];
+    if (adressen == NSNull.null && patch) { ziel.postalAddresses = @[]; }
+    else if (adressen != nil && adressen != NSNull.null) {
+        if (![adressen isKindOfClass:NSArray.class]) { return NO; }
+        NSMutableArray *werte = [NSMutableArray array];
+        for (NSDictionary *a in adressen) {
+            if (![a isKindOfClass:NSDictionary.class]) { return NO; }
+            CNMutablePostalAddress *pa = [[CNMutablePostalAddress alloc] init];
+            NSDictionary *teile = @{ @"street": @"street", @"city": @"city",
+                                     @"state": @"state",
+                                     @"postalCode": @"postalCode",
+                                     @"country": @"country",
+                                     @"isoCountryCode": @"ISOCountryCode" };
+            for (NSString *k in teile) {
+                id v = a[k];
+                if (v == nil || v == NSNull.null) { continue; }
+                if (![v isKindOfClass:NSString.class]) { return NO; }
+                [pa setValue:v forKey:teile[k]];
+            }
+            [werte addObject:[[CNLabeledValue alloc]
+                initWithLabel:JCCreateCNLabel(a[@"label"]) value:pa]];
+        }
+        ziel.postalAddresses = werte;
+    }
+
+    NSArray *adressenWeb = quelle[@"urls"];
+    if (adressenWeb == NSNull.null && patch) { ziel.urlAddresses = @[]; }
+    else if (adressenWeb != nil && adressenWeb != NSNull.null) {
+        if (![adressenWeb isKindOfClass:NSArray.class]) { return NO; }
+        NSMutableArray *werte = [NSMutableArray array];
+        for (NSDictionary *u in adressenWeb) {
+            if (![u isKindOfClass:NSDictionary.class]) { return NO; }
+            NSString *v = u[@"value"];
+            if (![v isKindOfClass:NSString.class]) { return NO; }
+            [werte addObject:[[CNLabeledValue alloc]
+                initWithLabel:JCCreateCNLabel(u[@"label"]) value:v]];
+        }
+        ziel.urlAddresses = werte;
+    }
+
+    NSArray *daten = quelle[@"dates"];
+    if (daten == NSNull.null && patch) { ziel.dates = @[]; }
+    else if (daten != nil && daten != NSNull.null) {
+        if (![daten isKindOfClass:NSArray.class]) { return NO; }
+        NSMutableArray *werte = [NSMutableArray array];
+        for (NSDictionary *d in daten) {
+            if (![d isKindOfClass:NSDictionary.class]) { return NO; }
+            NSDateComponents *k = JCCreateComponents(d);
+            if (k == nil) { return NO; }
+            [werte addObject:[[CNLabeledValue alloc]
+                initWithLabel:JCCreateCNLabel(d[@"label"]) value:k]];
+        }
+        ziel.dates = werte;
+    }
+
+    return YES;
+}
+
+
+/// Schreibt den `save_started`-Marker — unmittelbar vor der Übergabe.
+///
+/// Der Marker ist die Antwort auf den SIGABRT vom 2026-08-04: Die CoreData-
+/// Ausnahme überquert eine Dispatch-Grenze und ist prinzipiell nicht
+/// fangbar. Stirbt der Prozess, unterscheidet allein diese Datei die beiden
+/// Wahrheiten „nachweislich nichts übergeben" (kein Marker → not_sent) und
+/// „möglicherweise gesendet" (Marker → outcome_unknown). PII-frei: Phase
+/// und Operation, sonst nichts.
+static void JCCreateWriteSaveMarker(const char *operation) {
+    const char *pfad = getenv("OPENJARVIS_CONTACTS_SAVE_MARKER");
+    if (pfad == NULL || pfad[0] != '/') { return; }
+    int fd = open(pfad, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+    if (fd < 0) { return; }
+    char zeile[128];
+    int n = snprintf(zeile, sizeof(zeile),
+                     "{\"phase\":\"save_started\",\"operation\":\"%s\"}",
+                     operation);
+    if (n > 0) { write(fd, zeile, (size_t)n); }
+    fsync(fd);
+    close(fd);
+}
+
 static CNMutableContact *_Nullable JCCreateBuildContact(NSDictionary *payload) {
     NSSet *erlaubt = [NSSet setWithArray:JCCreateAllowedKeys()];
     for (NSString *schluessel in payload) {
@@ -352,87 +474,7 @@ static CNMutableContact *_Nullable JCCreateBuildContact(NSDictionary *payload) {
         neu.birthday = k;
     }
 
-    // Etikettierte Listen — Reihenfolge ist Position, keine Sortierung.
-    NSArray *mails = payload[@"emails"];
-    if (mails != nil && mails != NSNull.null) {
-        if (![mails isKindOfClass:NSArray.class]) { return nil; }
-        NSMutableArray *werte = [NSMutableArray array];
-        for (NSDictionary *e in mails) {
-            if (![e isKindOfClass:NSDictionary.class]) { return nil; }
-            NSString *v = e[@"value"];
-            if (![v isKindOfClass:NSString.class]) { return nil; }
-            [werte addObject:[[CNLabeledValue alloc]
-                initWithLabel:JCCreateCNLabel(e[@"label"]) value:v]];
-        }
-        neu.emailAddresses = werte;
-    }
-
-    NSArray *rufnummern = payload[@"phones"];
-    if (rufnummern != nil && rufnummern != NSNull.null) {
-        if (![rufnummern isKindOfClass:NSArray.class]) { return nil; }
-        NSMutableArray *werte = [NSMutableArray array];
-        for (NSDictionary *p in rufnummern) {
-            if (![p isKindOfClass:NSDictionary.class]) { return nil; }
-            NSString *v = p[@"value"];
-            if (![v isKindOfClass:NSString.class]) { return nil; }
-            [werte addObject:[[CNLabeledValue alloc]
-                initWithLabel:JCCreateCNLabel(p[@"label"])
-                        value:[CNPhoneNumber phoneNumberWithStringValue:v]]];
-        }
-        neu.phoneNumbers = werte;
-    }
-
-    NSArray *adressen = payload[@"postalAddresses"];
-    if (adressen != nil && adressen != NSNull.null) {
-        if (![adressen isKindOfClass:NSArray.class]) { return nil; }
-        NSMutableArray *werte = [NSMutableArray array];
-        for (NSDictionary *a in adressen) {
-            if (![a isKindOfClass:NSDictionary.class]) { return nil; }
-            CNMutablePostalAddress *pa = [[CNMutablePostalAddress alloc] init];
-            NSDictionary *teile = @{ @"street": @"street", @"city": @"city",
-                                     @"state": @"state",
-                                     @"postalCode": @"postalCode",
-                                     @"country": @"country",
-                                     @"isoCountryCode": @"ISOCountryCode" };
-            for (NSString *k in teile) {
-                id v = a[k];
-                if (v == nil || v == NSNull.null) { continue; }
-                if (![v isKindOfClass:NSString.class]) { return nil; }
-                [pa setValue:v forKey:teile[k]];
-            }
-            [werte addObject:[[CNLabeledValue alloc]
-                initWithLabel:JCCreateCNLabel(a[@"label"]) value:pa]];
-        }
-        neu.postalAddresses = werte;
-    }
-
-    NSArray *adressenWeb = payload[@"urls"];
-    if (adressenWeb != nil && adressenWeb != NSNull.null) {
-        if (![adressenWeb isKindOfClass:NSArray.class]) { return nil; }
-        NSMutableArray *werte = [NSMutableArray array];
-        for (NSDictionary *u in adressenWeb) {
-            if (![u isKindOfClass:NSDictionary.class]) { return nil; }
-            NSString *v = u[@"value"];
-            if (![v isKindOfClass:NSString.class]) { return nil; }
-            [werte addObject:[[CNLabeledValue alloc]
-                initWithLabel:JCCreateCNLabel(u[@"label"]) value:v]];
-        }
-        neu.urlAddresses = werte;
-    }
-
-    NSArray *daten = payload[@"dates"];
-    if (daten != nil && daten != NSNull.null) {
-        if (![daten isKindOfClass:NSArray.class]) { return nil; }
-        NSMutableArray *werte = [NSMutableArray array];
-        for (NSDictionary *d in daten) {
-            if (![d isKindOfClass:NSDictionary.class]) { return nil; }
-            NSDateComponents *k = JCCreateComponents(d);
-            if (k == nil) { return nil; }
-            [werte addObject:[[CNLabeledValue alloc]
-                initWithLabel:JCCreateCNLabel(d[@"label"]) value:k]];
-        }
-        neu.dates = werte;
-    }
+    if (!JCCreateApplyLists(neu, payload, NO)) { return nil; }
 
     return neu;
 }
@@ -601,6 +643,7 @@ static void JCCreateRun(JCCreateOps *ops, NSDictionary *payload,
 
     // 5. Genau ein Save, in der @try/@catch-Grenze.
     JCCreatePrepareDiag();
+    JCCreateWriteSaveMarker("create");
     NSString *kennung = nil;
     @try {
         error = nil;
@@ -673,7 +716,48 @@ static void JCCreateRun(JCCreateOps *ops, NSDictionary *payload,
 
 // ── Produktivanbindung: echter CNContactStore ───────────────────────────────
 
-static JCCreateOps *JCCreateRealOps(void) {
+/// Hängt die Persistenz-Stores an — **bevor** irgendetwas geschrieben wird.
+///
+/// **Warum das eine eigene Funktion ist (2026-08-04).** Der Helfer-Spike
+/// starb mit `NSInternalInconsistencyException: This
+/// NSPersistentStoreCoordinator has no persistent stores` — wortgleich zu
+/// den vier CLI-Sidecar-Abstürzen. Die Lehre ist nicht „App-Prozess sicher,
+/// Sidecar unsicher", sondern: **ein Prozess, der noch nie wirklich gelesen
+/// hat, kann nicht speichern.** Der frühere Preflight suchte eine erfundene
+/// Kennung; ein solcher Fetch findet nichts und rührt die Stores offenbar
+/// nicht an.
+///
+/// Zwei echte Lesevorgänge, beide read-only, in dieser Reihenfolge:
+///
+/// 1. Das **volle** Container-Inventar (`predicate:nil`) — genau das tat der
+///    AppSave-Spike, der auf diesem Gerät gelang.
+/// 2. Eine **echte** Enumeration im Zielcontainer, abgebrochen nach dem
+///    ersten Datensatz. Sie muss den Store tatsächlich öffnen; ein leeres
+///    Ergebnis ist zulässig (ein leerer Container ist kein Fehler), ein
+///    Fehler beim Aufzählen dagegen nicht.
+///
+/// Schlägt einer der beiden fehl, gibt es **keinen** Save.
+static BOOL JCCreateWarmUpStores(CNContactStore *store,
+                                 NSString *containerIdentifier,
+                                 NSError *__autoreleasing *error) {
+    NSArray<CNContainer *> *alle =
+        [store containersMatchingPredicate:nil error:error];
+    if (alle == nil) { return NO; }
+
+    CNContactFetchRequest *req = [[CNContactFetchRequest alloc]
+        initWithKeysToFetch:@[ CNContactIdentifierKey ]];
+    req.unifyResults = NO;
+    req.mutableObjects = NO;
+    if (containerIdentifier.length > 0) {
+        req.predicate = [CNContact predicateForContactsInContainerWithIdentifier:
+                            containerIdentifier];
+    }
+    return [store enumerateContactsWithFetchRequest:req error:error
+                                         usingBlock:
+        ^(CNContact *contact, BOOL *stop) { *stop = YES; }];
+}
+
+static JCCreateOps *JCCreateRealOps(NSString *zielcontainer) {
     // GENAU EIN produktiver CNContactStore je Lauf; dieselbe Instanz trägt
     // Containerprüfung, Preflight, Save und Read-back.
     CNContactStore *store = [[CNContactStore alloc] init];
@@ -695,18 +779,7 @@ static JCCreateOps *JCCreateRealOps(void) {
     };
 
     ops.probeFetch = ^BOOL(NSError *__autoreleasing *error) {
-        CNContactFetchRequest *req = [[CNContactFetchRequest alloc]
-            initWithKeysToFetch:@[ CNContactIdentifierKey ]];
-        req.unifyResults = NO;
-        req.mutableObjects = NO;
-        NSString *probe = [NSString stringWithFormat:@"JC-CREATE-PROBE-%@",
-                           NSUUID.UUID.UUIDString];
-        req.predicate =
-            [CNContact predicateForContactsWithIdentifiers:@[ probe ]];
-        return [store enumerateContactsWithFetchRequest:req
-                                                  error:error
-                                             usingBlock:
-            ^(CNContact *contact, BOOL *stop) { *stop = YES; }];
+        return JCCreateWarmUpStores(store, zielcontainer, error);
     };
 
     ops.save = ^NSString *_Nullable(CNMutableContact *kontakt,
@@ -831,7 +904,7 @@ void jc_contacts_create_run(const char *payload_json,
         NSString *container = container_identifier
             ? @(container_identifier) : @"";
         NSString *autor = transaction_author ? @(transaction_author) : @"";
-        JCCreateRun(JCCreateRealOps(), payload, container, autor, out);
+        JCCreateRun(JCCreateRealOps(container), payload, container, autor, out);
     }
 }
 
@@ -848,5 +921,487 @@ void jc_contacts_create_run_scenario(int32_t scenario,
         JCCreateRun(JCCreateFakeOps(scenario), payload,
                     @"FAKE-CONTAINER", @"de.kluender.jarvis.contacts-bridge",
                     out);
+    }
+}
+
+// ═══ Update und Delete (ADR-0020 §8.2/§8.3, DEC-046) ════════════════════════
+//
+// Derselbe Aufbau wie beim Create: ein Operationsobjekt trennt Ablauf und
+// Store-Anbindung, der Ablauf existiert genau einmal. Was hinzukommt, ist
+// der **Vorher-Vergleich**: gelesen wird unmittelbar vor dem Save, und
+// verglichen wird strukturell gegen den Zustand, den der Mensch freigegeben
+// hat. Kein Digest in Objective-C — `isEqualToDictionary:` auf zwei
+// Projektionen ist strenger als ein Hash und braucht keine zweite
+// Kanonisierung, die auseinanderlaufen könnte.
+
+typedef NS_ENUM(int32_t, JCWriteKind) { JCWriteKindUpdate = 1,
+                                        JCWriteKindDelete = 2 };
+
+@interface JCWriteOps : NSObject
+@property (nonatomic, copy) JCCreateAuth (^authorization)(void);
+/// Liest das Ziel **über den Identifier**. `*lesbar` unterscheidet
+/// „nicht vorhanden" von „nicht lesbar" — der Unterschied entscheidet
+/// zwischen Konflikt und ungewissem Ausgang.
+@property (nonatomic, copy) CNContact *_Nullable (^fetchTarget)
+    (NSString *identifier, BOOL *lesbar);
+/// Identifier der Me-Karte, oder `nil`. Ein Fehler beim Lesen ergibt `nil`
+/// **und** setzt `*bekannt` auf NO — dann wird nicht gelöscht.
+@property (nonatomic, copy) NSString *_Nullable (^meCardIdentifier)(BOOL *bekannt);
+/// Container des Ziels, oder `nil`.
+@property (nonatomic, copy) NSString *_Nullable (^containerOf)(NSString *identifier);
+/// GENAU EIN Save. `kind` entscheidet Update oder Delete.
+@property (nonatomic, copy) BOOL (^save)(CNMutableContact *kontakt,
+                                         JCWriteKind kind,
+                                         NSError *__autoreleasing *error);
+/// Read-back über den Identifier. `*vorhanden` sagt, ob überhaupt etwas kam.
+@property (nonatomic, copy) NSDictionary *_Nullable (^readback)
+    (NSString *identifier, BOOL *lesbar, BOOL *vorhanden);
+@end
+
+@implementation JCWriteOps
+@end
+
+/// Setzt **nur** die benannten Felder auf der `mutableCopy`.
+///
+/// Die drei Fälle sind bewusst getrennt: Ein fehlender Schlüssel rührt das
+/// Feld nicht an, `null` beziehungsweise `[]` löscht es ausdrücklich, ein
+/// Wert ersetzt es. Alles, was v1 nicht kennt — Notiz, Bild, Beziehungen —
+/// trägt die Kopie unverändert weiter; genau dafür gibt es sie.
+static BOOL JCWriteApplyPatch(CNMutableContact *ziel, NSDictionary *patch) {
+    NSArray *erlaubt = JCCreateAllowedKeys();
+    for (NSString *schluessel in patch) {
+        if (![erlaubt containsObject:schluessel]) { return NO; }
+    }
+    if (patch[@"contactType"] != nil) {
+        // Typwechsel ist in v1 nicht zugesagt (ADR-0020 §7).
+        return NO;
+    }
+
+    NSDictionary *skalare = JCCreateScalarKeys();
+    for (NSString *schluessel in skalare) {
+        id wert = patch[schluessel];
+        if (wert == nil) { continue; }
+        if (wert == NSNull.null) {
+            [ziel setValue:@"" forKey:skalare[schluessel]];
+        } else if ([wert isKindOfClass:NSString.class]) {
+            [ziel setValue:wert forKey:skalare[schluessel]];
+        } else {
+            return NO;
+        }
+    }
+
+    id geburtstag = patch[@"birthday"];
+    if (geburtstag == NSNull.null) {
+        ziel.birthday = nil;
+    } else if ([geburtstag isKindOfClass:NSDictionary.class]) {
+        NSDateComponents *k = JCCreateComponents(geburtstag);
+        if (k == nil) { return NO; }
+        ziel.birthday = k;
+    } else if (geburtstag != nil) {
+        return NO;
+    }
+
+    // Listen: Ersatz der ganzen benannten Liste, `[]` löscht alle Werte.
+    if (!JCCreateApplyLists(ziel, patch, YES)) { return NO; }
+    return YES;
+}
+
+/// Der eine Ablauf für Update und Delete.
+static void JCWriteRun(JCWriteOps *ops, JCWriteKind kind,
+                       NSString *identifier, NSDictionary *_Nullable patch,
+                       NSDictionary *erwartetVorher,
+                       NSString *_Nullable erwarteterContainer,
+                       JCContactsCreateResult *out) {
+    memset(out, 0, sizeof(*out));
+    JCCreateInstallUncaught();
+
+    if (ops.authorization() != JCCreateAuthAuthorized) {
+        out->outcome = JCContactsWriteOutcomeNotAuthorized;
+        return;
+    }
+
+    // 1. Unmittelbarer Read über den Identifier — nie über einen Namen.
+    BOOL lesbar = NO;
+    CNContact *gelesen = ops.fetchTarget(identifier, &lesbar);
+    if (!lesbar) {
+        // Nicht lesbar ist **kein** Befund über die Existenz.
+        out->outcome = JCContactsWriteOutcomeReadbackFailed;
+        return;
+    }
+    if (gelesen == nil) {
+        out->outcome = JCContactsWriteOutcomeTargetNotFound;
+        return;
+    }
+
+    // 2. Der Zustand muss der sein, den der Mensch freigegeben hat.
+    NSDictionary *ist = JCCreateProject(gelesen);
+    if (![ist isEqualToDictionary:erwartetVorher]) {
+        out->outcome = JCContactsWriteOutcomeRevisionConflict;
+        return;
+    }
+
+    if (kind == JCWriteKindDelete) {
+        // 3a. Me-Karte ist nie ein Mutationsziel. Unbekannt heisst nein.
+        BOOL meBekannt = NO;
+        NSString *meCard = ops.meCardIdentifier(&meBekannt);
+        if (!meBekannt) {
+            out->outcome = JCContactsWriteOutcomeMeCardProtected;
+            return;
+        }
+        if (meCard != nil && [meCard isEqualToString:identifier]) {
+            out->outcome = JCContactsWriteOutcomeMeCardProtected;
+            return;
+        }
+        // 3b. Containerbindung: gelöscht wird nur im erwarteten Container.
+        if (erwarteterContainer.length > 0) {
+            NSString *ist_container = ops.containerOf(identifier);
+            if (ist_container == nil
+                || ![ist_container isEqualToString:erwarteterContainer]) {
+                out->outcome = JCContactsWriteOutcomeContainerMismatch;
+                return;
+            }
+        }
+    }
+
+    CNMutableContact *kopie = [gelesen mutableCopy];
+    if (kind == JCWriteKindUpdate && !JCWriteApplyPatch(kopie, patch)) {
+        out->outcome = JCContactsWriteOutcomeInvalidPayload;
+        return;
+    }
+
+    // 4. Genau ein Save, in der @try/@catch-Grenze.
+    JCCreatePrepareDiag();
+    JCCreateWriteSaveMarker(kind == JCWriteKindUpdate ? "update" : "delete");
+    @try {
+        NSError *fehler = nil;
+        BOOL ok = ops.save(kopie, kind, &fehler);
+        out->save_attempts = 1;
+        out->add_request_count = 1;      // ein Update- bzw. Delete-Request
+        if (!ok) {
+            out->outcome = JCContactsWriteOutcomeSaveError;
+            if (fehler != nil) {
+                JCCreateSanitizeDomain(fehler.domain.UTF8String,
+                                       out->error_domain);
+                out->error_code = fehler.code;
+            }
+            JCCreateDiscardDiag();
+            return;
+        }
+    }
+    @catch (NSException *ausnahme) {
+        out->save_attempts = 1;
+        out->add_request_count = 1;
+        out->outcome = JCContactsWriteOutcomeCaughtException;
+        JCCreateSanitizeName(ausnahme.name.UTF8String, out->exception_name);
+        const char *grund = ausnahme.reason.UTF8String;
+        out->reason_present = (grund != NULL);
+        const char *digest = NULL;
+        if (grund != NULL) {
+            JCCreateSha256Hex(grund, strlen(grund), out->reason_digest);
+            digest = out->reason_digest;
+        }
+        out->diagnostics_artifact_written = JCCreateCommitDiag(
+            "contacts-write-catch", out->exception_name, grund, digest);
+        return;
+    }
+    JCCreateDiscardDiag();
+
+    // 5. Beleg über **genau diese** Kennung.
+    strlcpy(out->provider_identifier, identifier.UTF8String,
+            sizeof(out->provider_identifier));
+    JCCreateSha256Hex(identifier.UTF8String, strlen(identifier.UTF8String),
+                      out->provider_identifier_digest);
+    out->provider_identifier_present = 1;
+
+    BOOL nachLesbar = NO, vorhanden = NO;
+    NSDictionary *nachher = ops.readback(identifier, &nachLesbar, &vorhanden);
+
+    if (kind == JCWriteKindDelete) {
+        if (!nachLesbar) {
+            // Nicht lesbar ist kein Löschbeweis (ADR-0020 §8.3).
+            out->outcome = JCContactsWriteOutcomeAbsenceUnproven;
+            return;
+        }
+        if (vorhanden) {
+            out->outcome = JCContactsWriteOutcomeAbsenceUnproven;
+            return;
+        }
+        out->readback_succeeded = 1;
+        out->outcome = JCContactsWriteOutcomeApplied;
+        strlcpy(out->readback_json, "{}", sizeof(out->readback_json));
+        return;
+    }
+
+    if (!nachLesbar || !vorhanden || nachher == nil) {
+        out->outcome = JCContactsWriteOutcomeReadbackFailed;
+        return;
+    }
+    NSError *jsonFehler = nil;
+    NSData *daten = [NSJSONSerialization dataWithJSONObject:nachher
+                                                    options:0
+                                                      error:&jsonFehler];
+    if (daten == nil || daten.length >= JC_CREATE_READBACK_CAPACITY) {
+        out->outcome = JCContactsWriteOutcomeReadbackFailed;
+        return;
+    }
+    memcpy(out->readback_json, daten.bytes, daten.length);
+    out->readback_json[daten.length] = '\0';
+    out->readback_succeeded = 1;
+    out->outcome = JCContactsWriteOutcomeApplied;
+}
+
+// ── Produktivanbindung ──────────────────────────────────────────────────────
+
+static JCWriteOps *JCWriteRealOps(NSString *autor) {
+    CNContactStore *store = [[CNContactStore alloc] init];
+    JCWriteOps *ops = [[JCWriteOps alloc] init];
+
+    ops.authorization = ^JCCreateAuth {
+        return ([CNContactStore authorizationStatusForEntityType:
+                    CNEntityTypeContacts] == CNAuthorizationStatusAuthorized)
+            ? JCCreateAuthAuthorized : JCCreateAuthNotAuthorized;
+    };
+
+    ops.fetchTarget = ^CNContact *_Nullable(NSString *identifier, BOOL *lesbar) {
+        // Erst die Stores anhaengen — ein frischer Prozess kann sonst nicht
+        // speichern (Beleg: Helfer-Spike 2026-08-04). Ohne Warmlauf gilt das
+        // Ziel als nicht lesbar, und das endet vor jeder Uebergabe.
+        NSError *warm = nil;
+        if (!JCCreateWarmUpStores(store, nil, &warm)) {
+            *lesbar = NO;
+            return nil;
+        }
+        CNContactFetchRequest *req = [[CNContactFetchRequest alloc]
+            initWithKeysToFetch:JCCreateReadbackKeys()];
+        req.unifyResults = NO;
+        req.mutableObjects = YES;      // die Kopie traegt ungelesene Keys weiter
+        req.predicate =
+            [CNContact predicateForContactsWithIdentifiers:@[ identifier ]];
+        __block CNContact *treffer = nil;
+        NSError *fehler = nil;
+        BOOL ok = [store enumerateContactsWithFetchRequest:req error:&fehler
+                                                usingBlock:
+            ^(CNContact *contact, BOOL *stop) { treffer = contact; *stop = YES; }];
+        *lesbar = ok;
+        return ok ? treffer : nil;
+    };
+
+    ops.meCardIdentifier = ^NSString *_Nullable(BOOL *bekannt) {
+        NSError *fehler = nil;
+        CNContact *me = [store unifiedMeContactWithKeysToFetch:
+                             @[ CNContactIdentifierKey ] error:&fehler];
+        if (me == nil && fehler != nil
+            && fehler.code != CNErrorCodeRecordDoesNotExist) {
+            *bekannt = NO;          // unklar — dann wird nicht geloescht
+            return nil;
+        }
+        *bekannt = YES;
+        return me.identifier;
+    };
+
+    ops.containerOf = ^NSString *_Nullable(NSString *identifier) {
+        NSError *fehler = nil;
+        NSArray<CNContainer *> *treffer = [store containersMatchingPredicate:
+            [CNContainer predicateForContainerOfContactWithIdentifier:identifier]
+                                                                       error:&fehler];
+        return treffer.count == 1 ? treffer.firstObject.identifier : nil;
+    };
+
+    ops.save = ^BOOL(CNMutableContact *kontakt, JCWriteKind kind,
+                     NSError *__autoreleasing *error) {
+        CNSaveRequest *req = [[CNSaveRequest alloc] init];
+        if (@available(macOS 12.0, *)) { req.transactionAuthor = autor; }
+        if (kind == JCWriteKindUpdate) {
+            [req updateContact:kontakt];
+        } else {
+            [req deleteContact:kontakt];
+        }
+        return [store executeSaveRequest:req error:error];
+    };
+
+    ops.readback = ^NSDictionary *_Nullable(NSString *identifier,
+                                            BOOL *lesbar, BOOL *vorhanden) {
+        CNContactFetchRequest *req = [[CNContactFetchRequest alloc]
+            initWithKeysToFetch:JCCreateReadbackKeys()];
+        req.unifyResults = NO;
+        req.mutableObjects = NO;
+        req.predicate =
+            [CNContact predicateForContactsWithIdentifiers:@[ identifier ]];
+        __block NSDictionary *projektion = nil;
+        __block BOOL gefunden = NO;
+        NSError *fehler = nil;
+        BOOL ok = [store enumerateContactsWithFetchRequest:req error:&fehler
+                                                usingBlock:
+            ^(CNContact *contact, BOOL *stop) {
+                gefunden = YES;
+                projektion = JCCreateProject(contact);
+                *stop = YES;
+            }];
+        *lesbar = ok;
+        *vorhanden = gefunden;
+        return projektion;
+    };
+    return ops;
+}
+
+static NSDictionary *_Nullable JCWriteParse(const char *json) {
+    if (json == NULL) { return nil; }
+    NSData *daten = [NSData dataWithBytes:json length:strlen(json)];
+    id wert = [NSJSONSerialization JSONObjectWithData:daten options:0 error:NULL];
+    return [wert isKindOfClass:NSDictionary.class] ? wert : nil;
+}
+
+void jc_contacts_update_run(const char *provider_identifier,
+                            const char *patch_json,
+                            const char *expected_previous_json,
+                            const char *transaction_author,
+                            JCContactsCreateResult *out) {
+    @autoreleasepool {
+        NSDictionary *patch = JCWriteParse(patch_json);
+        NSDictionary *vorher = JCWriteParse(expected_previous_json);
+        if (patch == nil || vorher == nil || provider_identifier == NULL) {
+            memset(out, 0, sizeof(*out));
+            out->outcome = JCContactsWriteOutcomeInvalidPayload;
+            return;
+        }
+        NSString *autor = transaction_author
+            ? @(transaction_author) : @"de.kluender.jarvis.contacts-bridge";
+        JCWriteRun(JCWriteRealOps(autor), JCWriteKindUpdate,
+                   @(provider_identifier), patch, vorher, nil, out);
+    }
+}
+
+void jc_contacts_delete_run(const char *provider_identifier,
+                            const char *expected_previous_json,
+                            const char *expected_container,
+                            const char *transaction_author,
+                            JCContactsCreateResult *out) {
+    @autoreleasepool {
+        NSDictionary *vorher = JCWriteParse(expected_previous_json);
+        if (vorher == nil || provider_identifier == NULL) {
+            memset(out, 0, sizeof(*out));
+            out->outcome = JCContactsWriteOutcomeInvalidPayload;
+            return;
+        }
+        NSString *autor = transaction_author
+            ? @(transaction_author) : @"de.kluender.jarvis.contacts-bridge";
+        NSString *container = (expected_container && *expected_container)
+            ? @(expected_container) : nil;
+        JCWriteRun(JCWriteRealOps(autor), JCWriteKindDelete,
+                   @(provider_identifier), nil, vorher, container, out);
+    }
+}
+
+// ── Kontaktfreier Testeinstieg für Update und Delete ────────────────────────
+//
+// Derselbe Ablauf, andere Anbindung: kein `CNContactStore`, kein
+// Store-Zugriff, kein TCC-Dialog. Der Zielkontakt entsteht aus dem
+// erwarteten Vorzustand — damit prüft der Test denselben Vergleich, den
+// der Produktivpfad ausführt, statt einen nachgebauten.
+
+static JCWriteOps *JCWriteFakeOps(int32_t szenario, NSDictionary *vorher,
+                                  __strong NSMutableDictionary **spur) {
+    JCWriteOps *ops = [[JCWriteOps alloc] init];
+    NSMutableDictionary *zaehler = *spur;
+
+    ops.authorization = ^JCCreateAuth {
+        return (szenario == JCWriteScenarioNotAuthorized)
+            ? JCCreateAuthNotAuthorized : JCCreateAuthAuthorized;
+    };
+
+    ops.fetchTarget = ^CNContact *_Nullable(NSString *identifier, BOOL *lesbar) {
+        if (szenario == JCWriteScenarioReadUnavailable) { *lesbar = NO; return nil; }
+        *lesbar = YES;
+        if (szenario == JCWriteScenarioTargetMissing) { return nil; }
+        NSDictionary *quelle = vorher;
+        if (szenario == JCWriteScenarioRevisionConflict) {
+            NSMutableDictionary *abweichend = [vorher mutableCopy];
+            abweichend[@"jobTitle"] = @"fremd geaendert";
+            quelle = abweichend;
+        }
+        return JCCreateBuildContact(quelle);
+    };
+
+    ops.meCardIdentifier = ^NSString *_Nullable(BOOL *bekannt) {
+        *bekannt = YES;
+        return (szenario == JCWriteScenarioMeCard) ? @"ZIEL" : @"jemand-anders";
+    };
+
+    ops.containerOf = ^NSString *_Nullable(NSString *identifier) {
+        return (szenario == JCWriteScenarioContainerMismatch)
+            ? @"anderer-container" : @"erwarteter-container";
+    };
+
+    ops.save = ^BOOL(CNMutableContact *kontakt, JCWriteKind kind,
+                     NSError *__autoreleasing *error) {
+        zaehler[@"saves"] = @([zaehler[@"saves"] intValue] + 1);
+        if (szenario == JCWriteScenarioSaveNSError) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"JCFake" code:42 userInfo:nil];
+            }
+            return NO;
+        }
+        if (szenario == JCWriteScenarioSaveThrows) {
+            @throw [NSException exceptionWithName:@"JCFakeException"
+                                           reason:@"synthetisch" userInfo:nil];
+        }
+        // Nach einem Delete gibt es nichts mehr zu lesen — genau das ist
+        // der Beleg, den der Ablauf danach verlangt.
+        if (kind == JCWriteKindUpdate) {
+            zaehler[@"kontakt"] = JCCreateProject(kontakt);
+        } else {
+            [zaehler removeObjectForKey:@"kontakt"];
+        }
+        return YES;
+    };
+
+    ops.readback = ^NSDictionary *_Nullable(NSString *identifier,
+                                            BOOL *lesbar, BOOL *vorhanden) {
+        if (szenario == JCWriteScenarioReadbackMissing) {
+            *lesbar = NO; *vorhanden = NO; return nil;
+        }
+        if (szenario == JCWriteScenarioStillPresent) {
+            *lesbar = YES; *vorhanden = YES; return zaehler[@"kontakt"] ?: vorher;
+        }
+        *lesbar = YES;
+        NSDictionary *ergebnis = zaehler[@"kontakt"];
+        *vorhanden = (ergebnis != nil);
+        return ergebnis;
+    };
+    return ops;
+}
+
+void jc_contacts_update_run_scenario(int32_t szenario, const char *patch_json,
+                                     const char *expected_previous_json,
+                                     JCContactsCreateResult *out) {
+    @autoreleasepool {
+        NSDictionary *patch = JCWriteParse(patch_json);
+        NSDictionary *vorher = JCWriteParse(expected_previous_json);
+        if (patch == nil || vorher == nil) {
+            memset(out, 0, sizeof(*out));
+            out->outcome = JCContactsWriteOutcomeInvalidPayload;
+            return;
+        }
+        NSMutableDictionary *spur = [NSMutableDictionary dictionary];
+        JCWriteRun(JCWriteFakeOps(szenario, vorher, &spur), JCWriteKindUpdate,
+                   @"ZIEL", patch, vorher, nil, out);
+    }
+}
+
+void jc_contacts_delete_run_scenario(int32_t szenario,
+                                     const char *expected_previous_json,
+                                     JCContactsCreateResult *out) {
+    @autoreleasepool {
+        NSDictionary *vorher = JCWriteParse(expected_previous_json);
+        if (vorher == nil) {
+            memset(out, 0, sizeof(*out));
+            out->outcome = JCContactsWriteOutcomeInvalidPayload;
+            return;
+        }
+        NSMutableDictionary *spur = [NSMutableDictionary dictionary];
+        // Delete meldet Abwesenheit; der Fake liefert nach dem Save nichts
+        // mehr zurueck, ausser das Szenario verlangt ausdruecklich anderes.
+        JCWriteRun(JCWriteFakeOps(szenario, vorher, &spur), JCWriteKindDelete,
+                   @"ZIEL", nil, vorher, @"erwarteter-container", out);
     }
 }

@@ -307,19 +307,64 @@ function ApprovalBoard({ quelle, onOpenMutation }: {
  * anfassen — und dort ist die Zahl der Client-Aufrufe vertraglich null.
  * Ein Test hält den Satz mit der Kernkonstante deckungsgleich.
  */
-function KanalHinweis() {
+/**
+ * Macht einen Vorschauwert lesbar — auch die etikettierten Listen.
+ *
+ * `String(wert)` ergab bei ihnen `[object Object]`: Der Mensch sah vor der
+ * Freigabe „emails: [object Object]" und konnte gerade das nicht prüfen,
+ * was er freigeben soll. Etikett und Wert werden deshalb ausgeschrieben;
+ * Anschriften als Komponentenkette in Reihenfolge.
+ */
+function lesbar(wert: unknown): string {
+  if (wert === null || wert === undefined || wert === '') return '—';
+  if (Array.isArray(wert)) return wert.map(lesbar).join(' · ');
+  if (typeof wert === 'object') {
+    const o = wert as Record<string, unknown>;
+    const etikett = typeof o.label === 'string' && o.label ? `${o.label}: ` : '';
+    if (typeof o.value === 'string') return `${etikett}${o.value}`;
+    if (o.month !== undefined && o.day !== undefined) {
+      const jahr = o.year ? `${o.year}-` : '--';
+      const zwei = (n: unknown) => String(n).padStart(2, '0');
+      return `${etikett}${jahr}${zwei(o.month)}-${zwei(o.day)}`;
+    }
+    // Anschrift: die gefüllten Komponenten in Vertragsreihenfolge.
+    const teile = ['street', 'city', 'state', 'postalCode', 'country',
+                   'isoCountryCode']
+      .map((k) => o[k]).filter((v) => typeof v === 'string' && v);
+    if (teile.length > 0) return `${etikett}${teile.join(', ')}`;
+    return `${etikett}?`;
+  }
+  return String(wert);
+}
+
+function KanalHinweis({ caps }: { caps: Capabilities | null }) {
+  // Der Satz folgt dem **tatsächlichen** Zustand. Er war fest verdrahtet,
+  // solange der Kanal konstant geschlossen war; seit der Schreibfreigabe
+  // stimmte er nicht mehr — und ein Hinweis, der das Gegenteil dessen
+  // behauptet, was gleich passiert, ist schlimmer als keiner.
+  const offen = Boolean(caps && (caps.create_supported || caps.update_supported
+                                 || caps.delete_supported));
+  const erlaubt = !caps ? [] : (
+    [['create', caps.create_supported], ['update', caps.update_supported],
+     ['delete', caps.delete_supported]] as const)
+    .filter(([, an]) => an).map(([name]) => name);
   return (
-    <section style={statusKarte()} aria-label="Ausführungskanal"
-             data-testid="kanal-hinweis">
+    <section style={statusKarte(offen ? 'var(--color-warning)' : undefined)}
+             aria-label="Ausführungskanal" data-testid="kanal-hinweis">
       <p style={{ font: 'var(--pjc-font-body)', margin: 0 }}>
-        {api.PHASE_A_KANALTEXT}.
+        {offen
+          ? 'Provider-Schreiben ist zeitlich begrenzt freigegeben.'
+          : `${api.PHASE_A_KANALTEXT}.`}
       </p>
       <p style={{
         font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
         margin: '4px 0 0',
       }}>
-        Vorgänge lassen sich vorbereiten und freigeben; an Apple Kontakte
-        überträgt dieser Stand nichts.
+        {offen
+          ? `Freigegeben: ${erlaubt.join(', ')}. Ausführen überträgt an Apple `
+            + 'Kontakte — genau einmal je Freigabe.'
+          : 'Vorgänge lassen sich vorbereiten und freigeben; an Apple Kontakte '
+            + 'überträgt dieser Stand nichts.'}
       </p>
     </section>
   );
@@ -345,6 +390,11 @@ function MutationDetailView({ id, quelle, onBack }: {
   const [loestAuf, setLoestAuf] = useState(false);
   const [fragtAbschluss, setFragtAbschluss] = useState(false);
   const [caps, setCaps] = useState<Capabilities | null>(null);
+  // R2: Löschen verlangt eine zweite, eigene Handlung im Ausführungsschritt
+  // (ADR-0020 §8.3, DEC-046). Bewusst ein eigener Zustand und keine
+  // Wiederverwendung der Freigabe — sonst wäre es dieselbe Handlung zweimal
+  // gezählt.
+  const [bestaetigt, setBestaetigt] = useState(false);
 
   useEffect(() => {
     quelle.capabilities().then(setCaps).catch(() => setCaps(null));
@@ -393,10 +443,15 @@ function MutationDetailView({ id, quelle, onBack }: {
           </p>
           <button
             type="button" data-testid="ausfuehren"
-            disabled={fuehrtAus || !kannAusfuehren(m, caps)}
+            disabled={fuehrtAus || !kannAusfuehren(m, caps)
+                      || (m.command === 'delete' && !bestaetigt)}
             onClick={async () => {
               setFuehrtAus(true); setFehler(null);
-              try { await quelle.execute(m.mutation_id); await laden(); }
+              try {
+                await quelle.execute(m.mutation_id,
+                                     m.command === 'delete' ? bestaetigt : false);
+                await laden();
+              }
               catch (e) { setFehler(fehlerbild(e)); }
               setFuehrtAus(false);
             }}
@@ -411,6 +466,22 @@ function MutationDetailView({ id, quelle, onBack }: {
             {fuehrtAus && <Loader2 size={13} className="animate-spin" aria-hidden="true" />}
             {' '}Jetzt ausführen
           </button>
+          {m.command === 'delete' && (
+            <label style={{
+              display: 'flex', gap: '8px', alignItems: 'flex-start',
+              font: 'var(--pjc-font-body)', marginTop: '10px',
+            }} data-testid="delete-bestaetigung">
+              <input
+                type="checkbox" checked={bestaetigt}
+                onChange={(e) => setBestaetigt(e.target.checked)}
+                className="pjc-focusable"
+              />
+              <span>
+                Ja, diesen Kontakt bei Apple Kontakte <strong>löschen</strong>.
+                Das lässt sich nicht rückgängig machen.
+              </span>
+            </label>
+          )}
           {!kannAusfuehren(m, caps) && (
             <p style={{ font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
               Diese Operation ist für Apple Kontakte noch nicht freigeschaltet.
@@ -549,7 +620,7 @@ function MutationDetailView({ id, quelle, onBack }: {
           <div style={{ marginTop: '6px' }}>
             {m.changes.map((c) => (
               <p key={c.field_name} style={{ font: 'var(--pjc-font-body)', margin: '2px 0' }}>
-                {c.field_name}: {String(c.previous ?? '—')} → <strong>{String(c.planned ?? '—')}</strong>
+                {c.field_name}: {lesbar(c.previous)} → <strong>{lesbar(c.planned)}</strong>
               </p>
             ))}
           </div>
@@ -711,6 +782,17 @@ export function ContactsStatusSurface({
     startTab === 'freigaben' || startTab === 'vorgaenge' ? startTab : 'quelle',
   );
   const [mutationId, setMutationId] = useState<string | null>(null);
+  // Über die Quelle, nicht über einen eigenen Abruf: Der Demo-Modus bleibt
+  // damit aufruffrei (sein Nullaufruf-Vertrag), und der Hinweis zeigt
+  // trotzdem den echten Stand.
+  const [kanalCaps, setKanalCaps] = useState<Capabilities | null>(null);
+  useEffect(() => {
+    let aktiv = true;
+    quelle.capabilities()
+      .then((c) => { if (aktiv) setKanalCaps(c); })
+      .catch(() => { if (aktiv) setKanalCaps(null); });
+    return () => { aktiv = false; };
+  }, [quelle]);
 
   const tabs: { key: StatusTab; label: string }[] = [
     { key: 'quelle', label: 'Quelle' },
@@ -815,7 +897,7 @@ export function ContactsStatusSurface({
         )}
         {tab === 'vorgaenge' && (
           <>
-            <KanalHinweis />
+            <KanalHinweis caps={kanalCaps} />
             {mutationId
               ? <MutationDetailView id={mutationId} quelle={quelle}
                                     onBack={() => setMutationId(null)} />

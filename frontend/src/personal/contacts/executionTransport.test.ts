@@ -124,7 +124,9 @@ describe('Transport: Claim → App-Prozess → Settle', () => {
 
     const ergebnis = await fuehreAus(MUTATION);
 
-    expect(mock.claimAppExecution).toHaveBeenCalledWith(MUTATION);
+    // Der Claim reicht die Löschbestätigung mit — für alles ausser
+    // \ ist sie falsch, und genau so kommt sie hier an.
+    expect(mock.claimAppExecution).toHaveBeenCalledWith(MUTATION, false);
     expect(mock.settleAppExecution).toHaveBeenCalledTimes(1);
     const [gemeldeteId, token, bericht] = mock.settleAppExecution.mock.calls[0];
     // Der Token wandert zurück, der Bericht unverändert.

@@ -744,4 +744,12 @@ def serve(
 
         faulthandler.register(_signal.SIGUSR1, all_threads=True)
 
+    # Lebensdauer-Kopplung an die Desktop-GUI (2026-08-04): stirbt sie hart
+    # (SIGABRT), beendet sich der Server selbst, statt als Waise Port und
+    # Personal-Datenbank zu halten und den naechsten Bootstrap — samt der
+    # Mutations-Erholung — zu unterdruecken.
+    from openjarvis.server.parent_watchdog import start_parent_watchdog
+
+    start_parent_watchdog()
+
     uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")

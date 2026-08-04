@@ -186,17 +186,22 @@ def app_channel_capabilities(
     freigabe = read_write_release(
         release_path if release_path is not None
         else default_release_path(database_path))
-    darf_create = bool(freigabe and freigabe.erlaubt("create")
-                       and NATIVE_CREATE_AVAILABLE)
+    def darf(operation: str) -> bool:
+        return bool(freigabe and freigabe.erlaubt(operation)
+                    and NATIVE_CREATE_AVAILABLE)
+
+    darf_create, darf_update, darf_delete = (
+        darf("create"), darf("update"), darf("delete"))
+    irgendwas = darf_create or darf_update or darf_delete
     return AppChannelCapabilities(
         schema_version=APP_CHANNEL_SCHEMA_VERSION,
         channel="app_process",
-        channel_mode=MODE_NATIVE_CREATE if darf_create else MODE_DISABLED,
+        channel_mode=MODE_NATIVE_CREATE if irgendwas else MODE_DISABLED,
         native_create_available=NATIVE_CREATE_AVAILABLE,
         create_supported=darf_create,
-        update_supported=False,
-        delete_supported=False,
-        provider_write_enabled=darf_create,
+        update_supported=darf_update,
+        delete_supported=darf_delete,
+        provider_write_enabled=irgendwas,
         architecture=platform.machine(),
         app_version=app_version,
         native_bridge_version=native_bridge_version,

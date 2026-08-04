@@ -101,8 +101,10 @@ export async function executeInAppProcess(
  *   ausschliesslich im Speicher — ein roher Claim-Token gehört nicht in
  *   einen dauerhaften Browserspeicher.
  */
-export async function fuehreAus(mutationId: string): Promise<TransportErgebnis> {
-  const auftrag = await claimAppExecution(mutationId);
+export async function fuehreAus(
+  mutationId: string, confirmDelete = false,
+): Promise<TransportErgebnis> {
+  const auftrag = await claimAppExecution(mutationId, confirmDelete);
 
   let bericht: ExecutionReportV1;
   try {

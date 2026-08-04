@@ -200,10 +200,26 @@ class TestSchreibfreigabe:
         f = freigabe_schreiben(tmp_path / WRITE_RELEASE_FILENAME, grund="  ")
         assert read_write_release(f) is None
 
-    def test_update_und_delete_lassen_sich_nicht_freigeben(self, tmp_path):
+    def test_jede_operation_bindet_einzeln(self, tmp_path):
+        """Seit DEC-046 sind alle drei freigebbar — aber nur einzeln.
+
+        Eine Datei, die `update` nennt, gibt kein `delete` frei. Das ist der
+        Kern des Mechanismus: Wer eine Aenderung erlauben will, erlaubt damit
+        keine Loeschung.
+        """
         os.chmod(tmp_path, 0o700)
         f = freigabe_schreiben(tmp_path / WRITE_RELEASE_FILENAME,
                                operations=("update",))
+        freigabe = read_write_release(f)
+        assert freigabe is not None
+        assert freigabe.erlaubt("update") is True
+        assert freigabe.erlaubt("delete") is False
+        assert freigabe.erlaubt("create") is False
+
+    def test_eine_unbekannte_operation_macht_die_datei_ungueltig(self, tmp_path):
+        os.chmod(tmp_path, 0o700)
+        f = freigabe_schreiben(tmp_path / WRITE_RELEASE_FILENAME,
+                               operations=("create", "merge"))
         assert read_write_release(f) is None
 
     def test_ein_symlink_ist_keine_freigabe(self, tmp_path):
@@ -556,9 +572,15 @@ class TestNativerOrt:
             encoding="utf-8")
         code = "\n".join(z for z in quelle.splitlines()
                          if not z.lstrip().startswith("//"))
-        assert code.count("executeSaveRequest") == 1
+        # Genau **ein** Save je Operation, nicht einer im ganzen Shim: Create
+        # und der geteilte Update-/Delete-Pfad haben je eine Stelle. Mehr
+        # waere ein zweiter Weg zum Provider — und genau den soll es nicht
+        # geben.
+        assert code.count("executeSaveRequest") == 2
         assert code.count("[req addContact:") == 1
-        assert "CNSaveRequest alloc" in code
+        assert code.count("[req updateContact:") == 1
+        assert code.count("[req deleteContact:") == 1
+        assert code.count("CNSaveRequest alloc") == 2
 
     def test_der_shim_liest_ueber_die_kennung_und_nie_ueber_den_namen(self):
         from pathlib import Path

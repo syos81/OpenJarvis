@@ -139,8 +139,11 @@ def derive_capabilities(status, *, app_channel=None,
     return ContactCapabilitySet(
         read_supported=True,
         create_supported=bool(vertrag_passt and kanal.darf_ausfuehren("create")),
-        update_supported=schreibbar("update_implemented"),
-        delete_supported=schreibbar("delete_implemented"),
+        # Update und Delete folgen seit DEC-046 derselben Quelle wie Create:
+        # dem App-Prozess-Kanal. Der Sidecar meldet alle drei dauerhaft
+        # falsch — er ist Lese- und Diagnosewerkzeug, nicht Schreiber.
+        update_supported=bool(vertrag_passt and kanal.darf_ausfuehren("update")),
+        delete_supported=bool(vertrag_passt and kanal.darf_ausfuehren("delete")),
         change_history_supported=bool(
             getattr(caps, "change_history_supported", False)),
         full_diff_supported=bool(
