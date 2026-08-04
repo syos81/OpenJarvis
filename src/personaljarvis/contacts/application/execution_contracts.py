@@ -160,6 +160,16 @@ class ExecutionReportV1:
     readback_status: str
     schema_version: int = EXECUTION_SCHEMA_VERSION
     provider_identifier_digest: str | None = None
+    #: Die **rohe** Providerkennung. ADR-0020 §5 nennt sie ausdruecklich: das
+    #: Backend braucht sie fuer die External-ID, sonst gaebe es nach dem
+    #: Create keinen Weg zurueck zu diesem Kontakt. Sie reist ausschliesslich
+    #: im Settle-Rumpf und darf niemals in Audit, Log, Oberflaeche oder
+    #: normaler API erscheinen — dort steht der Digest.
+    provider_identifier: str | None = None
+    #: Der gelesene Zustand als BridgeContact-DTO (ADR-0020 §5). Aus ihm
+    #: bildet der Kern den `readback_digest` und fuehrt den lokalen Spiegel
+    #: nach — erfunden wird nichts.
+    readback_contact: dict[str, Any] | None = None
     readback_revision: str | None = None
     readback_digest: str | None = None
     error_class: str | None = None
@@ -231,6 +241,16 @@ def parse_execution_report(rohdaten: object) -> ExecutionReportV1:
     if readback_status not in READBACK_STATUSES:
         raise ExecutionContractError(
             "schema_mismatch", f"Unbekannter Read-back-Status: {readback_status!r}")
+
+    kennung = rohdaten.get("provider_identifier")
+    if kennung is not None and (not isinstance(kennung, str) or not kennung
+                                or len(kennung) > 512):
+        raise ExecutionContractError(
+            "schema_mismatch", "provider_identifier ist keine brauchbare Kennung")
+    rueckgabe = rohdaten.get("readback_contact")
+    if rueckgabe is not None and not isinstance(rueckgabe, dict):
+        raise ExecutionContractError(
+            "schema_mismatch", "readback_contact ist kein Objekt")
 
     fehlerklasse = rohdaten.get("error_class")
     if fehlerklasse is not None and fehlerklasse not in ERROR_CLASSES:

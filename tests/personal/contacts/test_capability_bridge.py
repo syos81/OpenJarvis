@@ -81,6 +81,30 @@ def _sidecar_skript(tmp_path: Path, capabilities: dict | None) -> Path:
     return pfad
 
 
+def _freigabe_legen(ordner):
+    """Eine gueltige, kurz laufende Schreibfreigabe — synthetisch."""
+    import json
+    import os
+    from datetime import datetime, timedelta, timezone
+
+    from personaljarvis.contacts.application.write_release import (
+        WRITE_RELEASE_CONTRACT,
+        WRITE_RELEASE_FILENAME,
+    )
+    ordner.mkdir(parents=True, exist_ok=True)
+    os.chmod(ordner, 0o700)
+    pfad = ordner / WRITE_RELEASE_FILENAME
+    pfad.write_text(json.dumps({
+        "contract": WRITE_RELEASE_CONTRACT,
+        "operations": ["create"],
+        "expires_at": (datetime.now(timezone.utc)
+                       + timedelta(hours=1)).isoformat(),
+        "reason": "kontaktfreier Capability-Test",
+    }), encoding="utf-8")
+    os.chmod(pfad, 0o600)
+    return pfad
+
+
 @pytest.fixture
 def aufbau(tmp_path, db_path, monkeypatch):
     """Baut das Modul über `attach` auf — wie im produktiven Serverstart."""
@@ -93,7 +117,18 @@ def aufbau(tmp_path, db_path, monkeypatch):
 
     gebaut = []
 
-    def bauen(capabilities: dict | None, *, sidecar: bool = True):
+    def bauen(capabilities: dict | None, *, sidecar: bool = True,
+              schreibfreigabe: bool = True):
+        """Baut das Modul auf.
+
+        `schreibfreigabe` legt die 0600-Freigabedatei neben die Datenbank.
+        Seit ADR-0020 §10 kommt das Create-Recht aus dem App-Prozess-Kanal
+        und nicht mehr aus dem Sidecar-Handshake; ohne Freigabe waere
+        `create_supported` deshalb immer falsch, und die Tests dieser Datei
+        prueften nur noch eine Konstante.
+        """
+        if schreibfreigabe:
+            _freigabe_legen(db_path.parent)
         app = AppAttrappe()
         pfad = (_sidecar_skript(tmp_path, capabilities) if sidecar
                 else tmp_path / "gibt-es-nicht")
@@ -109,7 +144,8 @@ def aufbau(tmp_path, db_path, monkeypatch):
 
 
 # ═══ Freischaltung ══════════════════════════════════════════════════════════
-def test_kompatibler_sidecar_schaltet_create_frei(aufbau):
+def test_kompatibler_vertragsstand_und_freigabe_schalten_create_frei(aufbau):
+    """Beides zusammen — der Sidecar allein schaltet seit ADR-0020 nichts."""
     caps = aufbau(KOMPATIBEL).contacts.capabilities
     assert caps.create_supported is True
     assert caps.read_supported is True
@@ -156,6 +192,13 @@ def test_die_faehigkeiten_erreichen_den_api_vertrag(aufbau):
 
 
 # ═══ Fail-closed in jeder Richtung ══════════════════════════════════════════
+def test_ohne_schreibfreigabe_bleibt_create_gesperrt(aufbau):
+    """Der Kanal ist zu — und damit `create`, egal was der Sidecar meldet."""
+    caps = aufbau(KOMPATIBEL, schreibfreigabe=False).contacts.capabilities
+    assert caps.create_supported is False
+    assert caps.read_supported is True
+
+
 def test_fehlender_sidecar_schaltet_nichts_frei(aufbau):
     caps = aufbau(None, sidecar=False).contacts.capabilities
     assert caps.create_supported is False
@@ -185,10 +228,20 @@ def test_fehlende_versionsangabe_schaltet_nichts_frei(aufbau, fehlend):
     assert caps.create_supported is False
 
 
-def test_create_implemented_false_schaltet_nichts_frei(aufbau):
+def test_das_sidecar_flag_entscheidet_nicht_mehr_ueber_create(aufbau):
+    """Seit ADR-0020 §10 ist `createImplemented` fuer Schreibrechte belanglos.
+
+    Der Sidecar hat gar keinen Schreibpfad mehr und meldet das Flag dauerhaft
+    falsch; wuerde es weiterhin zaehlen, waere `create` fuer immer gesperrt.
+    Entscheidend sind Vertragsstand und App-Prozess-Kanal — beide liegen hier
+    vor, also ist `create` frei, obwohl der Sidecar `false` meldet.
+    """
     caps = aufbau({**KOMPATIBEL,
                    "createImplemented": False}).contacts.capabilities
-    assert caps.create_supported is False
+    assert caps.create_supported is True
+    # Update und Delete bleiben davon unberuehrt.
+    assert caps.update_supported is False
+    assert caps.delete_supported is False
 
 
 # ═══ Der Startcheck selbst ══════════════════════════════════════════════════

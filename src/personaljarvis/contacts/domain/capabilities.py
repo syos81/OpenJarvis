@@ -86,7 +86,8 @@ class ContactCapabilitySet:
             raise CapabilityError(f"Operation '{operation}' ist nicht deklariert")
 
 
-def derive_capabilities(status) -> ContactCapabilitySet:
+def derive_capabilities(status, *, app_channel=None,
+                        database_path=None) -> ContactCapabilitySet:
     """Handshake → Fähigkeitsmenge. Die Capability-Brücke (ADR-0019 §6).
 
     Bis hierher endete der Handshake in `BridgeStatus` und kam nie im Kern an:
@@ -123,9 +124,21 @@ def derive_capabilities(status) -> ContactCapabilitySet:
     def schreibbar(flag: str) -> bool:
         return bool(vertrag_passt and getattr(caps, flag, False))
 
+    # Seit ADR-0020 §10 kommt das Schreibrecht **nicht** mehr aus dem
+    # Sidecar-Handshake: Der Sidecar hat gar keinen Schreibpfad, und sein
+    # `createImplemented` ist dauerhaft falsch. Ob `create` angeboten werden
+    # darf, entscheidet der App-Prozess-Kanal — und der verlangt eine
+    # gueltige, ablaufende Schreibfreigabe. Der Vertragsstand muss trotzdem
+    # passen: ein fremder Sidecar-Vertragsstand sperrt weiterhin alles.
+    from personaljarvis.contacts.application.app_channel import (
+        app_channel_capabilities,
+    )
+
+    kanal = (app_channel if app_channel is not None
+             else app_channel_capabilities(database_path=database_path))
     return ContactCapabilitySet(
         read_supported=True,
-        create_supported=schreibbar("create_implemented"),
+        create_supported=bool(vertrag_passt and kanal.darf_ausfuehren("create")),
         update_supported=schreibbar("update_implemented"),
         delete_supported=schreibbar("delete_implemented"),
         change_history_supported=bool(

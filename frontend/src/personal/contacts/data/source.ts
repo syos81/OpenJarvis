@@ -100,7 +100,19 @@ export function apiDataSource(): ContactsDataSource {
     reject: (id, actor) => api.rejectMutation(id, actor),
     cancel: (id, actor) => api.cancelMutation(id, actor),
     expire: (id) => api.expireMutation(id),
-    execute: (id) => api.executeMutation(id),
+    // Ausführen heisst seit ADR-0020: **im App-Prozess**. Kann der Kanal
+    // die Operation (der Kern entscheidet das, nicht diese Schicht), läuft
+    // der Vorgang über Claim → App-Prozess → Settle. Sonst bleibt der alte
+    // Weg, der ohne Providerwrite in seinem eigenen fail-closed endet — so
+    // verhält sich ein Build ohne Freigabe wie bisher.
+    execute: async (id) => {
+      const kanal = await api.getAppChannel().catch(() => null);
+      if (api.kanalErlaubt(kanal, 'create')) {
+        const { fuehreAus } = await import('./executionTransport');
+        return fuehreAus(id);
+      }
+      return api.executeMutation(id);
+    },
     reconcile: (id) => api.reconcileMutation(id),
     resolveNotObserved: (id) => api.resolveOutcomeNotObserved(id),
   };

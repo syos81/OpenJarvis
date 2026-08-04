@@ -688,8 +688,14 @@ export interface AppChannelCapabilities {
    * Warum nichts geht. In jedem Build dieses Stands `disabled`;
    * `fake_debug` lebt nur im Backendprozess und erreicht diese Antwort nie.
    */
-  channel_mode: 'disabled' | 'fake_debug';
-  /** In Phase A alle drei `false` — unterstützt ist nur, was ausführbar ist. */
+  channel_mode: 'disabled' | 'fake_debug' | 'native_create';
+  /**
+   * Bauzustand, nicht Erlaubnis: Der native Create-Pfad ist einkompiliert.
+   * Getrennt von `create_supported`, weil „vorhanden" und „darf" zwei
+   * verschiedene Aussagen sind.
+   */
+  native_create_available: boolean;
+  /** `true` erst mit gültiger Schreibfreigabe — sonst durchweg `false`. */
   create_supported: boolean;
   update_supported: boolean;
   delete_supported: boolean;
@@ -721,9 +727,8 @@ export function kanalErlaubt(
   operation: 'create' | 'update' | 'delete',
 ): boolean {
   if (!caps || caps.channel !== 'app_process') return false;
-  if (caps.channel_mode !== 'disabled' && caps.channel_mode !== 'fake_debug') {
-    return false;
-  }
+  const modi = ['disabled', 'fake_debug', 'native_create'];
+  if (!modi.includes(caps.channel_mode)) return false;
   if (!caps.provider_write_enabled) return false;
   const feld = operation === 'create' ? caps.create_supported
     : operation === 'update' ? caps.update_supported
@@ -761,6 +766,14 @@ export interface ExecutionReportV1 {
   save_request_count: number;
   readback_status: 'confirmed' | 'absent_confirmed' | 'failed' | 'not_attempted';
   provider_identifier_digest: string | null;
+  /**
+   * Die rohe Providerkennung. Sie reist ausschliesslich im Settle-Rumpf zum
+   * Backend, das sie für die External-ID braucht — nie in Oberfläche, Log
+   * oder normaler API. Das Frontend reicht sie durch und liest sie nie.
+   */
+  provider_identifier?: string | null;
+  /** Der gelesene Zustand in kanonischer v1-Form; der Kern rechnet daraus. */
+  readback_contact?: Record<string, unknown> | null;
   readback_revision: string | null;
   readback_digest: string | null;
   error_class: string | null;

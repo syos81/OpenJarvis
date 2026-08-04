@@ -98,7 +98,19 @@ class AppExecutionService:
 
     def __init__(self, persistence, *, channel_capabilities=None) -> None:
         self._persistence = persistence
-        self._caps = channel_capabilities
+        # Ein Aufrufbares statt eines Wertes ist hier bedeutungstragend: Die
+        # Schreibfreigabe laeuft ab und kann jederzeit zurueckgenommen
+        # werden. Wer den Faehigkeitssatz einmal beim Start festhaelt,
+        # beansprucht spaeter Rechte, die es nicht mehr gibt — genau das fiel
+        # im Livetest am 2026-08-04 auf, als der laufende Prozess den Kanal
+        # nach dem Entzug weiterhin als offen meldete.
+        self._caps_quelle = (channel_capabilities
+                             if callable(channel_capabilities)
+                             else (lambda: channel_capabilities))
+
+    @property
+    def _caps(self):
+        return self._caps_quelle()
 
     # ── Claim ───────────────────────────────────────────────────────────────
     def claim(self, mutation_id: str) -> ExecutionOrderV1:
@@ -285,6 +297,19 @@ class AppExecutionService:
                 "last_error_code = ? WHERE mutation_id = ?",
                 (ziel, outcome, fehlerklasse, mutation_id))
 
+            # Die Providerwahrheit festschreiben — **nur** wenn sie belegt
+            # ist. Die rohe Kennung landet in der Spalte (ohne sie gaebe es
+            # nach dem Create keinen Weg zurueck zu diesem Kontakt); in Audit
+            # und Log steht ausschliesslich ihr Digest.
+            if ziel == "provider_applied_pending_reconcile" \
+                    and bericht.provider_identifier:
+                uow.execute(
+                    "UPDATE contacts_mutations SET "
+                    "target_provider_identifier = ?, readback_digest = ? "
+                    "WHERE mutation_id = ?",
+                    (bericht.provider_identifier,
+                     _readback_digest(bericht), mutation_id))
+
             audit = AuditTrail(uow, module=MODULE)
             audit.record("provider_result_received",
                          subject_type="contact_mutation",
@@ -306,9 +331,65 @@ class AppExecutionService:
                              "resend": False,
                              "reportDigest": digest,
                          })
-            return SettleErgebnis(mutation_id=mutation_id, state=ziel,
-                                  outcome=outcome, idempotent=False,
-                                  error_class=fehlerklasse)
+            ergebnis = SettleErgebnis(mutation_id=mutation_id, state=ziel,
+                                      outcome=outcome, idempotent=False,
+                                      error_class=fehlerklasse)
+
+        # Die lokale Nachfuehrung laeuft **nach** der Settle-Transaktion und
+        # in ihrer eigenen: Der Providerbeleg steht dann bereits fest, und
+        # ein Fehler beim Spiegeln darf ihn nicht zurueckrollen. Sie loest
+        # keinen Provideraufruf aus — die Wahrheit kommt aus dem Bericht.
+        if ziel == "provider_applied_pending_reconcile":
+            self._spiegel_nachfuehren(mutation_id, bericht)
+        return ergebnis
+
+    # ── Lokale Nachfuehrung ────────────────────────────────────────────────
+    def _spiegel_nachfuehren(self, mutation_id: str,
+                             bericht: ExecutionReportV1) -> None:
+        """Fuehrt den kanonischen Bestand aus dem **gelesenen** Zustand nach.
+
+        Erfunden wird nichts: Ohne Kennung und ohne gelesenen Zustand bleibt
+        der Vorgang in der Zwischenlage, und der Abgleich uebernimmt — der
+        liest, statt zu schreiben. Ein zweiter Providerkontakt findet hier
+        unter keinen Umstaenden statt.
+        """
+        if not bericht.provider_identifier or not bericht.readback_contact:
+            return
+        from personaljarvis.contacts.application.field_contract import (
+            as_bridge_contact,
+            parse_canonical_payload,
+        )
+        from personaljarvis.contacts.application.mutation_service import (
+            ContactsMutationService,
+        )
+        try:
+            felder = parse_canonical_payload(bericht.readback_contact)
+            rueckgabe = as_bridge_contact(
+                felder, provider_identifier=bericht.provider_identifier)
+        except Exception:                                   # noqa: BLE001
+            # Ein unbrauchbarer Read-back ist kein Grund, irgendetwas zu
+            # erfinden: Der Vorgang bleibt in der Zwischenlage.
+            return
+        ContactsMutationService(self._persistence, None).finalize_pending(
+            mutation_id, readback=rueckgabe)
+
+
+def _readback_digest(bericht: ExecutionReportV1) -> str | None:
+    """Der Revisionsbeleg — serverseitig aus dem gelesenen Zustand gerechnet.
+
+    Bewusst nicht aus dem Bericht uebernommen: Ein vom App-Prozess
+    gemeldeter Digest waere eine Behauptung; hier ist er eine Rechnung.
+    """
+    if not bericht.readback_contact:
+        return None
+    from personaljarvis.contacts.application.field_contract import (
+        parse_canonical_payload,
+        readback_digest,
+    )
+    try:
+        return readback_digest(parse_canonical_payload(bericht.readback_contact))
+    except Exception:                                       # noqa: BLE001
+        return None
 
 
 def _bewerte(bericht: ExecutionReportV1) -> tuple[str, str | None, str | None]:

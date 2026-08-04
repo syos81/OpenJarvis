@@ -65,6 +65,16 @@ pub struct ExecutionReportV1 {
     pub save_request_count: u32,
     pub readback_status: String,
     pub provider_identifier_digest: Option<String>,
+    /// Die **rohe** Providerkennung (ADR-0020 §5). Sie reist ausschliesslich
+    /// im Settle-Rumpf: Ohne sie koennte das Backend nach einem Create keine
+    /// External-ID anlegen und den Kontakt nie wieder gezielt ansprechen.
+    /// In Audit, Log und Oberflaeche steht der Digest — nie dieser Wert.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_identifier: Option<String>,
+    /// Der gelesene Zustand in kanonischer v1-Form. Aus ihm bildet der Kern
+    /// seinen `readback_digest` und fuehrt den lokalen Spiegel nach.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readback_contact: Option<serde_json::Value>,
     pub readback_revision: Option<String>,
     pub readback_digest: Option<String>,
     pub error_class: Option<String>,
@@ -75,7 +85,7 @@ pub struct ExecutionReportV1 {
 
 impl ExecutionReportV1 {
     /// Ein Bericht, der **beweisbar** nichts übergeben hat.
-    fn not_sent(order: &ExecutionOrderV1, error_class: &str) -> Self {
+    pub fn not_sent(order: &ExecutionOrderV1, error_class: &str) -> Self {
         Self {
             schema_version: EXECUTION_SCHEMA_VERSION,
             operation_id: order.operation_id.clone(),
@@ -86,6 +96,8 @@ impl ExecutionReportV1 {
             save_request_count: 0,
             readback_status: "not_attempted".into(),
             provider_identifier_digest: None,
+            provider_identifier: None,
+            readback_contact: None,
             readback_revision: None,
             readback_digest: None,
             error_class: Some(error_class.into()),
@@ -109,6 +121,8 @@ impl ExecutionReportV1 {
             save_request_count: 0,
             readback_status: "not_attempted".into(),
             provider_identifier_digest: None,
+            provider_identifier: None,
+            readback_contact: None,
             readback_revision: None,
             readback_digest: None,
             error_class: Some(error_class.into()),
@@ -119,7 +133,7 @@ impl ExecutionReportV1 {
     }
 }
 
-fn sha256_hex(inhalt: &str) -> String {
+pub fn sha256_hex(inhalt: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(inhalt.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -211,6 +225,9 @@ fn fake_bericht(order: &ExecutionOrderV1) -> ExecutionReportV1 {
         send_attempted: send,
         save_request_count: saves,
         readback_status: readback.into(),
+        // Der Fake erfindet weder Kennung noch gelesenen Zustand.
+        provider_identifier: None,
+        readback_contact: None,
         // Nie eine echte Providerkennung: der Fake erfindet keine Identitaet,
         // er markiert sich als Fake.
         provider_identifier_digest: if outcome == "applied" {
@@ -280,12 +297,62 @@ pub fn execute_order(roh: &str) -> ExecutionReportV1 {
     if let Err(klasse) = validiere(&order) {
         return ExecutionReportV1::not_sent(&order, klasse);
     }
+    // Der produktive Weg zuerst: Liegt eine gueltige Schreibfreigabe vor,
+    // fuehrt `create` nativ aus — genau ein Save, kein zweiter Versuch.
+    // Ohne Freigabe faellt der Aufruf durch und endet weiter unten
+    // fail-closed. Der Fake ist damit nie eine Alternative zum echten Weg,
+    // sondern nur das, was uebrig bleibt, wenn es keinen echten gibt.
+    #[cfg(target_os = "macos")]
+    if order.operation_type == "create" {
+        let jetzt = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        if crate::contacts_create::write_release_erlaubt(
+            &crate::contacts_create::default_release_path(), "create", jetzt)
+        {
+            return crate::contacts_create::fuehre_create_aus(&order, jetzt);
+        }
+    }
+
     if !fake_kanal_aktiv() {
         // Der Normalfall dieses Stands: Transport steht, Provider nicht.
         return ExecutionReportV1::not_sent(
             &order, "provider_channel_disabled_before_send");
     }
     fake_bericht(&order)
+}
+
+/// Baut einen minimalen, gueltigen Auftrag fuer Tests anderer Module.
+///
+/// Er liegt hier, weil hier die kanonische Digestbildung liegt: ein
+/// Testauftrag, dessen Digest nicht traegt, wuerde am eigentlichen Punkt
+/// vorbeipruefen.
+#[cfg(test)]
+pub fn testhilfe_order(
+    operation_type: &str,
+    canonical_payload: serde_json::Value,
+) -> ExecutionOrderV1 {
+    let mut ziel = BTreeMap::new();
+    ziel.insert("container_identifier".to_string(), Some("C-TEST".to_string()));
+    ExecutionOrderV1 {
+        schema_version: EXECUTION_SCHEMA_VERSION,
+        operation_id: "0".repeat(36),
+        mutation_id: "1".repeat(36),
+        claim_token: "a".repeat(64),
+        operation_type: operation_type.into(),
+        payload_digest: payload_digest(&canonical_payload),
+        preview_digest: "c".repeat(64),
+        canonical_payload,
+        readback_requirements: serde_json::json!({"required": true}),
+        issued_at: "2026-08-04T00:00:00+00:00".into(),
+        expires_at: "2026-08-04T00:10:00+00:00".into(),
+        mutation_contract_version: 1,
+        field_contract_version: 1,
+        transaction_author: "de.kluender.jarvis.contacts-bridge".into(),
+        expected_revision: None,
+        provider_target: ziel,
+    }
 }
 
 #[cfg(test)]

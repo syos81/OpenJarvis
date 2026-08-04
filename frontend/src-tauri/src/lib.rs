@@ -1,5 +1,6 @@
 mod backend_shutdown;
 mod contacts_authorization;
+mod contacts_create;
 mod contacts_execution;
 
 use std::sync::Arc;

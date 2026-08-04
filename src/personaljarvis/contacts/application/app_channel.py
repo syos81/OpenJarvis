@@ -27,8 +27,14 @@ from __future__ import annotations
 import platform
 from dataclasses import asdict, dataclass
 
+from personaljarvis.contacts.application.write_release import (
+    default_release_path,
+)
+
 __all__ = [
     "APP_CHANNEL_SCHEMA_VERSION",
+    "MODE_NATIVE_CREATE",
+    "NATIVE_CREATE_AVAILABLE",
     "CHANNEL_MODES",
     "MODE_DISABLED",
     "MODE_FAKE_DEBUG",
@@ -39,7 +45,7 @@ __all__ = [
     "fake_debug_capabilities",
 ]
 
-APP_CHANNEL_SCHEMA_VERSION = 2
+APP_CHANNEL_SCHEMA_VERSION = 3
 
 #: Kein Provider — weder echt noch gefälscht. Der Zustand jedes Builds in
 #: Phase A.
@@ -50,7 +56,18 @@ MODE_DISABLED = "disabled"
 #: erreichbar, nie über eine Umgebungsvariable aktivierbar.
 MODE_FAKE_DEBUG = "fake_debug"
 
-CHANNEL_MODES = (MODE_DISABLED, MODE_FAKE_DEBUG)
+#: Der native Create-Pfad ist eingeschaltet — es liegt eine gültige,
+#: ablaufende Schreibfreigabe vor (`write_release`). Dieser Modus schreibt
+#: **echt**.
+MODE_NATIVE_CREATE = "native_create"
+
+CHANNEL_MODES = (MODE_DISABLED, MODE_FAKE_DEBUG, MODE_NATIVE_CREATE)
+
+#: Ob der native Create-Code in diesem Stand überhaupt existiert. Das ist
+#: eine Aussage über den **Bauzustand**, nicht über Erlaubnis: „vorhanden"
+#: heisst nicht „darf". Getrennt zu führen ist der ganze Punkt — sonst
+#: müsste man Schreibrechte melden, um Vorhandensein zu melden.
+NATIVE_CREATE_AVAILABLE = True
 
 #: Phase A hat **keinen** nativen Save. Der Wert ist eine Konstante, kein
 #: Schalter: Er wird erst mit Phase D zu einer Entscheidung.
@@ -77,6 +94,8 @@ class AppChannelCapabilities:
     schema_version: int
     channel: str
     channel_mode: str
+    #: Bauzustand, nicht Erlaubnis: der native Create-Pfad ist einkompiliert.
+    native_create_available: bool
     create_supported: bool
     update_supported: bool
     delete_supported: bool
@@ -102,6 +121,10 @@ class AppChannelCapabilities:
             raise InconsistentCapabilities(
                 "Eine Operation gilt als unterstützt, obwohl der Provider "
                 "nicht schreiben darf")
+        if self.channel_mode == MODE_NATIVE_CREATE \
+                and not self.native_create_available:
+            raise InconsistentCapabilities(
+                "Nativer Kanal ohne nativen Code")
         if self.provider_write_enabled and self.channel_mode == MODE_DISABLED:
             raise InconsistentCapabilities(
                 "Schreiben erlaubt bei abgeschaltetem Kanal")
@@ -141,20 +164,39 @@ class AppChannelCapabilities:
 def app_channel_capabilities(
     *, app_version: str = "1.0.1",
     native_bridge_version: str = "0",
+    release_path=None,
+    database_path=None,
 ) -> AppChannelCapabilities:
     """Der Handshake des Kerns — die einzige Quelle für Schreibrechte.
 
-    In Phase A ist das Ergebnis konstant: Transport vorbereitet,
-    Provider-Schreiben deaktiviert. Es gibt keinen Parameter, der das ändert.
+    Ohne gültige Schreibfreigabe ist das Ergebnis konstant: Transport
+    vorbereitet, nativer Create-Code vorhanden, Provider-Schreiben
+    deaktiviert. Mit gültiger Freigabe — einer 0600-Datei im 0700-Ordner,
+    die Vertrag, Umfang, Grund und einen Ablauf nennt — meldet der Kanal
+    `create`, und **nur** `create`.
+
+    `release_path` ist ein Parameter und ausdrücklich **keine**
+    Umgebungsvariable: Tests und Werkzeuge geben ihn direkt an; nichts an
+    der Prozessumgebung kann den Kanal öffnen.
     """
+    from personaljarvis.contacts.application.write_release import (
+        read_write_release,
+    )
+
+    freigabe = read_write_release(
+        release_path if release_path is not None
+        else default_release_path(database_path))
+    darf_create = bool(freigabe and freigabe.erlaubt("create")
+                       and NATIVE_CREATE_AVAILABLE)
     return AppChannelCapabilities(
         schema_version=APP_CHANNEL_SCHEMA_VERSION,
         channel="app_process",
-        channel_mode=MODE_DISABLED,
-        create_supported=False,
+        channel_mode=MODE_NATIVE_CREATE if darf_create else MODE_DISABLED,
+        native_create_available=NATIVE_CREATE_AVAILABLE,
+        create_supported=darf_create,
         update_supported=False,
         delete_supported=False,
-        provider_write_enabled=PHASE_A_PROVIDER_WRITE_ENABLED,
+        provider_write_enabled=darf_create,
         architecture=platform.machine(),
         app_version=app_version,
         native_bridge_version=native_bridge_version,
@@ -182,6 +224,7 @@ def fake_debug_capabilities(
         schema_version=APP_CHANNEL_SCHEMA_VERSION,
         channel="app_process",
         channel_mode=MODE_FAKE_DEBUG,
+        native_create_available=NATIVE_CREATE_AVAILABLE,
         create_supported=create,
         update_supported=update,
         delete_supported=delete,

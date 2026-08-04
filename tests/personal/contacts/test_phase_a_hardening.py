@@ -130,8 +130,8 @@ class TestFakeDebug:
 class TestWidersprueche:
     def _bau(self, **abweichung) -> AppChannelCapabilities:
         basis = dict(
-            schema_version=2, channel="app_process",
-            channel_mode=MODE_DISABLED,
+            schema_version=3, channel="app_process",
+            channel_mode=MODE_DISABLED, native_create_available=True,
             create_supported=False, update_supported=False,
             delete_supported=False, provider_write_enabled=False,
             architecture="x86_64", app_version="1.0.1",

@@ -377,7 +377,12 @@ class AppChannelCapabilitiesOut(_Strict):
 
     schema_version: int
     channel: Literal["app_process"]
-    channel_mode: Literal["disabled", "fake_debug"]
+    channel_mode: Literal["disabled", "fake_debug", "native_create"]
+    #: Bauzustand, nicht Erlaubnis: der native Create-Pfad ist einkompiliert.
+    #: Getrennt von `create_supported`, weil „vorhanden" und „darf" zwei
+    #: verschiedene Aussagen sind — sonst muesste man Schreibrechte melden,
+    #: um Vorhandensein zu melden.
+    native_create_available: bool
     create_supported: bool
     update_supported: bool
     delete_supported: bool

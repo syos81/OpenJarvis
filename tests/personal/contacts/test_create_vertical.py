@@ -236,10 +236,26 @@ def test_ohne_freigeschaltete_faehigkeit_wird_nicht_vorbereitet(module, provider
       "fieldContractVersion": 1}, False),
     ({"createImplemented": True, "fieldContractVersion": 1}, False),
     ({"createImplemented": True, "mutationContractVersion": 1}, False),
-    ({"mutationContractVersion": 1, "fieldContractVersion": 1}, False),
+    # Ohne `createImplemented`: seit ADR-0020 **True**, denn das Flag des
+    # Sidecars zaehlt fuer Schreibrechte nicht mehr — es ist dauerhaft falsch,
+    # und der Sidecar hat gar keinen Schreibpfad. Entscheidend sind
+    # Vertragsstand und App-Prozess-Kanal.
+    ({"mutationContractVersion": 1, "fieldContractVersion": 1}, True),
     ({}, False),
 ])
 def test_capability_bruecke_ist_versionsgenau(handshake, erwartet):
+    """Der Vertragsstand sperrt weiterhin alles — auch bei offenem Kanal.
+
+    Seit ADR-0020 §10 kommt das Schreibrecht nicht mehr aus dem Sidecar
+    (der hat keinen Schreibpfad), sondern aus dem App-Prozess-Kanal. Der
+    Vertragsstand bleibt aber eine harte Sperre davor: Ein Sidecar mit
+    fremdem Vertragsstand schaltet nichts frei, egal wie offen der Kanal ist.
+    Deshalb steht hier ein ausdruecklich offener Kanal — geprueft wird die
+    Versionsgenauigkeit, nicht die Freigabe.
+    """
+    from personaljarvis.contacts.application.app_channel import (
+        fake_debug_capabilities,
+    )
     from personaljarvis.contacts.bridge.models import BridgeCapabilities
     from personaljarvis.contacts.domain.capabilities import derive_capabilities
 
@@ -248,7 +264,8 @@ def test_capability_bruecke_ist_versionsgenau(handshake, erwartet):
         protocol_version = 1
         capabilities = BridgeCapabilities.parse(handshake)
 
-    assert derive_capabilities(Status()).create_supported is erwartet
+    caps = derive_capabilities(Status(), app_channel=fake_debug_capabilities())
+    assert caps.create_supported is erwartet
 
 
 def test_create_schaltet_update_und_delete_nicht_mit_frei():
@@ -259,6 +276,9 @@ def test_create_schaltet_update_und_delete_nicht_mit_frei():
     allein sie auch dann nicht mitzieht, wenn beide Angaben fehlen — der
     haeufigste Weg, wie ein Sammelflag versehentlich zu viel freischaltet.
     """
+    from personaljarvis.contacts.application.app_channel import (
+        fake_debug_capabilities,
+    )
     from personaljarvis.contacts.bridge.models import BridgeCapabilities
     from personaljarvis.contacts.domain.capabilities import derive_capabilities
 
@@ -269,7 +289,7 @@ def test_create_schaltet_update_und_delete_nicht_mit_frei():
             "createImplemented": True, "mutationsImplemented": True,
             "mutationContractVersion": 1, "fieldContractVersion": 1})
 
-    caps = derive_capabilities(Status())
+    caps = derive_capabilities(Status(), app_channel=fake_debug_capabilities())
     assert caps.create_supported is True
     assert caps.update_supported is False
     assert caps.delete_supported is False

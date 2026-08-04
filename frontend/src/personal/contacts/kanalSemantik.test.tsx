@@ -25,9 +25,10 @@ import { syntheticSummaries } from './data/fixtures';
 import { sortiereKontakte } from './data/sortierung';
 
 const AUS: AppChannelCapabilities = {
-  schema_version: 2,
+  schema_version: 3,
   channel: 'app_process',
   channel_mode: 'disabled',
+  native_create_available: true,
   create_supported: false,
   update_supported: false,
   delete_supported: false,
@@ -56,11 +57,28 @@ describe('Kanalsemantik: das Frontend schaltet nichts frei', () => {
     expect(kanalErlaubt(widerspruch, 'create')).toBe(false);
   });
 
+  it('verweigert den nativen Modus ohne Schreibrecht', () => {
+    // `native_create` ohne `provider_write_enabled` ist ein Widerspruch:
+    // Der Modus behauptet einen Schreibkanal, das Flag verneint ihn.
+    const halb = { ...AUS, channel_mode: 'native_create' as const };
+    expect(kanalErlaubt(halb, 'create')).toBe(false);
+  });
+
+  it('laesst den nativen Modus mit Freigabe genau fuer create durch', () => {
+    const nativ: AppChannelCapabilities = {
+      ...AUS, channel_mode: 'native_create',
+      provider_write_enabled: true, create_supported: true,
+    };
+    expect(kanalErlaubt(nativ, 'create')).toBe(true);
+    expect(kanalErlaubt(nativ, 'update')).toBe(false);
+    expect(kanalErlaubt(nativ, 'delete')).toBe(false);
+  });
+
   it('verweigert bei unbekanntem Kanal oder Modus', () => {
     const fremd = { ...AUS, channel: 'cli_sidecar' } as unknown as
       AppChannelCapabilities;
     expect(kanalErlaubt(fremd, 'create')).toBe(false);
-    const modus = { ...AUS, channel_mode: 'native' } as unknown as
+    const modus = { ...AUS, channel_mode: 'irgendwas' } as unknown as
       AppChannelCapabilities;
     expect(kanalErlaubt(modus, 'create')).toBe(false);
   });

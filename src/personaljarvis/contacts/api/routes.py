@@ -214,7 +214,17 @@ def create_contacts_router(module) -> APIRouter:
         Session-Token-Fluss (DEV-4) wird daraus die Sitzungsidentität."""
         return request.headers.get("X-Personal-Actor") or "desktop-user"
 
-    kanal = app_channel_capabilities()
+    def kanal():
+        """Der Kanalzustand **jetzt** — nicht der beim Start.
+
+        Die Schreibfreigabe ist eine ablaufende Datei; ein einmal
+        eingefrorener Fähigkeitssatz meldete nach ihrem Entzug weiterhin
+        „darf". Der Aufruf ist billig (ein `stat` und ein kleines JSON) und
+        die einzige Form, in der die Antwort ehrlich bleibt.
+        """
+        return app_channel_capabilities(database_path=module_datenbankpfad)
+
+    module_datenbankpfad = getattr(getattr(module, "_factory", None), "_path", None)
     app_execution = AppExecutionService(module, channel_capabilities=kanal)
 
     def _mutation_service():
@@ -450,7 +460,7 @@ def create_contacts_router(module) -> APIRouter:
         keine unterstützte Operation. Der Fake-Modus ist hier unerreichbar —
         er wird aus keiner Anfrage konstruiert.
         """
-        return S.AppChannelCapabilitiesOut(**kanal.as_dict())
+        return S.AppChannelCapabilitiesOut(**kanal().as_dict())
 
     @router.post("/mutations/{mutation_id}/claim-app-execution",
                  response_model=S.ExecutionOrderOut)

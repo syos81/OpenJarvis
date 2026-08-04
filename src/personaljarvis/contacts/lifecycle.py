@@ -180,7 +180,11 @@ class ContactsModule:
             process.stop()
 
         self._bridge_status = status
-        self._capabilities = derive_capabilities(status)
+        # Die Schreibfreigabe liegt neben **dieser** Datenbank, nicht am
+        # globalen Standardort: Ein Testlauf oder ein zweites Profil darf
+        # sich seine Rechte nicht aus einem fremden Verzeichnis holen.
+        self._capabilities = derive_capabilities(
+            status, database_path=self._factory._path)
         # Ein bereits gebauter Mutationsdienst haelt die **alte**
         # Faehigkeitsmenge fest. Wer die Menge aendert, macht ihn damit
         # ungueltig — das ist eine Invariante dieser Klasse und keine
