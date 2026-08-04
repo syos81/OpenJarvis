@@ -109,3 +109,44 @@ Ausgefüllte Matrix nach der Struktur aus §7. **Zustände sind ausschließlich:
 1. **Die produktive Implementierung des Kontakte-Moduls darf beginnen** (16 §4, ADR-0016 Punkt 8).
 2. **Der Modulabschluss bleibt gesperrt.** Ein Gesamt-PASS existiert nach §7 nur bei zwei vollständig bestandenen Spalten; beide Spalten enthalten `OPEN`-Zeilen (19 §10).
 3. Kein `OPEN` und kein `NOT EXECUTABLE IN CURRENT ENVIRONMENT` darf ohne die zugehörige Live-Abnahme auf echter Hardware nach `PASS` gesetzt werden (§7 Nr. 1–3).
+
+### §8.1 Produktive Abnahme Kontakte (Stand 2026-08-04)
+
+§8 ist die **Spike**-Matrix und bleibt unverändert stehen. Diese Tabelle führt
+den Stand der **produktiven** Implementierung; sie ersetzt §8 nicht, sondern
+tritt daneben. Zustände unverändert: `PASS` · `FAIL` · `OPEN` ·
+`NOT EXECUTABLE IN CURRENT ENVIRONMENT`.
+
+Evidenz Intel-Spalte durchgehend: x86_64, macOS 12.7.6 (21H1320), Swift 5.7.2 /
+SDK 13.1, Zertifikat „Personal Jarvis Contacts Spike", Hauptbenutzer mit
+Ablageort „Auf meinem Mac", 2026-08-01 bis 2026-08-04.
+
+| Zeile | Apple Silicon arm64 | Intel x86_64 |
+|---|---|---|
+| Nativer Build und zertifikatsgebundene Signierung (App, Sidecar, Write-Helper) | OPEN | PASS |
+| Write-Helper im Bundle, kontaktfreie Bundle-Suite | OPEN | PASS |
+| Lesen, Containerinventar, Enumerate aus der gepackten App | OPEN | PASS |
+| Delta-/Change-History-Pfad | OPEN | PASS |
+| Voll-Diff-Fallback | OPEN | PASS |
+| Create live (ein Claim, ein Save, Read-back-Digest identisch) | OPEN | PASS |
+| Update live (Patch-Semantik, Listenposition, Identität unverändert) | OPEN | PASS |
+| Delete live (R2, `confirm_delete`, Abwesenheitsnachweis, Tombstone) | OPEN | PASS |
+| At-most-once unter Absturz (`outcome_unknown`, kein zweiter Send) | OPEN | PASS |
+| Lifecycle und Shutdown inkl. Eltern-Watchdog nach GUI-Absturz | OPEN | PASS |
+| App-Neustart mit `recover_interrupted()` | OPEN | PASS |
+| Vollständige TCC-Persistenzmatrix (Rebuild, Versions-Bump, Verschieben, Quarantäne) | OPEN | **OPEN** |
+| Vereinheitlichte Datensätze (Mehrcontainer/Unified) | OPEN | **OPEN** |
+| Backup-/Restore-Roundtrip über den Backup-Kern | OPEN | **OPEN** |
+| Apple-Kontakte-Pixelabgleich auf demselben Gerät | OPEN | OPEN |
+
+**Zur Intel-Spalte:** Der Intel-**Zweig** ist abgeschlossen und eingefroren
+(modules/contacts.md §15.2). Die drei fett markierten Zeilen sind davon
+ausgenommen — sie sind keine Intel-Bauarbeit, sondern Abnahmezeilen des
+Modulabschlusses, und sie bleiben offen. Ein „Intel fertig" im Sinne von
+19 §10 existiert nicht, solange sie offen sind.
+
+**Zur arm64-Spalte:** Auf dem vorhandenen Gerät nicht führbar. Keine Zeile
+darf aus der Intel-Spalte übernommen werden (§7 Nr. 1–2, DEC-042); die
+Reihenfolge der Abarbeitung steht als M2-Checkliste in
+[contacts-native-update-delete-intel-2026-08-04.md](contacts-native-update-delete-intel-2026-08-04.md)
+§17.

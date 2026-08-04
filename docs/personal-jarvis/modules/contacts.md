@@ -489,7 +489,7 @@ Ein künstlicher Provider-`DELETE`-Livetest ist auf keiner der beiden Architektu
 | C1/C2 und `finalize_pending` | `application/mutation_service.py` |
 | Capability-Brücke Handshake → `ContactCapabilitySet` | `domain/capabilities.py` |
 
-**Feldvertrag v1 — die geschlossene Feldmenge.** Zwölf skalare Textfelder (`given_name`, `middle_name`, `family_name`, `previous_family_name`, `name_prefix`, `name_suffix`, `nickname`, `phonetic_given_name`, `phonetic_family_name`, `organization_name`, `department_name`, `job_title`), dazu `contact_type` (nur beim Anlegen), `birthday` sowie die Listen `emails`, `phones` (je 10), `postal_addresses` (5), `urls` (10) und `dates` (5). Labels kommen aus geschlossenem Vorrat: `home`/`work`/`other`, bei Telefon zusätzlich `mobile`/`main`, bei Datumsangaben nur `other`. Listen werden kanonisch sortiert — die Reihenfolge ist in v1 nicht frei wählbar, dafür ist der Read-back-Vergleich unabhängig von der Reihenfolge, die Apple liefert.
+**Feldvertrag v1 — die geschlossene Feldmenge.** Zwölf skalare Textfelder (`given_name`, `middle_name`, `family_name`, `previous_family_name`, `name_prefix`, `name_suffix`, `nickname`, `phonetic_given_name`, `phonetic_family_name`, `organization_name`, `department_name`, `job_title`), dazu `contact_type` (nur beim Anlegen), `birthday` sowie die Listen `emails`, `phones` (je 10), `postal_addresses` (5), `urls` (10) und `dates` (5). Labels kommen aus geschlossenem Vorrat: `home`/`work`/`other`, bei Telefon zusätzlich `mobile`/`main`, bei Datumsangaben nur `other`. **Korrektur 2026-08-04:** Listen werden **nicht** sortiert. Die Reihenfolge ist Bedeutung — die erste E-Mail ist die erste E-Mail — und ADR-0019 §7 sagt das auch so; die frühere kanonische Sortierung war ein Vertragsbruch, den ein Test zementiert hatte. Der Read-back vergleicht positionsgetreu.
 
 **Nicht in v1** und nur über eine Vertragsversion v2 erreichbar: Notizen, Kontaktbild, Me-Karte als Ziel, Link/Unlink, soziale Profile, Sofortnachrichten, Beziehungen, Gruppen, `sub_locality`.
 
@@ -519,6 +519,46 @@ Alle Sicherungen haben gehalten: genau **ein** Sendversuch, korrekte Einstufung 
 **Bleibt DEC-D17:** Universal 2 gegenüber zwei getrennten Artefakten. Dieser Plan entscheidet es **nicht** und darf es nicht vorwegnehmen (17 §3 Nr. 2a).
 
 **Dauerhafte Capability-Grenzen, keine Risiken:** Notizen ohne Entitlement nicht verfügbar; Link/Unlink nicht als mutierende Capability; Me-Karte in v1 schreibgeschützt.
+
+### §15.2 Intel eingefroren (2026-08-04)
+
+Der Intel-Zweig des Kontaktmoduls ist **abgeschlossen und eingefroren**. Was
+auf x86_64 zu bauen war, ist gebaut und live belegt: Lesen, Sync, Delta,
+Voll-Diff, Create, Update, Delete, der Absturzfall, der Neustart danach und
+die Oberfläche.
+
+**Die drei Befunde, die den Weg dorthin bestimmt haben** — sie gelten
+architekturunabhängig als *Hypothese*, belegt sind sie nur auf Intel:
+
+1. **Ein Prozess, der noch nie wirklich gelesen hat, kann nicht speichern.**
+   Nicht „CLI unsicher, App sicher": Der Save braucht einen warmgelaufenen
+   Persistenzstack (volles Containerinventar plus echte Enumeration im
+   Zielcontainer). Ohne ihn stirbt `executeSaveRequest:` mit
+   `no persistent stores` — in *jedem* Prozess, auch im GUI-Prozess.
+2. **Ein Save kann tödlich sein, ohne fangbar zu sein.** Die Ausnahme
+   entsteht in `performBlockAndWait`, überquert die Dispatch-Grenze und
+   erreicht kein `@try/@catch`. Deshalb der opferbare
+   `contacts-write-helper`: ein Prozess, dessen Tod nichts kostet, und ein
+   `save_started`-Marker als einzige Wahrheit, die den Tod überlebt.
+3. **Ein Absturz sendet keine Signale.** Der Serve-Prozess überlebte die
+   sterbende GUI, und der nächste App-Start hängte sich an den Waisen —
+   damit lief `recover_interrupted()` nie und die At-most-once-Zusage war
+   ausgehebelt. Der Watchdog prüft seither PID **und** Startzeit.
+
+**ARM64 und M2 bleiben offen.** Kein Intel-Ergebnis zählt für Apple Silicon
+(DEC-042); die Abnahmecheckliste steht in
+[contacts-native-update-delete-intel-2026-08-04.md](../contacts-native-update-delete-intel-2026-08-04.md)
+§17. Auch auf Intel bleiben drei Zeilen offen und gehören zum Modulabschluss,
+nicht zum Intel-Zweig: vollständige TCC-Persistenzmatrix, vereinheitlichte
+Datensätze über mehrere Container und der Backup-/Restore-Roundtrip. Der
+Stand je Architektur steht in 15 §8.1.
+
+**Keine weiteren Intel-Änderungen ohne echten Defekt.** „Echt" heißt:
+ein reproduzierbarer Fehlbefund aus Betrieb, Test oder Livelauf — nicht
+Verschönerung, nicht Umbau auf Verdacht, nicht vorauseilende Anpassung an
+ARM64. Wer den Intel-Stand anfasst, braucht den Defekt zuerst; findet die
+ARM64-Abnahme einen, ist genau er der Anlass. Diese Sperre gilt bis zum
+Modulabschluss nach §16.
 
 ## §16 Definition of Done für dieses Modul
 
