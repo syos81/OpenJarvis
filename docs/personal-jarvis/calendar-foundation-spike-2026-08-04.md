@@ -21,6 +21,13 @@ beginnt parallel", und das bleibt so: Das Kontaktmodul ist auf ARM64 nicht
 abgenommen (15 §8.1). Dieses Dokument ist Vorarbeit, kein Startschuss
 (DEC-048).
 
+> **Nachtrag 2026-08-04:** Die verbindliche Implementierungsbaseline für
+> Modul 2 — Entscheidungen, Altcode-Übernahme, Apple-Paritätsvertrag,
+> ADR-Kollisionsplan und Implementierungsbasis — steht in
+> [calendar-implementation-baseline-2026-08-04](calendar-implementation-baseline-2026-08-04.md).
+> Bei Abweichungen zwischen den Entwürfen dieses Spikes und der Baseline
+> gilt die Baseline.
+
 ## §2 Bestandsaufnahme — was es schon gibt
 
 **An Kalender-Bausteinen im Personal-Teil: nichts.** Kein EventKit, kein
