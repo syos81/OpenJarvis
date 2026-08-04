@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Ohne dieses Entitlement verweigert tccd unter Hardened Runtime bereits
+       den Dialog: „Prompting policy for hardened runtime; service:
+       kTCCServiceCalendar requires entitlement
+       com.apple.security.personal-information.calendars but it is missing" —
+       und antwortet still mit denied. Das Pendant für Kontakte
+       (…addressbook) trägt die Jarvis-App bereits. -->
+  <key>com.apple.security.personal-information.calendars</key>
+  <true/>
+  <key>com.apple.security.app-sandbox</key>
+  <false/>
+</dict>
+</plist>

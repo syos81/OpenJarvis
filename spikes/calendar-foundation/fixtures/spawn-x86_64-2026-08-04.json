@@ -1,0 +1,13 @@
+{
+  "child" : {
+    "authorization_status" : "authorized",
+    "calendar_count" : 11,
+    "ok" : true,
+    "reason" : ""
+  },
+  "child_binary_is_bundled" : false,
+  "child_exit_code" : 0,
+  "child_launch_error" : "",
+  "mode" : "spawn",
+  "parent_authorization_status" : "authorized"
+}

@@ -1,0 +1,162 @@
+{
+  "authorization_status" : "authorized",
+  "calendars" : {
+    "by_source_type" : {
+      "birthdays" : 1,
+      "calDAV" : 9,
+      "subscribed" : 1
+    },
+    "by_type" : {
+      "birthday" : 1,
+      "calDAV" : 9,
+      "subscription" : 1
+    },
+    "count" : 11,
+    "default_for_new_events" : "K-7a3508fda259",
+    "immutable" : 1,
+    "rows" : [
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-083415833b33",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-85c369525679",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-24a022cd4a1a",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-522cd9eebb90",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-3c68977b8f0e",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-522cd9eebb90",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : false,
+        "calendar_ref" : "K-48bb21ae0364",
+        "calendar_type" : "birthday",
+        "is_immutable" : true,
+        "is_subscribed" : false,
+        "source_ref" : "S-c6138abfa6a7",
+        "source_type" : "birthdays",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : false,
+        "calendar_ref" : "K-6431f9246d46",
+        "calendar_type" : "subscription",
+        "is_immutable" : false,
+        "is_subscribed" : true,
+        "source_ref" : "S-4999c6c6c7ba",
+        "source_type" : "subscribed",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-6709723f464e",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-522cd9eebb90",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-7a3508fda259",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-85c369525679",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-7a35aa948f9e",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-522cd9eebb90",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-df7aafeb2cb8",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-522cd9eebb90",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-eac19edf0a57",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-85c369525679",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      },
+      {
+        "allows_modifications" : true,
+        "calendar_ref" : "K-fabdf1a5729f",
+        "calendar_type" : "calDAV",
+        "is_immutable" : false,
+        "is_subscribed" : false,
+        "source_ref" : "S-85c369525679",
+        "source_type" : "calDAV",
+        "supports_events" : true
+      }
+    ],
+    "subscribed" : 1,
+    "writable" : 9
+  },
+  "events" : {
+    "all_day" : 12,
+    "cancelled" : 0,
+    "count" : 16,
+    "detached_occurrences" : 0,
+    "event_identifier_collisions" : 0,
+    "external_identifier_collisions" : 0,
+    "missing_event_identifier" : 0,
+    "missing_external_identifier" : 0,
+    "per_calendar" : {
+      "K-7a3508fda259" : 6,
+      "K-6431f9246d46" : 10
+    },
+    "recurring" : 9,
+    "with_alarms" : 16,
+    "with_attendees" : 0,
+    "with_location" : 1,
+    "with_notes" : 5,
+    "with_timezone" : 4,
+    "with_url" : 6
+  },
+  "mode" : "probe",
+  "ok" : true,
+  "window" : {
+    "days_back" : 30,
+    "days_forward" : 90,
+    "end" : "2026-11-02T21:36:32Z",
+    "start" : "2026-07-05T20:36:32Z"
+  },
+  "write_attempted" : false
+}
