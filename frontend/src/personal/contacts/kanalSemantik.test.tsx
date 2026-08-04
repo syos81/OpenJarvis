@@ -21,6 +21,7 @@ import { render, screen } from '@testing-library/react';
 import { PHASE_A_KANALTEXT, kanalErlaubt } from './api';
 import type { AppChannelCapabilities } from './api';
 import { ANNAHME_VIEWPORT, ContactsListPane } from './list/ContactsListPane';
+import { braucht_aufmerksamkeit } from './status/ContactsStatusSurface';
 import { syntheticSummaries } from './data/fixtures';
 import { sortiereKontakte } from './data/sortierung';
 
@@ -216,5 +217,67 @@ describe('Neuanlage: etikettierte Listen', () => {
       'utf8');
     // Sonst haenge der Digest daran, ob jemand eine Zeile geoeffnet hat.
     expect(quelle).toContain("filter((e) => e.value.trim() !== '')");
+  });
+});
+
+describe('Hauptnavigation der Statusfläche', () => {
+  const quellcode = async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    return fs.readFileSync(
+      path.join(process.cwd(),
+                'src/personal/contacts/status/ContactsStatusSurface.tsx'),
+      'utf8');
+  };
+
+  it('kennt keinen Dauerreiter „Freigaben" mehr', async () => {
+    const quelle = await quellcode();
+    // Eine Freigabe gehoert an den Vorgang, den sie betrifft — als Dialog im
+    // Moment der Entscheidung, nicht als Sammelliste, die man irgendwann
+    // durchsieht.
+    expect(quelle).not.toContain("{ key: 'freigaben'");
+    expect(quelle).not.toContain("tab === 'freigaben'");
+  });
+
+  it('zeigt „Vorgänge" nur bei Bedarf', async () => {
+    const quelle = await quellcode();
+    expect(quelle).toContain('const zeigeVorgaenge = offeneVorgaenge.length > 0');
+    expect(quelle).toContain("...(zeigeVorgaenge");
+  });
+
+  it('haelt die Diagnose erreichbar, aber nicht als Arbeitsbereich', async () => {
+    const quelle = await quellcode();
+    expect(quelle).toContain("{ key: 'diagnose', label: 'Diagnose' }");
+    expect(quelle).toContain('Technischer Nachweis, kein');
+    // Die vollstaendige Historie lebt dort — inklusive der Freigaben.
+    const block = quelle.split("tab === 'diagnose'")[1].slice(0, 900);
+    expect(block).toContain('<MutationList');
+    expect(block).toContain('<ApprovalBoard');
+  });
+
+  it('zaehlt nur laufende, klemmende und ungeklaerte Vorgaenge', () => {
+    for (const state of ['executing', 'outcome_unknown', 'reconcile_required',
+                         'manual_decision_required', 'failed',
+                         'failed_before_send',
+                         'provider_applied_pending_reconcile']) {
+      expect(braucht_aufmerksamkeit(state), state).toBe(true);
+    }
+    // Abgeschlossenes ist Historie, kein Arbeitsvorrat.
+    for (const state of ['succeeded', 'rejected', 'cancelled', 'expired',
+                         'awaiting_approval', 'approved', 'prepared',
+                         'manually_resolved_applied',
+                         'manually_resolved_not_applied']) {
+      expect(braucht_aufmerksamkeit(state), state).toBe(false);
+    }
+  });
+
+  it('fuehrt nach einer Freigabe direkt zum Vorgang', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const quelle = fs.readFileSync(
+      path.join(process.cwd(),
+                'src/personal/contacts/workspace/ContactsWorkspace.tsx'),
+      'utf8');
+    expect(quelle).toContain("setStatusStart('vorgaenge')");
   });
 });

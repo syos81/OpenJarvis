@@ -380,3 +380,48 @@ zweiten Fall: ohne `update_supported` gibt es gar keinen Editor.
 * **M2-Pixelabnahme** des Frontends.
 * `provider_write_enabled` bleibt standardmässig **falsch**; jeder Write
   verlangt eine ausdrückliche, ablaufende Freigabedatei je Operation.
+
+## 16. Intel-Abschluss: die Statusfläche wird ruhiger
+
+Die Hauptnavigation trug drei Dauerreiter — Quelle, Freigaben, Vorgänge —
+auch dann, wenn seit Wochen nichts lief. Ein Bereich, der meistens leer
+ist, trainiert einem ab hinzusehen. Neu:
+
+| Bereich | vorher | jetzt |
+|---|---|---|
+| Freigaben | Dauerreiter mit Sammelliste | **kein Reiter** — die Freigabe ist der Dialog direkt nach dem Vorbereiten, im Moment der Entscheidung |
+| Vorgänge | Dauerreiter | erscheint **nur**, wenn etwas läuft, klemmt oder ungeklärt ist; mit Anzahl im Reitertitel |
+| Diagnose | — | neuer Reiter mit der **vollständigen** Historie (Vorgänge *und* Freigaben, auch abgeschlossene), ausdrücklich als technischer Nachweis |
+
+`braucht_aufmerksamkeit()` ist die einzige Quelle dafür, was zählt:
+`executing`, `provider_applied_pending_reconcile`, `outcome_unknown`,
+`reconcile_required`, `manual_decision_required`, `failed`,
+`failed_before_send`. Alles Abgeschlossene ist Historie, kein Arbeitsvorrat.
+
+Nach einer Freigabe öffnet die Fläche direkt bei **Vorgänge** — der Mensch
+hat gerade entschieden und will ausführen, nicht suchen.
+
+Backend, Provider und Mutationslogik sind unverändert; die Änderung ist
+rein darstellend. Fünf Tests halten sie fest.
+
+## 17. M2-Abnahmecheckliste (ARM64) — offen
+
+Auf diesem Intel-Gerät **nicht** führbar. Jede Zeile braucht echte
+Apple-Silicon-Hardware; kein Punkt darf aus dem Intel-Lauf übernommen
+werden (DEC-042: ein Ergebnis gilt nie automatisch für die andere
+Architektur).
+
+| # | Punkt | Kriterium |
+|---|---|---|
+| 1 | **ARM64-Build und Signierung** | Sidecar, Write-Helper und App als `arm64`; `codesign --verify --deep --strict`; DR zertifikatsgebunden mit demselben Blatt; Hardened Runtime; Entitlements wie auf Intel |
+| 2 | **Write-Helper** | Helfer im Bundle, eigener Identifier; kontaktfreie Bundle-Suite grün; ein absichtlich abgebrochener Helfer lässt GUI und Backend am Leben und ergibt `outcome_unknown` |
+| 3 | **Create live** | ein synthetischer Kontakt, ein Claim, ein Helferstart, ein `CNSaveRequest`, `applied`, Read-back-Digest identisch zum freigegebenen Entwurf |
+| 4 | **Update live** | genannte Felder geändert, **nicht** genannte unangetastet, Listenreihenfolge erhalten, Provider-Identität unverändert |
+| 5 | **Delete live** | mit `confirm_delete`; Abwesenheitsnachweis; `is_tombstone`, `deleted_at`, Historiengrund `deleted_by_own_mutation`, External Identity erhalten; extern sichtgeprüft |
+| 6 | **Lifecycle/Shutdown** | Cmd+Q unter 8 s nur über SIGTERM, 0 Restprozesse, Port frei; GUI-Absturz (SIGKILL) beendet das Backend über den Watchdog; danach erholt ein frischer Start `executing` → `outcome_unknown` |
+| 7 | **Apple-Kontakte-Pixelabgleich** | Drei-Spalten-Layout, Trenner, Hover, Typografie und Abstände gegen die native App auf demselben Gerät |
+| 8 | **Backup und Recovery** | DB vor dem Lauf gesichert (0600 im 0700-Ordner), `PRAGMA integrity_check` ok, Aggregate vorher/nachher dokumentiert; Wiederherstellung aus der Sicherung einmal geprüft |
+
+Der Warmlauf-Befund (`no persistent stores`) ist plattformunabhängig
+formuliert, aber **nicht** auf ARM64 belegt — Punkt 3 ist damit auch der
+Test dieser Hypothese auf der zweiten Architektur.

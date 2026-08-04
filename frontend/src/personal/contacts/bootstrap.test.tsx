@@ -136,7 +136,7 @@ describe('A · Bootstrap-Reihenfolge', () => {
 // `waitFor` mit seinem Ein-Sekunden-Fenster — und riss unter Last.
 describe('B · Nullaufruf-Vertrag', () => {
   it('loest im vollstaendigen Szenario keinen einzigen Client-Aufruf aus', async () => {
-    szenario('?pjcDemo=1000&pjcAuswahl=3&pjcSuche=Attrappe&pjcStatus=freigaben');
+    szenario('?pjcDemo=1000&pjcAuswahl=3&pjcSuche=Attrappe&pjcStatus=diagnose');
     await montiere(<ContactsPage />);
     // Liste, Auswahl, Detail, Suche und Statusfläche sind alle angelaufen:
     expect(screen.getAllByRole('option').length).toBeGreaterThan(0);

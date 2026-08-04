@@ -199,6 +199,9 @@ export function ContactsWorkspace({ testListenHoehe }: {
   const [anlegenOffen, setAnlegenOffen] = useState(false);
   const [vorschau, setVorschau] = useState<PreparedMutation | null>(null);
   const [statusOffen, setStatusOffen] = useState(false);
+  //: Nach einer Freigabe soll die Fläche beim Vorgang aufgehen, nicht bei
+  //: der Quelle — der Mensch hat gerade entschieden und will ausführen.
+  const [statusStart, setStatusStart] = useState<'vorgaenge' | undefined>();
   const [aktionsFehler, setAktionsFehler] = useState<Fehlerbild | null>(null);
 
   const fertig = async (felder: Record<string, unknown>) => {
@@ -448,11 +451,11 @@ export function ContactsWorkspace({ testListenHoehe }: {
       {statusOffen && (
         <ContactsStatusSurface
           quelle={quelle}
-          startTab={import.meta.env.DEV
+          startTab={statusStart ?? (import.meta.env.DEV
             ? (new URLSearchParams(window.location.search).get('pjcStatus') as never)
-            : undefined}
+            : undefined)}
           demoModus={demoModus}
-          onClose={() => setStatusOffen(false)}
+          onClose={() => { setStatusOffen(false); setStatusStart(undefined); }}
           onSynced={() => setNachladen((n) => n + 1)}
           onDemoStart={demoStart}
           onDemoEnde={demoEnde}
@@ -481,6 +484,7 @@ export function ContactsWorkspace({ testListenHoehe }: {
           onClose={() => setVorschau(null)}
           onEntschieden={() => {
             setVorschau(null);
+            setStatusStart('vorgaenge');
             setStatusOffen(true);
             setNachladen((n) => n + 1);
           }}

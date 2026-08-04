@@ -630,9 +630,11 @@ function MutationDetailView({ id, quelle, onBack }: {
   );
 }
 
-function MutationList({ quelle, onOpen }: {
+function MutationList({ quelle, onOpen, nurAufmerksamkeit = false }: {
   quelle: ContactsDataSource;
   onOpen: (id: string) => void;
+  /** Nur laufende, klemmende oder ungeklärte Vorgänge zeigen. */
+  nurAufmerksamkeit?: boolean;
 }) {
   const [items, setItems] = useState<Mutation[]>([]);
   const [laedt, setLaedt] = useState(true);
@@ -640,9 +642,13 @@ function MutationList({ quelle, onOpen }: {
 
   const laden = useCallback(async () => {
     setLaedt(true); setFehler(null);
-    try { setItems(await quelle.listMutations()); }
-    catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
-  }, [quelle]);
+    try {
+      const alle = await quelle.listMutations();
+      setItems(nurAufmerksamkeit
+        ? alle.filter((m) => braucht_aufmerksamkeit(m.state))
+        : alle);
+    } catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
+  }, [quelle, nurAufmerksamkeit]);
   useEffect(() => { void laden(); }, [laden]);
 
   if (laedt) return <LoadingState label="Vorgänge werden geladen" />;
@@ -764,7 +770,33 @@ function DemoSteuerung({ demoModus, onDemoStart, onDemoEnde }: {
 }
 
 // ── Die Fläche selbst (Einschub von rechts) ────────────────────────────────
-type StatusTab = 'quelle' | 'freigaben' | 'vorgaenge';
+/**
+ * Zustände, die den Menschen wirklich angehen.
+ *
+ * „Vorgänge" war ein Dauerreiter neben „Quelle" — auch dann, wenn seit
+ * Wochen nichts lief. Ein Bereich, der meistens leer ist, trainiert einem
+ * ab, hinzusehen; er soll auftauchen, wenn etwas läuft, klemmt oder
+ * ungeklärt ist, und sonst verschwinden. Abgeschlossene Vorgänge sind
+ * Historie und gehören in die Diagnose, nicht in die Hauptansicht.
+ */
+const AUFMERKSAMKEIT: ReadonlySet<string> = new Set([
+  // läuft
+  'executing', 'provider_applied_pending_reconcile',
+  // klemmt oder ist ungeklärt
+  'outcome_unknown', 'reconcile_required', 'manual_decision_required',
+  'failed', 'failed_before_send',
+]);
+
+/** Wartet dieser Vorgang auf eine Freigabe? */
+function wartetAufFreigabe(state: string): boolean {
+  return state === 'awaiting_approval';
+}
+
+export function braucht_aufmerksamkeit(state: string): boolean {
+  return AUFMERKSAMKEIT.has(state);
+}
+
+type StatusTab = 'quelle' | 'vorgaenge' | 'diagnose';
 
 export function ContactsStatusSurface({
   quelle, demoModus, onClose, onSynced, onDemoStart, onDemoEnde, startTab,
@@ -779,7 +811,7 @@ export function ContactsStatusSurface({
   startTab?: StatusTab;
 }) {
   const [tab, setTab] = useState<StatusTab>(
-    startTab === 'freigaben' || startTab === 'vorgaenge' ? startTab : 'quelle',
+    startTab === 'diagnose' || startTab === 'vorgaenge' ? startTab : 'quelle',
   );
   const [mutationId, setMutationId] = useState<string | null>(null);
   // Über die Quelle, nicht über einen eigenen Abruf: Der Demo-Modus bleibt
@@ -794,10 +826,33 @@ export function ContactsStatusSurface({
     return () => { aktiv = false; };
   }, [quelle]);
 
+  // Der Bestand entscheidet über die Reiter, nicht eine feste Liste.
+  const [offeneVorgaenge, setOffeneVorgaenge] = useState<Mutation[]>([]);
+  useEffect(() => {
+    let aktiv = true;
+    quelle.listMutations()
+      .then((alle) => {
+        if (aktiv) {
+          setOffeneVorgaenge(alle.filter((m) => braucht_aufmerksamkeit(m.state)));
+        }
+      })
+      .catch(() => { if (aktiv) setOffeneVorgaenge([]); });
+    return () => { aktiv = false; };
+  }, [quelle, mutationId]);
+
+  // „Freigaben" ist kein Reiter mehr: Eine Freigabe gehört an den Vorgang,
+  // den sie betrifft — als Dialog im Moment der Entscheidung, nicht als
+  // Sammelliste, die man irgendwann durchsieht.
+  const zeigeVorgaenge = offeneVorgaenge.length > 0 || mutationId !== null
+    || tab === 'vorgaenge';
   const tabs: { key: StatusTab; label: string }[] = [
     { key: 'quelle', label: 'Quelle' },
-    { key: 'freigaben', label: 'Freigaben' },
-    { key: 'vorgaenge', label: 'Vorgänge' },
+    ...(zeigeVorgaenge
+      ? [{ key: 'vorgaenge' as StatusTab,
+           label: offeneVorgaenge.length > 0
+             ? `Vorgänge (${offeneVorgaenge.length})` : 'Vorgänge' }]
+      : []),
+    { key: 'diagnose', label: 'Diagnose' },
   ];
 
   return (
@@ -889,20 +944,34 @@ export function ContactsStatusSurface({
             />
           </>
         )}
-        {tab === 'freigaben' && (
-          mutationId
-            ? <MutationDetailView id={mutationId} quelle={quelle}
-                                  onBack={() => setMutationId(null)} />
-            : <ApprovalBoard quelle={quelle} onOpenMutation={setMutationId} />
-        )}
         {tab === 'vorgaenge' && (
           <>
             <KanalHinweis caps={kanalCaps} />
             {mutationId
               ? <MutationDetailView id={mutationId} quelle={quelle}
                                     onBack={() => setMutationId(null)} />
-              : <MutationList quelle={quelle} onOpen={setMutationId} />}
+              : <MutationList quelle={quelle} onOpen={setMutationId}
+                              nurAufmerksamkeit />}
           </>
+        )}
+        {tab === 'diagnose' && (
+          mutationId
+            ? <MutationDetailView id={mutationId} quelle={quelle}
+                                  onBack={() => setMutationId(null)} />
+            : (
+              <>
+                <p style={{
+                  font: 'var(--pjc-font-label)',
+                  color: 'var(--color-text-muted)', margin: '0 0 10px',
+                }}>
+                  Vollständige Historie aller Vorgänge und Freigaben —
+                  auch der abgeschlossenen. Technischer Nachweis, kein
+                  Arbeitsbereich.
+                </p>
+                <MutationList quelle={quelle} onOpen={setMutationId} />
+                <ApprovalBoard quelle={quelle} onOpenMutation={setMutationId} />
+              </>
+            )
         )}
       </div>
     </aside>
