@@ -1,0 +1,273 @@
+{
+  "schema_version": 1,
+  "artifact_id": "block-b0a-1-tooling",
+  "artifact_version": "1.0.0",
+  "predecessor_artifact_id": "prompt-b0a-1",
+  "predecessor_feature_list_sha256": "c07368de3bc4970aeb75f1f4fbadf027e4e5d9beabef44532ccde728d247a288",
+  "features": [
+    {
+      "feature_id": "B0A1-001",
+      "required": true,
+      "description": "scripts/gate.sh ist der einzige oeffentliche Einstieg und verlangt Block und Phase.",
+      "current_location": "scripts/gate.sh, tools/gates/cli.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_cli.py::TestGateScript"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-002",
+      "required": true,
+      "description": "Genau fuenf Phasen mit verbindlicher Semantik.",
+      "current_location": "tools/gates/manifest.py, config/gates/blocks/b0a-1-tooling.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_cli.py::TestPhaseExecution"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-003",
+      "required": true,
+      "description": "Genau fuenf Ergebniswerte, nichts anderes ist zulaessig.",
+      "current_location": "tools/gates/statuses.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_aggregation.py::TestAggregation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-004",
+      "required": true,
+      "description": "Der Gesamtstatus ist maschinell gebildet und genau ein Enum-Wert.",
+      "current_location": "tools/gates/statuses.py, tools/gates/engine.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_aggregation.py::TestExitCodes"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-005",
+      "required": true,
+      "description": "Deklarative Blockmanifeste mit striktem Schema und Negativfixtures.",
+      "current_location": "tools/gates/manifest.py, config/gates/blocks, config/gates/fixtures",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-manifest-validation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-006",
+      "required": true,
+      "description": "Dedizierter, markierter und gesperrter Baseline-Worktree auf exakt 7986bee.",
+      "current_location": "tools/gates/baseline.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_baseline.py::TestBaselineWorktree"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-007",
+      "required": true,
+      "description": "Versionierte, normalisierte strukturelle Ursachensignatur cs-1.",
+      "current_location": "tools/gates/signature.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_signature.py::TestCauseSignature"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-008",
+      "required": true,
+      "description": "Vollstaendiger Baseline-Cacheschluessel inklusive Plattform, Toolchain und Locks.",
+      "current_location": "tools/gates/cache.py, tools/gates/baseline.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_cache.py::TestCacheInvalidation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-009",
+      "required": true,
+      "description": "Allowlistbasierte, PII-sichere Evidenz ohne Freitextbereich.",
+      "current_location": "tools/gates/evidence.py, tools/gates/sanitize.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_evidence_canary.py::TestEvidenceAllowlist"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-010",
+      "required": true,
+      "description": "Rohlogs liegen nur im gitignorierten Laufzeitbereich und sind nie getrackt.",
+      "current_location": ".gitignore, tools/gates/paths.py, tools/gates/runners/repo_guard.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "pf-worktree-state"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-011",
+      "required": true,
+      "description": "SHA-256-Referenz auf Rohlogs inklusive Integritaets- und Manipulationspruefung.",
+      "current_location": "tools/gates/evidence.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_evidence_canary.py::TestRawLogIntegrity"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-012",
+      "required": true,
+      "description": "PII-Canary-Matrix ueber JSON, stderr, Handoff, Cache und Ursachensignatur.",
+      "current_location": "tools/gates/canaries.py, tests/tooling/gates/test_evidence_canary.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_evidence_canary.py::TestCanaryMatrix"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-013",
+      "required": true,
+      "description": "Repositorylokaler Projektskill gate ohne zweite Gateimplementierung.",
+      "current_location": ".claude/skills/gate/SKILL.md",
+      "verification": {
+        "type": "file",
+        "ref": ".claude/skills/gate/SKILL.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-014",
+      "required": true,
+      "description": "Repositorylokaler Projektskill handoff-report mit Quellenbindung.",
+      "current_location": ".claude/skills/handoff-report/SKILL.md",
+      "verification": {
+        "type": "file",
+        "ref": ".claude/skills/handoff-report/SKILL.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-015",
+      "required": true,
+      "description": "Vorgaenger-Merkmalspruefung; fehlendes Pflichtmerkmal ergibt immer fail.",
+      "current_location": "tools/gates/features.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_features.py::TestFeatureLineage"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-016",
+      "required": true,
+      "description": "CLAUDE.md aus dem alten Repository uebernommen und fuer B0a-1 angepasst.",
+      "current_location": "CLAUDE.md",
+      "verification": {
+        "type": "file",
+        "ref": "CLAUDE.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-017",
+      "required": true,
+      "description": "Die vorhandene Deny-Liste bleibt vollstaendig erhalten.",
+      "current_location": ".claude/settings.json, tools/gates/hookguard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestHardDenies"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-018",
+      "required": true,
+      "description": "Pfadkanonisierung und Schutz fremder Worktrees im PreToolUse-Hook.",
+      "current_location": "tools/gates/hookguard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestWorktreeProtection"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-019",
+      "required": true,
+      "description": "Protokollierter ask-Ausnahmepfad im gitignorierten Rohlogbereich.",
+      "current_location": "tools/gates/hookguard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestAskLogging"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-020",
+      "required": true,
+      "description": "Vollstaendige Werkzeug- und Hook-Testmatrix, deterministisch entdeckt.",
+      "current_location": "tests/tooling/gates",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-tooling-tests"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-021",
+      "required": true,
+      "description": "Kein Produktcode veraendert und kein Produkt-Live-Lauf ausgefuehrt.",
+      "current_location": "tools/gates/runners/repo_guard.py, config/gates/blocks/b0a-1-tooling.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-repo-guard"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-022",
+      "required": true,
+      "description": "Arbeit ausschliesslich auf dem eigenen Branch tooling/gates-v1.",
+      "current_location": "config/gates/blocks/b0a-1-tooling.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "pf-worktree"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-023",
+      "required": true,
+      "description": "Genau ein lokaler B0a-1-Commit, kein Amend und keine Zusatzcommits.",
+      "current_location": "docs/tooling/b0a-1-gates.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/tooling/b0a-1-gates.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-024",
+      "required": true,
+      "description": "Normaler Push erst nach gruenen Abschlussgates; harte Push-Sperre bleibt.",
+      "current_location": "docs/tooling/b0a-1-gates.md, .claude/settings.json",
+      "verification": {
+        "type": "file",
+        "ref": "docs/tooling/b0a-1-gates.md"
+      },
+      "status": "pass"
+    }
+  ]
+}
