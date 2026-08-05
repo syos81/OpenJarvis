@@ -7,4 +7,7 @@ jarvis-contacts-*
 # `contacts-write-helper-*` ist der opferbare Schreibhelfer
 # (cargo --bin contacts-write-helper, ADR-0020-Nachtrag 2026-08-04).
 contacts-write-helper-*
+# `jarvis-calendar-*` wird aus native/calendar-bridge/ gebaut
+# (scripts/build-calendar-sidecar.sh, Modul 2).
+jarvis-calendar-*
 !.gitignore

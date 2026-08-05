@@ -10,6 +10,19 @@
   gegenüber dem System, dass dieses Binary Kontakte anfassen will, und ist
   damit auch ohne aktives Sandbox-Profil nicht bedeutungslos.
 
+  `com.apple.security.personal-information.calendars` (ergänzt 2026-08-05) ist
+  dasselbe für Termine — und dort nicht bloss eine Absichtserklärung, sondern
+  Voraussetzung: Unter Hardened Runtime fragt tccd `kTCCServiceCalendar` gar
+  nicht erst ab, wenn es fehlt. Das Systemprotokoll sagt es wörtlich
+  („requires entitlement … but it is missing"), und von aussen ist die Folge
+  von einem Nein des Nutzers nicht zu unterscheiden. Belegt in
+  docs/testing/calendar-read-probe-x86_64-2026-08-04.md.
+
+  Das Entitlement trägt der ELTERNPROZESS. Der Sidecar braucht keins: TCC
+  urteilt über den verantwortlichen Prozess, nicht über die Kennung des Kindes.
+  Er bekommt trotzdem seinen eigenen, minimalen Vertrag — ein ungenutztes Recht
+  bleibt ein gewährtes Recht.
+
   `com.apple.security.inherit` steht ausdrücklich **nicht** hier: es setzt eine
   sandboxed Elternapp voraus und erzeugte im Kind einer nicht-sandboxed App ein
   leeres, konkurrierendes Profil.
@@ -23,6 +36,8 @@
     <key>com.apple.security.app-sandbox</key>
     <false/>
     <key>com.apple.security.personal-information.addressbook</key>
+    <true/>
+    <key>com.apple.security.personal-information.calendars</key>
     <true/>
     <key>com.apple.security.network.client</key>
     <true/>

@@ -28,7 +28,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from personaljarvis.base.process_lock import ProcessLock
+from personaljarvis.calendar.lifecycle import CalendarModule
 from personaljarvis.contacts.lifecycle import ContactsModule, ModuleState
+
+#: Der Workspace, in dem Modul 1 und 2 arbeiten. Bewusst hier und nicht aus
+#: `personaljarvis` importiert — das waere ein Zirkelimport.
+DEFAULT_WORKSPACE = "default"
+#: Das Providerkonto des lokalen Apple-Kalenders. Eigenes Konto, nicht das der
+#: Kontakte: es ist eine andere Quelle mit eigener Berechtigung.
+APPLE_CALENDAR_PROVIDER_ACCOUNT = "apple-calendar-local"
 
 __all__ = ["PersonalRuntime", "PersonalBootstrap"]
 
@@ -42,6 +50,9 @@ class PersonalRuntime:
     """
 
     contacts: ContactsModule
+    #: Modul 2. Teilt sich die ConnectionFactory des Kontaktmoduls — zwei
+    #: Factories auf derselben Datei waeren zwei Schreiber (07 §5).
+    calendar: "CalendarModule | None" = None
 
     @property
     def module_states(self) -> dict[str, ModuleState]:
@@ -59,11 +70,13 @@ class PersonalBootstrap:
     def __init__(self, database_path: Path | str | None = None, *,
                  lock_path: Path | str | None = None,
                  sidecar_path: Path | str | None = None,
-                 bundle_dir: Path | str | None = None) -> None:
+                 bundle_dir: Path | str | None = None,
+                 calendar_sidecar_path: Path | str | None = None) -> None:
         self._database_path = database_path
         self._lock_path = lock_path
         self._sidecar_path = sidecar_path
         self._bundle_dir = bundle_dir
+        self._calendar_sidecar_path = calendar_sidecar_path
         self._runtime: PersonalRuntime | None = None
         self._lock: ProcessLock | None = None
         self._recovered: tuple[str, ...] = ()
@@ -135,7 +148,17 @@ class PersonalBootstrap:
             self._runtime = None
             raise
 
-        self._runtime = PersonalRuntime(contacts=contacts)
+        # Modul 2. Es startet keinen Sidecar, loest nichts auf und liest
+        # keinen Kalender — es haelt nur Konfiguration und Dienste bereit.
+        calendar = CalendarModule(
+            contacts.connection_factory,
+            workspace_id=DEFAULT_WORKSPACE,
+            provider_account_id=APPLE_CALENDAR_PROVIDER_ACCOUNT,
+            sidecar_path=self._calendar_sidecar_path,
+            bundle_dir=self._bundle_dir,
+        )
+
+        self._runtime = PersonalRuntime(contacts=contacts, calendar=calendar)
         return self._runtime
 
     @property

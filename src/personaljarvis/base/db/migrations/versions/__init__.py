@@ -28,8 +28,11 @@ from personaljarvis.base.db.migrations.versions.m0007_manual_resolution import (
 from personaljarvis.base.db.migrations.versions.m0008_app_process_channel import (
     MIGRATION as M0008,
 )
+from personaljarvis.base.db.migrations.versions.m0009_calendar import (
+    MIGRATION as M0009,
+)
 
 __all__ = ["ALL_MIGRATIONS"]
 
 ALL_MIGRATIONS: tuple[Migration, ...] = (M0001, M0002, M0003, M0004, M0005,
-                                          M0006, M0007, M0008)
+                                          M0006, M0007, M0008, M0009)

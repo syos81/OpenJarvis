@@ -147,7 +147,13 @@ def test_erholung_laeuft_vor_der_ersten_anfrage(db_path, monkeypatch):
     app = App()
     attach(app, database_path=str(db_path))
     try:
-        assert reihenfolge == ["recover", "router"]
+        # Seit Modul 2 registriert `attach` zwei Router (Kontakte, Kalender).
+        # Die Zusicherung ist unveraendert: die Erholung laeuft VOR jedem
+        # davon — nicht, dass es genau einen gibt.
+        assert reihenfolge[0] == "recover"
+        assert "recover" not in reihenfolge[1:]
+        assert set(reihenfolge[1:]) == {"router"}
+        assert len(reihenfolge) >= 2
     finally:
         app.state.personal_bootstrap.stop()
 

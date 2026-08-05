@@ -17,8 +17,9 @@ abgelehnt.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Final
+
+from personaljarvis.base.sidecar import envelope
 
 __all__ = [
     "PROTOCOL_VERSION",
@@ -36,7 +37,9 @@ __all__ = [
 ]
 
 #: Version der Protokollhülle. Änderung erzwingt beidseitige Anpassung.
-PROTOCOL_VERSION: Final[int] = 1
+#: Die Hülle selbst ist seit 2026-08-04 gemeinsam (`base.sidecar.envelope`);
+#: hier steht nur noch, welche Version das Kontakte-Modul spricht.
+PROTOCOL_VERSION: Final[int] = envelope.PROTOCOL_VERSION
 
 #: Version der Mutationshülle (Pflichtfelder, Ergebnisvertrag) und des
 #: Feldvertrags. Beide Seiten nennen sie im Handshake und in jeder
@@ -147,26 +150,18 @@ def encode_request(request_id: int, operation: str,
     """Serialisiert eine Anfrage deterministisch als eine JSON-Zeile.
 
     Sortierte Schlüssel und kompakte Trenner: zwei gleiche Anfragen ergeben
-    byte-identische Zeilen.
+    byte-identische Zeilen. Die Serialisierung ist gemeinsam
+    (`base.sidecar.envelope`) — nicht kopiert.
     """
-    envelope = {
-        "protocolVersion": PROTOCOL_VERSION,
-        "requestId": request_id,
-        "operation": operation,
-        "payload": payload or {},
-    }
-    return json.dumps(envelope, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False)
+    return envelope.encode_request(request_id, operation, payload,
+                                   protocol_version=PROTOCOL_VERSION)
 
 
 def decode_line(line: str) -> dict[str, Any]:
     """Parst eine Antwortzeile. Wirft `ValueError` bei ungültigem JSON-Objekt."""
-    data = json.loads(line)
-    if not isinstance(data, dict):
-        raise ValueError("Antwortzeile ist kein JSON-Objekt")
-    return data
+    return envelope.decode_line(line)
 
 
 def is_stream_item(message: dict[str, Any]) -> bool:
     """Ob die Nachricht ein Zwischenelement einer Streaming-Antwort ist."""
-    return message.get("stream") == "item"
+    return envelope.is_stream_item(message)

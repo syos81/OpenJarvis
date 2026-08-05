@@ -1,0 +1,79 @@
+/* Design-Tokens der Kalender-Oberfläche (Namespace --pjk-*).
+ *
+ * VERBINDLICHE REFERENZ ist die Apple-Kalender-App auf dem M2-Pro-Mac; sie
+ * stand beim Bau dieser Datei nicht zur Verfügung. Jeder mit M2-VORLÄUFIG
+ * markierte Wert ist eine begründete Intel-Schätzung und wird bei der
+ * M2-Abnahme hier zentral nachgezogen. Komponenten dürfen keine eigenen
+ * Pixelwerte tragen — wer eine Zahl braucht, definiert sie hier.
+ *
+ * Farben bauen auf den bestehenden Jarvis-Tokens aus src/index.css auf, damit
+ * Hell und Dunkel ohne eigene Logik funktionieren (Paritätsvertrag P-13).
+ * Kalenderfarben kommen dagegen aus EventKit und stehen nie hier: sie sind
+ * Providerdaten, keine Gestaltung. */
+
+:root {
+  /* ── Spalten (M2-VORLÄUFIG) ─────────────────────────────────────────── */
+  --pjk-sidebar-width: 220px;
+  --pjk-sidebar-min: 180px;
+  --pjk-sidebar-max: 340px;
+  --pjk-detail-width: 320px;
+  --pjk-detail-min: 260px;
+  --pjk-detail-max: 480px;
+  --pjk-grid-min: 420px;
+
+  /* ── Toolbar (M2-VORLÄUFIG) ─────────────────────────────────────────── */
+  --pjk-toolbar-height: 52px;
+  --pjk-toolbar-gap: 8px;
+  --pjk-search-width: 220px;
+  /* Freiraum rechts: dort schwebt die globale Approval-Glocke der App. */
+  --pjk-toolbar-reserve: 56px;
+
+  /* ── Raster (M2-VORLÄUFIG) ──────────────────────────────────────────── */
+  --pjk-weekday-height: 22px;
+  --pjk-month-cell-min: 96px;
+  --pjk-daynumber-size: 20px;
+  --pjk-chip-height: 18px;
+  --pjk-chip-radius: 3px;
+  --pjk-chip-gap: 2px;
+  --pjk-dot-size: 8px;
+
+  /* ── Zeitachse (Woche/Tag) ──────────────────────────────────────────── */
+  --pjk-hour-height: 44px;
+  --pjk-gutter-width: 52px;
+  --pjk-allday-min-height: 28px;
+
+  /* ── Jahresansicht ──────────────────────────────────────────────────── */
+  --pjk-year-month-min: 180px;
+  --pjk-year-cell: 22px;
+
+  /* ── Farben (aus den Jarvis-Basistokens abgeleitet) ─────────────────── */
+  --pjk-line: var(--color-border);
+  --pjk-line-soft: color-mix(in srgb, var(--color-border) 55%, transparent);
+  --pjk-surface: var(--color-bg-primary);
+  --pjk-surface-2: var(--color-bg-secondary);
+  --pjk-ink: var(--color-text-primary);
+  --pjk-ink-dim: var(--color-text-secondary);
+  --pjk-heute: var(--color-accent, #d0342c);
+  /* Ausserhalb der Periode: gedämpft, aber lesbar. */
+  --pjk-outside-opacity: 0.45;
+  /* Kontrollierter Ersatz, wenn EventKit für einen Kalender keine Farbe
+     liefert. Bewusst EIN neutraler Ton statt einer erfundenen Palette: eine
+     zugeteilte Farbe sähe aus wie eine Eigenschaft des Kalenders und wäre doch
+     geraten. Der Ersatz wird nie gespeichert. */
+  --pjk-color-fallback: color-mix(in srgb, var(--color-text-secondary) 60%, transparent);
+}
+
+/* Der Zustand „ausserhalb des geladenen Fensters" darf NIE aussehen wie
+   „frei". Diese Schraffur ist der sichtbare Unterschied (P-15). */
+.pjk-unbekannt {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent, transparent 4px,
+    var(--pjk-line-soft) 4px, var(--pjk-line-soft) 5px);
+}
+
+/* Nicht schreibbare Kalender sind sichtbar nicht schreibbar (P-6) — keine
+   Bearbeitungsfläche, die erst beim Speichern nein sagt. */
+.pjk-readonly {
+  cursor: default;
+}

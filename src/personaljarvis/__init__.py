@@ -74,7 +74,8 @@ def _register_shutdown_hook(app: Any, bootstrap: Any) -> bool:
 def attach(app: Any, *, database_path: str | None = None,
            lock_path: str | None = None,
            sidecar_path: str | None = None,
-           bundle_dir: str | None = None) -> Any:
+           bundle_dir: str | None = None,
+           calendar_sidecar_path: str | None = None) -> Any:
     """Hängt Personal Jarvis an eine bestehende FastAPI-App.
 
     Verhalten (04 §4, fail-closed):
@@ -108,6 +109,7 @@ def attach(app: Any, *, database_path: str | None = None,
     bootstrap = PersonalBootstrap(
         database_path, lock_path=lock_path,
         sidecar_path=sidecar_path, bundle_dir=bundle_dir,
+        calendar_sidecar_path=calendar_sidecar_path,
     )
     runtime = bootstrap.start()
 
@@ -136,9 +138,12 @@ def attach(app: Any, *, database_path: str | None = None,
     _register_mutation_bridge(runtime.contacts, sidecar_path, bundle_dir)
 
     if hasattr(app, "include_router"):
+        from personaljarvis.calendar.api import create_calendar_router
         from personaljarvis.contacts.api import create_contacts_router
 
         app.include_router(create_contacts_router(runtime.contacts))
+        if runtime.calendar is not None:
+            app.include_router(create_calendar_router(runtime.calendar))
     return runtime
 
 

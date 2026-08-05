@@ -1,12 +1,9 @@
-"""Auflösung des Kontakte-Sidecar-Binarys (Plan §15, Ollama-Präzedenzfall).
+"""Auflösung des Kalender-Sidecar-Binarys.
 
-Seit 2026-08-04 steht die Auflösung in `base.sidecar.resolver`; hier bleibt die
-**Bindung an das Kontakte-Binary**: Name und Umgebungsvariable. Die Prüfungen
-selbst — kein Download, keine Laufzeitkompilierung, keine `spikes/`-Abhängigkeit,
-Symlinks fail-closed, Host-Architektur muss enthalten sein — sind unverändert.
-
-Die Schnittstelle trägt getrennte Architektur-Binaries **und** ein späteres
-Universal-2-Artefakt, ohne DEC-D17 vorwegzunehmen.
+Die Prüfungen selbst sind gemeinsam (`base.sidecar.resolver`): kein Download,
+keine Laufzeitkompilierung, keine `spikes/`-Abhängigkeit, Symlinks fail-closed,
+Host-Architektur muss enthalten sein. Hier steht nur die Bindung an das
+Kalender-Binary.
 """
 
 from __future__ import annotations
@@ -19,7 +16,9 @@ from personaljarvis.base.sidecar.resolver import (
     host_architecture,
     tauri_triple,
 )
-from personaljarvis.base.sidecar.resolver import resolve_sidecar as _resolve_sidecar
+from personaljarvis.base.sidecar.resolver import (
+    resolve_sidecar as _resolve_sidecar,
+)
 
 __all__ = [
     "BINARY_NAME",
@@ -33,10 +32,10 @@ __all__ = [
 
 #: Basisname des Sidecars. Der Tauri-`externalBin`-Mechanismus hängt beim
 #: Bündeln das Ziel-Triple an; im Bundle liegt wieder der Basisname.
-BINARY_NAME = "jarvis-contacts"
+BINARY_NAME = "jarvis-calendar"
 
 #: Ausdrückliche Pfadkonfiguration (Test- und Betriebsweg).
-SIDECAR_ENV_VAR = "PERSONAL_JARVIS_CONTACTS_SIDECAR"
+SIDECAR_ENV_VAR = "PERSONAL_JARVIS_CALENDAR_SIDECAR"
 
 
 def resolve_sidecar(
@@ -45,10 +44,9 @@ def resolve_sidecar(
     bundle_dir: Path | str | None = None,
     require_host_architecture: bool = True,
 ) -> SidecarLocation:
-    """Findet und prüft das Kontakte-Sidecar-Binary — fail-closed."""
-    # `binary_architectures` wird bewusst als Modul-Global durchgereicht und
-    # nicht direkt gebunden: Tests ersetzen genau diesen Namen hier, und der
-    # Auflösungsweg soll trotzdem der produktive bleiben.
+    """Findet und prüft das Kalender-Sidecar-Binary — fail-closed."""
+    # `binary_architectures` bewusst als Modul-Global durchgereicht: Tests
+    # ersetzen genau diesen Namen hier, der Auflösungsweg bleibt der produktive.
     return _resolve_sidecar(
         BINARY_NAME, SIDECAR_ENV_VAR, explicit_path,
         bundle_dir=bundle_dir,

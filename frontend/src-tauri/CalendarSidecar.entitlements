@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements des Kalender-Sidecars — vollständig und abschliessend.
+
+  Genau ein Eintrag, nach demselben Grundsatz wie ContactsSidecar.entitlements:
+  der Sidecar liest Termine und tut sonst nichts. Er öffnet keine Verbindung,
+  wählt keine Datei aus, führt keinen erzeugten Code aus und lädt keine fremde
+  Bibliothek.
+
+  Zur Rolle des Eintrags: Die Entscheidung faellt bei TCC am verantwortlichen
+  Prozess — das ist die App, und sie traegt das Entitlement (Entitlements.plist).
+  Der Sidecar braucht es dafuer nicht; belegt in der Leseprobe vom 2026-08-04,
+  wo sogar ein voellig unsigniertes Kind den Zugriff des Elternteils erbte.
+  Er bekommt es trotzdem — als signierte Absichtserklaerung dieses Binarys,
+  und weil ein Kind, das Termine anfasst, das auch aussprechen soll.
+
+  Ausdrücklich **nicht** enthalten und warum:
+
+    app-sandbox           die App ist nicht sandboxed; ein eigenes Profil im
+                          Kind wäre ein zweites, konkurrierendes Profil
+    inherit               setzt eine sandboxed Elternapp voraus — hier gibt es
+                          keine, das Kind bekäme ein leeres Profil
+    allow-jit             der Sidecar erzeugt keinen Code
+    allow-unsigned-…      er führt keinen unsignierten Speicher aus
+    disable-library-…     er lädt keine fremden Bibliotheken
+    network.*             er spricht ausschliesslich über stdin/stdout
+    files.user-selected   er öffnet keinen Dateidialog
+
+  Ohne das Reseal (scripts/reseal-sidecars.sh) erbte er diese fünf von der App,
+  weil `tauri build` jedes Mach-O im Bundle mit den App-Entitlements signiert.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
+</dict>
+</plist>

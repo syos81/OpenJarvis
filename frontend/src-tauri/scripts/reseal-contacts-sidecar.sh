@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 #
-# Re-seal the bundled Contacts sidecar with exactly the entitlements it needs
-# — one — and then re-seal the enclosing .app.
+# Re-seal each bundled sidecar with exactly the entitlements it needs — one
+# apiece — and then re-seal the enclosing .app.
+#
+# Since 2026-08-05 this covers two sidecars: Contacts and Calendar. The script
+# keeps its name so the existing packaging evidence keeps pointing at one file;
+# what changed is that a second single-purpose binary needs the same treatment,
+# not the rule behind it.
 #
 # Why this exists
 # ---------------
@@ -12,10 +17,11 @@
 # network rights — relaxations and grants that a small, single-purpose
 # read-only process has no use for. An unused grant is still a grant.
 #
-# The sidecar carries `com.apple.security.personal-information.addressbook`
-# and nothing else (ContactsSidecar.entitlements). The entitlement is the
-# signed statement that this binary means to touch Contacts; the actual
-# decision stays with TCC.
+# Each sidecar carries exactly one entitlement — address book for Contacts
+# (ContactsSidecar.entitlements), calendars for Calendar
+# (CalendarSidecar.entitlements). The entitlement is the signed statement that
+# this binary means to touch that data; the actual decision stays with TCC,
+# and TCC judges the responsible process — the app — not the child.
 #
 # Order matters: nested code is sealed into the outer signature, so re-signing
 # the sidecar invalidates the .app. The app is therefore re-signed afterwards,
@@ -33,8 +39,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 APP="${1:-}"
 IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 ENTITLEMENTS="$HERE/../Entitlements.plist"
-SIDECAR_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"
-SIDECAR_IDENTIFIER="de.kluender.jarvis.contacts-bridge"
+CONTACTS_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"
+CONTACTS_IDENTIFIER="de.kluender.jarvis.contacts-bridge"
+CALENDAR_ENTITLEMENTS="$HERE/../CalendarSidecar.entitlements"
+CALENDAR_IDENTIFIER="de.kluender.jarvis.calendar-bridge"
 
 if [ -z "$APP" ] || [ ! -d "$APP" ]; then
     echo "Usage: APPLE_SIGNING_IDENTITY=<id> $0 <path-to-.app>" >&2
@@ -47,24 +55,37 @@ if [ -z "$IDENTITY" ]; then
     exit 3
 fi
 
-SIDECAR="$APP/Contents/MacOS/jarvis-contacts"
-if [ ! -f "$SIDECAR" ]; then
-    echo "No bundled sidecar at $SIDECAR" >&2
+CONTACTS_SIDECAR="$APP/Contents/MacOS/jarvis-contacts"
+CALENDAR_SIDECAR="$APP/Contents/MacOS/jarvis-calendar"
+
+if [ ! -f "$CONTACTS_SIDECAR" ]; then
+    echo "No bundled sidecar at $CONTACTS_SIDECAR" >&2
+    exit 4
+fi
+if [ ! -f "$CALENDAR_SIDECAR" ]; then
+    echo "No bundled sidecar at $CALENDAR_SIDECAR" >&2
     exit 4
 fi
 
-if [ ! -f "$SIDECAR_ENTITLEMENTS" ]; then
-    echo "Missing $SIDECAR_ENTITLEMENTS — refusing to fall back to the app's" >&2
-    echo "entitlements, which is exactly what this script exists to prevent." >&2
-    exit 5
-fi
+for ent in "$CONTACTS_ENTITLEMENTS" "$CALENDAR_ENTITLEMENTS"; do
+    if [ ! -f "$ent" ]; then
+        echo "Missing $ent — refusing to fall back to the app's entitlements," >&2
+        echo "which is exactly what this script exists to prevent." >&2
+        exit 5
+    fi
+done
 
-echo "== 1/4 Re-sign sidecar with its own minimal entitlements =="
+echo "== 1/4 Re-sign each sidecar with its own minimal entitlements =="
 codesign --force --sign "$IDENTITY" \
-    --identifier "$SIDECAR_IDENTIFIER" \
+    --identifier "$CONTACTS_IDENTIFIER" \
     --options runtime --timestamp=none \
-    --entitlements "$SIDECAR_ENTITLEMENTS" \
-    "$SIDECAR"
+    --entitlements "$CONTACTS_ENTITLEMENTS" \
+    "$CONTACTS_SIDECAR"
+codesign --force --sign "$IDENTITY" \
+    --identifier "$CALENDAR_IDENTIFIER" \
+    --options runtime --timestamp=none \
+    --entitlements "$CALENDAR_ENTITLEMENTS" \
+    "$CALENDAR_SIDECAR"
 
 echo "== 2/4 Re-sign the enclosing app =="
 codesign --force --sign "$IDENTITY" \
@@ -73,12 +94,17 @@ codesign --force --sign "$IDENTITY" \
     "$APP"
 
 echo "== 3/4 Verify =="
-codesign --verify --strict --verbose=2 "$SIDECAR"
+codesign --verify --strict --verbose=2 "$CONTACTS_SIDECAR"
+codesign --verify --strict --verbose=2 "$CALENDAR_SIDECAR"
 codesign --verify --strict --deep --verbose=2 "$APP"
 
 echo "== 4/4 Evidence =="
-echo "-- Sidecar entitlements (expected: address book only) --"
-codesign -d --entitlements :- "$SIDECAR" 2>&1 | tail -n +2
-echo "-- Sidecar designated requirement --"
-codesign -d -r- "$SIDECAR" 2>&1 | grep designated
+echo "-- Contacts sidecar entitlements (expected: address book only) --"
+codesign -d --entitlements :- "$CONTACTS_SIDECAR" 2>&1 | tail -n +2
+echo "-- Contacts sidecar designated requirement --"
+codesign -d -r- "$CONTACTS_SIDECAR" 2>&1 | grep designated
+echo "-- Calendar sidecar entitlements (expected: calendars only) --"
+codesign -d --entitlements :- "$CALENDAR_SIDECAR" 2>&1 | tail -n +2
+echo "-- Calendar sidecar designated requirement --"
+codesign -d -r- "$CALENDAR_SIDECAR" 2>&1 | grep designated
 echo "RESEAL OK"

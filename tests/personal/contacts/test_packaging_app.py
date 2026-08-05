@@ -385,14 +385,18 @@ def test_das_reseal_skript_verwendet_den_eigenen_vertrag():
     """
     skript = (_REPO / "frontend/src-tauri/scripts"
               / "reseal-contacts-sidecar.sh").read_text(encoding="utf-8")
-    # Die Variable zeigt auf den eigenen Vertrag …
-    assert 'SIDECAR_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"' in skript
+    # Seit Modul 2 versiegelt dasselbe Skript ZWEI Sidecars; jeder traegt
+    # seinen eigenen Vertrag. Die Zusicherung ist unveraendert — sie gilt jetzt
+    # zweimal.
+    assert 'CONTACTS_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"' in skript
+    assert 'CALENDAR_ENTITLEMENTS="$HERE/../CalendarSidecar.entitlements"' in skript
     # … und der Sidecar-Block benutzt genau sie, nicht die der App.
-    sidecar_teil = skript.split("Re-sign sidecar", 1)[1].split(
+    sidecar_teil = skript.split("Re-sign each sidecar", 1)[1].split(
         "Re-sign the enclosing app", 1)[0]
-    assert '--entitlements "$SIDECAR_ENTITLEMENTS"' in sidecar_teil
+    assert '--entitlements "$CONTACTS_ENTITLEMENTS"' in sidecar_teil
+    assert '--entitlements "$CALENDAR_ENTITLEMENTS"' in sidecar_teil
     assert '"$ENTITLEMENTS"' not in sidecar_teil, (
-        "der Sidecar wuerde mit den App-Entitlements signiert")
+        "ein Sidecar wuerde mit den App-Entitlements signiert")
     # Ohne die Datei bricht das Skript ab, statt auf die App zurueckzufallen.
     assert "refusing to fall back" in skript
 

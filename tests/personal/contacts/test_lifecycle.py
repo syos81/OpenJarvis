@@ -25,6 +25,17 @@ QUELLEN = REPO_ROOT / "src/personaljarvis"
 #: Die Native-Bridge ist die Adapterschicht (AV-4, ADR-0016): genau dort —
 #: und nur dort — sind Apple-Begriffe und Prozessverwaltung zulaessig.
 BRIDGE = QUELLEN / "contacts" / "bridge"
+#: Seit 2026-08-04 liegt die *gemeinsame* Prozessfuehrung und Binaerauflösung
+#: in `base/sidecar` — gehoben aus genau diesem Bridge-Paket, als der Kalender
+#: denselben Vertrag brauchte. Die Regel selbst bleibt unveraendert
+#: ("Prozesse nur in der Adapterschicht"); ihr Geltungsbereich benennt jetzt
+#: beide Orte dieser einen Schicht. Der Fachkern startet weiterhin keinen
+#: Prozess — das prueft `test_nur_die_bridge_startet_prozesse` unveraendert.
+SIDECAR_BASIS = QUELLEN / "base" / "sidecar"
+#: Ebenso die Kalender-Bridge (Modul 2): dieselbe Schicht, anderer Provider.
+#: Apple-Begriffe und Prozessverwaltung sind dort genauso zulaessig wie im
+#: Kontakte-Bridge-Paket — und im Fachkern genauso wenig wie zuvor.
+KALENDER_BRIDGE = QUELLEN / "calendar" / "bridge"
 
 
 def _python_code_ohne_prosa(path: Path) -> str:
@@ -58,9 +69,15 @@ ADAPTERBINDUNGEN = ("bridge_provider.py",)
 
 
 def _kernquellen():
-    """Alle Produktivdateien AUSSER Bridge und Adapterbindung."""
+    """Alle Produktivdateien AUSSER Adapterschicht und Adapterbindung.
+
+    Adapterschicht sind die beiden Bridge-Pakete und die gemeinsame
+    Sidecar-Basis — drei Orte, eine Schicht.
+    """
     return [d for d in QUELLEN.rglob("*.py")
-            if BRIDGE not in d.parents and d.name not in ADAPTERBINDUNGEN]
+            if BRIDGE not in d.parents and SIDECAR_BASIS not in d.parents
+            and KALENDER_BRIDGE not in d.parents
+            and d.name not in ADAPTERBINDUNGEN]
 
 
 def test_die_ausnahmeliste_bleibt_klein():

@@ -9,6 +9,7 @@ import { AgentsPage } from './pages/AgentsPage';
 import { DataSourcesPage } from './pages/DataSourcesPage';
 import { LogsPage } from './pages/LogsPage';
 import ContactsPage from './personal/contacts/ContactsPage';
+import CalendarPage from './personal/calendar/CalendarPage';
 import { CommandPalette } from './components/CommandPalette';
 import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
@@ -201,6 +202,8 @@ export default function App() {
           <Route path="logs" element={<LogsPage />} />
           {/* Personal Jarvis — Kontakte (DEV-4: genau eine Modul-Route) */}
           <Route path="contacts" element={<ContactsPage />} />
+          {/* Personal Jarvis — Kalender (Modul 2, ebenfalls genau eine Route) */}
+          <Route path="calendar" element={<CalendarPage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-right" />
