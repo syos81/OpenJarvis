@@ -367,6 +367,13 @@ class GateEngine:
             entry["reason_code"] = "check_passed"
             return entry
 
+        if run.structured.get("outcome") == runner_module.OUTCOME_BLOCKED:
+            entry["status"] = statuses.BLOCKED
+            entry["reason_code"] = (
+                run.structured.get("reason_code") or "check_blocked"
+            )
+            return entry
+
         if run.structured.get("outcome") == runner_module.OUTCOME_TIMEOUT:
             entry["status"] = statuses.FAIL
             entry["reason_code"] = "check_timeout"

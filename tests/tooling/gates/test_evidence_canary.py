@@ -149,10 +149,12 @@ CANARY_MANIFEST = {
     "evidence_policy": {"sanitized_evidence": True, "raw_log_area": "runtime_only"},
     "feature_lineage": {
         "lineage_file": "features.lineage.json",
+        "own_expected": 0,
+        "own_prefix": "SYN-",
         "predecessor_file": "features.predecessor.json",
     },
     "product_guard": {
-        "block_base_commit": "0" * 40,
+        "block_base_commit": "a" * 40,
         "allowed_paths": ["*"],
         "forbidden_paths": [],
     },

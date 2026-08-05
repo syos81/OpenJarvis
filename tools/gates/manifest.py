@@ -93,7 +93,12 @@ BASELINE_POLICY_FIELDS = (
 )
 PLATFORM_FIELDS = ("systems", "architectures", "min_python")
 EVIDENCE_POLICY_FIELDS = ("sanitized_evidence", "raw_log_area")
-FEATURE_LINEAGE_FIELDS = ("lineage_file", "predecessor_file")
+FEATURE_LINEAGE_FIELDS = (
+    "lineage_file",
+    "own_expected",
+    "own_prefix",
+    "predecessor_file",
+)
 PRODUCT_GUARD_FIELDS = ("allowed_paths", "block_base_commit", "forbidden_paths")
 TARGETED_FIELDS = ("base_ref", "always", "rules")
 TARGETED_RULE_FIELDS = ("rule_id", "paths", "checks")
@@ -487,18 +492,35 @@ def _validate_sections(validator, data):
 
     guard = data.get("product_guard") or {}
     if isinstance(guard, dict):
+        # Declaration only: the engine derives the guard base mechanically and
+        # merely validates this field against it. A full OID is mandatory.
         base_commit = guard.get("block_base_commit", "")
         if not isinstance(base_commit, str) or not re.match(
-            r"^[0-9a-f]{7,40}$", base_commit
+            r"^[0-9a-f]{40}$", base_commit
         ):
             validator.fail(
                 "invalid_block_base_commit",
-                f"product_guard: invalid block base commit: {base_commit!r}",
+                f"product_guard: block base commit must be a full OID: "
+                f"{base_commit!r}",
+            )
+
+    lineage = data.get("feature_lineage") or {}
+    if isinstance(lineage, dict):
+        if not isinstance(lineage.get("own_expected"), int) or isinstance(
+            lineage.get("own_expected"), bool
+        ):
+            validator.fail(
+                "invalid_type", "feature_lineage: own_expected must be an int"
+            )
+        prefix = lineage.get("own_prefix")
+        if not isinstance(prefix, str) or not re.match(r"^[A-Z0-9]+-$", prefix):
+            validator.fail(
+                "invalid_id", f"feature_lineage: invalid own_prefix: {prefix!r}"
             )
 
     for section in ("feature_lineage", "product_guard"):
         for key, value in sorted((data.get(section) or {}).items()):
-            if key == "block_base_commit":
+            if key in ("block_base_commit", "own_expected", "own_prefix"):
                 continue
             paths_list = value if isinstance(value, list) else [value]
             for item in paths_list:

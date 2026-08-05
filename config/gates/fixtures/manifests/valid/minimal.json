@@ -40,12 +40,18 @@
   },
   "targeted_selection": {
     "base_ref": "main",
-    "always": ["tg-fixture"],
+    "always": [
+      "tg-fixture"
+    ],
     "rules": [
       {
         "rule_id": "r-fixture",
-        "paths": ["tools/gates/*.py"],
-        "checks": ["tg-fixture"]
+        "paths": [
+          "tools/gates/*.py"
+        ],
+        "checks": [
+          "tg-fixture"
+        ]
       }
     ]
   },
@@ -58,7 +64,10 @@
       "runner": {
         "type": "argv",
         "cwd": "worktree",
-        "argv": ["${GATE_PYTHON}", "${GATE_TOOLS}/runners/shell_syntax.py"]
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py"
+        ]
       },
       "parser": "gate_json",
       "timeout_seconds": 60,
@@ -73,7 +82,10 @@
       "runner": {
         "type": "argv",
         "cwd": "worktree",
-        "argv": ["${GATE_PYTHON}", "${GATE_TOOLS}/runners/shell_syntax.py"]
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py"
+        ]
       },
       "parser": "gate_json",
       "timeout_seconds": 60,
@@ -88,7 +100,10 @@
       "runner": {
         "type": "argv",
         "cwd": "target",
-        "argv": ["${GATE_PYTHON}", "${GATE_TOOLS}/runners/shell_syntax.py"]
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py"
+        ]
       },
       "parser": "gate_json",
       "timeout_seconds": 60,
@@ -115,12 +130,21 @@
     "cause_signature_version": "cs-1",
     "owner_marker": "openjarvis-gate-baseline",
     "cache_enabled": true,
-    "dependency_lock_paths": ["pyproject.toml", "uv.lock"],
-    "config_digest_paths": ["config/gates/blocks/b0a-1-tooling.json"]
+    "dependency_lock_paths": [
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "config_digest_paths": [
+      "config/gates/blocks/b0a-1-tooling.json"
+    ]
   },
   "platform_requirements": {
-    "systems": ["Darwin"],
-    "architectures": ["x86_64"],
+    "systems": [
+      "Darwin"
+    ],
+    "architectures": [
+      "x86_64"
+    ],
     "min_python": "3.10"
   },
   "evidence_policy": {
@@ -129,11 +153,17 @@
   },
   "feature_lineage": {
     "lineage_file": "config/gates/features/b0a-1-tooling.lineage.json",
+    "own_expected": 24,
+    "own_prefix": "B0A1-",
     "predecessor_file": "config/gates/features/b0a-1-tooling.predecessor.json"
   },
   "product_guard": {
     "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
-    "allowed_paths": ["tools/gates/*"],
-    "forbidden_paths": ["src/*"]
+    "allowed_paths": [
+      "tools/gates/*"
+    ],
+    "forbidden_paths": [
+      "src/*"
+    ]
   }
 }

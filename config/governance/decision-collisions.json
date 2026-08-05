@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "registry_id": "b0a-2-decision-collisions",
+  "status": "documented_unresolved",
+  "extends": {
+    "document": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
+    "section": "6",
+    "line": "spike/calendar-foundation-intel-2026-08-04",
+    "commit": "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+    "note": "Section 6 of the calendar baseline documents the ADR-0019/0020 collision. This registry is its addendum and adds the DEC-044..048 collisions. The calendar baseline itself is not reachable from tooling/gates-v1 and is therefore not edited here."
+  },
+  "lines": {
+    "canonical": {
+      "ref": "jarvis/rebuild-v1",
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "label": "jarvis/rebuild-v1@c222601"
+    },
+    "contacts_calendar": {
+      "ref": "handoff/contacts-read-flow-2026-07-29",
+      "commit": "1f03bfa4ace28ccfd44b380a18d3fe580a02b193",
+      "label": "handoff/contacts-read-flow-2026-07-29@1f03bfa",
+      "continued_in": {
+        "ref": "spike/calendar-foundation-intel-2026-08-04",
+        "commit": "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+        "label": "spike/calendar-foundation-intel-2026-08-04@8e6e206"
+      }
+    }
+  },
+  "collisions": [
+    {
+      "id": "DEC-044",
+      "kind": "DEC",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "Übernahme des OpenJarvis-Reuse-Audit-Kanons",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "Architektur der Apple-Contacts-Provider-Mutationen eingefroren",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        }
+      ]
+    },
+    {
+      "id": "DEC-045",
+      "kind": "DEC",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "Verbindliche Modulreihenfolge bis Modul 3",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "App-Prozess-Mutationskanal eingefroren",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        }
+      ]
+    },
+    {
+      "id": "DEC-046",
+      "kind": "DEC",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "Autonomie- und Hintergrundaktionsmodell",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "DEC-D06 entschieden: keine native R2-Zweitbestätigung",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        }
+      ]
+    },
+    {
+      "id": "DEC-047",
+      "kind": "DEC",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "KI-Arbeit, Internet, Browser- und App-Steuerung als verbindliches Zielbild",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "Intel-Zweig des Kontaktmoduls eingefroren",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        }
+      ]
+    },
+    {
+      "id": "DEC-048",
+      "kind": "DEC",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "Hausverwaltungs-Systemgrenzen und Workspace-Sicherheitskontexte",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "Kalender-Fundament-Spike (Intel) freigegeben und begrenzt",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        }
+      ]
+    },
+    {
+      "id": "ADR-0019",
+      "kind": "ADR",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung",
+          "primary_source": "docs/adr/ADR-0019-module-sequence-and-total-completion.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
+          "primary_source": "docs/adr/ADR-0019-provider-mutation-architecture.md"
+        }
+      ]
+    },
+    {
+      "id": "ADR-0020",
+      "kind": "ADR",
+      "sides": [
+        {
+          "line": "canonical",
+          "title": "Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion",
+          "primary_source": "docs/adr/ADR-0020-openjarvis-reuse-and-projection.md"
+        },
+        {
+          "line": "contacts_calendar",
+          "title": "Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
+          "primary_source": "docs/adr/ADR-0020-app-process-mutation-channel.md"
+        }
+      ]
+    }
+  ],
+  "resolution": {
+    "resolved_in_b0a_2": false,
+    "resolution_context": "integration",
+    "rules": [
+      "no_renumbering",
+      "no_new_canonical_id",
+      "no_silent_deletion",
+      "no_single_line_declared_authoritative",
+      "no_new_adr_file"
+    ]
+  }
+}

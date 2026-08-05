@@ -153,6 +153,8 @@
   },
   "feature_lineage": {
     "lineage_file": "config/gates/features/b0a-1-tooling.lineage.json",
+    "own_expected": 24,
+    "own_prefix": "B0A1-",
     "predecessor_file": "config/gates/features/b0a-1-tooling.predecessor.json"
   },
   "product_guard": {

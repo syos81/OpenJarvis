@@ -1,0 +1,691 @@
+{
+  "schema_version": 1,
+  "artifact_id": "block-b0a-2-governance",
+  "artifact_version": "1.0.0",
+  "predecessor_artifact_id": "block-b0a-1-tooling",
+  "predecessor_feature_list_sha256": "115c1449f0bb1770651173651ac6cd9ffe7b226b8d29a560dede5b5f03f80125",
+  "features": [
+    {
+      "feature_id": "B0A1-001",
+      "required": true,
+      "description": "scripts/gate.sh ist der einzige oeffentliche Einstieg und verlangt Block und Phase.",
+      "current_location": "scripts/gate.sh, tools/gates/cli.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_cli.py::TestGateScript"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-002",
+      "required": true,
+      "description": "Genau fuenf Phasen mit verbindlicher Semantik.",
+      "current_location": "tools/gates/manifest.py, config/gates/blocks/b0a-1-tooling.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_cli.py::TestPhaseExecution"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-003",
+      "required": true,
+      "description": "Genau fuenf Ergebniswerte, nichts anderes ist zulaessig.",
+      "current_location": "tools/gates/statuses.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_aggregation.py::TestAggregation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-004",
+      "required": true,
+      "description": "Der Gesamtstatus ist maschinell gebildet und genau ein Enum-Wert.",
+      "current_location": "tools/gates/statuses.py, tools/gates/engine.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_aggregation.py::TestExitCodes"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-005",
+      "required": true,
+      "description": "Deklarative Blockmanifeste mit striktem Schema und Negativfixtures.",
+      "current_location": "tools/gates/manifest.py, config/gates/blocks, config/gates/fixtures",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-manifest-validation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-006",
+      "required": true,
+      "description": "Dedizierter, markierter und gesperrter Baseline-Worktree auf exakt 7986bee.",
+      "current_location": "tools/gates/baseline.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_baseline.py::TestBaselineWorktree"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-007",
+      "required": true,
+      "description": "Versionierte, normalisierte strukturelle Ursachensignatur cs-1.",
+      "current_location": "tools/gates/signature.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_signature.py::TestCauseSignature"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-008",
+      "required": true,
+      "description": "Vollstaendiger Baseline-Cacheschluessel inklusive Plattform, Toolchain und Locks.",
+      "current_location": "tools/gates/cache.py, tools/gates/baseline.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_cache.py::TestCacheInvalidation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-009",
+      "required": true,
+      "description": "Allowlistbasierte, PII-sichere Evidenz ohne Freitextbereich.",
+      "current_location": "tools/gates/evidence.py, tools/gates/sanitize.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_evidence_canary.py::TestEvidenceAllowlist"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-010",
+      "required": true,
+      "description": "Rohlogs liegen nur im gitignorierten Laufzeitbereich und sind nie getrackt.",
+      "current_location": ".gitignore, tools/gates/paths.py, tools/gates/runners/repo_guard.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "pf-worktree-state"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-011",
+      "required": true,
+      "description": "SHA-256-Referenz auf Rohlogs inklusive Integritaets- und Manipulationspruefung.",
+      "current_location": "tools/gates/evidence.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_evidence_canary.py::TestRawLogIntegrity"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-012",
+      "required": true,
+      "description": "PII-Canary-Matrix ueber JSON, stderr, Handoff, Cache und Ursachensignatur.",
+      "current_location": "tools/gates/canaries.py, tests/tooling/gates/test_evidence_canary.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_evidence_canary.py::TestCanaryMatrix"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-013",
+      "required": true,
+      "description": "Repositorylokaler Projektskill gate ohne zweite Gateimplementierung.",
+      "current_location": ".claude/skills/gate/SKILL.md",
+      "verification": {
+        "type": "file",
+        "ref": ".claude/skills/gate/SKILL.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-014",
+      "required": true,
+      "description": "Repositorylokaler Projektskill handoff-report mit Quellenbindung.",
+      "current_location": ".claude/skills/handoff-report/SKILL.md",
+      "verification": {
+        "type": "file",
+        "ref": ".claude/skills/handoff-report/SKILL.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-015",
+      "required": true,
+      "description": "Vorgaenger-Merkmalspruefung; fehlendes Pflichtmerkmal ergibt immer fail.",
+      "current_location": "tools/gates/features.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_features.py::TestFeatureLineage"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-016",
+      "required": true,
+      "description": "CLAUDE.md aus dem alten Repository uebernommen und fuer B0a-1 angepasst.",
+      "current_location": "CLAUDE.md",
+      "verification": {
+        "type": "file",
+        "ref": "CLAUDE.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-017",
+      "required": true,
+      "description": "Die vorhandene Deny-Liste bleibt vollstaendig erhalten.",
+      "current_location": ".claude/settings.json, tools/gates/hookguard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestHardDenies"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-018",
+      "required": true,
+      "description": "Pfadkanonisierung und Schutz fremder Worktrees im PreToolUse-Hook.",
+      "current_location": "tools/gates/hookguard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestWorktreeProtection"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-019",
+      "required": true,
+      "description": "Protokollierter ask-Ausnahmepfad im gitignorierten Rohlogbereich.",
+      "current_location": "tools/gates/hookguard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestAskLogging"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-020",
+      "required": true,
+      "description": "Vollstaendige Werkzeug- und Hook-Testmatrix, deterministisch entdeckt.",
+      "current_location": "tests/tooling/gates",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-tooling-tests"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-021",
+      "required": true,
+      "description": "Kein Produktcode veraendert und kein Produkt-Live-Lauf ausgefuehrt.",
+      "current_location": "tools/gates/runners/repo_guard.py, config/gates/blocks/b0a-1-tooling.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-repo-guard"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-022",
+      "required": true,
+      "description": "Arbeit ausschliesslich auf dem eigenen Branch tooling/gates-v1.",
+      "current_location": "config/gates/blocks/b0a-1-tooling.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "pf-worktree"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-023",
+      "required": true,
+      "description": "Genau ein lokaler B0a-1-Commit, kein Amend und keine Zusatzcommits.",
+      "current_location": "docs/tooling/b0a-1-gates.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/tooling/b0a-1-gates.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A1-024",
+      "required": true,
+      "description": "Normaler Push erst nach gruenen Abschlussgates; harte Push-Sperre bleibt.",
+      "current_location": "docs/tooling/b0a-1-gates.md, .claude/settings.json",
+      "verification": {
+        "type": "file",
+        "ref": "docs/tooling/b0a-1-gates.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-001",
+      "required": true,
+      "description": "keine DEC-Nummer fuer Ambient Interaction V1",
+      "current_location": "config/governance/ambient-placeholder.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-ambient"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-002",
+      "required": true,
+      "description": "dauerhafter Platzhalter {{DEC_ID_AMBIENT_INTERACTION_V1}} an allen deklarierten Stellen",
+      "current_location": "config/governance/ambient-placeholder.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestAmbientPlaceholder"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-003",
+      "required": true,
+      "description": "keine neue ADR-Datei und keine ADR-Reservierung",
+      "current_location": "tools/gates/runners/governance_checks.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-id-freeze"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-004",
+      "required": true,
+      "description": "DEC-Kollisionen 044 bis 048 mit beiden Linien dokumentiert",
+      "current_location": "config/governance/decision-collisions.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-collisions"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-005",
+      "required": true,
+      "description": "ADR-Kollisionen 0019 und 0020 dokumentiert",
+      "current_location": "config/governance/decision-collisions.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestCollisionRegistry"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-006",
+      "required": true,
+      "description": "alle normativen Verweise mit Linie und exaktem Titel",
+      "current_location": "config/governance/decision-citations.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-citations"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-007",
+      "required": true,
+      "description": "Tooling-Merge-Nachtrag der Modulreihenfolge-Entscheidung auf rebuild-v1 zugeordnet",
+      "current_location": "docs/governance/b0a-2-tooling-merge-addendum.md",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestToolingMergeAssignment"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-008",
+      "required": true,
+      "description": "Tooling-Merge-Nachtrag der Kalender-Spike-Entscheidung der Kontakt-/Kalenderlinie zugeordnet",
+      "current_location": "docs/governance/b0a-2-tooling-merge-addendum.md",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestToolingMergeAssignment"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-009",
+      "required": true,
+      "description": "die Kontakte-Gates-Entscheidung ist ausdruecklich nicht zugeordnet",
+      "current_location": "config/governance/tooling-merge.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestToolingMergeAssignment"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-010",
+      "required": true,
+      "description": "Linienursprung bei jedem Lauf mechanisch abgeleitet und verifiziert",
+      "current_location": "tools/gates/guardbase.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_guard_base.py::TestGuardBaseDerivation"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-011",
+      "required": true,
+      "description": "Lieferposition und Fachmodulnummer getrennt",
+      "current_location": "config/governance/delivery-order.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-order"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-012",
+      "required": true,
+      "description": "Kontakte Lieferposition 1 und Fachmodul 1",
+      "current_location": "config/governance/delivery-order.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestDeliveryOrder"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-013",
+      "required": true,
+      "description": "Kalender Lieferposition 2 und Fachmodul 2",
+      "current_location": "config/governance/delivery-order.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestDeliveryOrder"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-014",
+      "required": true,
+      "description": "Ambient Lieferposition 3 ohne Fachmodulnummer und ohne Datenhoheit",
+      "current_location": "config/governance/delivery-order.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestDeliveryOrder"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-015",
+      "required": true,
+      "description": "Trading Intelligence T1 Lieferposition 4 und Fachmodul 3",
+      "current_location": "config/governance/delivery-order.json",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestDeliveryOrder"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-016",
+      "required": true,
+      "description": "vollstaendige Fehlerbedingungen des Reihenfolgen-Gates",
+      "current_location": "docs/governance/b0a-2-delivery-order.md",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestDeliveryOrder"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-017",
+      "required": true,
+      "description": "CRM und Akquise als Vorgaenge auf Kontakten eingeordnet",
+      "current_location": "docs/governance/b0a-2-module-map.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-module-map.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-018",
+      "required": true,
+      "description": "Office und DART als Modul entfernt",
+      "current_location": "docs/governance/b0a-2-module-map.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-module-map.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-019",
+      "required": true,
+      "description": "Vertraege bleiben eigener kanonischer Bestand",
+      "current_location": "docs/governance/b0a-2-module-map.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-module-map.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-020",
+      "required": true,
+      "description": "Engine-Extraktion erst beim zweiten realen Fall",
+      "current_location": "docs/governance/b0a-2-module-map.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-module-map.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-021",
+      "required": true,
+      "description": "Organisations-Namensscan tokengenau und unicode-normalisiert",
+      "current_location": "tools/gates/generality.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-organization-scan"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-022",
+      "required": true,
+      "description": "Providerbegriffe nur an freigegebenen Adapterpfaden",
+      "current_location": "config/governance/generality-scope.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-provider-gate"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-023",
+      "required": true,
+      "description": "positiver Konfigurationstest mit zwei erfundenen Organisationen und zwei Vorgangstypen",
+      "current_location": "config/governance/generality-fixtures",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_generality.py::TestPositiveConfigurationMechanism"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-024",
+      "required": true,
+      "description": "Verbot fest codierter Literalvergleiche im Kern",
+      "current_location": "tools/gates/generality.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-literal-comparisons"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-025",
+      "required": true,
+      "description": "Hausverwaltungs-Systemgrenze ohne konkurrierende Volldatenbank",
+      "current_location": "docs/governance/b0a-2-module-map.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-module-map.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-026",
+      "required": true,
+      "description": "Ambient bleibt technischer Block ohne zweite App-Steuerungsarchitektur",
+      "current_location": "docs/governance/b0a-2-ambient-interaction-v1.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-ambient-interaction-v1.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-027",
+      "required": true,
+      "description": "Tooling-Merge-Readiness ist mechanisch und fuehrt keinen Merge aus",
+      "current_location": "tools/gates/runners/merge_readiness.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_merge_readiness.py::TestNoMergeExecution"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-028",
+      "required": true,
+      "description": "CLAUDE.md behaelt die B0a-1-Regeln und ergaenzt Governance",
+      "current_location": "CLAUDE.md",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_governance.py::TestClaudeMd"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-029",
+      "required": true,
+      "description": "alle 24 B0a-1-Pflichtmerkmale weiterhin vorhanden",
+      "current_location": "config/gates/features/b0a-2-governance.lineage.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-feature-lineage"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-030",
+      "required": true,
+      "description": "jede konsolidierte Fassung wird gegen die Vorgaenger-Merkmalsliste geprueft",
+      "current_location": "tools/gates/features.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "mf-feature-lineage"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-031",
+      "required": true,
+      "description": "kein Produktcode, kein K1, kein B0b",
+      "current_location": "tools/gates/runners/repo_guard.py",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-repo-guard"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-032",
+      "required": true,
+      "description": "genau ein eigener B0a-2-Commit",
+      "current_location": "docs/governance/b0a-2-closing-rules.md",
+      "verification": {
+        "type": "file",
+        "ref": "docs/governance/b0a-2-closing-rules.md"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-033",
+      "required": true,
+      "description": "Manifest weist die Guard-Basis nur aus und beeinflusst die Ableitung nicht",
+      "current_location": "tools/gates/guardbase.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_guard_base.py::TestDeclaredBaseIsOnlyValidated"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-034",
+      "required": true,
+      "description": "Produktschutz prueft die vollstaendige Branchhistorie ab dem Linienursprung",
+      "current_location": "tools/gates/runners/repo_guard.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_guard_base.py::TestExaminedRange"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-035",
+      "required": true,
+      "description": "Manipulationstests erkennen gefaelschte, verschobene oder verkuerzte Guard-Basen",
+      "current_location": "tests/tooling/gates/test_guard_base.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_guard_base.py::TestNoRuntimeOverride"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-036",
+      "required": true,
+      "description": "Push bleibt dauerhafte Eigentuemerhandlung ohne Agenten-Ausnahmepfad",
+      "current_location": "docs/governance/b0a-2-closing-rules.md",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_hook.py::TestHardDenies"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-037",
+      "required": true,
+      "description": "pfadgenaue Gitignore-Konvention fuer die versionierten Projektregeln",
+      "current_location": ".gitignore",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-hygiene"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0A2-038",
+      "required": true,
+      "description": "freigegebene Projektregeldateien mechanisch frei von Zugangsdaten und Maschinenpfaden",
+      "current_location": "tools/gates/hygiene.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_claude_hygiene.py::TestSecretDetection"
+      },
+      "status": "pass"
+    }
+  ]
+}

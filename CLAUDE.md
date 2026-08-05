@@ -73,6 +73,59 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
 - Keine echten Kontakt-, Kalender-, Mail-, Bank- oder Mieterdaten in Tests,
   Fixtures oder Berichten – ausschließlich synthetische Werte.
 
+## Allgemeinheit und Modullandkarte
+
+- Capability-Verträge sind providerneutral und fachbereichsbezogen; es gibt
+  keine Mega-Schnittstelle.
+- Organisationen, Workspaces, Rollen, Fachbereiche, Tags und Vorgangstypen
+  sind Konfigurations- oder Datenwerte, niemals hart codierte Fachlogik.
+- Kein Schema, Enum, Zustand, Feld, Routensegment, Typname oder Modulname
+  enthält eine konkrete Organisation.
+- Providerbegriffe stehen ausschließlich an der Adaptergrenze: Adapter,
+  Providermanifeste, Capability-Implementierungen und deren Tests. Es gibt
+  keine pauschale globale Allowlist, jede Freigabe ist pfadgenau.
+- Allgemeinheit gilt ab dem ersten realisierten Fall als Vertrags- und
+  Konfigurationsregel. Eine gemeinsame Engine entsteht erst beim zweiten
+  realen, fachlich unterschiedlichen Fall aus mindestens zwei belegten
+  Implementierungen. Keine spekulative Plattform vorab.
+- Fachbegriffe eines echten kanonischen Bestands bleiben zulässig;
+  Allgemeinheit bedeutet nicht Fachbegriffslosigkeit.
+- Verbindlich ist genau eine kanonische Liefer- und Fachmodulreihenfolge in
+  `config/governance/delivery-order.json` mit
+  `docs/governance/b0a-2-delivery-order.md` als Darstellung. Lieferposition und
+  Fachmodulnummer sind getrennte Größen und werden nie verwechselt.
+- Der Ambient-Platzhalter `{{DEC_ID_AMBIENT_INTERACTION_V1}}` bleibt
+  unverändert, bis die Doppelvergaben integriert aufgelöst sind. Er wird weder
+  berechnet noch reserviert noch durch eine bestehende Entscheidung ersetzt.
+
+## Entscheidungen, IDs und Kollisionen
+
+- Jeder normative DEC- oder ADR-Verweis nennt vollständige ID, Linie
+  einschließlich belegtem Stand und exakten Titel. Eine bloße Nummer ist im
+  Fließtext unzulässig.
+- Entscheidungstitel werden wörtlich aus Register oder Primärtext übernommen,
+  nie aus einer Beschreibung erraten.
+- Keine eigenmächtige Vergabe neuer DEC- oder ADR-Nummern.
+- Bekannte Doppelvergaben werden dokumentiert, nicht bereinigt: keine
+  Umnummerierung, kein stilles Löschen einer Seite, keine Erklärung einer Linie
+  zur allein gültigen Belegung.
+- Bis zur integrierten Auflösung entsteht keine neue ADR-Datei und keine
+  Reservierung.
+
+## Versionierte Projektregeln
+
+- Versioniert werden ausschließlich `CLAUDE.md`, `.claude/settings.json`,
+  `.claude/hooks/**` und `.claude/skills/**`.
+- Alles andere unter `.claude/` bleibt ignoriert, insbesondere
+  `.claude/settings.local.json`, lokale Zustände, Caches, Rohlogs, temporäre
+  Evidenz und rechnerbezogene Konfiguration.
+- Die `.gitignore`-Ausnahmen sind pfadgenau. Eine pauschale Freigabe von
+  `.claude/**` ist unzulässig.
+- In den freigegebenen Dateien stehen keine Zugangsdaten, privaten Schlüssel,
+  Tokens, eingebetteten Anmeldedaten und keine rechnerabhängigen absoluten
+  Pfade. Projektpfade werden relativ zur Repository-Wurzel aus
+  `git rev-parse --show-toplevel` verarbeitet.
+
 ## Abschluss und Handoff
 
 - Ein Handoff-Bericht entsteht nur über den Projektskill `handoff-report` und
@@ -82,8 +135,28 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
 - Vor jedem Abschluss läuft die Merkmalsvollständigkeitsprüfung gegen die
   Merkmalsliste des unmittelbaren Vorgängers. Ein fehlendes Pflichtmerkmal ist
   `fail`; der Block gilt dann nicht als abgeschlossen.
+- Jede konsolidierte Fassung eines Prompts, Plans, Registers, Handoffs oder
+  anderen normativen Artefakts durchläuft diesen Merkmalsvergleich gegen den
+  unmittelbaren Vorgänger. Ein bloßer Gesamttext- oder Längenvergleich genügt
+  nicht.
 - Abschlussberichte sind kurz und deltaorientiert: was sich geändert hat,
   welche Phasen mit welchem Ergebnis liefen, welche echten Blocker bleiben.
+
+## Commit und Push
+
+- Jeder Arbeitsblock endet für Claude und andere Agenten nach dem erfolgreichen
+  lokalen Commit. Pushes sind ausschließlich Eigentümerhandlungen außerhalb des
+  Blocks. Ein Agent darf keinen Push ausführen, dafür keinen `ask`- oder
+  Freigabepfad aufrufen und die Push-Sperre weder verändern noch über einen
+  alternativen Prozess, Client, Hook, Alias, Unterprozess oder sonstigen Umweg
+  umgehen. Als Pushanweisung darf ausschließlich ein einzelner, exakter
+  manueller Befehl für den aktuellen Zielbranch ausgegeben werden. Das
+  Ausbleiben des Eigentümer-Pushes macht einen ansonsten vollständig
+  bestandenen lokalen Block nicht zu `fail` oder `blocked`.
+- Der Pushstatus eines lokal abgeschlossenen Blocks lautet
+  `not_performed_owner_action`.
+- Kein Force-Push, kein Push auf einen Produktbranch, kein Merge, kein Rebase,
+  kein Cherry-pick, kein Tag und kein Release durch einen Agenten.
 
 ## Agenten-Philosophie
 

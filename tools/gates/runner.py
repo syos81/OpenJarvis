@@ -25,6 +25,7 @@ OUTCOME_PASSED = "passed"
 OUTCOME_FAILED = "failed"
 OUTCOME_ERROR = "error"
 OUTCOME_TIMEOUT = "timeout"
+OUTCOME_BLOCKED = "blocked"
 
 _UNITTEST_PROBLEM_RE = re.compile(
     r"^(FAIL|ERROR):\s+(\S+)\s+\(([^)]+)\)", re.MULTILINE
@@ -122,6 +123,7 @@ def parse_gate_report(report_path, exit_code):
         OUTCOME_PASSED,
         OUTCOME_FAILED,
         OUTCOME_ERROR,
+        OUTCOME_BLOCKED,
     ):
         return {
             "outcome": OUTCOME_ERROR,
@@ -144,10 +146,13 @@ def parse_gate_report(report_path, exit_code):
         }
     return {
         "outcome": data["outcome"],
-        "structural": True,
+        # A blocked outcome is a documented external precondition, never a
+        # structural cause that a baseline could excuse.
+        "structural": data["outcome"] != OUTCOME_BLOCKED,
         "failures": failures,
         "diagnostics": [str(item) for item in diagnostics],
         "detail_count": data.get("detail_count"),
+        "reason_code": data.get("reason_code"),
     }
 
 

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "fixture_id": "organization-alpha",
+  "synthetic": true,
+  "note": "Vollstaendig erfundene Organisation. Kein realer Bezug, keine echten Daten.",
+  "organization": {
+    "organization_id": "org-alpha-fiktiv",
+    "display_name": "Alpha Fiktivorganisation",
+    "workspace_id": "ws-alpha"
+  },
+  "roles": [
+    {"role_id": "role-antragsteller", "display_name": "Antragstellende Person"},
+    {"role_id": "role-pruefer", "display_name": "Pruefende Person"}
+  ],
+  "process_types": [
+    {
+      "process_type_id": "pt-alpha-formularlauf",
+      "display_name": "Formularlauf Alpha",
+      "states": [
+        {"state_id": "st-entwurf", "initial": true},
+        {"state_id": "st-eingereicht"},
+        {"state_id": "st-geprueft", "terminal": true}
+      ],
+      "transitions": [
+        {"from": "st-entwurf", "to": "st-eingereicht", "role_id": "role-antragsteller"},
+        {"from": "st-eingereicht", "to": "st-geprueft", "role_id": "role-pruefer"}
+      ],
+      "deadlines": [
+        {"deadline_id": "dl-einreichfrist", "state_id": "st-entwurf", "days": 14}
+      ],
+      "due_actions": [
+        {"action_id": "act-erinnern", "state_id": "st-entwurf", "offset_days": 11, "role_id": "role-antragsteller"},
+        {"action_id": "act-eskalieren", "state_id": "st-eingereicht", "offset_days": 3, "role_id": "role-pruefer"}
+      ]
+    }
+  ]
+}

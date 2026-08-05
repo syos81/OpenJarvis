@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "fixture_id": "organization-beta",
+  "synthetic": true,
+  "note": "Vollstaendig erfundene Organisation. Kein realer Bezug, keine echten Daten.",
+  "organization": {
+    "organization_id": "org-beta-erfunden",
+    "display_name": "Beta Musterorganisation",
+    "workspace_id": "ws-beta"
+  },
+  "roles": [
+    {"role_id": "role-melder", "display_name": "Meldende Person"},
+    {"role_id": "role-koordination", "display_name": "Koordinierende Person"},
+    {"role_id": "role-abnahme", "display_name": "Abnehmende Person"}
+  ],
+  "process_types": [
+    {
+      "process_type_id": "pt-beta-vorgangskette",
+      "display_name": "Vorgangskette Beta",
+      "states": [
+        {"state_id": "st-gemeldet", "initial": true},
+        {"state_id": "st-zugewiesen"},
+        {"state_id": "st-in-arbeit"},
+        {"state_id": "st-abgenommen", "terminal": true}
+      ],
+      "transitions": [
+        {"from": "st-gemeldet", "to": "st-zugewiesen", "role_id": "role-koordination"},
+        {"from": "st-zugewiesen", "to": "st-in-arbeit", "role_id": "role-melder"},
+        {"from": "st-in-arbeit", "to": "st-abgenommen", "role_id": "role-abnahme"}
+      ],
+      "deadlines": [
+        {"deadline_id": "dl-zuweisungsfrist", "state_id": "st-gemeldet", "days": 2},
+        {"deadline_id": "dl-abnahmefrist", "state_id": "st-in-arbeit", "days": 30}
+      ],
+      "due_actions": [
+        {"action_id": "act-zuweisung-mahnen", "state_id": "st-gemeldet", "offset_days": 1, "role_id": "role-koordination"},
+        {"action_id": "act-abnahme-anfordern", "state_id": "st-in-arbeit", "offset_days": 25, "role_id": "role-abnahme"}
+      ]
+    }
+  ]
+}

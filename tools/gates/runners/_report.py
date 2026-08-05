@@ -10,6 +10,7 @@ from pathlib import Path
 PASSED = "passed"
 FAILED = "failed"
 ERROR = "error"
+BLOCKED = "blocked"
 
 
 def failure(identifier, *, category, error_class="", code="", frames=()):
@@ -22,7 +23,7 @@ def failure(identifier, *, category, error_class="", code="", frames=()):
     }
 
 
-def emit(outcome, failures=(), diagnostics=(), *, stream=None):
+def emit(outcome, failures=(), diagnostics=(), *, reason_code=None, stream=None):
     """Write the structured report and return the process exit code."""
     payload = {
         "outcome": outcome,
@@ -33,6 +34,8 @@ def emit(outcome, failures=(), diagnostics=(), *, stream=None):
         "diagnostics": sorted(str(item) for item in diagnostics),
         "detail_count": len(list(failures)),
     }
+    if reason_code:
+        payload["reason_code"] = reason_code
     report_path = os.environ.get("GATE_REPORT")
     if report_path:
         target = Path(report_path)
@@ -42,4 +45,6 @@ def emit(outcome, failures=(), diagnostics=(), *, stream=None):
         )
     stream = stream or sys.stdout
     stream.write(json.dumps({"outcome": outcome}, sort_keys=True) + "\n")
-    return 0 if outcome == PASSED else 1
+    if outcome == PASSED:
+        return 0
+    return 3 if outcome == BLOCKED else 1

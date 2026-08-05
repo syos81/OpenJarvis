@@ -47,6 +47,12 @@ FEATURE_FIELDS = (
 )
 FEATURE_OPTIONAL_FIELDS = ("predecessor_feature_id", "owner_decision")
 PREDECESSOR_FIELDS = ("artifact_id", "artifact_version", "features")
+#: A lineage file may itself serve as the predecessor feature list.
+PREDECESSOR_OPTIONAL_FIELDS = (
+    "schema_version",
+    "predecessor_artifact_id",
+    "predecessor_feature_list_sha256",
+)
 PREDECESSOR_FEATURE_FIELDS = ("feature_id", "required", "description")
 VERIFICATION_TYPES = ("gate_check", "test", "file")
 
@@ -75,7 +81,9 @@ def _validate_shape(lineage, predecessor):
         issues.append(f"missing lineage field(s): {missing}")
     if lineage.get("schema_version") != FEATURE_SCHEMA_VERSION:
         issues.append("unsupported feature lineage schema_version")
-    unknown_pred = sorted(set(predecessor) - set(PREDECESSOR_FIELDS))
+    unknown_pred = sorted(
+        set(predecessor) - set(PREDECESSOR_FIELDS + PREDECESSOR_OPTIONAL_FIELDS)
+    )
     if unknown_pred:
         issues.append(f"unknown predecessor field(s): {unknown_pred}")
     missing_pred = sorted(set(PREDECESSOR_FIELDS) - set(predecessor))
@@ -124,7 +132,73 @@ def _verify_feature(feature, *, worktree, manifest):
     return True, "feature_verified"
 
 
-def validate_lineage(*, lineage_path, predecessor_path, worktree, manifest=None):
+def validate_own_features(lineage, *, prefix, worktree, manifest):
+    """Validate the features a block adds on top of its predecessor.
+
+    Returns ``(counts, entries)``. A mandatory own feature that is missing,
+    unverifiable or not ``pass`` counts as missing — exactly like a dropped
+    predecessor feature.
+    """
+    entries = []
+    verified = 0
+    missing = 0
+    for feature in lineage.get("features", []):
+        if not isinstance(feature, dict):
+            continue
+        identifier = str(feature.get("feature_id", ""))
+        if not identifier.startswith(prefix):
+            continue
+        if not feature.get("required"):
+            missing += 1
+            entries.append(
+                {
+                    "feature_id": identifier,
+                    "status": statuses.FAIL,
+                    "reason_code": "own_feature_not_required",
+                }
+            )
+            continue
+        if feature.get("status") == statuses.NOT_APPLICABLE:
+            missing += 1
+            entries.append(
+                {
+                    "feature_id": identifier,
+                    "status": statuses.FAIL,
+                    "reason_code": "required_feature_declared_not_applicable",
+                }
+            )
+            continue
+        ok, reason = _verify_feature(feature, worktree=worktree, manifest=manifest)
+        if not ok or feature.get("status") != statuses.PASS:
+            missing += 1
+            entries.append(
+                {
+                    "feature_id": identifier,
+                    "status": statuses.FAIL,
+                    "reason_code": reason if not ok else "feature_not_passing",
+                }
+            )
+            continue
+        verified += 1
+        entries.append(
+            {
+                "feature_id": identifier,
+                "status": statuses.PASS,
+                "reason_code": reason,
+            }
+        )
+    counts = {
+        "prefix": prefix,
+        "expected": verified + missing,
+        "verified": verified,
+        "missing": missing,
+    }
+    return counts, sorted(entries, key=lambda item: item["feature_id"])
+
+
+def validate_lineage(
+    *, lineage_path, predecessor_path, worktree, manifest=None, own_prefix=None
+):
     """Validate a lineage file against its predecessor's feature list."""
     lineage_file = Path(lineage_path)
     predecessor_file = Path(predecessor_path)
@@ -330,6 +404,20 @@ def validate_lineage(*, lineage_path, predecessor_path, worktree, manifest=None)
         "changed": len(sorted(set(changed_features))),
         "missing": len(sorted(set(missing_features))),
     }
+    own_counts = None
+    if own_prefix:
+        own_counts, own_entries = validate_own_features(
+            lineage, prefix=own_prefix, worktree=worktree, manifest=manifest
+        )
+        feature_reports.extend(own_entries)
+        if own_counts["missing"]:
+            missing_features.extend(
+                entry["feature_id"]
+                for entry in own_entries
+                if entry["status"] != statuses.PASS
+            )
+            counts["missing"] = len(sorted(set(missing_features)))
+
     if issues:
         status = statuses.FAIL
         reason_code = "feature_lineage_invalid"
@@ -350,5 +438,7 @@ def validate_lineage(*, lineage_path, predecessor_path, worktree, manifest=None)
         "features": sorted(feature_reports, key=lambda item: item["feature_id"]),
         "issues": sorted(sanitize.scrub(issue) for issue in issues),
     }
+    if own_counts is not None:
+        report["own_counts"] = own_counts
     sanitize.assert_clean(report, "$feature_lineage")
     return report

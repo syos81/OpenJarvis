@@ -47,6 +47,7 @@ def main(argv=None):
         predecessor_path=root / lineage["predecessor_file"],
         worktree=root,
         manifest=manifest,
+        own_prefix=lineage.get("own_prefix"),
     )
     counts = report["counts"]
     diagnostics = [
@@ -56,6 +57,26 @@ def main(argv=None):
         f"missing={counts['missing']}",
         f"lineage_status={report['status']}",
     ]
+    own = report.get("own_counts")
+    declared_expected = lineage.get("own_expected")
+    count_mismatch = own is not None and own["expected"] != declared_expected
+    if own:
+        diagnostics.append(f"own_expected={own['expected']}")
+        diagnostics.append(f"own_verified={own['verified']}")
+        diagnostics.append(f"own_missing={own['missing']}")
+    if count_mismatch:
+        diagnostics.append(f"own_declared={declared_expected}")
+        return _report.emit(
+            _report.FAILED,
+            [
+                _report.failure(
+                    "own_feature_count",
+                    category="feature",
+                    code="own_feature_count_mismatch",
+                )
+            ],
+            diagnostics,
+        )
     if report["status"] == statuses.PASS:
         return _report.emit(_report.PASSED, [], diagnostics)
     failures = [

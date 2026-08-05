@@ -284,5 +284,145 @@ class TestBlockLineage(unittest.TestCase):
         self.assertEqual(report["counts"]["missing"], 1)
 
 
+class TestGovernanceLineage(unittest.TestCase):
+    """B0a-2 keeps all 24 predecessor features and evidences its own 38."""
+
+    def setUp(self):
+        self.manifest = manifest_module.load(
+            _support.REPO_ROOT
+            / "config"
+            / "gates"
+            / "blocks"
+            / "b0a-2-governance.json"
+        )
+        lineage = self.manifest.data["feature_lineage"]
+        self.lineage_path = _support.REPO_ROOT / lineage["lineage_file"]
+        self.predecessor_path = _support.REPO_ROOT / lineage["predecessor_file"]
+
+    def _validate(self, lineage=None):
+        import tempfile
+
+        if lineage is None:
+            return features_module.validate_lineage(
+                lineage_path=self.lineage_path,
+                predecessor_path=self.predecessor_path,
+                worktree=_support.REPO_ROOT,
+                manifest=self.manifest,
+                own_prefix="B0A2-",
+            )
+        with tempfile.TemporaryDirectory(prefix="lineage-b0a2-") as tmp:
+            broken = Path(tmp) / "lineage.json"
+            broken.write_text(json.dumps(lineage, indent=2), encoding="utf-8")
+            return features_module.validate_lineage(
+                lineage_path=broken,
+                predecessor_path=self.predecessor_path,
+                worktree=_support.REPO_ROOT,
+                manifest=self.manifest,
+                own_prefix="B0A2-",
+            )
+
+    def _lineage(self):
+        return json.loads(self.lineage_path.read_text(encoding="utf-8"))
+
+    def test_the_predecessor_is_the_b0a_1_feature_manifest(self):
+        lineage = self._lineage()
+        self.assertEqual(lineage["predecessor_artifact_id"], "block-b0a-1-tooling")
+        self.assertEqual(
+            lineage["predecessor_feature_list_sha256"],
+            features_module.predecessor_digest(self.predecessor_path),
+        )
+
+    def test_counts_are_24_and_38_with_nothing_missing(self):
+        report = self._validate()
+        self.assertEqual(report["status"], statuses.PASS)
+        self.assertEqual(report["counts"]["expected"], 24)
+        self.assertEqual(report["counts"]["mapped"], 24)
+        self.assertEqual(report["counts"]["missing"], 0)
+        self.assertEqual(report["own_counts"]["expected"], 38)
+        self.assertEqual(report["own_counts"]["verified"], 38)
+        self.assertEqual(report["own_counts"]["missing"], 0)
+
+    def test_all_38_b0a2_ids_are_present(self):
+        ids = {
+            entry["feature_id"]
+            for entry in self._lineage()["features"]
+            if entry["feature_id"].startswith("B0A2-")
+        }
+        self.assertEqual(
+            ids, {f"B0A2-{number:03d}" for number in range(1, 39)}
+        )
+
+    def test_a_removed_b0a1_feature_fails(self):
+        lineage = self._lineage()
+        lineage["features"] = [
+            entry
+            for entry in lineage["features"]
+            if entry["feature_id"] != "B0A1-012"
+        ]
+        report = self._validate(lineage)
+        self.assertEqual(report["status"], statuses.FAIL)
+        self.assertEqual(report["counts"]["missing"], 1)
+
+    def test_a_removed_b0a2_feature_is_detected_by_the_declared_count(self):
+        lineage = self._lineage()
+        lineage["features"] = [
+            entry
+            for entry in lineage["features"]
+            if entry["feature_id"] != "B0A2-023"
+        ]
+        report = self._validate(lineage)
+        declared = self.manifest.data["feature_lineage"]["own_expected"]
+        self.assertEqual(declared, 38)
+        self.assertEqual(report["own_counts"]["expected"], 37)
+        self.assertNotEqual(report["own_counts"]["expected"], declared)
+
+    def test_a_renamed_feature_without_mapping_fails(self):
+        lineage = self._lineage()
+        for entry in lineage["features"]:
+            if entry["feature_id"] == "B0A1-018":
+                entry["feature_id"] = "B0A1-018B"
+        report = self._validate(lineage)
+        self.assertEqual(report["status"], statuses.FAIL)
+        self.assertIn(
+            "required_feature_unmapped",
+            {entry["reason_code"] for entry in report["features"]},
+        )
+
+    def test_an_own_feature_declared_not_applicable_fails(self):
+        lineage = self._lineage()
+        for entry in lineage["features"]:
+            if entry["feature_id"] == "B0A2-031":
+                entry["status"] = "not_applicable"
+        report = self._validate(lineage)
+        self.assertEqual(report["status"], statuses.FAIL)
+        self.assertIn(
+            "required_feature_declared_not_applicable",
+            {entry["reason_code"] for entry in report["features"]},
+        )
+
+    def test_an_own_feature_with_an_unresolvable_proof_fails(self):
+        lineage = self._lineage()
+        for entry in lineage["features"]:
+            if entry["feature_id"] == "B0A2-021":
+                entry["verification"] = {"type": "gate_check", "ref": "of-nonexistent"}
+        report = self._validate(lineage)
+        self.assertEqual(report["status"], statuses.FAIL)
+
+    def test_free_text_cannot_replace_a_missing_feature(self):
+        lineage = self._lineage()
+        lineage["features"] = [
+            entry
+            for entry in lineage["features"]
+            if entry["feature_id"] != "B0A2-036"
+        ]
+        for entry in lineage["features"]:
+            if entry["feature_id"] == "B0A2-001":
+                entry["description"] = "alle Merkmale sind vollstaendig nachgewiesen"
+        report = self._validate(lineage)
+        declared = self.manifest.data["feature_lineage"]["own_expected"]
+        self.assertNotEqual(report["own_counts"]["expected"], declared)
+        self.assertEqual(report["own_counts"]["expected"], 37)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
