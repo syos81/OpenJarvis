@@ -128,7 +128,7 @@ describe('Fensterung ohne gemessene Hoehe', () => {
   });
 });
 
-describe('Löschbestätigung (R2, DEC-046)', () => {
+describe('Löschbestätigung (R2, DEC-053)', () => {
   it('reicht die Bestätigung nur für delete weiter', async () => {
     const gesehen: Array<[string, boolean]> = [];
     const quelle = {

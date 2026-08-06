@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "config_id": "b0a-2-generality-scope",
+  "organization_terms": [
+    {
+      "term_id": "kluender",
+      "canonical": "Kluender",
+      "variants": [
+        "Klünder",
+        "Kluender",
+        "Klunder"
+      ],
+      "status": "active"
+    },
+    {
+      "term_id": "dart",
+      "canonical": "DART",
+      "variants": [
+        "DART"
+      ],
+      "status": "active"
+    }
+  ],
+  "provider_terms": [
+    {
+      "term_id": "immoware24",
+      "variants": [
+        "Immoware24",
+        "Immoware"
+      ],
+      "status": "active"
+    },
+    {
+      "term_id": "nextcloud",
+      "variants": [
+        "Nextcloud"
+      ],
+      "status": "active"
+    },
+    {
+      "term_id": "oura",
+      "variants": [
+        "Oura"
+      ],
+      "status": "active"
+    }
+  ],
+  "scan_scope": {
+    "include": [
+      "src/personaljarvis/**",
+      "frontend/src/personal/**",
+      "native/contacts-bridge/**"
+    ],
+    "exclude": [
+      "**/*.md",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/__pycache__/**"
+    ],
+    "scope_reason": "Geprueft wird die Produktoberflaeche von Personal Jarvis: Schemata, Migrationen, Typen, Routen, Kernlogik, Modul-, Datei- und Verzeichnisnamen. Nicht geprueft werden die Regeldefinition selbst (config/governance), die Gate-Werkzeuge (tools/gates, tests/tooling) und der Upstream-OpenJarvis-Bestand, der eigenen Reuse-Entscheidungen unterliegt.",
+    "exclude_reason": {
+      "**/*.md": "historische und erklaerende Dokumentation ist nach der Allgemeinheitsregel ein zulaessiger Bereich",
+      "**/__pycache__/**": "Buildartefakte ohne Quelltextcharakter",
+      "**/*.test.ts": "bewusst gekennzeichnete Testfixtures: Frontend-Tests belegen Transaktionsautor und Bundle-Identitaet der Anwendung und sind nach der Allgemeinheitsregel ein zulaessiger Bereich. Die wert- und pfadgenaue Ausnahme des Bundle-Identifiers bleibt davon unberuehrt bei genau fuenf Pfaden.",
+      "**/*.test.tsx": "bewusst gekennzeichnete Testfixtures: Frontend-Tests belegen Transaktionsautor und Bundle-Identitaet der Anwendung und sind nach der Allgemeinheitsregel ein zulaessiger Bereich. Die wert- und pfadgenaue Ausnahme des Bundle-Identifiers bleibt davon unberuehrt bei genau fuenf Pfaden."
+    }
+  },
+  "provider_allowed_paths": [
+    "src/openjarvis/connectors/*",
+    "src/personaljarvis/*/adapters/*",
+    "src/personaljarvis/*/bridge/*",
+    "src/personaljarvis/*/providers/*",
+    "config/providers/*"
+  ],
+  "core_paths": [
+    "src/personaljarvis/**/*.py",
+    "frontend/src/personal/**/*.ts",
+    "frontend/src/personal/**/*.tsx"
+  ],
+  "sensitive_identifiers": [
+    "organization",
+    "organization_id",
+    "org_id",
+    "workspace",
+    "workspace_id",
+    "process_type",
+    "process_type_id",
+    "vorgangstyp",
+    "fachbereich",
+    "provider",
+    "provider_id"
+  ],
+  "process_activation": {
+    "schema_globs": [
+      "src/personaljarvis/**/processes/**/*.py",
+      "src/personaljarvis/base/db/migrations/versions/*process_type*.py",
+      "src/personaljarvis/base/db/migrations/versions/*vorgang*.py"
+    ],
+    "route_globs": [
+      "src/personaljarvis/**/processes/api/*.py",
+      "src/personaljarvis/processes/**/routes.py"
+    ],
+    "core_globs": [
+      "src/personaljarvis/processes/**/*.py",
+      "src/personaljarvis/**/process_service.py"
+    ],
+    "rule": "Solange keiner dieser Pfade existiert, ist der positive Produkttest not_applicable und der Mechanismustest verpflichtend pass. Sobald ein Pfad existiert, wird der positive Konfigurationstest verpflichtend; ein weiterhin gemeldetes not_applicable ist fail.",
+    "note": "Gemeint ist die fachliche Vorgangsfaehigkeit. Der App-Prozess-Mutationskanal der Kontakte ist ein Betriebssystemprozess und aktiviert diese Regel nicht."
+  },
+  "declared_identifiers": [
+    {
+      "identifier_id": "application-bundle-identifier",
+      "value": "de.kluender.jarvis.contacts-bridge",
+      "kind": "application_bundle_identifier",
+      "paths": [
+        "native/contacts-bridge/build.sh",
+        "native/contacts-bridge/src/sidecar.swift",
+        "src/personaljarvis/base/db/migrations/versions/m0004_mutation_pipeline.py",
+        "src/personaljarvis/contacts/application/mutation_service.py",
+        "src/personaljarvis/contacts/repositories/sqlite.py"
+      ],
+      "reason": "Reverse-DNS-Identitaet der ausgelieferten Anwendung selbst (Bundle-Identifier und daraus abgeleiteter Contacts-Transaktionsautor). Sie benennt die schreibende Anwendung, nicht das fachliche Modell: kein Schema, Enum, Zustand, Feld, Routensegment, Typ- oder Modulname haengt daran.",
+      "scope_rule": "Wertgenau und pfadgenau gepinnt. Jede andere Fundstelle eines Organisationsbegriffs bleibt ein Befund, auch in genau diesen Dateien.",
+      "owner": "deferred_decision_register",
+      "owner_question": "Soll der ausgelieferte Bundle-Identifier dauerhaft den Organisationsnamen tragen oder auf einen organisationsneutralen Wert wechseln? Ein Wechsel ist eine Produktaenderung und gehoert nicht in einen Governance-Block.",
+      "test": "tests/tooling/gates/test_generality.py::TestOrganizationScan::test_declared_bundle_identifier_is_pinned",
+      "owner_reference": "docs/personal-jarvis/17-deferred-decisions.md (Kontakte- und Identitaetsblock)",
+      "due": "spaetestens vor Kontakte M2 oder vor der ersten produktiven signierten Freigabe, je nachdem was zuerst eintritt"
+    }
+  ],
+  "exceptions": []
+}

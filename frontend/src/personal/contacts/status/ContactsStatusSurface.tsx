@@ -391,7 +391,7 @@ function MutationDetailView({ id, quelle, onBack }: {
   const [fragtAbschluss, setFragtAbschluss] = useState(false);
   const [caps, setCaps] = useState<Capabilities | null>(null);
   // R2: Löschen verlangt eine zweite, eigene Handlung im Ausführungsschritt
-  // (ADR-0020 §8.3, DEC-046). Bewusst ein eigener Zustand und keine
+  // (ADR-0026 §8.3, DEC-053). Bewusst ein eigener Zustand und keine
   // Wiederverwendung der Freigabe — sonst wäre es dieselbe Handlung zweimal
   // gezählt.
   const [bestaetigt, setBestaetigt] = useState(false);

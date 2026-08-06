@@ -91,7 +91,7 @@ class MutationState(_StrEnum):
       angewandt, aber der kanonische Spiegel ist noch nicht nachgeführt. Er
       ist das Gegenteil von `OUTCOME_UNKNOWN`: dort ist nichts bewiesen, hier
       alles. Aus ihm führt nie ein weiterer Send, sondern ausschliesslich die
-      Wiederholung der **lokalen** Nachführung (ADR-0019 §5).
+      Wiederholung der **lokalen** Nachführung (ADR-0025 §5).
     """
 
     PREPARED = "prepared"

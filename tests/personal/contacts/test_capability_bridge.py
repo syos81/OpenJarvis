@@ -122,7 +122,7 @@ def aufbau(tmp_path, db_path, monkeypatch):
         """Baut das Modul auf.
 
         `schreibfreigabe` legt die 0600-Freigabedatei neben die Datenbank.
-        Seit ADR-0020 §10 kommt das Create-Recht aus dem App-Prozess-Kanal
+        Seit ADR-0026 §10 kommt das Create-Recht aus dem App-Prozess-Kanal
         und nicht mehr aus dem Sidecar-Handshake; ohne Freigabe waere
         `create_supported` deshalb immer falsch, und die Tests dieser Datei
         prueften nur noch eine Konstante.
@@ -145,7 +145,7 @@ def aufbau(tmp_path, db_path, monkeypatch):
 
 # ═══ Freischaltung ══════════════════════════════════════════════════════════
 def test_kompatibler_vertragsstand_und_freigabe_schalten_create_frei(aufbau):
-    """Beides zusammen — der Sidecar allein schaltet seit ADR-0020 nichts."""
+    """Beides zusammen — der Sidecar allein schaltet seit ADR-0026 nichts."""
     caps = aufbau(KOMPATIBEL).contacts.capabilities
     assert caps.create_supported is True
     assert caps.read_supported is True
@@ -229,7 +229,7 @@ def test_fehlende_versionsangabe_schaltet_nichts_frei(aufbau, fehlend):
 
 
 def test_das_sidecar_flag_entscheidet_nicht_mehr_ueber_create(aufbau):
-    """Seit ADR-0020 §10 ist `createImplemented` fuer Schreibrechte belanglos.
+    """Seit ADR-0026 §10 ist `createImplemented` fuer Schreibrechte belanglos.
 
     Der Sidecar hat gar keinen Schreibpfad mehr und meldet das Flag dauerhaft
     falsch; wuerde es weiterhin zaehlen, waere `create` fuer immer gesperrt.

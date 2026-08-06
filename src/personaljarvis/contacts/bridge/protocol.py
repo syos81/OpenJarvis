@@ -44,14 +44,14 @@ PROTOCOL_VERSION: Final[int] = envelope.PROTOCOL_VERSION
 #: Version der Mutationshülle (Pflichtfelder, Ergebnisvertrag) und des
 #: Feldvertrags. Beide Seiten nennen sie im Handshake und in jeder
 #: Mutationsanfrage; Ungleichheit schaltet die Fähigkeit fail-closed ab
-#: (ADR-0019 §6). Die Werte spiegeln `application.field_contract` — dort steht
+#: (ADR-0025 §6). Die Werte spiegeln `application.field_contract` — dort steht
 #: die fachliche Wahrheit, hier die Protokollsicht darauf.
 MUTATION_CONTRACT_VERSION: Final[int] = 1
 FIELD_CONTRACT_VERSION: Final[int] = 1
 
 
 class MutationOutcome:
-    """Geschlossener Ergebnisvertrag einer Mutation (ADR-0019 §4).
+    """Geschlossener Ergebnisvertrag einer Mutation (ADR-0025 §4).
 
     Die drei Werte sind **nicht** austauschbar: `NOT_SENT` behauptet, dass
     nachweislich nichts übergeben wurde, `OUTCOME_UNKNOWN` behauptet gerade

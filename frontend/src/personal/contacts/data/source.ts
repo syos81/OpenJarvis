@@ -100,7 +100,7 @@ export function apiDataSource(): ContactsDataSource {
     reject: (id, actor) => api.rejectMutation(id, actor),
     cancel: (id, actor) => api.cancelMutation(id, actor),
     expire: (id) => api.expireMutation(id),
-    // Ausführen heisst seit ADR-0020: **im App-Prozess**. Kann der Kanal
+    // Ausführen heisst seit ADR-0026: **im App-Prozess**. Kann der Kanal
     // die Operation (der Kern entscheidet das, nicht diese Schicht), läuft
     // der Vorgang über Claim → App-Prozess → Settle. Sonst bleibt der alte
     // Weg, der ohne Providerwrite in seinem eigenen fail-closed endet — so

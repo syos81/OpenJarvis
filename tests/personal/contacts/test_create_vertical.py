@@ -236,7 +236,7 @@ def test_ohne_freigeschaltete_faehigkeit_wird_nicht_vorbereitet(module, provider
       "fieldContractVersion": 1}, False),
     ({"createImplemented": True, "fieldContractVersion": 1}, False),
     ({"createImplemented": True, "mutationContractVersion": 1}, False),
-    # Ohne `createImplemented`: seit ADR-0020 **True**, denn das Flag des
+    # Ohne `createImplemented`: seit ADR-0026 **True**, denn das Flag des
     # Sidecars zaehlt fuer Schreibrechte nicht mehr — es ist dauerhaft falsch,
     # und der Sidecar hat gar keinen Schreibpfad. Entscheidend sind
     # Vertragsstand und App-Prozess-Kanal.
@@ -246,7 +246,7 @@ def test_ohne_freigeschaltete_faehigkeit_wird_nicht_vorbereitet(module, provider
 def test_capability_bruecke_ist_versionsgenau(handshake, erwartet):
     """Der Vertragsstand sperrt weiterhin alles — auch bei offenem Kanal.
 
-    Seit ADR-0020 §10 kommt das Schreibrecht nicht mehr aus dem Sidecar
+    Seit ADR-0026 §10 kommt das Schreibrecht nicht mehr aus dem Sidecar
     (der hat keinen Schreibpfad), sondern aus dem App-Prozess-Kanal. Der
     Vertragsstand bleibt aber eine harte Sperre davor: Ein Sidecar mit
     fremdem Vertragsstand schaltet nichts frei, egal wie offen der Kanal ist.
@@ -306,7 +306,7 @@ def test_fehlender_handshake_faellt_auf_nur_lesen_zurueck():
 
 
 def test_der_sidecar_meldet_keinen_schreibpfad_mehr():
-    """Statisch am Quelltext: seit ADR-0020 schreibt der Sidecar nicht mehr.
+    """Statisch am Quelltext: seit ADR-0026 schreibt der Sidecar nicht mehr.
 
     Vier x86_64-Livetests starben im Sidecar-Save
     (`NSInternalInconsistencyException`, Koordinator ohne Stores); derselbe

@@ -137,7 +137,7 @@ class AttrappenProvider:
             return ProviderResponse(self.outcome, error_code=self.error_code,
                                     provider_identifier=self.provider_identifier)
         # Ein angewandter Vorgang bringt IMMER einen Read-back mit — genau wie
-        # der echte Sidecar. Ohne ihn gaebe es keinen Erfolg (ADR-0019 §4).
+        # der echte Sidecar. Ohne ihn gaebe es keinen Erfolg (ADR-0025 §4).
         felder = parse_canonical_payload(payload.fields)
         if self.readback_abweichend:
             felder = parse_create_fields({"given_name": "Anders"})
@@ -705,7 +705,7 @@ def _in_unbekannten_zustand(module, command):
 def _readback(provider_identifier: str = "raw-neu"):
     """Ein kanonischer Read-back, wie ihn der echte Leser mitbringt.
 
-    Seit ADR-0019 §5 schliesst eine per Abgleich belegte **Neuanlage** nur mit
+    Seit ADR-0025 §5 schliesst eine per Abgleich belegte **Neuanlage** nur mit
     Read-back ab: ohne ihn gaebe es keinen lokalen Spiegel, und die
     Echo-Unterdrueckung wuerde das eigene Add-Ereignis spaeter herausfiltern.
     """
@@ -1035,7 +1035,7 @@ def test_sidecar_schreibt_nur_ueber_create():
     """Der Sidecar kennt genau einen Schreibpfad, und der heisst `create`.
 
     Update und Delete bleiben `not_implemented` — Phase M4 bzw. M5, Delete
-    zusaetzlich hinter der offenen Entscheidung DEC-D06 (ADR-0019 §7/§9).
+    zusaetzlich hinter der offenen Entscheidung DEC-D06 (ADR-0025 §7/§9).
     """
     code = _swift_code_ohne_prosa("native/contacts-bridge/src/sidecar.swift")
     assert "opMutationNotImplemented" in code
@@ -1058,7 +1058,7 @@ def test_bridge_client_verweigert_update_und_delete():
     from personaljarvis.contacts.bridge.client import ContactsBridgeClient
 
     for name in ("update", "delete"):
-        with pytest.raises(NotImplementedError, match="ADR-0019"):
+        with pytest.raises(NotImplementedError, match="ADR-0025"):
             getattr(ContactsBridgeClient, name)(None)
 
 

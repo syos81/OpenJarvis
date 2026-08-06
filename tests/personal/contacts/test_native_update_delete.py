@@ -236,7 +236,7 @@ class TestFreigabeJeOperation:
         assert zu.update_supported is False and zu.delete_supported is False
 
 
-# ═══ C · Die zusätzliche Löschbestätigung (R2, DEC-046) ════════════════════
+# ═══ C · Die zusätzliche Löschbestätigung (R2, DEC-053) ════════════════════
 class TestLoeschbestaetigung:
     def test_delete_ohne_bestaetigung_wird_abgewiesen(self, modul, tmp_path):
         contact_id, pid = _angelegt(modul, tmp_path)

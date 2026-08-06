@@ -164,7 +164,7 @@ def test_app_erklaert_den_kontaktezugriff():
 #: Bis zur Aktivierung von Update (M4) und Delete (M5) gilt: gelesen wird,
 #: **neu angelegt nur nach ausdrücklicher Freigabe**, **bestehende Kontakte
 #: bleiben unverändert**. Mit M4/M5 wird der letzte Teil falsch und der Text
-#: ist erneut anzupassen (ADR-0019 §9).
+#: ist erneut anzupassen (ADR-0025 §9).
 def _pruefe_usage_text(text: str, quelle: str) -> None:
     klein = text.lower()
     assert "liest" in klein, f"{quelle}: muss sagen, dass gelesen wird"

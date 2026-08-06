@@ -215,7 +215,7 @@ const MODULDATEIEN = [
 
 /**
  * Der Transport des App-Prozess-Kanals ist die **einzige** Stelle des
- * Moduls, die ein Tauri-Kommando aufrufen darf (ADR-0020 §5). Sie wird
+ * Moduls, die ein Tauri-Kommando aufrufen darf (ADR-0026 §5). Sie wird
  * deshalb aus der modulweiten Verbotsprüfung herausgenommen — und dafür
  * eigens geprüft: genau ein Kommando, genau eine Aufrufstelle.
  */

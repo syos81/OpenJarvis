@@ -1,6 +1,6 @@
-"""Claim und Settle des App-Prozess-Mutationskanals (ADR-0020, Phase A).
+"""Claim und Settle des App-Prozess-Mutationskanals (ADR-0026, Phase A).
 
-Der Kern sendet seit ADR-0020 nicht mehr selbst. Er tut zwei Dinge:
+Der Kern sendet seit ADR-0026 nicht mehr selbst. Er tut zwei Dinge:
 
 1. **Claim** — er beansprucht genau **einen** Ausführungsversuch, verbraucht
    die Freigabe gegen Nutzlast **und** Vorschau, und gibt einen kurzlebigen,
@@ -57,7 +57,7 @@ __all__ = [
 
 MODULE = "contacts"
 
-#: Lebensdauer eines Claims (ADR-0020 §3). Der Verfall wirkt ausschliesslich
+#: Lebensdauer eines Claims (ADR-0026 §3). Der Verfall wirkt ausschliesslich
 #: **vor** der nativen Validierung; nach Auftragsausgabe erlaubt er nie einen
 #: neuen Versuch.
 CLAIM_TTL_SECONDS = 600
@@ -145,7 +145,7 @@ class AppExecutionService:
             # Ein Kanal, der `create` kann, darf deshalb noch lange kein
             # `delete` beanspruchen.
             # R2: Löschen verlangt eine **zweite**, eigene Bestätigung im
-            # Ausführungsschritt (ADR-0020 §8.3, DEC-046). Sie ersetzt die
+            # Ausführungsschritt (ADR-0026 §8.3, DEC-053). Sie ersetzt die
             # Freigabe nicht, sie kommt hinzu.
             if zeile["command"] == "delete" and not confirm_delete:
                 raise DeleteConfirmationRequired(
@@ -175,7 +175,7 @@ class AppExecutionService:
                     "Für diesen Vorgang wurde bereits ein Ausführungsauftrag "
                     "ausgegeben")
 
-            # Freigabe gegen **beide** Digests verbrauchen (ADR-0020 §9).
+            # Freigabe gegen **beide** Digests verbrauchen (ADR-0026 §9).
             try:
                 ApprovalStore(uow).consume(
                     zeile["approval_id"],
@@ -433,7 +433,7 @@ class AppExecutionService:
                 "updated_at = ? WHERE id = ?",
                 (jetzt, jetzt, zeile["contact_id"]))
             # Löschnachweis-Historie mit eigenem Grund: diese Löschung war
-            # die eigene, nicht die eines fremden Geräts (ADR-0020 §8.3).
+            # die eigene, nicht die eines fremden Geräts (ADR-0026 §8.3).
             uow.execute(
                 "INSERT OR IGNORE INTO contacts_tombstones "
                 "(provider_account_id, provider_identifier, contact_id, "
@@ -492,7 +492,7 @@ def _kanonischer_payload(zeile) -> dict:
     Nur `fields` mitzugeben waere verlockend (der native Save braucht nur
     sie), aber dann koennte Rust den Digest nicht nachrechnen — und genau
     diese Nachrechnung ist die Bindung zwischen dem, was der Mensch
-    freigegeben hat, und dem, was ausgefuehrt wird (ADR-0020 §5).
+    freigegeben hat, und dem, was ausgefuehrt wird (ADR-0026 §5).
     """
     import json
     roh = json.loads(zeile["payload_json"])

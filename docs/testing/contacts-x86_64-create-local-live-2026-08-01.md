@@ -133,7 +133,7 @@ Zwei getrennte Schritte, in dieser Reihenfolge:
 
 * [contacts.md §6.0 — Containerinventar](../personal-jarvis/modules/contacts.md)
 * [Erster Create-Livetest, 2026-08-01](contacts-x86_64-create-live-2026-08-01.md)
-* [ADR-0019 — Provider-Mutationsarchitektur](../adr/ADR-0019-provider-mutation-architecture.md)
+* [ADR-0025 — Provider-Mutationsarchitektur](../adr/ADR-0025-provider-mutation-architecture.md)
 
 ---
 
@@ -170,7 +170,7 @@ dieses Benutzers ist damit beweisbar beschreibbar; das beweist ausdrücklich
 **nicht**, dass Kontakte.app denselben In-Process-Pfad verwendet.
 
 **Konsequenz (umgesetzt am 2026-08-01):** Objective-C-Exception-Grenze
-`JCContactsSaveShim` um den einen `executeSaveRequest:error:` (ADR-0019
+`JCContactsSaveShim` um den einen `executeSaveRequest:error:` (ADR-0025
 §4a). Eine künftige `NSException` wird typisiert gefangen, bleibt zwingend
 `outcome_unknown`, liefert Klassenname und Reason-Digest PII-arm — und der
 Roh-Reason nur im ausdrücklich aktivierten Diagnosemodus
@@ -192,7 +192,7 @@ korrekt `outcome_unknown`/`child_signalled`, ein Send, Freigabe verbraucht,
 Bestand 117/117/0.
 
 **Konsequenz (2026-08-02):** Uncaught-Letztdiagnose im Sidecar
-(`NSSetUncaughtExceptionHandler`, ADR-0019 §4a) — vorbereitetes Artefakt vor
+(`NSSetUncaughtExceptionHandler`, ADR-0025 §4a) — vorbereitetes Artefakt vor
 dem Save, `write(2)`-Diagnose im Todesmoment, PII-arme stderr-Zeile,
 Klassifikation unverändert. Der nächste einzelne Diagnose-Create soll damit
 erstmals Ausnahmeklasse und geschützten Reason liefern.
@@ -206,7 +206,7 @@ Der Diagnose-Create mit Uncaught-Letztdiagnose lieferte erstmals den Befund:
 0600 im geschützten Diagnoseordner). Sichtprüfung erneut: kein Kontakt
 entstanden; alle fünf Mutationen sauber terminal.
 
-Konsequenz: **Schreibstack-Preflight** (ADR-0019 §4b) — genau ein rein
+Konsequenz: **Schreibstack-Preflight** (ADR-0025 §4b) — genau ein rein
 lesender Kontakt-Fetch auf derselben Store-Instanz vor der
 `CNSaveRequest`-Erzeugung; Fehlschlag ist beweisbar `not_sent`
 (`write_stack_unavailable` → `failed_before_send`). Der zwischengeschaltete

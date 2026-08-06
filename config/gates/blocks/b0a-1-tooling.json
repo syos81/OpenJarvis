@@ -1,0 +1,825 @@
+{
+  "schema_version": 1,
+  "block_id": "b0a-1-tooling",
+  "title": "B0a-1 deterministic gate, baseline and evidence tooling",
+  "engine_min_version": "1.0.0",
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "phase_definitions": {
+    "preflight": {
+      "applicable": true,
+      "required": true,
+      "reason": "Checks only the prerequisites of the block: manifest, tools, worktree, branch, working tree state, local commit objects, platform and non-secret configuration."
+    },
+    "targeted": {
+      "applicable": true,
+      "required": true,
+      "reason": "Runs the limited checks that the declared change rules select for the current diff."
+    },
+    "offline-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Runs every reproducible offline check of the block; no network, TCC, provider or production access is required."
+    },
+    "platform-live": {
+      "applicable": false,
+      "required": true,
+      "declared_result": "not_applicable",
+      "reason": "B0a-1 is a pure tooling block: it contains no product code, starts no provider and performs no platform or live acceptance. There is no mandatory live check whose prerequisite could be missing, therefore the phase is declared non-applicable rather than blocked."
+    },
+    "module-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Aggregates the complete closing state of the block: commit reference, manifest and engine version, evidence completeness, feature completeness, working tree state and forbidden product changes."
+    }
+  },
+  "targeted_selection": {
+    "base_ref": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "always": [
+      "tg-static-scan"
+    ],
+    "rules": [
+      {
+        "rule_id": "r-aggregation",
+        "paths": [
+          "tools/gates/statuses.py",
+          "tools/gates/engine.py"
+        ],
+        "checks": [
+          "tg-aggregation-tests"
+        ]
+      },
+      {
+        "rule_id": "r-baseline",
+        "paths": [
+          "tools/gates/baseline.py",
+          "tools/gates/signature.py"
+        ],
+        "checks": [
+          "tg-baseline-tests",
+          "tg-signature-tests"
+        ]
+      },
+      {
+        "rule_id": "r-cache",
+        "paths": [
+          "tools/gates/cache.py",
+          "tools/gates/paths.py"
+        ],
+        "checks": [
+          "tg-cache-tests"
+        ]
+      },
+      {
+        "rule_id": "r-cli",
+        "paths": [
+          "tools/gates/cli.py",
+          "scripts/gate.sh"
+        ],
+        "checks": [
+          "tg-cli-tests"
+        ]
+      },
+      {
+        "rule_id": "r-evidence",
+        "paths": [
+          "tools/gates/evidence.py",
+          "tools/gates/sanitize.py",
+          "tools/gates/canaries.py"
+        ],
+        "checks": [
+          "tg-evidence-tests"
+        ]
+      },
+      {
+        "rule_id": "r-features",
+        "paths": [
+          "tools/gates/features.py",
+          "config/gates/features/*.json"
+        ],
+        "checks": [
+          "tg-feature-tests"
+        ]
+      },
+      {
+        "rule_id": "r-hook",
+        "paths": [
+          "tools/gates/hookguard.py",
+          ".claude/hooks/*.sh",
+          ".claude/settings.json"
+        ],
+        "checks": [
+          "tg-hook-tests"
+        ]
+      },
+      {
+        "rule_id": "r-manifest",
+        "paths": [
+          "tools/gates/manifest.py",
+          "config/gates/blocks/*.json",
+          "config/gates/fixtures/manifests/*.json"
+        ],
+        "checks": [
+          "tg-manifest-tests"
+        ]
+      },
+      {
+        "rule_id": "r-runners",
+        "paths": [
+          "tools/gates/runners/*.py",
+          "tools/gates/gitutil.py"
+        ],
+        "checks": [
+          "tg-cli-tests",
+          "tg-static-scan"
+        ]
+      },
+      {
+        "rule_id": "r-tests",
+        "paths": [
+          "tests/tooling/gates/*.py"
+        ],
+        "checks": [
+          "tg-aggregation-tests",
+          "tg-baseline-tests",
+          "tg-cache-tests",
+          "tg-cli-tests",
+          "tg-evidence-tests",
+          "tg-feature-tests",
+          "tg-hook-tests",
+          "tg-manifest-tests",
+          "tg-signature-tests"
+        ]
+      }
+    ]
+  },
+  "checks": [
+    {
+      "check_id": "pf-baseline-commit",
+      "phase": "preflight",
+      "required": true,
+      "description": "The declared baseline commit object is available locally.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "baseline",
+          "--commit",
+          "7986bee"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-claude-config",
+      "phase": "preflight",
+      "required": true,
+      "description": "Required non-secret project configuration exists: deny rules, PreToolUse hook, skills, CLAUDE.md.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "claude-config",
+          "--require-file",
+          "CLAUDE.md",
+          "--require-file",
+          ".claude/skills/gate/SKILL.md",
+          "--require-file",
+          ".claude/skills/handoff-report/SKILL.md",
+          "--require-file",
+          ".claude/hooks/pretooluse_guard.sh"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-manifest",
+      "phase": "preflight",
+      "required": true,
+      "description": "The block manifest exists and satisfies the strict schema.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b0a-1-tooling"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-platform",
+      "phase": "preflight",
+      "required": true,
+      "description": "Platform and architecture requirements of the block are met.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "platform",
+          "--systems",
+          "Darwin",
+          "--architectures",
+          "x86_64"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-tools",
+      "phase": "preflight",
+      "required": true,
+      "description": "Locally required tools are present and usable.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "tools",
+          "--require-tool",
+          "git",
+          "--require-tool",
+          "bash",
+          "--min-python",
+          "3.10"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-worktree",
+      "phase": "preflight",
+      "required": true,
+      "description": "The expected worktree root and branch are active and registered in this repository.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "tooling/gates-v1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-worktree-state",
+      "phase": "preflight",
+      "required": true,
+      "description": "The runtime area is ignored, no raw log is tracked and no canary marker is in a tracked artifact.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b0a-1-tooling"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-aggregation-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Result aggregation unit tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_aggregation"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-baseline-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Baseline engine unit tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_baseline"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-cache-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Baseline cache unit tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_cache"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-cli-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Gate CLI unit tests including the documented exit code mapping.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_cli"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-evidence-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Evidence allowlist, raw log integrity and PII canary tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_evidence_canary"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-feature-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Feature completeness validator tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_features"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-hook-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "PreToolUse hook matrix in isolated temporary repositories.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_hook"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-manifest-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Manifest schema tests with positive and negative fixtures.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_manifest"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-signature-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Structural cause signature tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_signature"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-static-scan",
+      "phase": "targeted",
+      "required": true,
+      "description": "Static rules over the tooling sources and shell scripts.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/static_scan.py",
+          "--path",
+          "tools/gates",
+          "--path",
+          "tests/tooling",
+          "--path",
+          "scripts/gate.sh",
+          "--path",
+          ".claude/hooks"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-canary-tests",
+      "phase": "offline-final",
+      "required": true,
+      "description": "PII canary matrix across JSON, stderr, handoff, cache and cause signature.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_evidence_canary"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-feature-lineage",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Every mandatory predecessor feature is individually mapped and evidenced.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0a-1-tooling"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-manifest-validation",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Block manifest plus positive and negative manifest fixtures.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b0a-1-tooling",
+          "--with-fixtures"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-repo-guard",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No tracked raw log, no canary in tracked artifacts, no product file changed.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0a-1-tooling"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-shell-syntax",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Shell syntax scan; comparable at the candidate and at the baseline commit.",
+      "runner": {
+        "type": "argv",
+        "cwd": "target",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py",
+          "--directory",
+          "scripts"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": true,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-static-scan",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Static rules over the tooling sources and shell scripts.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/static_scan.py",
+          "--path",
+          "tools/gates",
+          "--path",
+          "tests/tooling",
+          "--path",
+          "scripts/gate.sh",
+          "--path",
+          ".claude/hooks"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-tooling-tests",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Complete tooling test suite, discovered deterministically.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling/gates",
+          "-t",
+          "."
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 1800,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-evidence",
+      "phase": "module-final",
+      "required": true,
+      "description": "Sanitized evidence of every required phase exists, validates and matches its raw logs.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_evidence"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-feature-lineage",
+      "phase": "module-final",
+      "required": true,
+      "description": "Feature completeness against the predecessor feature list at closing time.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0a-1-tooling"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-phase-results",
+      "phase": "module-final",
+      "required": true,
+      "description": "All required phases have current results for this commit, manifest and engine version.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_phase_results"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-repo-guard",
+      "phase": "module-final",
+      "required": true,
+      "description": "Closing working tree state: no product change, no tracked raw log, no canary.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0a-1-tooling"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    }
+  ],
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cause_signature_version": "cs-1",
+    "owner_marker": "openjarvis-gate-baseline",
+    "cache_enabled": true,
+    "dependency_lock_paths": [
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "config_digest_paths": [
+      ".claude/settings.json",
+      "config/gates/blocks/b0a-1-tooling.json"
+    ]
+  },
+  "platform_requirements": {
+    "systems": [
+      "Darwin"
+    ],
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.10"
+  },
+  "evidence_policy": {
+    "sanitized_evidence": true,
+    "raw_log_area": "runtime_only"
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0a-1-tooling.lineage.json",
+    "own_expected": 24,
+    "own_prefix": "B0A1-",
+    "predecessor_file": "config/gates/features/b0a-1-tooling.predecessor.json"
+  },
+  "product_guard": {
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "allowed_paths": [
+      ".claude/*",
+      ".gitignore",
+      "CLAUDE.md",
+      "config/gates/*",
+      "config/governance/*",
+      "docs/governance/*",
+      "docs/tooling/*",
+      "scripts/gate.sh",
+      "tests/tooling/*",
+      "tools/gates/*"
+    ],
+    "forbidden_paths": [
+      "configs/*",
+      "desktop/*",
+      "frontend/*",
+      "native/*",
+      "rust/*",
+      "src/*"
+    ]
+  }
+}

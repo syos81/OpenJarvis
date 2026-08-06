@@ -122,7 +122,7 @@ def attach(app: Any, *, database_path: str | None = None,
     # `include_router`: Tests reichen leichte App-Attrappen herein, und ein
     # fehlender Router darf den Bootstrap nicht scheitern lassen, nachdem
     # Datenbank und Sperre bereits stehen.
-    # Reihenfolge ist hier bedeutungstragend (ADR-0019 §6):
+    # Reihenfolge ist hier bedeutungstragend (ADR-0025 §6):
     #
     #   bootstrap.start()   Modul, Migrationen, Erholung verwaister Vorgaenge
     #   check_bridge()      kontaktfreier Handshake -> Faehigkeitsmenge

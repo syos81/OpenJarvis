@@ -5,21 +5,21 @@ Freigabedatum: 2026-08-01
 Baseline-Tag: personal-jarvis-architecture-v3-2026-07-27
 Maßgebliche AV-Regeln: AV-4, AV-10, AV-33, AV-35
 Zugehörige ADRs: ADR-0005 (Command-Bus), ADR-0006 (Risikoklassen), ADR-0007 (Outbox), ADR-0016 (Swift-Sidecar), ADR-0018 (Dual-Architektur)
-Verwandte DEC-Einträge: DEC-031, DEC-042, DEC-043, DEC-044 (dieser ADR); DEC-D06 (offen, Voraussetzung für Delete), DEC-D17 (offen, unberührt)
+Verwandte DEC-Einträge: DEC-031, DEC-042, DEC-043, DEC-051 (dieser ADR); DEC-D06 (offen, Voraussetzung für Delete), DEC-D17 (offen, unberührt)
 ---
 
-# ADR-0019: Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)
+# ADR-0025: Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)
 
 - **ADR-Status:** accepted
 - **Datum:** 2026-08-01
 
 > **Nachtrag 2026-08-03:** Der **Transportkanal** aus §4 (CLI-Sidecar als
 > Schreibkanal) ist durch
-> [ADR-0020](ADR-0020-app-process-mutation-channel.md) additiv ersetzt:
+> [ADR-0026](ADR-0026-app-process-mutation-channel.md) additiv ersetzt:
 > produktive Writes laufen im Tauri-App-Prozess (Claim → ExecutionOrder →
 > Tauri → Settle). Alle übrigen Festlegungen dieses ADRs — Freigabekern,
 > at-most-once, Feldvertrag v1, Ergebnisvertrag, Zustandserweiterungen,
-> Red-Team — gelten unverändert; ADR-0020 präzisiert nur, was der
+> Red-Team — gelten unverändert; ADR-0026 präzisiert nur, was der
 > Kanalwechsel erzwingt.
 
 Dieser ADR friert die Architektur ein, nach der Personal Jarvis Kontakte bei

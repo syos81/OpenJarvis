@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "registry_id": "b0a-3-decision-collision-resolution",
+  "status": "resolved",
+  "resolved_in_block": "b0a-3-integration",
+  "open_collisions": 0,
+  "normative_source": {
+    "document": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
+    "section": "6",
+    "role": "sole_normative_source",
+    "note": "Diese Datei ist die maschinenlesbare Projektion des Paragraphen 6. Sie ist Abbild, nicht zweite Wahrheit."
+  },
+  "lines": {
+    "canonical": {
+      "ref": "jarvis/rebuild-v1",
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "label": "jarvis/rebuild-v1@c222601",
+      "ids_unchanged": true
+    },
+    "contacts_calendar": {
+      "ref": "spike/calendar-foundation-intel-2026-08-04",
+      "origin_ref": "handoff/contacts-read-flow-2026-07-29",
+      "origin_commit": "1f03bfa4ace28ccfd44b380a18d3fe580a02b193",
+      "pre_integration_commit": "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+      "label": "spike/calendar-foundation-intel-2026-08-04",
+      "ids_renumbered": true
+    }
+  },
+  "guard_base": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+  "historical_resolution": [
+    {
+      "old_id": "DEC-044",
+      "new_id": "DEC-051",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "title": "Architektur der Apple-Contacts-Provider-Mutationen eingefroren",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "classification": "historical_resolution_record"
+    },
+    {
+      "old_id": "DEC-045",
+      "new_id": "DEC-052",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "title": "App-Prozess-Mutationskanal eingefroren",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "classification": "historical_resolution_record"
+    },
+    {
+      "old_id": "DEC-046",
+      "new_id": "DEC-053",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "title": "DEC-D06 entschieden: keine native R2-Zweitbestätigung",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "classification": "historical_resolution_record"
+    },
+    {
+      "old_id": "DEC-047",
+      "new_id": "DEC-054",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "title": "Intel-Zweig des Kontaktmoduls eingefroren",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "classification": "historical_resolution_record"
+    },
+    {
+      "old_id": "DEC-048",
+      "new_id": "DEC-055",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "title": "Kalender-Fundament-Spike (Intel) freigegeben und begrenzt",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "classification": "historical_resolution_record"
+    },
+    {
+      "old_id": "ADR-0019",
+      "new_id": "ADR-0025",
+      "kind": "ADR",
+      "line": "contacts_calendar",
+      "title": "Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
+      "primary_source": "docs/adr/ADR-0025-provider-mutation-architecture.md",
+      "classification": "historical_resolution_record"
+    },
+    {
+      "old_id": "ADR-0020",
+      "new_id": "ADR-0026",
+      "kind": "ADR",
+      "line": "contacts_calendar",
+      "title": "Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
+      "primary_source": "docs/adr/ADR-0026-app-process-mutation-channel.md",
+      "classification": "historical_resolution_record"
+    }
+  ],
+  "canonical_ids_unchanged": [
+    "DEC-044",
+    "DEC-045",
+    "DEC-046",
+    "DEC-047",
+    "DEC-048",
+    "DEC-049",
+    "DEC-050",
+    "ADR-0019",
+    "ADR-0020",
+    "ADR-0021",
+    "ADR-0022",
+    "ADR-0023",
+    "ADR-0024"
+  ],
+  "rules": [
+    "no_new_id_outside_the_seven",
+    "no_additional_adr_file",
+    "canonical_line_ids_unchanged",
+    "historical_table_is_not_a_current_collision"
+  ]
+}

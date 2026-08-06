@@ -1,7 +1,7 @@
 ---
 Status: normativ (Modulunterlage, in Arbeit)
 Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016 (Sidecar-Muster), ADR-0018
-Zugehörige DEC-Einträge: DEC-042, DEC-045, DEC-048
+Zugehörige DEC-Einträge: DEC-042, DEC-052, DEC-055
 Baseline: [calendar-implementation-baseline-2026-08-04](../calendar-implementation-baseline-2026-08-04.md)
 Evidenz: [calendar-read-probe-x86_64-2026-08-04](../../testing/calendar-read-probe-x86_64-2026-08-04.md)
 ---
@@ -139,10 +139,10 @@ kein Datensatz geschrieben, kein Tombstone abgeleitet.
    **nirgends visuell gegen die M2-Referenz verglichen**. Offen sind
    insbesondere Drag-and-drop mit Freigabe (P-7), Serienbearbeitung (P-9),
    Kontextmenüs (P-12) und der vollständige Barrierefreiheits-Audit (P-13).
-7. **Schreiben** — eigener Auftrag, erbt ADR-0019/0020 unverändert.
+7. **Schreiben** — eigener Auftrag, erbt ADR-0025/0026 unverändert.
 8. **Der zweite Datenpfad `gcalendar.py`** ist unberührt; der Ablöseplan steht
    in Baseline §5.
-9. **ADR-Nummernkollision 0019/0020** unverändert offen (Baseline §6).
-10. **Vorbestehend rot:** `test_dec_045_ist_registriert` prüft eine Zählung im
+9. **ADR-Nummernkollision 0019/0020 aufgelöst** (B0a-3): die Mutationslinie führt jetzt ADR-0025/ADR-0026, die `rebuild-v1`-Belegung bleibt unverändert (Baseline §6).
+10. **Vorbestehend rot:** `test_dec_052_ist_registriert` prüft eine Zählung im
     Entscheidungsregister („44 akzeptierte Entscheidungen") und schlägt auch
     ohne diesen Block fehl.

@@ -13,7 +13,7 @@ Bewusste Unterschiede zum Kontakte-Vertrag:
   Termine"; ein Kalender hat weder Anfang noch Ende.
 * `MUTATING_OPERATIONS` ist in v1 **leer**: es gibt keine Schreiboperation, die
   abbrechen könnte. Der Schreibvertrag entsteht mit dem Schreibauftrag und
-  erbt dann ADR-0019/0020 unverändert.
+  erbt dann ADR-0025/0026 unverändert.
 """
 
 from __future__ import annotations

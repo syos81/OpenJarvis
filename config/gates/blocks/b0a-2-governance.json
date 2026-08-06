@@ -1,0 +1,891 @@
+{
+  "schema_version": 1,
+  "block_id": "b0a-2-governance",
+  "title": "B0a-2 decision register, module map and governance gates",
+  "engine_min_version": "1.0.0",
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "phase_definitions": {
+    "preflight": {
+      "applicable": true,
+      "required": true,
+      "reason": "Checks only the prerequisites: manifest, tools, worktree, branch, working tree state, local commit objects, platform and the non-secret governance configuration."
+    },
+    "targeted": {
+      "applicable": true,
+      "required": true,
+      "reason": "Runs the limited governance and generality checks that the declared change rules select for the current diff."
+    },
+    "offline-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Runs every reproducible offline check of the governance block including the B0a-1 regression; no network, TCC, provider or production access is required."
+    },
+    "platform-live": {
+      "applicable": false,
+      "required": true,
+      "declared_result": "not_applicable",
+      "reason": "B0a-2 is a pure governance block: it contains no product code, starts no provider and performs no platform or live acceptance. There is no mandatory live check whose prerequisite could be missing, therefore the phase is declared non-applicable rather than blocked."
+    },
+    "module-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Aggregates the closing state and re-verifies the complete B0a-1 tooling as unchanged and functional."
+    }
+  },
+  "targeted_selection": {
+    "base_ref": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "always": [
+      "tg-collisions",
+      "tg-order"
+    ],
+    "rules": [
+      {
+        "rule_id": "r-generality",
+        "paths": [
+          "tools/gates/generality.py",
+          "config/governance/generality-scope.json",
+          "config/governance/generality-fixtures/*.json"
+        ],
+        "checks": [
+          "tg-generality-tests"
+        ]
+      },
+      {
+        "rule_id": "r-governance",
+        "paths": [
+          "tools/gates/governance.py",
+          "config/governance/*.json",
+          "docs/governance/*.md"
+        ],
+        "checks": [
+          "tg-collisions",
+          "tg-governance-tests",
+          "tg-order"
+        ]
+      },
+      {
+        "rule_id": "r-guard-base",
+        "paths": [
+          "tools/gates/guardbase.py",
+          "tools/gates/runners/repo_guard.py"
+        ],
+        "checks": [
+          "tg-guard-base-tests"
+        ]
+      },
+      {
+        "rule_id": "r-hygiene",
+        "paths": [
+          "tools/gates/hygiene.py",
+          ".gitignore",
+          ".claude/settings.json"
+        ],
+        "checks": [
+          "tg-hygiene-tests"
+        ]
+      },
+      {
+        "rule_id": "r-runners",
+        "paths": [
+          "tools/gates/runners/*.py"
+        ],
+        "checks": [
+          "tg-generality-tests",
+          "tg-governance-tests",
+          "tg-guard-base-tests",
+          "tg-hygiene-tests"
+        ]
+      },
+      {
+        "rule_id": "r-tests",
+        "paths": [
+          "tests/tooling/gates/*.py"
+        ],
+        "checks": [
+          "tg-generality-tests",
+          "tg-governance-tests",
+          "tg-guard-base-tests",
+          "tg-hygiene-tests"
+        ]
+      }
+    ]
+  },
+  "checks": [
+    {
+      "check_id": "pf-baseline-commit",
+      "phase": "preflight",
+      "required": true,
+      "description": "The declared baseline commit object is available locally.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "baseline",
+          "--commit",
+          "7986bee"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-claude-config",
+      "phase": "preflight",
+      "required": true,
+      "description": "Required non-secret project and governance configuration exists.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "claude-config",
+          "--require-file",
+          "CLAUDE.md",
+          "--require-file",
+          ".claude/skills/gate/SKILL.md",
+          "--require-file",
+          ".claude/skills/handoff-report/SKILL.md",
+          "--require-file",
+          ".claude/hooks/pretooluse_guard.sh",
+          "--require-file",
+          "docs/governance/b0a-2-decision-collisions.md",
+          "--require-file",
+          "config/governance/delivery-order.json"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-manifest",
+      "phase": "preflight",
+      "required": true,
+      "description": "The block manifest exists and satisfies the strict schema.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b0a-2-governance"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-platform",
+      "phase": "preflight",
+      "required": true,
+      "description": "Platform and architecture requirements of the block are met.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "platform",
+          "--systems",
+          "Darwin",
+          "--architectures",
+          "x86_64"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-tools",
+      "phase": "preflight",
+      "required": true,
+      "description": "Locally required tools are present and usable.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "tools",
+          "--require-tool",
+          "git",
+          "--require-tool",
+          "bash",
+          "--min-python",
+          "3.10"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-worktree",
+      "phase": "preflight",
+      "required": true,
+      "description": "The expected worktree root and branch are active and registered.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "tooling/gates-v1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-worktree-state",
+      "phase": "preflight",
+      "required": true,
+      "description": "Runtime area ignored, no tracked raw log, no canary in a tracked artifact.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b0a-2-governance"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-collisions",
+      "phase": "targeted",
+      "required": true,
+      "description": "Both sides of every known collision verified against the primary sources.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "collisions"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-generality-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Generality mechanism tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_generality"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-governance-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Governance registry and order tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_governance"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-guard-base-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Guard base derivation and range tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_guard_base"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-hygiene-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Gitignore convention and file hygiene tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_claude_hygiene"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-order",
+      "phase": "targeted",
+      "required": true,
+      "description": "Canonical delivery order satisfies every declared rule.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "order"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-ambient",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Ambient placeholder complete, unreplaced and not assigned to a decision.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "ambient"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-b0a1-regression",
+      "phase": "offline-final",
+      "required": true,
+      "description": "The complete B0a-1 tooling is still present and functional.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "b0a1-regression"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-citations",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Every normative DEC/ADR reference carries line and exact title.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "citations"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-collisions",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Collision registry complete, correctly attributed and unresolved.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "collisions"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-configuration-test",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Positive configuration test with its strict activation rule.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/generality_checks.py",
+          "--mode",
+          "configuration-test"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-consistency",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Order document and machine readable source agree.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "consistency"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-feature-lineage",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Every mandatory predecessor feature is individually mapped and evidenced.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0a-2-governance"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-hygiene",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Path exact gitignore convention and file hygiene of the released rules.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/claude_hygiene.py"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-id-freeze",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No new DEC or ADR number, no new ADR file, no reservation.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "id-freeze"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-literal-comparisons",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No hard coded literal comparison in the core.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/generality_checks.py",
+          "--mode",
+          "literal-comparisons"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-manifest-validation",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Block manifest plus positive and negative manifest fixtures.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b0a-2-governance",
+          "--with-fixtures"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-order",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Canonical delivery order satisfies every declared rule.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "order"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-organization-scan",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Token exact organisation name scan over the product surface.",
+      "runner": {
+        "type": "argv",
+        "cwd": "target",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/generality_checks.py",
+          "--mode",
+          "organization-scan"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 600,
+      "baseline_eligible": true,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-provider-gate",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Provider terms only inside explicitly released adapter paths.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/generality_checks.py",
+          "--mode",
+          "provider-gate"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-repo-guard",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Derived guard base and the complete range since the line origin.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0a-2-governance"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-tooling-tests",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Complete tooling and governance test suite.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling/gates",
+          "-t",
+          "."
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 2400,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-b0a1-regression",
+      "phase": "module-final",
+      "required": true,
+      "description": "B0a-1 tooling re-verified as unchanged and functional at closing time.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/governance_checks.py",
+          "--mode",
+          "b0a1-regression"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-evidence",
+      "phase": "module-final",
+      "required": true,
+      "description": "Sanitized evidence of every required phase exists, validates and matches its raw logs.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_evidence"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-feature-lineage",
+      "phase": "module-final",
+      "required": true,
+      "description": "Feature completeness against the predecessor list at closing time.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0a-2-governance"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-phase-results",
+      "phase": "module-final",
+      "required": true,
+      "description": "All required phases have current results for this commit, manifest and engine version.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_phase_results"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-repo-guard",
+      "phase": "module-final",
+      "required": true,
+      "description": "Closing state: derived guard base, full range, no product change.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0a-2-governance"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    }
+  ],
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cause_signature_version": "cs-1",
+    "owner_marker": "openjarvis-gate-baseline",
+    "cache_enabled": true,
+    "dependency_lock_paths": [
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "config_digest_paths": [
+      ".claude/settings.json",
+      "config/gates/blocks/b0a-2-governance.json",
+      "config/governance/generality-scope.json"
+    ]
+  },
+  "platform_requirements": {
+    "systems": [
+      "Darwin"
+    ],
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.10"
+  },
+  "evidence_policy": {
+    "sanitized_evidence": true,
+    "raw_log_area": "runtime_only"
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0a-2-governance.lineage.json",
+    "own_expected": 38,
+    "own_prefix": "B0A2-",
+    "predecessor_file": "config/gates/features/b0a-1-tooling.lineage.json"
+  },
+  "product_guard": {
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "allowed_paths": [
+      ".claude/*",
+      ".gitignore",
+      "CLAUDE.md",
+      "config/gates/*",
+      "config/governance/*",
+      "docs/governance/*",
+      "docs/tooling/*",
+      "scripts/gate.sh",
+      "tests/tooling/*",
+      "tools/gates/*"
+    ],
+    "forbidden_paths": [
+      "configs/*",
+      "desktop/*",
+      "frontend/*",
+      "native/*",
+      "rust/*",
+      "src/*",
+      "spikes/*",
+      "docs/adr/*",
+      "docs/personal-jarvis/*"
+    ]
+  }
+}

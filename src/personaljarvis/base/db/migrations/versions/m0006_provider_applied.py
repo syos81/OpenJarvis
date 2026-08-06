@@ -12,7 +12,7 @@ Vorgang in einen Abgleich schicken, der nichts mehr zu klären hat.
 
 Deshalb: `provider_applied_pending_reconcile`. Aus ihm führt **nie** ein
 weiterer Send; die Auflösung ist ausschließlich die Wiederholung der
-**lokalen** Nachführung (ADR-0019 §5).
+**lokalen** Nachführung (ADR-0025 §5).
 
 `readback_digest` hält den Beleg fest: einen Fingerabdruck des vom Provider
 zurückgelesenen Zustands über die kanonischen, schreibbaren Felder des

@@ -1,7 +1,7 @@
 # CREATE-X86_64-LIVE NICHT BESTANDEN (2026-08-01)
 
 **Gegenstand:** erster produktiver Apple-Contacts-Schreibversuch von Personal
-Jarvis — Phase M2 aus [ADR-0019](../adr/ADR-0019-provider-mutation-architecture.md).
+Jarvis — Phase M2 aus [ADR-0025](../adr/ADR-0025-provider-mutation-architecture.md).
 
 **Gerät:** Intel x86_64, macOS 12.7.6 (21H1320) · **Branch:**
 `handoff/contacts-read-flow-2026-07-29` · **Stand:** `e85cb78`
@@ -168,7 +168,7 @@ Das ist eine Produkt- und Architekturlücke. Sie wurde zunächst **gemeldet,
 nicht improvisiert** — ein neuer Zustandsübergang gehört in eine Entscheidung,
 nicht in eine Fehlerbehebung.
 
-**Geschlossen am 2026-08-01** (ADR-0019 §5a): Es gibt jetzt den terminalen
+**Geschlossen am 2026-08-01** (ADR-0025 §5a): Es gibt jetzt den terminalen
 Zustand `manually_resolved_not_applied` und die Route
 `POST …/mutations/{id}/resolve-outcome` mit geschlossenem Vertrag
 (`not_observed` / `manual_provider_inspection`, kein Freitext). Sie berührt
@@ -199,6 +199,6 @@ beschreibbar; die Ursache liegt im In-Process-Schreibpfad des Sidecars und
 ist weiterhin nicht identifiziert.
 
 Als Konsequenz kapselt seit dem 2026-08-01 die Objective-C-Grenze
-`JCContactsSaveShim` (ADR-0019 §4a) den einen `executeSaveRequest:error:`:
+`JCContactsSaveShim` (ADR-0025 §4a) den einen `executeSaveRequest:error:`:
 eine `NSException` wird typisiert gefangen, bleibt zwingend
 `outcome_unknown`, und Klassenname wie Reason-Digest überleben PII-arm.

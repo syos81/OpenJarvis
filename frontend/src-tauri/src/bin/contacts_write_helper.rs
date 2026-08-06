@@ -1,7 +1,7 @@
-// Der opferbare Schreibhelfer (ADR-0020-Nachtrag 2026-08-04).
+// Der opferbare Schreibhelfer (ADR-0026-Nachtrag 2026-08-04).
 //
 // **Warum es diesen Prozess gibt.** Der Intel-Livetest vom 2026-08-04 hat
-// die Grundannahme von ADR-0020 §10 widerlegt: Auch im GUI-Prozess kann
+// die Grundannahme von ADR-0026 §10 widerlegt: Auch im GUI-Prozess kann
 // `executeSaveRequest:` mit einer CoreData-Ausnahme sterben, die innerhalb
 // von `performBlockAndWait` geworfen wird, die Dispatch-Grenze überquert
 // und deshalb von keinem `@try/@catch` erreichbar ist — `std::terminate`,

@@ -181,7 +181,7 @@ def test_gleiche_eingabe_ergibt_denselben_digest():
 
 
 def test_die_reihenfolge_ist_position_und_bedeutungstragend():
-    """Zwei Reihenfolgen sind zwei Zustände (ADR-0020 §7).
+    """Zwei Reihenfolgen sind zwei Zustände (ADR-0026 §7).
 
     Früher sortierte der Vertrag die Listen nach `(label, value)` und machte
     sie damit gleich. Das verdrehte die Absicht des Menschen — wer die

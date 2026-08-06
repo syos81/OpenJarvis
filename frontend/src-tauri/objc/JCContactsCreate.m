@@ -12,7 +12,7 @@
 //  3. Der Roh-Reason existiert nur im Diagnoseartefakt (Ordner 0700, Datei
 //     exklusiv 0600); öffentlich reisen Klassenname und SHA-256-Digest.
 //
-//  Feldabbildung: ausschliesslich der eingefrorene v1-Vertrag (ADR-0020 §7).
+//  Feldabbildung: ausschliesslich der eingefrorene v1-Vertrag (ADR-0026 §7).
 //  Ein unbekannter Schlüssel ist kein „ignorieren", sondern
 //  `InvalidPayload` — vor jedem Store-Zugriff.
 
@@ -924,7 +924,7 @@ void jc_contacts_create_run_scenario(int32_t scenario,
     }
 }
 
-// ═══ Update und Delete (ADR-0020 §8.2/§8.3, DEC-046) ════════════════════════
+// ═══ Update und Delete (ADR-0026 §8.2/§8.3, DEC-053) ════════════════════════
 //
 // Derselbe Aufbau wie beim Create: ein Operationsobjekt trennt Ablauf und
 // Store-Anbindung, der Ablauf existiert genau einmal. Was hinzukommt, ist
@@ -973,7 +973,7 @@ static BOOL JCWriteApplyPatch(CNMutableContact *ziel, NSDictionary *patch) {
         if (![erlaubt containsObject:schluessel]) { return NO; }
     }
     if (patch[@"contactType"] != nil) {
-        // Typwechsel ist in v1 nicht zugesagt (ADR-0020 §7).
+        // Typwechsel ist in v1 nicht zugesagt (ADR-0026 §7).
         return NO;
     }
 
@@ -1118,7 +1118,7 @@ static void JCWriteRun(JCWriteOps *ops, JCWriteKind kind,
 
     if (kind == JCWriteKindDelete) {
         if (!nachLesbar) {
-            // Nicht lesbar ist kein Löschbeweis (ADR-0020 §8.3).
+            // Nicht lesbar ist kein Löschbeweis (ADR-0026 §8.3).
             out->outcome = JCContactsWriteOutcomeAbsenceUnproven;
             return;
         }

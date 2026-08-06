@@ -53,7 +53,7 @@ cat > "$PLIST" <<'PLIST_EOF'
   <string>1</string>
   <!-- Der Text erscheint dem Nutzer woertlich im Systemdialog. Lesen ist
        der Normalfall; ein Anlegen geschieht ausschliesslich nach einer
-       ausdruecklichen Einzelfreigabe (ADR-0019, Phase M2). Ein Versprechen
+       ausdruecklichen Einzelfreigabe (ADR-0025, Phase M2). Ein Versprechen
        von "verwalten" waere weiterhin falsch. -->
   <key>NSContactsUsageDescription</key>
   <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Neue Kontakte werden nur nach deiner ausdruecklichen Freigabe angelegt; bestehende Kontakte werden nicht veraendert und keine Daten uebertragen.</string>

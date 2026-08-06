@@ -1,7 +1,7 @@
 ---
 Status: normativ (Modul-2-Implementierungsbaseline; ändert keine Regel der Architektur-Baseline v3)
-Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016 (Sidecar-Analogie), ADR-0018; Mutationslinie ADR-0019/ADR-0020 (künftig ADR-0025/ADR-0026, §6)
-Zugehörige DEC-Einträge: DEC-030, DEC-042, DEC-045, DEC-048, DEC-050
+Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016 (Sidecar-Analogie), ADR-0018; Mutationslinie ADR-0025/ADR-0026 (§6, Umnummerierung vollzogen)
+Zugehörige DEC-Einträge: DEC-030, DEC-042, DEC-045 (rebuild-v1: Modulreihenfolge), DEC-055 (Kalender-Fundament-Spike), DEC-050 (rebuild-v1: acht Kontakte-Gates)
 Evidenz: [calendar-read-probe-x86_64-2026-08-04](../testing/calendar-read-probe-x86_64-2026-08-04.md) · [calendar-foundation-spike-2026-08-04](calendar-foundation-spike-2026-08-04.md) · Read-only-Altcode-Audit des alten Jarvis-Kalenders (Chat, 2026-08-04)
 ---
 
@@ -13,8 +13,8 @@ Dieses Dokument friert **vor** dem ersten Produktcode die verbindlichen
 Entscheidungen, die Altcode-Übernahme, den Apple-Paritätsvertrag, den
 ADR-Kollisionsplan und die Implementierungsbasis für **Modul 2 Kalender** ein.
 
-Es **startet das Modul nicht**. Die Modulreihenfolge (16 §4, DEC-045) und die
-acht Kontakte-Gates (DEC-050) bleiben unberührt: Kontakte ist auf Intel fertig
+Es **startet das Modul nicht**. Die Modulreihenfolge (16 §4, DEC-045 der Linie `jarvis/rebuild-v1`) und die
+acht Kontakte-Gates (DEC-050 der Linie `jarvis/rebuild-v1`) bleiben unberührt: Kontakte ist auf Intel fertig
 und eingefroren (`1f03bfa`), die M2-arm64-Abnahme steht aus. Kalenderarbeit
 auf Intel ist erlaubt; ein finaler Merge, ein Tag, ein Release oder ein
 behaupteter Modulabschluss sind es nicht.
@@ -107,7 +107,7 @@ Funktionen und Regeln** — kein lauffähiger Alt-Code als Ganzes.
 | A-3 | Kalenderinventar-Leselogik (`listCalendarsFromEventKit`, Inventar-DTO) | **ADAPT** | + `isImmutable`, `allowedEntityTypes`; Quelle nur maskiert nach außen |
 | A-4 | EventKit-Ereignislesung (`predicateForEvents`, deterministische Sortierung/Paginierung) | **ADAPT** | Feldumfang v1 des Fundament-Spikes §10; `time_zone` nullable |
 | A-5 | Strikte Request-/Response-Validierung (schemaVersion, gespiegelte requestId, **exakte** Feldmengen, Unbekanntes fail-closed) | **ADAPT** | auf JSON-Lines-Protokoll mit Handshake/`caps`/Shutdown (Kontakte-Muster) |
-| A-6 | Gate-Reihenfolge: Payload-Validierung → Berechtigungs-Gate → Allowlist-Gate → **höchstens ein** Provider-Aufruf, kein Retry | **ADAPT** | als Vertragstext; Ausführung läuft über den Mutation Core der Kontakte (ADR-0019/0020-Mutationslinie) |
+| A-6 | Gate-Reihenfolge: Payload-Validierung → Berechtigungs-Gate → Allowlist-Gate → **höchstens ein** Provider-Aufruf, kein Retry | **ADAPT** | als Vertragstext; Ausführung läuft über den Mutation Core der Kontakte (ADR-0025/0026-Mutationslinie) |
 | A-7 | Geschlossene Fehlerklassifikation (native kinds → geschlossenes Outcome; nie Rohfehler, nie Pfade, nie Inhalte) | **ADAPT** | `outcome_unknown` ist eigener Terminalzustand und führt nur in den Abgleich |
 | A-8 | UI-Zustands- und Ehrlichkeitsregeln | **ADAPT** | geladen-und-leer ≠ ungeladen; `ok:true` beweist keinen Erfolg; Sync-Ergebnis ist Historie, nie Zustand; Sichtbarkeitsfilter sind reine Anzeige; differenzierter Leer-/Berechtigungszustand; eine Gesamtaussage je Sync |
 | A-9 | Trennung beobachtete Providerdaten ↔ lokale Entscheidungen (`upsertSeen` mit vier Ausgängen, Deaktivierung statt Löschung, Zuordnung in eigener Tabelle) | **ADAPT** | auf das kanonische Schema des Fundament-Spikes §7 |
@@ -232,53 +232,115 @@ den Upstream-Index) und seine Verbraucher
    Entscheidungsregister festgehalten wurde. Google bleibt als späterer
    API-/CalDAV-Adapter des Moduls möglich (C-11: Referenz, nie Vorstufe).
 
-## §6 ADR-Kollision 0019/0020 — Befund und Umnummerierungsplan
+## §6 Entscheidungskollisionen — Befund und vollzogene Auflösung
 
-**Befund (Ancestry-genau):** Beide Linien vergaben nach der Merge-Base
-`d037cb6` unabhängig dieselben Nummern.
+**Dieser Paragraph ist die einzige normative Stelle** für Linien, Merge-Base,
+Kollisionsbefund und Umnummerierungs-Mapping. Die maschinenlesbare Projektion
+liegt in `config/governance/decision-collisions.json` und wird vom Gate
+`of-single-normative-source` gegen diesen Text geprüft; sie ist Abbild, nicht
+zweite Wahrheit. Der frühere Nachtrag
+`docs/governance/b0a-2-decision-collisions.md` ist seit der Integration
+ausdrücklich **historisch und nicht normativ**.
 
-| Nummer | `jarvis/rebuild-v1` (Freeze `c222601`, 2026-07-31) | Kontakte-/Kalender-Linie (ab 2026-08-01) |
+### §6.1 Linien und Merge-Base
+
+| Rolle | Referenz | Belegter Stand |
 |---|---|---|
-| ADR-0019 | module-sequence-and-total-completion | provider-mutation-architecture |
-| ADR-0020 | openjarvis-reuse-and-projection | app-process-mutation-channel |
-| ADR-0021–0024 | autonomy / ai-work / property-management / trading — nur auf rebuild-v1 | — |
+| kanonische Architekturlinie | `jarvis/rebuild-v1` | `c222601` |
+| Kontakte-/Kalenderlinie (Ursprung) | `handoff/contacts-read-flow-2026-07-29` | `1f03bfa` |
+| Kontakte-/Kalenderlinie (fortgeführt) | `spike/calendar-foundation-intel-2026-08-04` | `8e6e206` vor der Integration |
+| Werkzeuglinie (integriert) | `tooling/gates-v1` | `4e47144` |
 
-Keine Linie enthält die ADRs der jeweils anderen. ADR-0001–0018 sind auf
-beiden Linien identisch belegt.
+Die Merge-Base beider Entscheidungslinien ist mechanisch mit
+`git merge-base --all` bestimmt, eindeutig und lautet `d037cb6`. Sie wird bei
+jedem Gate-Lauf erneut abgeleitet und nie aus einem Manifest übernommen.
 
-**Plan (verbindlich, Ausführung erst bei Integration):**
+### §6.2 Befund (Ancestry-genau)
 
-1. Die rebuild-v1-Belegung ist **kanonisch** (früher vergeben, Teil des
-   eingefrorenen Architektur-Freeze). Sie bleibt unverändert.
-2. Die Mutations-ADRs der Kontakte-Linie werden auf die nächsten freien
-   Nummern **umnummeriert**:
-   `ADR-0019-provider-mutation-architecture` → **ADR-0025**,
-   `ADR-0020-app-process-mutation-channel` → **ADR-0026**.
-3. Die Umnummerierung geschieht als **eigener Commit auf dem künftigen
-   Kalender-Implementierungsbranch unmittelbar vor bzw. bei der Integration
-   mit `jarvis/rebuild-v1`** — niemals auf den eingefrorenen Kontakte- oder
-   Architekturbranches. Bis dahin wird in neuen Dokumenten (wie diesem)
-   eindeutig zitiert: „ADR-0019/0020 der Mutationslinie (künftig
-   ADR-0025/0026)".
-4. **Referenzplan** (bei der Umnummerierung vollständig mitzuziehen; Stand
-   heute per Suche belegt): die beiden ADR-Dateien selbst (inkl.
-   Querverweise), `docs/personal-jarvis/00-architecture-index.md`,
-   `17-deferred-decisions.md`, `decisions-register.md`,
-   `modules/contacts.md`, `calendar-foundation-spike-2026-08-04.md`,
-   `contacts-mutation-phase-a-2026-08-03.md`,
-   `contacts-native-create-intel-2026-08-04.md`,
-   `contacts-native-update-delete-intel-2026-08-04.md`,
-   `docs/testing/contacts-x86_64-create-live-2026-08-01.md`,
-   `docs/testing/contacts-x86_64-create-local-live-2026-08-01.md` sowie die
-   Kommentar-Referenzen im Code:
-   `frontend/src-tauri/build.rs`, `objc/JCContactsCreate.m`,
-   `src/bin/contacts_write_helper.rs`, `src/lib.rs`,
-   `src/contacts_create.rs`, `src/contacts_execution.rs`,
-   `frontend/src/personal/contacts/api.ts`,
-   `status/ContactsStatusSurface.tsx`, `components.test.tsx`,
-   `data/source.ts` (abschließende Liste bei Ausführung erneut per Suche
-   verifizieren).
-5. Bis zur integrierten Auflösung wird **keine neue ADR-Datei** angelegt.
+Beide Linien vergaben nach der Merge-Base unabhängig dieselben Nummern: fünf
+DEC-Nummern und zwei ADR-Nummern.
+
+| Nummer | Belegung `jarvis/rebuild-v1@c222601` | Belegung der Kontakte-/Kalenderlinie |
+|---|---|---|
+| `DEC-044` | Übernahme des OpenJarvis-Reuse-Audit-Kanons | Architektur der Apple-Contacts-Provider-Mutationen eingefroren |
+| `DEC-045` | Verbindliche Modulreihenfolge bis Modul 3 | App-Prozess-Mutationskanal eingefroren |
+| `DEC-046` | Autonomie- und Hintergrundaktionsmodell | DEC-D06 entschieden: keine native R2-Zweitbestätigung |
+| `DEC-047` | KI-Arbeit, Internet, Browser- und App-Steuerung als verbindliches Zielbild | Intel-Zweig des Kontaktmoduls eingefroren |
+| `DEC-048` | Hausverwaltungs-Systemgrenzen und Workspace-Sicherheitskontexte | Kalender-Fundament-Spike (Intel) freigegeben und begrenzt |
+| `ADR-0019` | Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung | Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete) |
+| `ADR-0020` | Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion | Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle) |
+
+Die ADR-Nummern 0021 bis 0024 sind ausschließlich auf `jarvis/rebuild-v1`
+belegt. Die ADR-Nummern 0001 bis 0018 sind auf beiden Linien identisch belegt.
+
+### §6.3 Vollzogene Auflösung
+
+Die Belegung von `jarvis/rebuild-v1` ist **kanonisch** (früher vergeben, Teil
+des eingefrorenen Architektur-Freeze) und bleibt vollständig unverändert. Die
+Artefakte der Kontakte-/Kalenderlinie wurden nach fester Eigentümerfestlegung
+auf die nächsten freien Nummern umnummeriert. Titel und Inhalte blieben dabei
+unverändert; geändert wurden ausschließlich ID, Dateiname, Überschrift,
+Registereintrag und die davon abhängigen Verweise.
+
+| Alt-ID (Kontaktelinie) | Neu-ID | Exakter Titel |
+|---|---|---|
+| `DEC-044` | **`DEC-051`** | Architektur der Apple-Contacts-Provider-Mutationen eingefroren |
+| `DEC-045` | **`DEC-052`** | App-Prozess-Mutationskanal eingefroren |
+| `DEC-046` | **`DEC-053`** | DEC-D06 entschieden: keine native R2-Zweitbestätigung |
+| `DEC-047` | **`DEC-054`** | Intel-Zweig des Kontaktmoduls eingefroren |
+| `DEC-048` | **`DEC-055`** | Kalender-Fundament-Spike (Intel) freigegeben und begrenzt |
+| `ADR-0019` | **`ADR-0025`** | Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete) |
+| `ADR-0020` | **`ADR-0026`** | Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle) |
+
+Dateien: `docs/adr/ADR-0025-provider-mutation-architecture.md` und
+`docs/adr/ADR-0026-app-process-mutation-channel.md`.
+
+Vor der Umnummerierung wurde tokengenau und unicode-normalisiert über die
+vollständigen Bäume beider Entscheidungslinien und der Werkzeuglinie geprüft,
+dass alle sieben Ziel-IDs als Zuweisung frei waren. Die dabei gefundenen
+Nichtzuweisungen — ein synthetisches Testfixture und die Ankündigung genau
+dieser Umnummerierung in diesem Paragraphen — sind klassifiziert und in
+`config/governance/b0a-3-id-migration.json` festgehalten.
+
+Die Tabelle Alt-ID → Neu-ID ist **historischer Auflösungsnachweis**, keine
+aktuelle Doppelvergabe. Nach der Auflösung gilt: null offene Kollisionen,
+keine neue ID außerhalb dieser sieben, keine zusätzliche ADR-Datei.
+
+### §6.4 Referenzmigration
+
+Der frühere Referenzplan dieses Paragraphen war ausdrücklich bei Ausführung
+erneut per Suche zu verifizieren. Beides ist geschehen: die deklarierte Liste
+wurde vollständig mitgezogen und zusätzlich durch eine Repositorysuche über
+Dokumentation, Entscheidungs- und ADR-Register, Quellcode, Codekommentare,
+Tests, Testnamen, Fixtures, Snapshots, Skripte, Hooks, Gate-Manifeste sowie
+Beispielausgaben und Handoff-Dateien ergänzt und gegengeprüft.
+
+Deklariert waren: die beiden ADR-Dateien einschließlich Querverweisen,
+`docs/personal-jarvis/00-architecture-index.md`, `17-deferred-decisions.md`,
+`decisions-register.md`, `modules/contacts.md`,
+`calendar-foundation-spike-2026-08-04.md`,
+`contacts-mutation-phase-a-2026-08-03.md`,
+`contacts-native-create-intel-2026-08-04.md`,
+`contacts-native-update-delete-intel-2026-08-04.md`,
+`docs/testing/contacts-x86_64-create-live-2026-08-01.md`,
+`docs/testing/contacts-x86_64-create-local-live-2026-08-01.md` sowie die
+Kommentar-Referenzen in `frontend/src-tauri/build.rs`,
+`objc/JCContactsCreate.m`, `src/bin/contacts_write_helper.rs`, `src/lib.rs`,
+`src/contacts_create.rs`, `src/contacts_execution.rs`,
+`frontend/src/personal/contacts/api.ts`, `status/ContactsStatusSurface.tsx`,
+`components.test.tsx` und `data/source.ts`.
+
+Die Laufzeitsuche ergänzte diese Liste um weitere Fundstellen in
+`src/personaljarvis/**`, `tests/personal/**`, `native/contacts-bridge/**`,
+`frontend/src-tauri/**` und `docs/**`. Der Abgleich von deklarierter Liste und
+tatsächlichen Treffern läuft mechanisch im Gate `of-reference-migration`. Ein
+bloßes Ersetzen von Zeichenketten genügt nicht: jede Fundstelle wird gegen
+Titel und Linie geprüft, damit kein Verweis auf die falsche Entscheidung der
+`rebuild-v1`-Linie entsteht.
+
+Nicht verändert wurden Schema, Migrationslogik, Bundle-Identität, Signierung
+und TCC-relevante Identität; in Migrationen und im nativen Sidecar betraf die
+Migration ausschließlich Kommentare und Docstrings.
 
 ## §7 Implementierungsbasis (Empfehlung nach tatsächlicher Ancestry)
 
@@ -302,7 +364,7 @@ Begründung:
    **keinen** Mutation Core und keinen Kontakte-Produktcode.
 4. Ausdrücklich **kein** Merge, Rebase oder Cherry-pick jetzt; die
    Integration mit rebuild-v1 erfolgt im Rahmen des Kontakte-Gates
-   „Integration des Handoffs in `jarvis/rebuild-v1`" (DEC-050) bzw.
+   „Integration des Handoffs in `jarvis/rebuild-v1`" (DEC-050 der Linie `jarvis/rebuild-v1`) bzw.
    spätestens vor der Kalender-Fertigmeldung.
 
 ## §8 Nicht Gegenstand

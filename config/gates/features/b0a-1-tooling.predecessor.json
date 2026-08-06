@@ -1,0 +1,126 @@
+{
+  "artifact_id": "prompt-b0a-1",
+  "artifact_version": "2026-08-05",
+  "features": [
+    {
+      "feature_id": "B0A1-001",
+      "required": true,
+      "description": "scripts/gate.sh als oeffentliche Schnittstelle mit Block und Phase"
+    },
+    {
+      "feature_id": "B0A1-002",
+      "required": true,
+      "description": "fuenf Phasen preflight, targeted, offline-final, platform-live, module-final"
+    },
+    {
+      "feature_id": "B0A1-003",
+      "required": true,
+      "description": "fuenf Ergebnisse pass, pass_with_baseline, fail, blocked, not_applicable"
+    },
+    {
+      "feature_id": "B0A1-004",
+      "required": true,
+      "description": "maschineller Gesamtstatus als genau ein Enum"
+    },
+    {
+      "feature_id": "B0A1-005",
+      "required": true,
+      "description": "deklarative, strikt validierte Blockmanifeste"
+    },
+    {
+      "feature_id": "B0A1-006",
+      "required": true,
+      "description": "dedizierter Baseline-Worktree auf exakt 7986bee"
+    },
+    {
+      "feature_id": "B0A1-007",
+      "required": true,
+      "description": "versionierte strukturelle Ursachensignatur"
+    },
+    {
+      "feature_id": "B0A1-008",
+      "required": true,
+      "description": "vollstaendiger Baseline-Cacheschluessel und Invalidation"
+    },
+    {
+      "feature_id": "B0A1-009",
+      "required": true,
+      "description": "allowlistbasierte PII-sichere Evidenz"
+    },
+    {
+      "feature_id": "B0A1-010",
+      "required": true,
+      "description": "gitignorierte Rohlogs"
+    },
+    {
+      "feature_id": "B0A1-011",
+      "required": true,
+      "description": "SHA-256-Referenz und Integritaetspruefung"
+    },
+    {
+      "feature_id": "B0A1-012",
+      "required": true,
+      "description": "PII-Canary-Tests"
+    },
+    {
+      "feature_id": "B0A1-013",
+      "required": true,
+      "description": "Projektskill gate"
+    },
+    {
+      "feature_id": "B0A1-014",
+      "required": true,
+      "description": "Projektskill handoff-report"
+    },
+    {
+      "feature_id": "B0A1-015",
+      "required": true,
+      "description": "Vorgaenger-Merkmalspruefung; fehlendes Pflichtmerkmal ist fail"
+    },
+    {
+      "feature_id": "B0A1-016",
+      "required": true,
+      "description": "Uebernahme und Anpassung der alten CLAUDE.md"
+    },
+    {
+      "feature_id": "B0A1-017",
+      "required": true,
+      "description": "vorhandene Deny-Liste bleibt erhalten"
+    },
+    {
+      "feature_id": "B0A1-018",
+      "required": true,
+      "description": "Pfadkanonisierung und Schutz fremder Worktrees"
+    },
+    {
+      "feature_id": "B0A1-019",
+      "required": true,
+      "description": "protokollierter ask-Ausnahmepfad"
+    },
+    {
+      "feature_id": "B0A1-020",
+      "required": true,
+      "description": "vollstaendige Werkzeug- und Hook-Testmatrix"
+    },
+    {
+      "feature_id": "B0A1-021",
+      "required": true,
+      "description": "kein Produktcode und kein Produkt-Live-Lauf"
+    },
+    {
+      "feature_id": "B0A1-022",
+      "required": true,
+      "description": "eigener Branch tooling/gates-v1"
+    },
+    {
+      "feature_id": "B0A1-023",
+      "required": true,
+      "description": "genau ein B0a-1-Commit"
+    },
+    {
+      "feature_id": "B0A1-024",
+      "required": true,
+      "description": "normaler Push nur nach allen gruenen Abschlussgates oder enger Eigentuemerfreigabe"
+    }
+  ]
+}

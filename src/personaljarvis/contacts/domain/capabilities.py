@@ -88,7 +88,7 @@ class ContactCapabilitySet:
 
 def derive_capabilities(status, *, app_channel=None,
                         database_path=None) -> ContactCapabilitySet:
-    """Handshake → Fähigkeitsmenge. Die Capability-Brücke (ADR-0019 §6).
+    """Handshake → Fähigkeitsmenge. Die Capability-Brücke (ADR-0025 §6).
 
     Bis hierher endete der Handshake in `BridgeStatus` und kam nie im Kern an:
     `mutationsImplemented` war eine Angabe, die niemand las. Ohne diese
@@ -124,7 +124,7 @@ def derive_capabilities(status, *, app_channel=None,
     def schreibbar(flag: str) -> bool:
         return bool(vertrag_passt and getattr(caps, flag, False))
 
-    # Seit ADR-0020 §10 kommt das Schreibrecht **nicht** mehr aus dem
+    # Seit ADR-0026 §10 kommt das Schreibrecht **nicht** mehr aus dem
     # Sidecar-Handshake: Der Sidecar hat gar keinen Schreibpfad, und sein
     # `createImplemented` ist dauerhaft falsch. Ob `create` angeboten werden
     # darf, entscheidet der App-Prozess-Kanal — und der verlangt eine
@@ -139,7 +139,7 @@ def derive_capabilities(status, *, app_channel=None,
     return ContactCapabilitySet(
         read_supported=True,
         create_supported=bool(vertrag_passt and kanal.darf_ausfuehren("create")),
-        # Update und Delete folgen seit DEC-046 derselben Quelle wie Create:
+        # Update und Delete folgen seit DEC-053 derselben Quelle wie Create:
         # dem App-Prozess-Kanal. Der Sidecar meldet alle drei dauerhaft
         # falsch — er ist Lese- und Diagnosewerkzeug, nicht Schreiber.
         update_supported=bool(vertrag_passt and kanal.darf_ausfuehren("update")),

@@ -10,7 +10,7 @@ Grenzen dieses Moduls:
   erst bei einem ausdrücklichen `start()`.
 * **Genau eine Mutationsoperation.** `create` ist implementiert und sendet
   **einmal**; `update`/`delete` bleiben `NotImplementedError` und liefern
-  sidecarseitig `not_implemented` (ADR-0019 §9).
+  sidecarseitig `not_implemented` (ADR-0025 §9).
 * **Kein Retry im Client.** Ein abgebrochener Mutationsaufruf ist
   `outcome_unknown` — nie ein zweiter Versuch.
 * `requestAuthorization` erfolgt **nur** auf ausdrückliche Nutzeraktion und
@@ -211,11 +211,11 @@ class ContactsBridgeClient:
 
     def update(self, **_: Any) -> None:
         raise NotImplementedError(
-            "update ist noch nicht implementiert (ADR-0019 §9, Phase M4)."
+            "update ist noch nicht implementiert (ADR-0025 §9, Phase M4)."
         )
 
     def delete(self, **_: Any) -> None:
         raise NotImplementedError(
-            "delete ist noch nicht implementiert (ADR-0019 §9, Phase M5) und "
+            "delete ist noch nicht implementiert (ADR-0025 §9, Phase M5) und "
             "zusaetzlich hinter der offenen Entscheidung DEC-D06 verriegelt."
         )

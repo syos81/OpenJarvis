@@ -44,7 +44,7 @@ class AuditStage:
     #: eine externe Beobachtung dazu.
     MUTATION_OUTCOME_MANUALLY_RESOLVED = "mutation_outcome_manually_resolved"
     MUTATION_COMPLETED = "mutation_completed"
-    #: Der Ausfuehrungsauftrag hat das Backend verlassen (ADR-0020 §3). Ab
+    #: Der Ausfuehrungsauftrag hat das Backend verlassen (ADR-0026 §3). Ab
     #: dieser Stufe ist ein zweiter Claim ausgeschlossen — auch nach
     #: Verfall, denn ob irgendwo gesendet wurde, ist danach unbeweisbar.
     EXECUTION_ORDER_ISSUED = "execution_order_issued"

@@ -49,7 +49,7 @@ static const int kJCMutationContractVersion = 1;
 static const int kJCFieldContractVersion = 1;
 
 //: Laengsgrenze des Reason-Texts IM ARTEFAKT. Der Digest entsteht immer
-//: ueber den unveraenderten vollen Text (ADR-0019 §4a); die Datei kappt nur
+//: ueber den unveraenderten vollen Text (ADR-0025 §4a); die Datei kappt nur
 //: die Rohfassung, damit ein pathologisch langer Reason den Todesmoment
 //: nicht dehnt.
 #define JC_REASON_MAX_BYTES 4096

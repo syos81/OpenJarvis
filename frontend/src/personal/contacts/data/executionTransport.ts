@@ -1,4 +1,4 @@
-// Transport des App-Prozess-Mutationskanals (ADR-0020, Phase A).
+// Transport des App-Prozess-Mutationskanals (ADR-0026, Phase A).
 //
 // Diese Schicht ist bewusst **dumm**. Sie holt einen Auftrag, reicht ihn
 // unverändert an das Tauri-Command weiter, reicht den Bericht unverändert

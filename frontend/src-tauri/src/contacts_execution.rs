@@ -1,4 +1,4 @@
-// Der App-Prozess-Ausführungskanal (ADR-0020, Phase A).
+// Der App-Prozess-Ausführungskanal (ADR-0026, Phase A).
 //
 // **In Phase A gibt es hier keinen Contacts-Code.** Kein `CNSaveRequest`,
 // kein `CNMutableContact`, kein Sidecar-Aufruf, kein Spike. Was dieses Modul
@@ -23,7 +23,7 @@ use std::collections::BTreeMap;
 /// Version der Transporthülle — muss mit dem Kern übereinstimmen.
 pub const EXECUTION_SCHEMA_VERSION: u32 = 1;
 
-/// Größenlimits aus ADR-0020 §5.
+/// Größenlimits aus ADR-0026 §5.
 pub const MAX_ORDER_BYTES: usize = 64 * 1024;
 
 /// Umgebungsvariable des Fake-Kanals. Wirkt **nur** in Debug-Builds.
@@ -66,7 +66,7 @@ pub struct ExecutionReportV1 {
     pub save_request_count: u32,
     pub readback_status: String,
     pub provider_identifier_digest: Option<String>,
-    /// Die **rohe** Providerkennung (ADR-0020 §5). Sie reist ausschliesslich
+    /// Die **rohe** Providerkennung (ADR-0026 §5). Sie reist ausschliesslich
     /// im Settle-Rumpf: Ohne sie koennte das Backend nach einem Create keine
     /// External-ID anlegen und den Kontakt nie wieder gezielt ansprechen.
     /// In Audit, Log und Oberflaeche steht der Digest — nie dieser Wert.
@@ -200,7 +200,7 @@ fn validiere(order: &ExecutionOrderV1) -> Result<(), &'static str> {
     Ok(())
 }
 
-/// Die fünf deterministischen Fake-Ausgänge (ADR-0020, Phase A).
+/// Die fünf deterministischen Fake-Ausgänge (ADR-0026, Phase A).
 ///
 /// Gesteuert über ein Feld des kanonischen Payloads (`__fake_outcome`), damit
 /// der Auslöser Teil des digest-gebundenen Auftrags ist: Ein Test kann kein

@@ -11,7 +11,7 @@ eines Laufs gespeichert. Ein `dropEverything` des Providers verwarf damit eine
 gültige, bereits vorliegende Metainformation — und ohne sie liess sich der
 lokale Ablageort nicht mehr von einem kontogebundenen unterscheiden. Genau
 diese Unterscheidung ist aber die Grundlage jeder bewussten Zielwahl
-(ADR-0019 §2): nicht Reihenfolge, nicht Kontaktzahl, nicht rohe Kennung.
+(ADR-0025 §2): nicht Reihenfolge, nicht Kontaktzahl, nicht rohe Kennung.
 
 Der Typvorrat ist geschlossen. Was der Provider ausserhalb davon meldet, wird
 zu `unknown` — nie durchgereicht, nie geraten.

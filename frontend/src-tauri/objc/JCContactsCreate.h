@@ -1,4 +1,4 @@
-// Produktiver Create-Pfad im App-Prozess (ADR-0020 §8.1, Phase B).
+// Produktiver Create-Pfad im App-Prozess (ADR-0026 §8.1, Phase B).
 //
 // **Warum hier und nicht im Sidecar.** Fünf Livetests auf macOS 12.7.6
 // haben gezeigt: derselbe minimale `CNSaveRequest` stirbt im nackten
@@ -6,7 +6,7 @@
 // angehängte Stores, während er im Prozess von Jarvis.app speichert. Der
 // App-Prozess ist der einzige Prozess dieses Systems, dem der TCC-Grant
 // gehört und der nachweislich produktiv mit Contacts.framework spricht.
-// Seit ADR-0020 hat der Sidecar deshalb gar keinen Schreibpfad mehr.
+// Seit ADR-0026 hat der Sidecar deshalb gar keinen Schreibpfad mehr.
 //
 // **Was dieser Shim ist — und was nicht.** Er ist die schmale
 // Objective-C-Grenze um genau einen Speichervorgang: Er nimmt eine bereits
@@ -53,7 +53,7 @@ typedef enum {
 
 /// PII-armes Ergebnis mit **einer** bewussten Ausnahme: `provider_identifier`
 /// ist roh, weil das Backend ohne ihn keine External-ID anlegen und den
-/// Kontakt nie wieder gezielt ansprechen könnte (ADR-0020 §5). Er reist
+/// Kontakt nie wieder gezielt ansprechen könnte (ADR-0026 §5). Er reist
 /// ausschliesslich im Settle-Rumpf; in Audit, Log und Oberfläche steht der
 /// Digest. `readback_json` trägt die kanonische v1-Projektion des
 /// **gelesenen** Zustands — der Kern bildet daraus seinen Digest, statt
@@ -110,7 +110,7 @@ void jc_contacts_create_run_scenario(int32_t scenario,
                                      JCContactsCreateResult *out);
 
 
-// ── Update und Delete (ADR-0020 §8.2/§8.3, DEC-046) ─────────────────────────
+// ── Update und Delete (ADR-0026 §8.2/§8.3, DEC-053) ─────────────────────────
 //
 // Beide teilen sich mit `create` den einen Ablauf und die eine Projektion;
 // nur die Mitte unterscheidet sich. Beide zielen **ausschliesslich** über den

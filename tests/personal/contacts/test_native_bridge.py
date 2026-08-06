@@ -134,7 +134,7 @@ def test_kontaktfreier_handshake_ping_caps_shutdown():
         assert handshake.capabilities.notes_supported is False
         assert handshake.capabilities.link_unlink_supported is False
         assert handshake.capabilities.unified_read_only is True
-        # Seit ADR-0020 hat der Sidecar **keinen** produktiven Schreibpfad
+        # Seit ADR-0026 hat der Sidecar **keinen** produktiven Schreibpfad
         # mehr; produktive Writes laufen im Tauri-App-Prozess.
         assert handshake.capabilities.mutations_implemented is False
         assert handshake.capabilities.create_implemented is False
@@ -168,7 +168,7 @@ def test_unbekannte_operation_wird_typisiert_abgelehnt():
 def test_create_bricht_ohne_pflichtfelder_vor_dem_store_ab():
     """`create` ist implementiert — aber ohne Vertrag geschieht nichts.
 
-    Frueher endete diese Anfrage in `not_implemented`. Seit ADR-0019 endet sie
+    Frueher endete diese Anfrage in `not_implemented`. Seit ADR-0025 endet sie
     in `not_sent`: die Aussage ist damit schaerfer, denn `not_sent` behauptet
     ausdruecklich, dass **nichts uebergeben wurde** — genau das, worauf der
     Kern seine Zustandsentscheidung stuetzt.
@@ -180,7 +180,7 @@ def test_create_bricht_ohne_pflichtfelder_vor_dem_store_ab():
         assert envelope["ok"] is True
         ergebnis = envelope["result"]
         assert ergebnis["outcome"] == protocol.MutationOutcome.NOT_SENT
-        # Seit ADR-0020 endet jeder Create bereits an der Kanalgrenze —
+        # Seit ADR-0026 endet jeder Create bereits an der Kanalgrenze —
         # noch vor der Pflichtfeldpruefung, aber ebenso beweisbar ohne
         # Uebergabe an den Store.
         assert ergebnis["errorCode"] in (protocol.ErrorCode.INVALID_REQUEST,
@@ -270,7 +270,7 @@ def test_objc_shim_ist_reine_weiterleitung():
 # ── Mutationsvertrag: kontaktfrei am laufenden Sidecar ──────────────────────
 #
 # Ausgefuehrt werden ausschliesslich Anfragen, die **vor** jedem Store-Zugriff
-# abbrechen. Seit ADR-0020 endet jeder Create schon an der Kanalgrenze
+# abbrechen. Seit ADR-0026 endet jeder Create schon an der Kanalgrenze
 # (`capability_denied`) — der Sidecar hat keinen produktiven Schreibpfad mehr.
 # Die frueheren Abbruchgruende (fehlende Pflichtfelder, fremde
 # Vertragsversion) bleiben als zulaessige Antworten stehen, damit die Suite

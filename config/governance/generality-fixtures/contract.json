@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "contract_id": "b0a-2-positive-configuration-test",
+  "fixtures": ["organization-alpha.json", "organization-beta.json"],
+  "activation_source": "config/governance/generality-scope.json#process_activation",
+  "must_prove": [
+    "beide Konfigurationen werden mit identischem unveraendertem Kerncode geladen",
+    "die Vorgangstypen unterscheiden sich in Zustaenden, Rollen, Fristen und faelligen Aktionen",
+    "faellige Aktionen werden ausschliesslich aus Konfigurationswerten abgeleitet",
+    "der Kerncode enthaelt keine organisationsspezifische Verzweigung",
+    "der Kerncode enthaelt keine providerbezogene Logik"
+  ],
+  "must_not_require": [
+    "code_change",
+    "new_enum_value",
+    "additional_route",
+    "organization_specific_branch",
+    "provider_specific_core_logic"
+  ],
+  "mechanism_test": "tests/tooling/gates/test_generality.py::TestPositiveConfigurationMechanism",
+  "note": "Solange kein produktiver Vorgangspfad existiert, ist der Produkttest not_applicable und der Mechanismustest verpflichtend. Es wird keine spekulative Vorgangs-Engine gebaut."
+}

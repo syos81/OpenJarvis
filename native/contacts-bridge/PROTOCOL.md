@@ -92,7 +92,7 @@ Pflichtfelder je Mutation: `mutationId`, `idempotencyKey`, `approvalId`,
 `containerIdentifier` und `fields` (Feldvertrag v1). `update`/`delete`
 antworten weiterhin `not_implemented` — ohne Store-Zugriff.
 
-**Schreibstack-Preflight (seit 2026-08-02, ADR-0019 §4b):** Vor der
+**Schreibstack-Preflight (seit 2026-08-02, ADR-0025 §4b):** Vor der
 `CNSaveRequest`-Erzeugung führt `create` genau einen rein lesenden
 Kontakt-Fetch auf derselben Store-Instanz aus. Scheitert er, antwortet die
 Bridge `not_sent` mit `errorCode: write_stack_unavailable` — beweisbar vor
@@ -104,7 +104,7 @@ Geschlossener Ergebnisvertrag von `create` (immer `ok:true`):
 `providerIdentifier`, `containerIdentifier` und den Read-back-DTO;
 `not_sent` ist ausschließlich **vor** jeder Store-Übergabe möglich.
 
-**Objective-C-Exception-Grenze (seit 2026-08-01, ADR-0019 §4a):** Der eine
+**Objective-C-Exception-Grenze (seit 2026-08-01, ADR-0025 §4a):** Der eine
 `executeSaveRequest:error:` läuft in einer `@try/@catch`-Grenze
 (`JCContactsSaveShim`). Eine gefangene `NSException` ergibt
 `outcome: outcome_unknown` mit `errorCode: objc_exception`,

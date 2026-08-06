@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "migration_id": "b0a-3-id-migration",
+  "owner_determination": "fixed",
+  "note": "Feste Eigentuemerfestlegung. Weder neu herzuleiten noch zu veraendern. Titel mechanisch aus den Primaerdateien der Kontaktelinie gelesen und unveraendert erhalten.",
+  "lines": {
+    "contacts_calendar_source": {
+      "ref": "handoff/contacts-read-flow-2026-07-29",
+      "commit": "1f03bfa4ace28ccfd44b380a18d3fe580a02b193"
+    },
+    "calendar_target": {
+      "ref": "spike/calendar-foundation-intel-2026-08-04",
+      "commit": "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a"
+    },
+    "tooling_source": {
+      "ref": "tooling/gates-v1",
+      "commit": "4e471446f98d8cefe71a8c98f086e7fd243f3e44"
+    },
+    "canonical_unchanged": {
+      "ref": "jarvis/rebuild-v1",
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94"
+    }
+  },
+  "guard_base": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+  "mappings": [
+    {
+      "kind": "DEC",
+      "old_id": "DEC-044",
+      "new_id": "DEC-051",
+      "title": "Architektur der Apple-Contacts-Provider-Mutationen eingefroren",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "kind": "DEC",
+      "old_id": "DEC-045",
+      "new_id": "DEC-052",
+      "title": "App-Prozess-Mutationskanal eingefroren",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "kind": "DEC",
+      "old_id": "DEC-046",
+      "new_id": "DEC-053",
+      "title": "DEC-D06 entschieden: keine native R2-Zweitbestätigung",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "kind": "DEC",
+      "old_id": "DEC-047",
+      "new_id": "DEC-054",
+      "title": "Intel-Zweig des Kontaktmoduls eingefroren",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "kind": "DEC",
+      "old_id": "DEC-048",
+      "new_id": "DEC-055",
+      "title": "Kalender-Fundament-Spike (Intel) freigegeben und begrenzt",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "kind": "ADR",
+      "old_id": "ADR-0019",
+      "new_id": "ADR-0025",
+      "title": "Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
+      "old_heading": "ADR-0019: Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
+      "new_heading": "ADR-0025: Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
+      "old_path": "docs/adr/ADR-0019-provider-mutation-architecture.md",
+      "new_path": "docs/adr/ADR-0025-provider-mutation-architecture.md",
+      "primary_source": "docs/adr/ADR-0019-provider-mutation-architecture.md"
+    },
+    {
+      "kind": "ADR",
+      "old_id": "ADR-0020",
+      "new_id": "ADR-0026",
+      "title": "Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
+      "old_heading": "ADR-0020: Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
+      "new_heading": "ADR-0026: Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
+      "old_path": "docs/adr/ADR-0020-app-process-mutation-channel.md",
+      "new_path": "docs/adr/ADR-0026-app-process-mutation-channel.md",
+      "primary_source": "docs/adr/ADR-0020-app-process-mutation-channel.md"
+    }
+  ],
+  "canonical_ids_unchanged": [
+    "DEC-044",
+    "DEC-045",
+    "DEC-046",
+    "DEC-047",
+    "DEC-048",
+    "DEC-049",
+    "DEC-050",
+    "ADR-0019",
+    "ADR-0020",
+    "ADR-0021",
+    "ADR-0022",
+    "ADR-0023",
+    "ADR-0024"
+  ],
+  "target_id_precheck": {
+    "method": "token_exact_nfkd_over_full_trees",
+    "scanned_revisions": [
+      "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "1f03bfa4ace28ccfd44b380a18d3fe580a02b193",
+      "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+      "4e471446f98d8cefe71a8c98f086e7fd243f3e44"
+    ],
+    "assignment_hits": 0,
+    "non_assignment_hits": [
+      {
+        "id": "DEC-051",
+        "revision": "4e471446f98d8cefe71a8c98f086e7fd243f3e44",
+        "path": "tests/tooling/gates/test_governance.py",
+        "lines": [
+          161,
+          162,
+          349
+        ],
+        "classification": "synthetic_test_fixture",
+        "reason": "Negativfixture fuer die Registerzeilen-Erkennung und den Ambient-Platzhalter; keine Zuweisung."
+      },
+      {
+        "id": "ADR-0025",
+        "revision": "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+        "path": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
+        "lines": [
+          3,
+          255,
+          262
+        ],
+        "classification": "announced_renumbering_target",
+        "reason": "Paragraph 6 kuendigt genau diese Umnummerierung an; keine Zuweisung."
+      },
+      {
+        "id": "ADR-0026",
+        "revision": "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+        "path": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
+        "lines": [
+          3,
+          256,
+          262
+        ],
+        "classification": "announced_renumbering_target",
+        "reason": "Paragraph 6 kuendigt genau diese Umnummerierung an; keine Zuweisung."
+      }
+    ],
+    "verdict": "all_seven_target_ids_free_as_assignments"
+  }
+}

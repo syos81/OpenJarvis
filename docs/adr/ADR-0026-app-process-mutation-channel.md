@@ -4,18 +4,18 @@ Architektur-Baseline: v3
 Freigabedatum: 2026-08-03
 Baseline-Tag: personal-jarvis-architecture-v3-2026-07-27
 Maßgebliche AV-Regeln: AV-4, AV-10, AV-33, AV-35
-Zugehörige ADRs: ADR-0005 (Command-Bus), ADR-0006 (Risikoklassen), ADR-0007 (Outbox), ADR-0014 (Tauri-Capabilities), ADR-0016 (Swift-Sidecar), ADR-0018 (Dual-Architektur), ADR-0019 (Mutationsarchitektur)
-Verwandte DEC-Einträge: DEC-044 (Basis), DEC-045 (dieser ADR); DEC-D06 (offen, Voraussetzung für Delete), DEC-D17 (offen, unberührt)
+Zugehörige ADRs: ADR-0005 (Command-Bus), ADR-0006 (Risikoklassen), ADR-0007 (Outbox), ADR-0014 (Tauri-Capabilities), ADR-0016 (Swift-Sidecar), ADR-0018 (Dual-Architektur), ADR-0025 (Mutationsarchitektur)
+Verwandte DEC-Einträge: DEC-051 (Basis), DEC-052 (dieser ADR); DEC-D06 (offen, Voraussetzung für Delete), DEC-D17 (offen, unberührt)
 ---
 
-# ADR-0020: Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)
+# ADR-0026: Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)
 
 - **ADR-Status:** accepted
 - **Datum:** 2026-08-03
 
 Dieser ADR friert den **Transportkanal** der Apple-Contacts-Mutationen ein.
-Er ersetzt **additiv** die Kanalfestlegung aus ADR-0019 §4 (CLI-Sidecar als
-Schreibkanal); alle übrigen Festlegungen von ADR-0019 — Freigabekern,
+Er ersetzt **additiv** die Kanalfestlegung aus ADR-0025 §4 (CLI-Sidecar als
+Schreibkanal); alle übrigen Festlegungen von ADR-0025 — Freigabekern,
 at-most-once, Feldvertrag v1, Ergebnisvertrag, Zustandserweiterungen,
 Red-Team-Tabelle — gelten unverändert weiter und werden hier nur dort
 präzisiert, wo der Kanalwechsel es erzwingt. Er entscheidet **Architektur,
@@ -75,7 +75,7 @@ nachgeprüft):
 - L5: Es gibt keine deklarative Übergangstabelle; `_set_state` prüft keinen
   Vorzustand (die Wächter liegen verstreut an den Aufrufstellen).
 
-**Akzeptierte Architektur** (aus ADR-0019, unverändert): at-most-once mit
+**Akzeptierte Architektur** (aus ADR-0025, unverändert): at-most-once mit
 `outcome_unknown` statt Retry; Freigabe ≠ Ausführung; keine Namenssuche;
 keine rohen Identifier in öffentlichen Verträgen; Feldvertrag v1;
 `succeeded` erst nach Provider-Beleg + Read-back + Spiegel + Audit.
@@ -144,7 +144,7 @@ Fehlklassen um und hält keinen Auftrag über die Sitzung hinaus.
 | `provider_target` | `prepare`/Claim | intern roh (`contacts_mutations.container_identifier` / `target_provider_identifier`) | ja — **nur im Auftrag**, nie in einer normalen API-Antwort | maskiert (`container_ref`/`account_ref`) | **nie roh** |
 | `provider_identifier_digest` | Ergebnis | Outbox-/Mutationszeile | ja | ja | ja (nur Digest) |
 | `expected_revision` | `prepare` | ja | ja | ja | ja (lokale Revision) |
-| `attempt_number` | Claim | Outbox `attempt_count` (kanonisch, ADR-0019 §5b) | ja | ja | ja |
+| `attempt_number` | Claim | Outbox `attempt_count` (kanonisch, ADR-0025 §5b) | ja | ja | ja |
 | `claimed_at` | Claim | Outbox | nein | ja | ja |
 | `claim_expires_at` | Claim | Outbox (neue Spalte) | ja | ja | ja |
 | `send_started_at` | Claim (identisch mit `provider_send_started`-Audit) | `execution_started_at` | nein | ja | ja |
@@ -166,7 +166,7 @@ Verbindlich:
   das gemerkte Ergebnis, ohne den nativen Pfad erneut zu betreten.
 - **`send_started` bleibt beim Claim.** Sobald der Ausführungsauftrag das
   Backend verlassen haben **kann**, muss das System annehmen, dass ein
-  Send geschieht — die Crash-Wahrheit von ADR-0019 gilt kanalunabhängig.
+  Send geschieht — die Crash-Wahrheit von ADR-0025 gilt kanalunabhängig.
   Deshalb wird `provider_send_started` weiterhin in der Claim-Transaktion
   auditiert, **bevor** der Auftrag die Antwort verlässt.
 - **Claim-Verfall:** `claim_expires_at = claimed_at + 10 min`. Der Verfall
@@ -177,7 +177,7 @@ Verbindlich:
   `outcome_unknown` ein. **Ein verfallener Claim erlaubt niemals einen
   neuen Send**, denn `provider_send_started` ist bereits festgeschrieben —
   ob der alte Auftrag noch irgendwo ausgeführt wurde, ist prinzipiell
-  unbeweisbar; der einzige Weg ist der Abgleich (Fakten 12/15, ADR-0019).
+  unbeweisbar; der einzige Weg ist der Abgleich (Fakten 12/15, ADR-0025).
 - **Absturzmatrix zwischen den Zeitpunkten:** vor Claim-Commit ⇒ kein
   Vorgangsschaden (Claim nie vergeben); nach Claim, vor Tauri-Aufruf ⇒
   `recover_interrupted`/Ablauf ⇒ `outcome_unknown`; nach Save, vor Report ⇒
@@ -236,7 +236,7 @@ Claim, kein Settle mit Wirkung, kein Send — je ein Audit-Ereignis pro
 Übergang (bestehende 16 Stufen + neu `mutation_settled` und
 `mutation_outcome_manually_resolved` mit `decision=applied_observed`).
 
-**Verhaltensmatrix** (ergänzt die Red-Team-Tabelle aus ADR-0019 §10 um die
+**Verhaltensmatrix** (ergänzt die Red-Team-Tabelle aus ADR-0025 §10 um die
 Kanalfälle):
 
 | Fall | Verhalten |
@@ -380,7 +380,7 @@ Bit-Gleichheit gehalten — jede Abweichung bricht den Build. Regeln:
 Derselbe kanonische Payload ist die Grundlage für: Vorschau (Anzeige),
 `payload_digest` (Freigabe + Transport + Tauri-Prüfung), nativen Save
 (Feldsetzung) und Read-back-Vergleich (`readback_digest` im Kern,
-ADR-0019-Präzisierung unverändert).
+ADR-0025-Präzisierung unverändert).
 
 ## 7. Vollständiger Feldvertrag (Matrix)
 
@@ -453,7 +453,7 @@ Feldvertrag übertragbar"):
 
 - **Ziel:** explizit gewählte, maskierte `container_ref`; Auflösung
   rückwärts über `contacts_sync_state` (genau ein Treffer, sonst
-  fail-closed — ADR-0019 §2 unverändert). **Kein stiller
+  fail-closed — ADR-0025 §2 unverändert). **Kein stiller
   Default-Container:** existiert genau ein bekannter Container mit
   erhobenem Typ, darf die Oberfläche ihn vorauswählen; die Wahl bleibt
   sichtbar und Teil der Vorschau. Lokale Konten: die Container-Art
@@ -510,7 +510,7 @@ Feldvertrag übertragbar"):
   Container-/Kontobindung wird gegen die External-ID geprüft; genau ein
   Datensatz je Vorgang, keine Kaskade.
 - **Risikoklasse — Entscheidung:** Delete ist **R2**. Der bisherige
-  „unverbindliche Vorschlag" (ADR-0019 §7) wird hiermit verbindlich:
+  „unverbindliche Vorschlag" (ADR-0025 §7) wird hiermit verbindlich:
   Create R1, Update R1, Delete R2. Für R2 gilt zwingend eine
   **zusätzliche In-App-Bestätigung** im Ausführungsschritt (nicht nur bei
   der Freigabe): der Execute-Claim für Delete verlangt
@@ -587,7 +587,7 @@ unverändert).
    Payload, Einmal-Statemachine, Szenario-Entry, Beweis-Telemetrie.
    Produktiv ersetzt die Approval/Outbox/Claim-Kette Phrase und Nonce.
    Spike-Abweichung wird korrigiert: `NSError` nach Save-Übergabe ist
-   `outcome_unknown` (ADR-0019 §4a), nie `SaveError`-not-sent.
+   `outcome_unknown` (ADR-0025 §4a), nie `SaveError`-not-sent.
 4. **TCC/Entitlements/Signatur:** App-Bundle behält
    `com.apple.security.personal-information.addressbook` +
    `NSContactsUsageDescription`; Hardened Runtime; Designated Requirement
@@ -607,7 +607,7 @@ unverändert).
 | Update | gezielter Fetch; Vergleich **nur der benannten Felder** (v1-Projektion) | `applied` (alle benannten Felder tragen den Zielwert), `not_applied` (alle tragen den Vorwert), `ambiguous` (teilweise) ⇒ `manual_decision_required` |
 | Delete | gezielter Fetch ⇒ `recordDoesNotExist` bei gültigem Containerzugriff | `applied` (bestätigt abwesend), `not_applied` (weiter vorhanden), `ambiguous` (nicht lesbar/Zugriff unklar) |
 
-Reconcile (unverändert ADR-0019 + Kanalregeln): niemals Namens- oder
+Reconcile (unverändert ADR-0025 + Kanalregeln): niemals Namens- oder
 Ähnlichkeitssuche; niemals ein zweiter Provider-Send; niemals erfundene
 Daten — ohne Provider-Beleg keine Spiegelzeile; Create-Zuordnung nur über
 gemeldete Identität oder die Autor-Probe der Change-History; Mehrdeutigkeit
@@ -626,7 +626,7 @@ endet in `manual_decision_required`, menschlicher Abschluss nach §4.1/5a.
 | **G** | Abschlussaudit, ADR-Status-Nachtrag, Merge | F-Exit | Auditbericht + Eigentümerfreigabe |
 
 Keine Phase beginnt ohne ausdrückliche Freigabe des Eigentümers. Die
-ADR-0019-Phasen M2–M5 werden hierauf abgebildet (M2→B/D, M3→C, M4→E,
+ADR-0025-Phasen M2–M5 werden hierauf abgebildet (M2→B/D, M3→C, M4→E,
 M5→F); der Sidecar-Create aus dem alten M2 wird in A zurückgebaut.
 
 ## 13. Testmatrix
@@ -687,14 +687,14 @@ Approval-Digestbindung (`consume(...digest)`-Aufrufstelle vorhanden).
 
 ---
 
-## Nachtrag 2026-08-04 — DEC-D06 entschieden (DEC-046)
+## Nachtrag 2026-08-04 — DEC-D06 entschieden (DEC-053)
 
 Der Riegel aus §8.3 und §12 ist aufgelöst. Nichts oberhalb dieser Zeile
 wurde geändert; die Sätze „vor deren Entscheidung wird Delete nicht
 implementiert" und „zuerst DEC-D06 entscheiden" bleiben als Protokoll des
 damaligen Standes stehen und beschreiben ab jetzt eine erfüllte Bedingung.
 
-**Entscheidung (DEC-046, Eigentümer, 2026-08-04):** Für R2 genügt die
+**Entscheidung (DEC-053, Eigentümer, 2026-08-04):** Für R2 genügt die
 **zusätzliche In-App-Bestätigung** im Ausführungsschritt. Ein
 Betriebssystemdialog als zweite Instanz wird nicht gefordert.
 

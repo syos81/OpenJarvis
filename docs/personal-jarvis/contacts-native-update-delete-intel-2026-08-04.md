@@ -11,11 +11,11 @@ Hier steht **nur das Delta**.
 auf **`9e08404`**. Direkter Elternteil, null Merges, ein Autor, Patch
 byteidentisch zum Create-Worktree. Ohne Force gepusht.
 
-## 2. DEC-D06 entschieden (DEC-046)
+## 2. DEC-D06 entschieden (DEC-053)
 
 Für R2 genügt die zusätzliche In-App-Bestätigung; kein nativer
-Systemdialog. Der Riegel vor der Delete-Implementierung (ADR-0019 §546,
-ADR-0020 §8.3/§12) ist damit aufgelöst — additiv als Nachtrag, ohne einen
+Systemdialog. Der Riegel vor der Delete-Implementierung (ADR-0025 §546,
+ADR-0026 §8.3/§12) ist damit aufgelöst — additiv als Nachtrag, ohne einen
 Satz oberhalb zu ändern. ADR-0014 bleibt unberührt: der ApprovalClient-
 Vertrag wird **nicht** um einen Zweitdialog erweitert.
 
@@ -140,7 +140,7 @@ Alles mit Fakes, synthetischen Payloads und temporären Datenbanken.
 ### 10.1 Der Befund
 
 Beim ersten Create der CRUD-Sequenz (13:34 Uhr) starb die gesamte App mit
-SIGABRT — **im GUI-Prozess**, den ADR-0020 §10 gerade deshalb zum Save-Ort
+SIGABRT — **im GUI-Prozess**, den ADR-0026 §10 gerade deshalb zum Save-Ort
 erklärt hatte, weil der CLI-Sidecar dort deterministisch starb. Aus dem
 Crashreport: Die CoreData-Ausnahme entsteht in
 `NSPersistentStoreCoordinator executeRequest:` **innerhalb** von
@@ -245,7 +245,7 @@ It cannot perform a save operation.
 Wortgleich mit den vier CLI-Sidecar-Abstürzen von 2026-08-02. Es ist
 **kein** TCC- oder Signaturproblem: Der Helfer kam bis in den Save, seine
 Kette trug. Das Problem ist ein anderes — und es korrigiert die Lesart von
-ADR-0020 §10 ein zweites Mal:
+ADR-0026 §10 ein zweites Mal:
 
 > Nicht „App-Prozess sicher, Sidecar unsicher", sondern: **ein Prozess, der
 > noch nie wirklich gelesen hat, kann nicht speichern.**
@@ -336,7 +336,7 @@ blieben unangetastet — die Patch-Semantik trägt. Die E-Mails stehen in
 Korrektur an §7 hätte der Vertrag sie alphabetisch umsortiert. Provider-
 Identität unverändert.
 
-**Delete.** Mit der zusätzlichen In-App-Bestätigung (R2, DEC-046).
+**Delete.** Mit der zusätzlichen In-App-Bestätigung (R2, DEC-053).
 Abwesenheitsnachweis durch den Helfer, danach lokal `is_tombstone = 1`,
 `deleted_at`, Historienzeile mit eigenem Grund `deleted_by_own_mutation`,
 External Identity **erhalten**. 118 → 117. Extern sichtgeprüft: der Kontakt

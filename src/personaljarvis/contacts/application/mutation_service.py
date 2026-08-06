@@ -194,7 +194,7 @@ class ProviderResponse:
 class MutationProvider(Protocol):
     """Das Ausführungsziel einer freigegebenen Mutation.
 
-    Produktiv ist das seit ADR-0019 der Sidecar — **ausschliesslich für
+    Produktiv ist das seit ADR-0025 der Sidecar — **ausschliesslich für
     `create`**. `update` und `delete` liefern weiterhin `not_implemented`.
     """
 
@@ -233,7 +233,7 @@ class ContactsMutationService:
             # Update und Delete brauchen den Zustand, den der Mensch gleich
             # sieht — und zwar **in** der Nutzlast, damit der Digest ihn
             # deckt. Wird er erst beim Claim angehängt, verglichen der native
-            # Pfad gegen etwas, das nie freigegeben wurde (ADR-0020 §8.2/8.3).
+            # Pfad gegen etwas, das nie freigegeben wurde (ADR-0026 §8.2/8.3).
             if payload.command in ("update", "delete"):
                 from personaljarvis.contacts.application.field_contract import (
                     canonical_payload,
@@ -620,7 +620,7 @@ class ContactsMutationService:
         # Ein `update` nennt keinen Container — es verschiebt nichts. Der
         # richtige Wert steht in der bestehenden Identität; ihn dort zu holen
         # ist genauer, als ihn im Auftrag mitzuschleppen (Containerwechsel
-        # ist ausdrücklich v2, ADR-0020 §7).
+        # ist ausdrücklich v2, ADR-0026 §7).
         container = zeile["container_identifier"] or ""
         if not container:
             bestehend = uow.execute(
@@ -709,7 +709,7 @@ class ContactsMutationService:
             # festgeschrieben. `succeeded` ist das aber noch **nicht**: der
             # kanonische Spiegel steht noch aus. Ohne diese Trennung waere ein
             # Abbruch zwischen Provider und Spiegel von einem ungewissen
-            # Ausgang nicht zu unterscheiden (ADR-0019 §5).
+            # Ausgang nicht zu unterscheiden (ADR-0025 §5).
             outbox.mark_succeeded(outbox_id, token)
             self._set_state(uow, mutation_id,
                             MutationState.PROVIDER_APPLIED_PENDING_RECONCILE,
@@ -738,7 +738,7 @@ class ContactsMutationService:
                          subject_type=SUBJECT_TYPE, subject_id=mutation_id,
                          # `sent: False` ist der historische Kernfakt;
                          # `providerContacted`/`resend` machen ihn wortgleich
-                         # zum manuellen Abschluss (ADR-0019 §5a) lesbar.
+                         # zum manuellen Abschluss (ADR-0025 §5a) lesbar.
                          facts={"errorCode": code, "sent": False,
                                 "providerContacted": False, "resend": False})
             return ExecutionResult(

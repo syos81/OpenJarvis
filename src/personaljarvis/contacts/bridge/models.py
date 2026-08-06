@@ -98,7 +98,7 @@ class BridgeCapabilities:
     full_diff_fallback_supported: bool = True
     mutations_implemented: bool = False
     #: Je Operation einzeln — nie pauschal. Ein Sammelflag hätte mit `create`
-    #: auch `update` und `delete` freigeschaltet (ADR-0019 §6).
+    #: auch `update` und `delete` freigeschaltet (ADR-0025 §6).
     create_implemented: bool = False
     update_implemented: bool = False
     delete_implemented: bool = False

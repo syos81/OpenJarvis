@@ -20,7 +20,7 @@ let kProtocolVersion = 1
 let kBundleIdentifier = "de.kluender.jarvis.contacts-bridge"
 let kTransactionAuthor = kBundleIdentifier
 let kKeySetVersion = 1
-// Vertragsversionen der Mutationshuelle und des Feldvertrags (ADR-0019 §6).
+// Vertragsversionen der Mutationshuelle und des Feldvertrags (ADR-0025 §6).
 // Beide Seiten nennen sie; Ungleichheit ist fail-closed.
 let kMutationContractVersion = 1
 let kFieldContractVersion = 1
@@ -120,7 +120,7 @@ func capabilityStates() -> [String: Any] {
         "meCardReadOnly": true,
         "changeHistorySupported": true,
         "fullDiffFallbackSupported": true,
-        // Seit ADR-0020 (2026-08-03) hat der CLI-Sidecar **keinen**
+        // Seit ADR-0026 (2026-08-03) hat der CLI-Sidecar **keinen**
         // produktiven Schreibpfad mehr. Der Grund ist kein Stilwunsch,
         // sondern ein Livebefund: Vier x86_64-Create-Versuche starben in
         // `NSInternalInconsistencyException` — der Save lief auf einem
@@ -474,7 +474,7 @@ func opGetUnifiedReadOnly(_ id: Any, _ payload: [String: Any]) {
 // Die Pflichtfelder werden bereits validiert, damit der Vertrag von Anfang an
 // verbindlich ist. Es findet KEIN Store-Schreibzugriff statt.
 //
-// Gilt weiterhin fuer `update` und `delete` (ADR-0019 §9: erst M4 bzw. M5;
+// Gilt weiterhin fuer `update` und `delete` (ADR-0025 §9: erst M4 bzw. M5;
 // Delete zusaetzlich hinter DEC-D06).
 func opMutationNotImplemented(_ id: Any, _ op: String, _ payload: [String: Any]) {
     var missing: [String] = []
@@ -494,7 +494,7 @@ func opMutationNotImplemented(_ id: Any, _ op: String, _ payload: [String: Any])
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// CREATE — der einzige implementierte Schreibpfad (ADR-0019)
+// CREATE — der einzige implementierte Schreibpfad (ADR-0025)
 // ═════════════════════════════════════════════════════════════════════════════
 //
 // Die Antwort ist IMMER ok:true mit genau einem von drei Ausgaengen. Das ist
@@ -753,14 +753,14 @@ func opCreate(_ id: Any, _ payload: [String: Any]) {
         ok(id, mutationResult("not_sent", errorCode: code))
     }
 
-    // ADR-0020: Der produktive Schreibkanal liegt im Tauri-App-Prozess.
+    // ADR-0026: Der produktive Schreibkanal liegt im Tauri-App-Prozess.
     // Der Sidecar lehnt jede Schreiboperation **vor** jeder Store-Beruehrung
     // ab — beweisbar nichts uebergeben. Der darunter liegende Save-Code
     // bleibt als Beweis- und Diagnosehistorie erhalten (Preflight,
     // ObjC-Grenze, Uncaught-Letztdiagnose), wird aber nie mehr erreicht.
     notSent("capability_denied",
             "Der Sidecar hat keinen produktiven Schreibpfad mehr "
-            + "(ADR-0020: Writes laufen im App-Prozess)")
+            + "(ADR-0026: Writes laufen im App-Prozess)")
     return
 
     var missing: [String] = []
@@ -830,7 +830,7 @@ func opCreate(_ id: Any, _ payload: [String: Any]) {
     }
     let identifier = neu.identifier
 
-    // ── Preflight des Schreibstacks (ADR-0019 §4b) ──────────────────────────
+    // ── Preflight des Schreibstacks (ADR-0025 §4b) ──────────────────────────
     // Alle vier x86_64-Livetests starben an `NSInternalInconsistencyException`
     // („no persistent stores"): der Save setzt einen geladenen Persistenzstack
     // voraus, initialisiert ihn aber nicht selbst — der Kontakt-LESEpfad tut
@@ -957,7 +957,7 @@ func handshakePayload() -> [String: Any] {
 }
 
 // Letztdiagnose fuer Wuerfe aus Apples Dispatch-Pfad, die kein @try/@catch
-// je erreicht (ADR-0019 §4a, Crashreport-Beleg vom 2026-08-02): genau eine
+// je erreicht (ADR-0025 §4a, Crashreport-Beleg vom 2026-08-02): genau eine
 // Installation, direkt am Prozessstart. Der Handler behandelt nichts — er
 // schreibt Klasse und Digest und laesst die Terminierung weiterlaufen.
 JCInstallUncaughtExceptionDiagnostics()

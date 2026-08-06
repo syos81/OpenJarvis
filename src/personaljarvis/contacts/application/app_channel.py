@@ -1,4 +1,4 @@
-"""Fähigkeiten des App-Prozess-Kanals (ADR-0020 §10, Phase A).
+"""Fähigkeiten des App-Prozess-Kanals (ADR-0026 §10, Phase A).
 
 Der Kanal ist **fail-closed**: ohne belegte Gegenseite ist alles falsch.
 
@@ -17,7 +17,7 @@ Drei Regeln, die nicht verhandelbar sind:
   `os.environ` nicht gelesen. Ein Release lässt sich durch keine Variable
   öffnen — der Fake-Modus ist ausschliesslich im Prozess konstruierbar
   (`fake_debug_capabilities`) und wird von keiner Route zurückgegeben.
-* **Sidecar-Schreibfähigkeiten zählen nicht mehr.** Seit ADR-0020 ist der
+* **Sidecar-Schreibfähigkeiten zählen nicht mehr.** Seit ADR-0026 ist der
   CLI-Sidecar Lese-, Sync- und Diagnosewerkzeug; sein Handshake wird für
   Schreibrechte ignoriert.
 """

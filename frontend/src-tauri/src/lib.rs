@@ -1793,7 +1793,7 @@ fn get_api_base() -> String {
     api_base()
 }
 
-/// Führt einen `ExecutionOrderV1` im App-Prozess aus (ADR-0020, Phase A).
+/// Führt einen `ExecutionOrderV1` im App-Prozess aus (ADR-0026, Phase A).
 ///
 /// **In Phase A berührt dieses Command kein Contacts.framework.** Es
 /// validiert den Auftrag, rechnet den Payload-Digest nach und antwortet

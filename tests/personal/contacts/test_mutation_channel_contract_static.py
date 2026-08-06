@@ -1,7 +1,7 @@
-"""Statische Architekturprüfungen des App-Prozess-Mutationskanals (ADR-0020).
+"""Statische Architekturprüfungen des App-Prozess-Mutationskanals (ADR-0026).
 
 **Kontaktfrei, rein lesend.** Diese Suite verhindert dokument- und
-quelltextbasiert die neun in ADR-0020 §14 benannten Vertragsbrüche. Sie
+quelltextbasiert die neun in ADR-0026 §14 benannten Vertragsbrüche. Sie
 prüft den heutigen Stand (vor Phase A) und die normativen Anker, an denen
 jede spätere Implementierung gemessen wird.
 """
@@ -12,8 +12,8 @@ import re
 from pathlib import Path
 
 WURZEL = Path(__file__).resolve().parents[3]
-ADR20 = WURZEL / "docs/adr/ADR-0020-app-process-mutation-channel.md"
-ADR19 = WURZEL / "docs/adr/ADR-0019-provider-mutation-architecture.md"
+ADR20 = WURZEL / "docs/adr/ADR-0026-app-process-mutation-channel.md"
+ADR19 = WURZEL / "docs/adr/ADR-0025-provider-mutation-architecture.md"
 ANWENDUNG = WURZEL / "src/personaljarvis/contacts/application"
 MUTATION_SERVICE = ANWENDUNG / "mutation_service.py"
 RECONCILE = ANWENDUNG / "reconcile.py"
@@ -31,7 +31,7 @@ def _nur_code(text: str) -> str:
 
 
 # ═══ 1 · Der ADR existiert mit allen normativen Ankern ══════════════════════
-def test_adr_0020_traegt_die_normativen_anker():
+def test_adr_0026_traegt_die_normativen_anker():
     # Whitespace-normalisiert: Markdown bricht Sätze beliebig um.
     text = " ".join(_lies(ADR20).split())
     for anker in [
@@ -55,12 +55,12 @@ def test_adr_0020_traegt_die_normativen_anker():
         "DEC-D06",
         "Automatische Wiederholung nach `send_started`",
     ]:
-        assert " ".join(anker.split()) in text, f"ADR-0020-Anker fehlt: {anker!r}"
+        assert " ".join(anker.split()) in text, f"ADR-0026-Anker fehlt: {anker!r}"
 
 
-def test_adr_0019_verweist_additiv_auf_adr_0020():
+def test_adr_0025_verweist_additiv_auf_adr_0026():
     text = _lies(ADR19)
-    assert "ADR-0020" in text
+    assert "ADR-0026" in text
     assert "Nachtrag 2026-08-03" in text
     # Additiv: die urspruengliche Entscheidung bleibt lesbar stehen.
     assert "Sidecar-Schreibvertrag" in text
@@ -199,8 +199,8 @@ def test_der_adr_bindet_payload_und_preview_digest():
 
 
 # ═══ Register und Historie ══════════════════════════════════════════════════
-def test_dec_045_ist_registriert():
+def test_dec_052_ist_registriert():
     register = _lies(WURZEL / "docs/personal-jarvis/decisions-register.md")
-    assert "DEC-045" in register
-    assert "ADR-0020" in register
+    assert "DEC-052" in register
+    assert "ADR-0026" in register
     assert "44 akzeptierte Entscheidungen" in register

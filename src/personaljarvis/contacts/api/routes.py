@@ -533,7 +533,7 @@ def create_contacts_router(module) -> APIRouter:
                  response_model=S.ExecutionResultOut)
     def execute_mutation(mutation_id: str, body: S.ExecuteMutationIn,
                          request: Request) -> Any:
-        """Führt **eine** freigegebene Mutation aus (ADR-0019 §1).
+        """Führt **eine** freigegebene Mutation aus (ADR-0025 §1).
 
         Diese Route ist der einzige Weg zu einem Provider-Schreibvorgang. Sie
         ist bewusst von `approve` getrennt: eine Freigabe sagt „ich habe das
@@ -855,7 +855,7 @@ def _labeled(werte, wert_feld: str | None = None,
 def _detail_out(c: Contact) -> S.ContactDetailOut:
     # `writable` statt `write_target`: die Oberflaeche zielt ueber die lokale
     # `id`, das Backend loest sie auf. Eine rohe Providerkennung verlaesst die
-    # API nicht mehr (ADR-0019 §2).
+    # API nicht mehr (ADR-0025 §2).
     beschreibbar = bool(c.external_ids) and not c.is_me_card
     return S.ContactDetailOut(
         id=c.id, workspace_id=c.workspace_id, display_name=c.display_name,

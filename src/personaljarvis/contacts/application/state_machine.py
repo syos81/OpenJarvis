@@ -4,7 +4,7 @@ Bis 2026-08-03 lagen die Übergangsregeln verstreut an ihren Aufrufstellen:
 `execute` prüfte drei Wächter, `finalize_pending` einen anderen,
 `reconcile` wieder einen, und `_set_state` schrieb ohne jede Prüfung. Das
 funktionierte, war aber nicht **nachlesbar** — und was man nicht nachlesen
-kann, kann man auch nicht gegen einen ADR prüfen (ADR-0020 §4, Lücke L5).
+kann, kann man auch nicht gegen einen ADR prüfen (ADR-0026 §4, Lücke L5).
 
 Hier steht die Tabelle. Alle Schreibpfade gehen durch `pruefe_uebergang`;
 die Statiktests halten Python-Vorrat, SQL-CHECK, API-Schema und ADR
@@ -57,7 +57,7 @@ NACH_SEND: frozenset[str] = frozenset({
     "reconcile_required", "manual_decision_required",
 })
 
-#: Die Übergangstabelle (ADR-0020 §4).
+#: Die Übergangstabelle (ADR-0026 §4).
 ERLAUBTE_UEBERGAENGE: dict[str, frozenset[str]] = {
     "prepared": frozenset({"awaiting_approval"}),
     "awaiting_approval": frozenset({

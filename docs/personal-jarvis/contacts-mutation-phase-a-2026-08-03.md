@@ -1,26 +1,26 @@
 # Phase A des App-Prozess-Mutationskanals, 2026-08-03
 
 Branch `feat/contacts-app-process-mutation-phase-a-2026-08-03`, Basis
-`3a4cb54` (ADR-0020 integriert), isolierter Worktree.
+`3a4cb54` (ADR-0026 integriert), isolierter Worktree.
 
 **Phase A baut den Transport — nicht den Provider.** In diesem Stand gibt es
 keinen `CNSaveRequest`, kein `CNMutableContact`, keinen Contacts-Schreibcode
 und keinen Sidecar-Schreibpfad. Der native Kanal ist ein Fake hinter einem
 Entwicklungs-Gate; im Release ist er fail-closed.
 
-## 1. Bestands- und Lückenmatrix gegen ADR-0020
+## 1. Bestands- und Lückenmatrix gegen ADR-0026
 
 Legende: **erfüllt** · **teilweise** · **fehlt** · **widerspricht** ·
 →A = wird in Phase A implementiert · →B..F = spätere Phase.
 
 ### 1.1 Backend-Kern
 
-| Vertragspunkt (ADR-0020) | Ist-Zustand | Bewertung | Phase |
+| Vertragspunkt (ADR-0026) | Ist-Zustand | Bewertung | Phase |
 |---|---|---|---|
 | Freigabe ≠ Ausführung, kein Hintergrundexecutor | `grant`/`execute` getrennt, kein Scheduler | erfüllt | — |
 | Outbox-Claim als Serialisierungspunkt | `ExternalActionOutbox.claim()` bedingtes UPDATE, `NOT_CLAIMABLE` | erfüllt | — |
 | `provider_send_started` **vor** dem Send, committed | Audit in Claim-UnitOfWork | erfüllt | — |
-| `attempt_count` = begonnene Sendversuche (Outbox kanonisch) | wie ADR-0019 §5b | erfüllt | — |
+| `attempt_count` = begonnene Sendversuche (Outbox kanonisch) | wie ADR-0025 §5b | erfüllt | — |
 | `recover_interrupted()` beim Start ⇒ `outcome_unknown` | `bootstrap.py` | erfüllt | — |
 | `finalize_pending` (C2), Spiegel + Audit | vorhanden, idempotent bei `succeeded` | erfüllt | — |
 | Reconcile ohne Namenssuche | `application/reconcile.py` `_judge` | erfüllt | — |
@@ -29,7 +29,7 @@ Legende: **erfüllt** · **teilweise** · **fehlt** · **widerspricht** ·
 | **Feldvertrag v1 auch für Update** (L2) | `update` nutzt ältere `PATCHABLE_FIELDS` | widerspricht | **→A** (Validierung) / →E (Providerweg) |
 | **Audit-`stage`-CHECK in der DB** (L3) | nur Python-Menge | fehlt | **→A** |
 | **Deklarative Übergangstabelle** (L5) | Wächter verstreut, `_set_state` ohne Vorzustandsprüfung | fehlt | **→A** |
-| `manually_resolved_applied` (ADR-0020 §4.1) | nicht vorhanden | fehlt | **→A** |
+| `manually_resolved_applied` (ADR-0026 §4.1) | nicht vorhanden | fehlt | **→A** |
 | Claim-Token nur als Digest | Outbox speichert `claim_token` **im Klartext** | widerspricht | **→A** |
 | `operation_id`, `claim_expires_at`, `execution_order_issued_at`, `execution_report_digest`, `error_class`, `error_digest` | nicht vorhanden | fehlt | **→A** |
 | ExecutionOrder/ExecutionReport | existieren nicht (Kern rief den Sidecar selbst) | fehlt | **→A** |
@@ -41,7 +41,7 @@ Legende: **erfüllt** · **teilweise** · **fehlt** · **widerspricht** ·
 
 | Vertragspunkt | Ist-Zustand | Bewertung | Phase |
 |---|---|---|---|
-| Sidecar `create` produktiv | **implementiert** (`opCreate`, echter `CNSaveRequest`) | widerspricht ADR-0020 §10.2 | **→A** (deaktiviert) |
+| Sidecar `create` produktiv | **implementiert** (`opCreate`, echter `CNSaveRequest`) | widerspricht ADR-0026 §10.2 | **→A** (deaktiviert) |
 | Sidecar `update`/`delete` | `not_implemented` | erfüllt | — |
 | Sidecar-Handshake `createImplemented` | `true` | widerspricht | **→A** (`false`) |
 | `PROTOCOL.md` beschreibt `mutationsImplemented=false` (L4) | Drift zum Code | widerspricht | **→A** (berichtigt) |
@@ -61,7 +61,7 @@ Legende: **erfüllt** · **teilweise** · **fehlt** · **widerspricht** ·
 | Frontend-Transportdienst | fehlt | fehlt | **→A** |
 | Frontend berechnet Digests | tut es nicht | erfüllt | — |
 | Frontend entscheidet Terminalzustände | tut es nicht | erfüllt | — |
-| Rohe Identifier in öffentlichen Modellen | maskiert (ADR-0019 §2 umgesetzt) | erfüllt | — |
+| Rohe Identifier in öffentlichen Modellen | maskiert (ADR-0025 §2 umgesetzt) | erfüllt | — |
 
 **Ergebnis:** Phase A implementiert 12 fehlende und korrigiert 6
 widersprechende Punkte. Alles Native (echter Save, Read-back) bleibt
@@ -158,7 +158,7 @@ Provider und nie Tauri, und entscheidet den Zustand allein serverseitig.
 `contacts/application/state_machine.py` ist die einzige Wahrheit:
 `ERLAUBTE_UEBERGAENGE`, `TERMINAL`, `NACH_SEND`. `_set_state` prüft den
 Vorzustand gegen die Tabelle. Statiktests halten Python-Vorrat, SQL-CHECK,
-API-Schema, Frontend-Typen und ADR-0020 deckungsgleich.
+API-Schema, Frontend-Typen und ADR-0026 deckungsgleich.
 
 ## 8. Was Phase A **nicht** tut
 
@@ -284,7 +284,7 @@ Statische Befunde am Release-Binary:
 
 Im **Sidecar**-Binary finden sich weiterhin vier Treffer auf
 `CNSaveRequest`/`CNMutableContact`: das ist der stillgelegte Save-Pfad, der
-als Beweis- und Diagnosehistorie erhalten bleibt (§10) und seit ADR-0020
+als Beweis- und Diagnosehistorie erhalten bleibt (§10) und seit ADR-0026
 nicht mehr erreicht wird — `opCreate` antwortet davor mit
 `capability_denied`, das ebenfalls im Binary steht.
 

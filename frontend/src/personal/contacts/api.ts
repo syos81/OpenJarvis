@@ -6,7 +6,7 @@
 // /v1/personal/contacts und dort über den ApplicationCommandBus.
 //
 // Was hier niemals im UI-State landet: Sync-Cursor, Change-History-Token,
-// Roh-Payloads — und seit ADR-0019 auch keine Provider-Kennung mehr. Die
+// Roh-Payloads — und seit ADR-0025 auch keine Provider-Kennung mehr. Die
 // Oberfläche zielt über die lokale `contact_id` bzw. eine maskierte
 // `container_ref`; das Backend löst beides intern auf.
 
@@ -86,7 +86,7 @@ export interface ContactDetail {
   relations: LabeledValue[];
   roles: string[];
   field_availability: FieldAvailability[];
-  /** Providerherkunft ausschliesslich maskiert (ADR-0019). */
+  /** Providerherkunft ausschliesslich maskiert (ADR-0025). */
   account_refs: string[];
   container_refs: string[];
   provider_type: string;
@@ -674,7 +674,7 @@ export function reconcileMutation(id: string): Promise<ReconcileResult> {
   );
 }
 
-// ── App-Prozess-Ausführungskanal (ADR-0020, Phase A) ────────────────────────
+// ── App-Prozess-Ausführungskanal (ADR-0026, Phase A) ────────────────────────
 //
 // Der Kanal hat drei Berührungspunkte mit dem Server: Fähigkeiten lesen,
 // **einen** Versuch beanspruchen, **einen** Bericht melden. Sie liegen hier,
@@ -799,7 +799,7 @@ export function claimAppExecution(
   mutationId: string, confirmDelete = false,
 ): Promise<ExecutionOrderV1> {
   // `confirm_delete` ist die **zweite** Handlung des Menschen (R2,
-  // ADR-0020 §8.3, DEC-046) — sie ersetzt die Freigabe nicht. Der Server
+  // ADR-0026 §8.3, DEC-053) — sie ersetzt die Freigabe nicht. Der Server
   // weist einen Löschanspruch ohne sie ab; hier wird sie nur weitergereicht,
   // nie erfunden.
   return request<ExecutionOrderV1>(

@@ -91,7 +91,7 @@ class OutboxEntry:
     created_at: str
     claimed_at: str | None = None
     #: **Nur der Digest.** Der Rohtoken existiert einmal im
-    #: Ausfuehrungsauftrag und wird nie persistiert (ADR-0020 §3).
+    #: Ausfuehrungsauftrag und wird nie persistiert (ADR-0026 §3).
     claim_token_digest: str | None = None
     operation_id: str | None = None
     claim_expires_at: str | None = None

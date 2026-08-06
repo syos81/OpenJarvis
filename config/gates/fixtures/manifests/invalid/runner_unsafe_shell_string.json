@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "block_id": "fixture-runner-unsafe-shell-string",
+  "title": "Positive manifest fixture",
+  "engine_min_version": "1.0.0",
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "phase_definitions": {
+    "preflight": {
+      "applicable": true,
+      "required": true,
+      "reason": "Prerequisites only."
+    },
+    "targeted": {
+      "applicable": true,
+      "required": true,
+      "reason": "Limited checks for the current change."
+    },
+    "offline-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "All reproducible offline checks."
+    },
+    "platform-live": {
+      "applicable": false,
+      "required": true,
+      "declared_result": "not_applicable",
+      "reason": "The fixture block declares no live acceptance at all."
+    },
+    "module-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Closing aggregation."
+    }
+  },
+  "targeted_selection": {
+    "base_ref": "main",
+    "always": [
+      "tg-fixture"
+    ],
+    "rules": [
+      {
+        "rule_id": "r-fixture",
+        "paths": [
+          "tools/gates/*.py"
+        ],
+        "checks": [
+          "tg-fixture"
+        ]
+      }
+    ]
+  },
+  "checks": [
+    {
+      "check_id": "pf-fixture",
+      "phase": "preflight",
+      "required": true,
+      "description": "Fixture preflight check.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-c",
+          "import os; os.system(\"id\")"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-fixture",
+      "phase": "targeted",
+      "required": true,
+      "description": "Fixture targeted check.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-fixture",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Fixture offline check, baseline comparable.",
+      "runner": {
+        "type": "argv",
+        "cwd": "target",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": true,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-fixture",
+      "phase": "module-final",
+      "required": true,
+      "description": "Fixture closing check.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_phase_results"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 60,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    }
+  ],
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cause_signature_version": "cs-1",
+    "owner_marker": "openjarvis-gate-baseline",
+    "cache_enabled": true,
+    "dependency_lock_paths": [
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "config_digest_paths": [
+      "config/gates/blocks/b0a-1-tooling.json"
+    ]
+  },
+  "platform_requirements": {
+    "systems": [
+      "Darwin"
+    ],
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.10"
+  },
+  "evidence_policy": {
+    "sanitized_evidence": true,
+    "raw_log_area": "runtime_only"
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0a-1-tooling.lineage.json",
+    "own_expected": 24,
+    "own_prefix": "B0A1-",
+    "predecessor_file": "config/gates/features/b0a-1-tooling.predecessor.json"
+  },
+  "product_guard": {
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "allowed_paths": [
+      "tools/gates/*"
+    ],
+    "forbidden_paths": [
+      "src/*"
+    ]
+  }
+}

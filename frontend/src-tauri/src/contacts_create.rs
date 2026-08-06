@@ -1,4 +1,4 @@
-// Nativer Create im App-Prozess (ADR-0020 §8.1, Phase B).
+// Nativer Create im App-Prozess (ADR-0026 §8.1, Phase B).
 //
 // Diese Schicht ist der Torwächter vor dem einen `CNSaveRequest`. Sie prüft
 // **vor** jedem FFI-Aufruf in dieser Reihenfolge: Schreibfreigabe, dann
@@ -42,7 +42,7 @@ const DIGEST_CAPACITY: usize = 65;
 const IDENTIFIER_CAPACITY: usize = 512;
 const READBACK_CAPACITY: usize = 32768;
 
-/// Der eingefrorene v1-Feldvorrat (ADR-0020 §7), kanonische Schlüssel.
+/// Der eingefrorene v1-Feldvorrat (ADR-0026 §7), kanonische Schlüssel.
 /// Was hier fehlt, ist nicht schreibbar — und wird abgewiesen, nicht ignoriert.
 pub const CREATE_V1_KEYS: [&str; 19] = [
     "contactType",
@@ -786,7 +786,7 @@ mod tests {
     }
 }
 
-// ═══ Update und Delete (ADR-0020 §8.2/§8.3, DEC-046) ════════════════════════
+// ═══ Update und Delete (ADR-0026 §8.2/§8.3, DEC-053) ════════════════════════
 
 /// Ausgänge des Schreibpfads — deckungsgleich mit `JCContactsWriteOutcome`.
 const W_NOT_AUTHORIZED: i32 = 1;
@@ -865,7 +865,7 @@ pub fn bericht_aus_schreibergebnis(
         }
         W_ABSENCE_UNPROVEN => {
             // Gespeichert, aber die Abwesenheit ist nicht belegt. „Nicht
-            // lesbar" ist kein Löschnachweis (ADR-0020 §8.3).
+            // lesbar" ist kein Löschnachweis (ADR-0026 §8.3).
             bericht.outcome = "outcome_unknown".into();
             bericht.readback_status = "failed".into();
             bericht.error_class = Some("readback_failed".into());
@@ -1328,7 +1328,7 @@ mod schreib_tests {
     }
 }
 
-// ═══ Der opferbare Schreibhelfer — GUI-Seite (ADR-0020-Nachtrag 2026-08-04) ═
+// ═══ Der opferbare Schreibhelfer — GUI-Seite (ADR-0026-Nachtrag 2026-08-04) ═
 
 /// Wie lange die GUI auf den Helfer wartet. Grosszügig: ein Save gegen
 /// contactsd braucht Sekunden, nicht Minuten — aber ein zäher erster

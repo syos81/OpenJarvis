@@ -151,7 +151,7 @@ class ContactDetailOut(_Strict):
     relations: list[LabeledValueOut] = Field(default_factory=list)
     roles: list[str] = Field(default_factory=list)
     field_availability: list[FieldAvailabilityOut] = Field(default_factory=list)
-    #: Providerherkunft ausschliesslich maskiert (ADR-0019 §2).
+    #: Providerherkunft ausschliesslich maskiert (ADR-0025 §2).
     account_refs: list[str] = Field(default_factory=list)
     container_refs: list[str] = Field(default_factory=list)
     provider_type: str = "unknown"
@@ -184,7 +184,7 @@ class RolesOut(_Strict):
 # Keine Eingabe nennt mehr eine rohe Apple-Kennung. Ziel eines `update` oder
 # `delete` ist die lokale `contact_id` im Pfad; Ziel eines `create` ist eine
 # maskierte `container_ref`. Die Aufloesung auf die echten Kennungen geschieht
-# im Backend und ist fail-closed (ADR-0019 §2).
+# im Backend und ist fail-closed (ADR-0025 §2).
 class _MutationBase(_Strict):
     idempotency_key: str = Field(min_length=1, max_length=128)
     correlation_id: str = Field(min_length=1, max_length=128)
@@ -273,7 +273,7 @@ class DeleteContactIn(_MutationBase):
 
 
 class ResolveOutcomeIn(_Strict):
-    """Menschlicher Abschluss eines ungewissen Ausgangs (ADR-0019).
+    """Menschlicher Abschluss eines ungewissen Ausgangs (ADR-0025).
 
     Drei geschlossene Angaben, **kein Freitext**: eine getippte Begründung
     landete in der Auditspur und könnte einen Kontaktwert tragen. Was zählt,
@@ -295,13 +295,13 @@ class ExecuteMutationIn(_Strict):
 
     `Literal[True]` und `extra="forbid"`: es gibt keinen Aufruf ohne bewusste
     Bestätigung im Rumpf, und kein Query-Parameter kann sie ersetzen. Eine
-    Freigabe allein führt nichts aus (ADR-0019 §1).
+    Freigabe allein führt nichts aus (ADR-0025 §1).
     """
 
     user_initiated: Literal[True]
 
 
-# ── App-Prozess-Kanal (ADR-0020, Phase A) ───────────────────────────────────
+# ── App-Prozess-Kanal (ADR-0026, Phase A) ───────────────────────────────────
 class ClaimAppExecutionIn(_Strict):
     """Die ausdrückliche Nutzeraktion, die **einen** Versuch beansprucht.
 
@@ -311,7 +311,7 @@ class ClaimAppExecutionIn(_Strict):
     """
 
     user_initiated: Literal[True]
-    #: Nur für `delete` (R2, ADR-0020 §8.3, DEC-046): die **zusätzliche**
+    #: Nur für `delete` (R2, ADR-0026 §8.3, DEC-053): die **zusätzliche**
     #: Bestätigung im Ausführungsschritt. Sie ist nicht dieselbe Handlung
     #: wie die Freigabe — deshalb ein zweites Feld und kein zweites Lesen
     #: desselben. Für `create` und `update` muss sie fehlen oder falsch

@@ -34,7 +34,7 @@ Maßgeblich für den Entscheidungstext ist stets das Entscheidungsregister; die 
 | DEC-D03 | **Recovery-Key-Format und optionale Passphrase** | Wortfolge/Schlüsseldatei; Passphrase-Hülle zusätzlich? (13 §2) | Recovery Key verpflichtend + Passphrase optional | **entschieden 2026-07-27 → DEC-033** |
 | DEC-D04 | **UI-E2E-Werkzeug** | Playwright vs. Component-Tests only (15 §1 Nr. 8) | Playwright (additiv) | **entschieden 2026-07-27 → DEC-034** |
 | DEC-D05 | **Session-Token-TTL und Rotation** | Feinwerte für 09 §1 | TTL 8 h, Rotation 30 min vor Ablauf, Invalidierung bei App-Exit | **entschieden 2026-07-27 → DEC-035** |
-| DEC-D06 | **Optionale native R2-Zweitbestätigung** | Tauri-Dialog als Dekoration des transportneutralen ApprovalClient (09 §2) | ja, als Feature-Schalter | **offen** — erstes R2-Modul; [ADR-0019](../adr/ADR-0019-provider-mutation-architecture.md) §7 schlägt Kontakte-**Delete als R2** vor (unverbindlich) und verriegelt jede Delete-Implementierung (Phase M5) hinter dieser Entscheidung: zu klären sind die zusätzliche In-App-Bestätigung, ggf. eine native zweite Bestätigung, die genaue Darstellung des zu löschenden Kontakts und der Ausschluss jeder automatischen Kaskade |
+| DEC-D06 | **Optionale native R2-Zweitbestätigung** | Tauri-Dialog als Dekoration des transportneutralen ApprovalClient (09 §2) | ja, als Feature-Schalter | **offen** — erstes R2-Modul; [ADR-0025](../adr/ADR-0025-provider-mutation-architecture.md) §7 schlägt Kontakte-**Delete als R2** vor (unverbindlich) und verriegelt jede Delete-Implementierung (Phase M5) hinter dieser Entscheidung: zu klären sind die zusätzliche In-App-Bestätigung, ggf. eine native zweite Bestätigung, die genaue Darstellung des zu löschenden Kontakts und der Ausschluss jeder automatischen Kaskade |
 | DEC-D07 | **Audit-Checkpoint-Kadenz und externes Medium** | manueller Export: Rhythmus, Medium (13 §5) | monatlich + bei jedem R2-Modul-Go-Live | **entschieden 2026-07-27 → DEC-036** |
 | DEC-D08 | **Chat-Migration in die Personal-Datenhoheit (Zeitpunkt)** | Richtung ist entschieden (DEC-019, 06 §3); offen ist der Zeitpunkt | mit dem Fachmodul „Chat & Sessions" | **offen** — Planung des Chat-Moduls |
 | DEC-D09 | **Sensitivitätsmatrix einzelner Datentypen** | Zuordnung S1/S2 je Feld/Datentyp (12 §1) | Vorschlagsmatrix mit erstem LLM-nutzendem Modul | **teilentschieden:** Kontakt-Modul-Klassifizierung 2026-07-27 → DEC-037; **globale Matrix weiterhin offen** (erstes LLM-nutzendes Modul) |
@@ -75,3 +75,37 @@ Maßgeblich für den Entscheidungstext ist stets das Entscheidungsregister; die 
 - Wartbarkeit.
 
 Bis zur Entscheidung darf **kein** Dokument eine der beiden Varianten vorschreiben oder ausschließen (17 §1, Vorwegnahme-Verbot).
+
+## §4 Bundle-Identifier der Kontakte-Bridge (offen, ohne Nummer)
+
+**Kontakte- und Identitätsblock.** Dieser Eintrag trägt bewusst **keine**
+DEC-, DEC-D- oder ADR-Nummer: er hält eine offene Eigentümerentscheidung fest,
+ohne eine Entscheidung vorwegzunehmen oder eine Nummer zu reservieren.
+
+**Sachverhalt.** Die ausgelieferte Anwendung führt die Reverse-DNS-Identität
+`de.kluender.jarvis.contacts-bridge` als Bundle-Identifier und als daraus
+abgeleiteten Contacts-Transaktionsautor. Dieser Wert enthält einen konkreten
+Organisationsnamen. Die Allgemeinheitsregel verbietet Organisationsnamen in
+Schema, Enum, Zustand, Feld, Routensegment, Typ- und Modulnamen — die
+Anwendungsidentität selbst ist davon nicht erfasst, weil kein fachliches
+Modell an ihr hängt.
+
+**Vorläufige Festlegung.** Der Bundle-Identifier bleibt **unverändert**. Er
+ist im Namensscan wert- und pfadgenau als
+`application-bundle-identifier` deklariert
+(`config/governance/generality-scope.json`); die Ausnahme gilt ausschließlich
+für diesen exakten Wert an genau fünf benannten Pfaden und wird nicht zu einer
+pauschalen Allowlist erweitert. Jede andere Fundstelle eines
+Organisationsbegriffs bleibt ein Befund.
+
+**Zu entscheiden.** Ob der ausgelieferte Bundle-Identifier dauerhaft den
+Organisationsnamen trägt oder auf einen organisationsneutralen Wert wechselt.
+Ein Wechsel ist eine Produkt-, Signierungs- und TCC-Änderung mit Folgen für
+Bundle-Konfiguration, Migrationen, Repositorywerte und den nativen Sidecar; er
+gehört deshalb nicht in einen Governance- oder Integrationsblock.
+
+**Fälligkeit.** Spätestens vor **Kontakte M2** oder vor der **ersten
+produktiven signierten Freigabe** — je nachdem, was zuerst eintritt.
+
+Bis zur Entscheidung darf kein Dokument eine der beiden Varianten
+vorschreiben oder ausschließen (§1, Vorwegnahme-Verbot).

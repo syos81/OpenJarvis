@@ -33,7 +33,7 @@ from personaljarvis.contacts.application.state_machine import (
 )
 
 WURZEL = Path(__file__).resolve().parents[3]
-ADR20 = WURZEL / "docs/adr/ADR-0020-app-process-mutation-channel.md"
+ADR20 = WURZEL / "docs/adr/ADR-0026-app-process-mutation-channel.md"
 FRONTEND = WURZEL / "frontend/src/personal/contacts"
 
 

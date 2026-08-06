@@ -300,7 +300,7 @@ class ContactsModule:
     def mutation_service(self, provider=None) -> "ContactsMutationService":
         """Mutationsdienst. Ohne Provider ist keine Ausführung möglich.
 
-        Produktiv ist der Provider seit ADR-0019 der Sidecar — **nur für
+        Produktiv ist der Provider seit ADR-0025 der Sidecar — **nur für
         `create`**. Ob überhaupt gesendet werden darf, entscheidet nicht dieser
         Aufbau, sondern die aus dem Handshake abgeleitete Fähigkeitsmenge:
         ohne passenden Vertragsstand bleibt `create_supported` False und schon

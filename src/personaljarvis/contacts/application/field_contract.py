@@ -10,7 +10,7 @@ Labelvorrat und einer kanonischen Form, die auf beiden Seiten dieselbe ist.
 getrennt signiert. Ohne Versionsnummer könnte ein neuer Kern einem alten
 Sidecar Felder schicken, die dieser stillschweigend verwirft — ein
 Datenverlust, den niemand bemerkt. Beide Seiten nennen ihre Version, und
-Ungleichheit ist fail-closed (ADR-0019 §6).
+Ungleichheit ist fail-closed (ADR-0025 §6).
 
 **Was v1 ausdrücklich nicht kann** — jede Aufnahme verlangt v2 und eine
 eigene Entscheidung: Notizen (ohne Apple-Entitlement nicht lesbar, also auch
@@ -283,7 +283,7 @@ def _wert_liste(roh: Any, *, feld: str, grenze: int, vorrat: frozenset[str],
             label=_label(e.get("label"), feld=f"{feld}[{i}].label",
                          vorrat=vorrat),
             value=wert))
-    # **Reihenfolge ist Position, nicht Sortierung** (ADR-0020 §7). Hier
+    # **Reihenfolge ist Position, nicht Sortierung** (ADR-0026 §7). Hier
     # wurde früher nach `(label, value)` sortiert — eine stille Kanonisierung,
     # die zweierlei kaputt macht: Sie verdreht die Absicht des Menschen (wer
     # die Arbeitsadresse zuerst nennt, will sie zuerst haben), und sie
@@ -633,7 +633,7 @@ def as_bridge_contact(felder: CreateFields, *, provider_identifier: str,
     Speicher — aber `readback_digest` belegt, ob der Providerzustand mit dem
     Entwurf übereinstimmt. Tut er das, ist der Entwurf beweisbar dasselbe wie
     der Read-back, und die Nachführung braucht **keinen** erneuten
-    Providerkontakt (ADR-0019 §5).
+    Providerkontakt (ADR-0025 §5).
 
     Das DTO geht anschliessend durch denselben Mapper wie jeder gelesene
     Kontakt — es gibt keinen zweiten Abbildungsweg in die Domäne.
@@ -827,7 +827,7 @@ def canonical_patch(roh: Mapping[str, Any]) -> dict:
             continue
         if name == "contact_type":
             raise InvalidCommand(
-                "Ein Typwechsel ist in v1 nicht zugesagt (ADR-0020 §7)")
+                "Ein Typwechsel ist in v1 nicht zugesagt (ADR-0026 §7)")
         if name == "birthday":
             if wert is None:
                 out["birthday"] = None

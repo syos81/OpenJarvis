@@ -201,7 +201,7 @@ class TestSchreibfreigabe:
         assert read_write_release(f) is None
 
     def test_jede_operation_bindet_einzeln(self, tmp_path):
-        """Seit DEC-046 sind alle drei freigebbar — aber nur einzeln.
+        """Seit DEC-053 sind alle drei freigebbar — aber nur einzeln.
 
         Eine Datei, die `update` nennt, gibt kein `delete` frei. Das ist der
         Kern des Mechanismus: Wer eine Aenderung erlauben will, erlaubt damit

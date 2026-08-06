@@ -1,6 +1,6 @@
 """Migration 0008 — Transportzustand des App-Prozess-Mutationskanals.
 
-ADR-0020 verlegt den produktiven Schreibkanal vom CLI-Sidecar in den
+ADR-0026 verlegt den produktiven Schreibkanal vom CLI-Sidecar in den
 Tauri-App-Prozess. Damit wandert der Provideraufruf aus dem Backend heraus,
 und der Kern muss drei Dinge festhalten können, die es vorher nicht gab:
 
@@ -9,7 +9,7 @@ und der Kern muss drei Dinge festhalten können, die es vorher nicht gab:
    Ausgabe ist ein zweiter Claim ausgeschlossen — auch nach Verfall, denn ob
    irgendwo gesendet wurde, ist von da an prinzipiell unbeweisbar.
 2. **Womit der Rückläufer gebunden ist**: `claim_token_digest` statt des
-   bisherigen Klartext-Tokens (ADR-0020 §3 — der Rohtoken existiert nur
+   bisherigen Klartext-Tokens (ADR-0026 §3 — der Rohtoken existiert nur
    flüchtig im Auftrag) und `execution_report_digest`, der das Settle
    idempotent macht: derselbe Bericht darf beliebig oft ankommen, ein
    **anderer** nie.
@@ -19,7 +19,7 @@ und der Kern muss drei Dinge festhalten können, die es vorher nicht gab:
 Dazu zwei Altlasten aus dem Audit vom 2026-08-03:
 
 * `contacts_mutations` bekommt `manually_resolved_applied` in den
-  Zustands-CHECK (ADR-0020 §4.1) — das Gegenstück zu
+  Zustands-CHECK (ADR-0026 §4.1) — das Gegenstück zu
   `manually_resolved_not_applied`: ein Mensch hat die Änderung beim Provider
   **gesehen**, ohne dass der Abgleich sie beweisen kann. Ohne eigenen
   Zustand müsste man `succeeded` behaupten und damit einen Beleg erfinden.
@@ -75,7 +75,7 @@ AUDIT_STAGES_0008: tuple[str, ...] = (
     "execution_order_issued", "mutation_settled",
 )
 
-#: Geschlossene Fehlerklassen des Transportkanals (ADR-0020 §9).
+#: Geschlossene Fehlerklassen des Transportkanals (ADR-0026 §9).
 EXECUTION_ERROR_CLASSES: tuple[str, ...] = (
     # vor Sendebeginn
     "invalid_claim", "expired_claim_before_send", "digest_mismatch",

@@ -80,7 +80,7 @@ class MutationPayload:
     expected_revision: str | None
     fields: Mapping[str, Any] = field(default_factory=dict)
     #: Der kanonische v1-Zustand des Ziels, wie ihn der Mensch in der
-    #: Vorschau sieht (ADR-0020 §8.2/§8.3). Nur bei `update` und `delete`.
+    #: Vorschau sieht (ADR-0026 §8.2/§8.3). Nur bei `update` und `delete`.
     #: Er gehört in die Nutzlast und nicht in einen Seitenkanal: Nur so
     #: deckt ihn der `payload_digest` — und damit die Freigabe.
     expected_previous: Mapping[str, Any] | None = None
@@ -156,7 +156,7 @@ class ExecutionResult:
     attempt_count: int = 0
     #: Lokale Kennung des kanonischen Spiegels — erst nach der Nachführung (C2).
     contact_id: str | None = None
-    #: Fingerabdruck des zurückgelesenen Providerzustands (ADR-0019 §5).
+    #: Fingerabdruck des zurückgelesenen Providerzustands (ADR-0025 §5).
     readback_digest: str | None = None
 
     @property

@@ -200,7 +200,7 @@ class ApprovalStore:
         Sendeversuch.
 
         Der Vorschau-Digest wurde bis 2026-08-03 zwar gespeichert, aber nie
-        geprüft (ADR-0020 Lücke L1). Das war eine echte Lücke: Der Mensch gibt
+        geprüft (ADR-0026 Lücke L1). Das war eine echte Lücke: Der Mensch gibt
         frei, was er **gesehen** hat — die Nutzlast allein belegt nicht, dass
         die Anzeige dieselbe Operation zeigte. Wird `preview_digest`
         übergeben, muss er zur Freigabe passen; `None` bedeutet

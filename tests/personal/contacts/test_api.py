@@ -661,7 +661,7 @@ def _routenpfade(module) -> list[str]:
 def test_genau_ein_ausfuehrungsendpunkt(module):
     """Es gibt **einen** Weg zum Provider, und er heisst `execute`.
 
-    Vorher lautete der Nachweis „gar keiner". Seit ADR-0019 gibt es ihn — die
+    Vorher lautete der Nachweis „gar keiner". Seit ADR-0025 gibt es ihn — die
     Aussage muss deshalb schaerfer werden statt zu verschwinden: genau eine
     Route, und daneben weiterhin nichts, was einen Vorgang wiederholt oder
     ungefragt abschickt.

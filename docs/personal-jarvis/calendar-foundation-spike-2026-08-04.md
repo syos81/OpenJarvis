@@ -1,7 +1,7 @@
 ---
 Status: Spike-Ergebnis (untersuchend, nicht normativ)
-Zugehörige DEC-Einträge: DEC-048 (Freigabe und Grenze dieses Spikes), DEC-042, DEC-030
-Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016, ADR-0018, ADR-0019, ADR-0020
+Zugehörige DEC-Einträge: DEC-055 (Freigabe und Grenze dieses Spikes), DEC-042, DEC-030
+Zugehörige ADRs: ADR-0002, ADR-0012, ADR-0016, ADR-0018, ADR-0025, ADR-0026
 Evidenz: docs/testing/calendar-read-probe-x86_64-2026-08-04.md
 ---
 
@@ -19,7 +19,7 @@ echte Daten gemacht, und der war lesend.
 **Und er startet das Modul nicht.** 16 §4.1 sagt „kein anderes Fachmodul
 beginnt parallel", und das bleibt so: Das Kontaktmodul ist auf ARM64 nicht
 abgenommen (15 §8.1). Dieses Dokument ist Vorarbeit, kein Startschuss
-(DEC-048).
+(DEC-055).
 
 > **Nachtrag 2026-08-04:** Die verbindliche Implementierungsbaseline für
 > Modul 2 — Entscheidungen, Altcode-Übernahme, Apple-Paritätsvertrag,
@@ -45,7 +45,7 @@ auf leerem Grund.
 
 **Vorhandenes Fundament, das das Modul erbt:** Basis-DB mit Migrations-Ledger,
 Outboxes, Audit, Approvals, Egress-Guard, CredentialStore, Backup-Kern — und
-die gesamte Mutations-Architektur aus ADR-0019/0020, die beim Kontaktmodul
+die gesamte Mutations-Architektur aus ADR-0025/0026, die beim Kontaktmodul
 teuer erarbeitet wurde und für Kalender gilt, ohne noch einmal erfunden zu
 werden.
 
@@ -92,7 +92,7 @@ Gründen, nicht aus Zwang:
 **Empfehlung: Sidecar für Lesen und Sync.** Sie ist keine Vorliebe, sondern die
 Lehre aus dem Kontaktmodul: Ein nativer Aufruf, der sterben kann, gehört nicht
 dorthin, wo Sterben teuer ist. Für spätere Schreibvorgänge bleibt der
-opferbare Einmal-Helfer nach ADR-0020 die naheliegende Form — **entschieden
+opferbare Einmal-Helfer nach ADR-0026 die naheliegende Form — **entschieden
 wird das erst mit dem Schreibauftrag**, nicht hier.
 
 Zwei Auflagen, unabhängig vom Ort:
@@ -271,7 +271,7 @@ bearbeitbare Objekte · Erinnerungen (`EKReminder` ist ein eigenes Modul,
 16 §1) · Geburtstagskalender als Schreibziel.
 
 **Schreiben:** in v1 **gar nicht**. Kein Feld ist als schreibbar zugesagt. Der
-Schreibvertrag entsteht mit dem Schreibauftrag und erbt ADR-0019/0020
+Schreibvertrag entsteht mit dem Schreibauftrag und erbt ADR-0025/0026
 unverändert: getrennte Freigabe und Ausführung, genau ein Sendversuch,
 `outcome_unknown` führt nur in den Abgleich, Löschen ist R2.
 

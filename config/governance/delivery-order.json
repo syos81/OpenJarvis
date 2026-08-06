@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "source_id": "b0a-2-delivery-order",
+  "canonical": true,
+  "elements": [
+    {
+      "delivery_position": 1,
+      "element_type": "fachmodul",
+      "canonical_name": "Kontakte",
+      "fachmodul_number": 1,
+      "owns_domain_data": {
+        "value": true,
+        "qualification": "qualified",
+        "sources": [
+          {
+            "id": "DEC-030",
+            "line": "jarvis/rebuild-v1",
+            "line_label": "jarvis/rebuild-v1@c222601",
+            "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+            "title": "Erstes Fachmodul: Kontakte",
+            "primary_source": "docs/personal-jarvis/decisions-register.md"
+          }
+        ]
+      },
+      "normative_sources": [
+        {
+          "id": "DEC-045",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "Verbindliche Modulreihenfolge bis Modul 3",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "id": "ADR-0019",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "ADR-0019: Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung",
+          "primary_source": "docs/adr/ADR-0019-module-sequence-and-total-completion.md"
+        }
+      ],
+      "acceptance_profile": "fachmodul_definition_of_done"
+    },
+    {
+      "delivery_position": 2,
+      "element_type": "fachmodul",
+      "canonical_name": "Kalender",
+      "fachmodul_number": 2,
+      "owns_domain_data": {
+        "value": true,
+        "qualification": "pending_qualified_module_decision",
+        "sources": []
+      },
+      "normative_sources": [
+        {
+          "id": "DEC-045",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "Verbindliche Modulreihenfolge bis Modul 3",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "id": "ADR-0019",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "ADR-0019: Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung",
+          "primary_source": "docs/adr/ADR-0019-module-sequence-and-total-completion.md"
+        }
+      ],
+      "acceptance_profile": "fachmodul_definition_of_done"
+    },
+    {
+      "delivery_position": 3,
+      "element_type": "technischer_produktblock",
+      "canonical_name": "Ambient Interaction V1",
+      "fachmodul_number": null,
+      "owns_domain_data": {
+        "value": false,
+        "qualification": "excluded_technical_block",
+        "sources": []
+      },
+      "normative_sources": [
+        {
+          "id": "{{DEC_ID_AMBIENT_INTERACTION_V1}}",
+          "line": "unassigned",
+          "line_label": "unassigned",
+          "commit": null,
+          "title": "Ambient Interaction V1 als technischer Produktblock auf Lieferposition 3",
+          "primary_source": "docs/governance/b0a-2-ambient-interaction-v1.md"
+        },
+        {
+          "id": "DEC-047",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "KI-Arbeit, Internet, Browser- und App-Steuerung als verbindliches Zielbild",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "id": "ADR-0022",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "ADR-0022: KI-Arbeitsaufträge, Internet-, Browser- und App-Steuerung (verbindliches Zielbild)",
+          "primary_source": "docs/adr/ADR-0022-ai-work-internet-and-computer-control.md"
+        }
+      ],
+      "acceptance_profile": "technischer_block_p0_spike_vor_umfangsfestlegung"
+    },
+    {
+      "delivery_position": 4,
+      "element_type": "fachmodul",
+      "canonical_name": "Trading Intelligence T1",
+      "fachmodul_number": 3,
+      "owns_domain_data": {
+        "value": true,
+        "qualification": "pending_t1_scope",
+        "sources": []
+      },
+      "normative_sources": [
+        {
+          "id": "DEC-045",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "Verbindliche Modulreihenfolge bis Modul 3",
+          "primary_source": "docs/personal-jarvis/decisions-register.md"
+        },
+        {
+          "id": "ADR-0019",
+          "line": "jarvis/rebuild-v1",
+          "line_label": "jarvis/rebuild-v1@c222601",
+          "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+          "title": "ADR-0019: Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung",
+          "primary_source": "docs/adr/ADR-0019-module-sequence-and-total-completion.md"
+        }
+      ],
+      "acceptance_profile": "fachmodul_definition_of_done"
+    }
+  ],
+  "after_position_4": {
+    "policy": "requires_new_owner_decision",
+    "preassigned": false,
+    "note": "Nach Lieferposition 4 wird nichts vorab festgelegt. Ein weiteres Element braucht eine neue Eigentuemerentscheidung als qualifizierte Quelle."
+  },
+  "ambient_placeholder": "{{DEC_ID_AMBIENT_INTERACTION_V1}}",
+  "forbidden_order_sources": [
+    {
+      "id": "DEC-049",
+      "line": "jarvis/rebuild-v1",
+      "line_label": "jarvis/rebuild-v1@c222601",
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "title": "Gestufte Trading-Architektur T1–T4",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "id": "ADR-0024",
+      "line": "jarvis/rebuild-v1",
+      "line_label": "jarvis/rebuild-v1@c222601",
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "title": "ADR-0024: Gestufte Trading-Architektur (T1–T4) und Modul 3 „Trading Intelligence\"",
+      "primary_source": "docs/adr/ADR-0024-trading-architecture-tiers.md"
+    }
+  ],
+  "not_assigned_to_tooling_merge": [
+    {
+      "id": "DEC-050",
+      "line": "jarvis/rebuild-v1",
+      "line_label": "jarvis/rebuild-v1@c222601",
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "title": "Acht blockierende Kontakte-Gates",
+      "primary_source": "docs/personal-jarvis/decisions-register.md"
+    }
+  ]
+}

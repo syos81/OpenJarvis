@@ -215,7 +215,7 @@ export function ContactEditor({
 
   /**
    * Der vollständige Patch: geänderte Skalare plus **ganze** geänderte
-   * Listen (v1 ersetzt je benannter Liste, ADR-0020 §8.2). Leere Zeilen
+   * Listen (v1 ersetzt je benannter Liste, ADR-0026 §8.2). Leere Zeilen
    * zählen nicht; eine geleerte Liste reist als `[]` und löscht damit
    * ausdrücklich — genau die Unterscheidung, die „weggelassen" von
    * „gelöscht" trennt.

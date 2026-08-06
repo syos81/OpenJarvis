@@ -7,7 +7,7 @@ description = "OpenJarvis Desktop — Native AI assistant with energy monitoring
 edition = "2021"
 license = "MIT"
 
-# Der opferbare Schreibhelfer (ADR-0020-Nachtrag 2026-08-04): genau eine
+# Der opferbare Schreibhelfer (ADR-0026-Nachtrag 2026-08-04): genau eine
 # ExecutionOrder je Prozess, hoechstens ein CNSaveRequest, Bericht ueber
 # stdout. Stirbt er im Save (unfangbare CoreData-Ausnahme), ueberleben GUI
 # und Backend — der Absturz wird zum outcome_unknown statt zum Prozessende.

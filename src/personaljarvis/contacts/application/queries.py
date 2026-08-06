@@ -429,7 +429,7 @@ class ContactsQueryService:
         Fail-closed in beide Richtungen: kein Treffer und mehrere Treffer sind
         beides ein Fehler. Es wird **nie** der erste Treffer genommen — eine
         Kollision der Maskierung darf niemals dazu führen, dass ein Kontakt im
-        falschen Container landet (ADR-0019 §2).
+        falschen Container landet (ADR-0025 §2).
 
         Die Kandidatenmenge ist der **synchronisierte** Bestand: ein Container,
         der nie vollständig gelesen wurde, ist kein gültiges Ziel — dann fehlten

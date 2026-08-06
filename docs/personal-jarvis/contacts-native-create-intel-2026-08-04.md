@@ -24,7 +24,7 @@ Fünf Livetests auf macOS 12.7.6: derselbe minimale `CNSaveRequest` stirbt im
 nackten CLI-Sidecar deterministisch an einem `NSPersistentStoreCoordinator`
 ohne angehängte Stores; im Prozess von `Jarvis.app` speichert er. Der
 App-Prozess ist der einzige Prozess dieses Systems, dem der TCC-Grant gehört.
-Seit ADR-0020 §10 hat der Sidecar deshalb gar keinen Schreibpfad mehr —
+Seit ADR-0026 §10 hat der Sidecar deshalb gar keinen Schreibpfad mehr —
 `createImplemented` und die drei übrigen Flags sind dauerhaft `false`, und
 `opCreate` antwortet vor jeder Store-Berührung mit `capability_denied`.
 
@@ -79,7 +79,7 @@ genau einmal.
 
 ## 4. Feldumfang Create v1
 
-Geschrieben werden ausschliesslich die in ADR-0020 §7 eingefrorenen Felder:
+Geschrieben werden ausschliesslich die in ADR-0026 §7 eingefrorenen Felder:
 zwölf Skalare (`given_name`, `middle_name`, `family_name`,
 `previous_family_name`, `name_prefix`, `name_suffix`, `nickname`,
 `phonetic_given_name`, `phonetic_family_name`, `organization_name`,

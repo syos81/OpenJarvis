@@ -152,7 +152,7 @@ class ContactsReconcileService:
         # Eine angewandte **Neuanlage** ist mit dem Urteil noch nicht fertig:
         # es gibt den Kontakt beim Provider, aber lokal noch nicht. Sie geht
         # deshalb ueber denselben Weg wie ein Lauf, der eben geschrieben hat —
-        # Zwischenlage, dann Nachfuehrung, dann erst `succeeded` (ADR-0019 §5).
+        # Zwischenlage, dann Nachfuehrung, dann erst `succeeded` (ADR-0025 §5).
         if (verdikt == ReconcileVerdict.APPLIED
                 and payload.command == "create"):
             return self._create_nachfuehren(mutation_id, provider_id,
@@ -164,7 +164,7 @@ class ContactsReconcileService:
             outbox = ExternalActionOutbox(uow)
             if verdikt == ReconcileVerdict.APPLIED:
                 # Nur `update` und `delete` erreichen diesen Zweig; beide sind
-                # nicht implementiert (ADR-0019 §9) und aendern am lokalen
+                # nicht implementiert (ADR-0025 §9) und aendern am lokalen
                 # Bestand nichts, was hier nachzufuehren waere.
                 ContactsMutationService._set_state(
                     uow, mutation_id, MutationState.SUCCEEDED,

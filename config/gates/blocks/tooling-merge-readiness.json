@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "block_id": "tooling-merge-readiness",
+  "title": "Readiness of the single narrowly bounded later tooling integration",
+  "engine_min_version": "1.0.0",
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "phase_definitions": {
+    "preflight": {
+      "applicable": true,
+      "required": true,
+      "reason": "Checks the prerequisites of the readiness statement: the intended source and target line and the declared absence of any merge execution."
+    },
+    "targeted": {
+      "applicable": false,
+      "required": false,
+      "declared_result": "not_applicable",
+      "reason": "The readiness manifest has no incremental change set of its own; it always evaluates the complete incoming difference in offline-final."
+    },
+    "offline-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Evaluates the complete incoming difference, the required module closing gates, the feature lists and the sanitized evidence — read only."
+    },
+    "platform-live": {
+      "applicable": false,
+      "required": true,
+      "declared_result": "not_applicable",
+      "reason": "Readiness is decided from repository facts alone. No platform, provider or live system is involved, therefore the phase is declared non-applicable rather than blocked."
+    },
+    "module-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Aggregates the readiness statement. It never performs the integration; the merge itself stays an owner action outside every block."
+    }
+  },
+  "targeted_selection": {
+    "base_ref": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "always": [
+      "pf-merge-refs"
+    ],
+    "rules": []
+  },
+  "checks": [
+    {
+      "check_id": "pf-merge-no-execution",
+      "phase": "preflight",
+      "required": true,
+      "description": "The readiness runner provably invokes no merging git operation.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "no-merge"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-merge-refs",
+      "phase": "preflight",
+      "required": true,
+      "description": "Source and target are exactly the intended lines and no merge is declared.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "refs"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-merge-blocks",
+      "phase": "offline-final",
+      "required": true,
+      "description": "The module closing gates of the required blocks are valid, current and green.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "blocks"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-merge-collisions",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Integration context: an unresolved DEC or ADR collision blocks the later integration.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "collisions-blocking"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-merge-evidence",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Feature lists and sanitized evidence of the required blocks are complete.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "evidence"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-merge-no-execution",
+      "phase": "offline-final",
+      "required": true,
+      "description": "The readiness runner provably invokes no merging git operation.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "no-merge"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 120,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-merge-scope",
+      "phase": "offline-final",
+      "required": true,
+      "description": "The complete incoming diff stays inside the tooling and governance allowlist.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/merge_readiness.py",
+          "--mode",
+          "scope"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-merge-phase-results",
+      "phase": "module-final",
+      "required": true,
+      "description": "Both readiness phases have current results for this commit and manifest.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_phase_results"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    }
+  ],
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cause_signature_version": "cs-1",
+    "owner_marker": "openjarvis-gate-baseline",
+    "cache_enabled": false,
+    "dependency_lock_paths": [],
+    "config_digest_paths": [
+      "config/governance/tooling-merge.json"
+    ]
+  },
+  "platform_requirements": {
+    "systems": [
+      "Darwin"
+    ],
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.10"
+  },
+  "evidence_policy": {
+    "sanitized_evidence": true,
+    "raw_log_area": "runtime_only"
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0a-2-governance.lineage.json",
+    "own_expected": 38,
+    "own_prefix": "B0A2-",
+    "predecessor_file": "config/gates/features/b0a-1-tooling.lineage.json"
+  },
+  "product_guard": {
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "allowed_paths": [
+      ".claude/*",
+      ".gitignore",
+      "CLAUDE.md",
+      "config/gates/*",
+      "config/governance/*",
+      "docs/governance/*",
+      "docs/tooling/*",
+      "scripts/gate.sh",
+      "tests/tooling/*",
+      "tools/gates/*"
+    ],
+    "forbidden_paths": [
+      "configs/*",
+      "desktop/*",
+      "frontend/*",
+      "native/*",
+      "rust/*",
+      "src/*",
+      "spikes/*",
+      "docs/adr/*",
+      "docs/personal-jarvis/*"
+    ]
+  }
+}

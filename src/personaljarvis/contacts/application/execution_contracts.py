@@ -1,4 +1,4 @@
-"""Transportverträge des App-Prozess-Mutationskanals (ADR-0020 §5).
+"""Transportverträge des App-Prozess-Mutationskanals (ADR-0026 §5).
 
 **Dies ist die normative Quelle.** TypeScript (`executionContracts.ts`) und
 Rust (`contacts_execution.rs`) bilden dieselben Verträge nach; goldene
@@ -51,7 +51,7 @@ EXECUTION_SCHEMA_VERSION = 1
 
 OPERATION_TYPES: tuple[str, ...] = ("create", "update", "delete")
 
-#: Geschlossene Ausgänge — wortgleich mit ADR-0019 §4 und ADR-0020 §5.
+#: Geschlossene Ausgänge — wortgleich mit ADR-0025 §4 und ADR-0026 §5.
 REPORT_OUTCOMES: tuple[str, ...] = ("applied", "not_sent", "outcome_unknown")
 
 READBACK_STATUSES: tuple[str, ...] = (
@@ -75,7 +75,7 @@ POST_SEND_ERROR_CLASSES: tuple[str, ...] = (
 
 ERROR_CLASSES: tuple[str, ...] = PRE_SEND_ERROR_CLASSES + POST_SEND_ERROR_CLASSES
 
-#: Größenlimits (ADR-0020 §5). Darüber ist fail-closed `schema_mismatch`.
+#: Größenlimits (ADR-0026 §5). Darüber ist fail-closed `schema_mismatch`.
 MAX_ORDER_BYTES = 64 * 1024
 MAX_REPORT_BYTES = 256 * 1024
 
@@ -160,13 +160,13 @@ class ExecutionReportV1:
     readback_status: str
     schema_version: int = EXECUTION_SCHEMA_VERSION
     provider_identifier_digest: str | None = None
-    #: Die **rohe** Providerkennung. ADR-0020 §5 nennt sie ausdruecklich: das
+    #: Die **rohe** Providerkennung. ADR-0026 §5 nennt sie ausdruecklich: das
     #: Backend braucht sie fuer die External-ID, sonst gaebe es nach dem
     #: Create keinen Weg zurueck zu diesem Kontakt. Sie reist ausschliesslich
     #: im Settle-Rumpf und darf niemals in Audit, Log, Oberflaeche oder
     #: normaler API erscheinen — dort steht der Digest.
     provider_identifier: str | None = None
-    #: Der gelesene Zustand als BridgeContact-DTO (ADR-0020 §5). Aus ihm
+    #: Der gelesene Zustand als BridgeContact-DTO (ADR-0026 §5). Aus ihm
     #: bildet der Kern den `readback_digest` und fuehrt den lokalen Spiegel
     #: nach — erfunden wird nichts.
     readback_contact: dict[str, Any] | None = None

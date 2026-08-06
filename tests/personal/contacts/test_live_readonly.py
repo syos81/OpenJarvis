@@ -46,7 +46,7 @@ _REPO_LIVE = (Path(__file__).resolve().parents[3]
 STORE_OPERATIONEN = ("containers", "enumerate", "changes", "get",
                      "getUnifiedReadOnly")
 #: Operationen, die der Client weiterhin verweigert. `create` ist seit
-#: ADR-0019 implementiert und gehoert deshalb nicht mehr hierher — Update und
+#: ADR-0025 implementiert und gehoert deshalb nicht mehr hierher — Update und
 #: Delete bleiben es (Phase M4 bzw. M5, Delete zusaetzlich hinter DEC-D06).
 SCHREIB_OPERATIONEN = ("update", "delete")
 
@@ -689,7 +689,7 @@ def _sidecar_code() -> str:
 def test_der_sidecar_hat_genau_einen_schreibpfad():
     """Ein `CNSaveRequest` — und er steht ausschliesslich in `opCreate`.
 
-    Frueher lautete der Nachweis „gar kein CNSaveRequest". Seit ADR-0019 legt
+    Frueher lautete der Nachweis „gar kein CNSaveRequest". Seit ADR-0025 legt
     der Sidecar Kontakte an; die Aussage muss deshalb schaerfer werden statt
     zu verschwinden: **genau einer**, und zwar dort, wo er hingehoert.
 

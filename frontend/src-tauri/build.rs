@@ -14,8 +14,8 @@ fn main() {
             .compile("jc_contacts_authorization");
         println!("cargo:rerun-if-changed=objc/JCContactsAuthorization.m");
         println!("cargo:rerun-if-changed=objc/JCContactsAuthorization.h");
-        // Produktiver Create im App-Prozess (ADR-0020 §8.1, Phase B).
-        // Der Sidecar hat seit ADR-0020 keinen Schreibpfad mehr; der eine
+        // Produktiver Create im App-Prozess (ADR-0026 §8.1, Phase B).
+        // Der Sidecar hat seit ADR-0026 keinen Schreibpfad mehr; der eine
         // CNSaveRequest lebt hier, wo der TCC-Grant und ein funktionierender
         // Store-Coordinator sind.
         cc::Build::new()

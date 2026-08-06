@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "policy_id": "tooling-merge-readiness",
+  "executes_merge": false,
+  "source_ref": "tooling/gates-v1",
+  "target_ref": "spike/calendar-foundation-intel-2026-08-04",
+  "direction": "incoming_only",
+  "allowed_paths": [
+    ".claude/hooks/*",
+    ".claude/settings.json",
+    ".claude/skills/*",
+    ".gitignore",
+    "CLAUDE.md",
+    "config/gates/*",
+    "config/governance/*",
+    "docs/governance/*",
+    "docs/tooling/*",
+    "scripts/gate.sh",
+    "tests/tooling/*",
+    "tools/gates/*"
+  ],
+  "forbidden_paths": [
+    "configs/*",
+    "desktop/*",
+    "frontend/*",
+    "native/*",
+    "rust/*",
+    "src/*",
+    "spikes/*",
+    "docs/personal-jarvis/*",
+    "docs/adr/*",
+    "docs/testing/*",
+    "pyproject.toml",
+    "uv.lock"
+  ],
+  "forbidden_suffixes": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".so",
+    ".dylib",
+    ".sqlite",
+    ".db",
+    ".jsonl",
+    ".log"
+  ],
+  "required_module_final_blocks": [
+    "b0a-3-integration"
+  ],
+  "assigned_decisions": [
+    {
+      "id": "DEC-045",
+      "line": "canonical"
+    },
+    {
+      "id": "DEC-055",
+      "line": "contacts_calendar"
+    }
+  ],
+  "not_assigned_decisions": [
+    {
+      "id": "DEC-050",
+      "line": "canonical"
+    }
+  ],
+  "forbidden_actions": [
+    "merge",
+    "rebase",
+    "cherry_pick",
+    "reverse_merge_into_tooling",
+    "tag",
+    "release",
+    "push_to_product_branch"
+  ],
+  "note": "Dieses Manifest prueft ausschliesslich die spaetere Mergebereitschaft. Es fuehrt keinen Merge aus. Vorgaengerbloecke werden gegen ihre gebundenen Commits geprueft; auf der integrierten Linie zaehlt der Abschluss des Integrationsblocks.",
+  "inherited_blocks": [
+    {
+      "block_id": "b0a-1-tooling",
+      "bound_commit": "5b6d1ae8d9cdee07587fb5774ebf432786971e1a",
+      "verified_by": "content: manifest present and feature lineage complete; gates run against the bound commit in the tooling worktree"
+    },
+    {
+      "block_id": "b0a-2-governance",
+      "bound_commit": "4e471446f98d8cefe71a8c98f086e7fd243f3e44",
+      "verified_by": "content: manifest present and feature lineage complete; gates run against the bound commit in the tooling worktree"
+    }
+  ]
+}

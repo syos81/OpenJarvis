@@ -87,9 +87,20 @@ docs/plans/
 docs/superpowers/
 .superpowers/
 
-# Claude Code project instructions (per-developer)
-CLAUDE.md
-.claude/
+# Claude Code project instructions.
+#
+# B0a-1: CLAUDE.md and the governance artifacts below are project rules, not
+# per-developer settings — they are tracked on purpose. Everything else under
+# .claude/ (local settings, transcripts, agent scratch) stays ignored.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+.claude/settings.local.json
+
+# Gate runtime area — raw logs, phase results, sanitized evidence, hook logs.
+# Raw logs may contain full tool output and are never committed.
+.gate-runtime/
 
 # Tauri auto-generated schemas
 **/src-tauri/gen/schemas/

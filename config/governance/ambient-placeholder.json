@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "placeholder_id": "b0a-2-ambient-placeholder",
+  "placeholder": "{{DEC_ID_AMBIENT_INTERACTION_V1}}",
+  "required_locations": [
+    "CLAUDE.md",
+    "config/governance/decision-citations.json",
+    "config/governance/delivery-order.json",
+    "docs/governance/b0a-2-ambient-interaction-v1.md",
+    "docs/governance/b0a-2-delivery-order.md"
+  ],
+  "forbidden": {
+    "new_adr_file": true,
+    "adr_reservation": true,
+    "dec_number_assignment": true,
+    "assigned_to_decision": "DEC-050"
+  },
+  "note": "Der Platzhalter bleibt bis zur integrierten Aufloesung der Doppelvergaben unveraendert. Er wird weder berechnet noch reserviert noch durch eine bestehende Entscheidung ersetzt."
+}
