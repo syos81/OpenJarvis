@@ -12,7 +12,7 @@
     "worktree_path"
   ],
   "feature_preservation": {
-    "lineage_file": "config/gates/features/b0a-4-guard.lineage.json",
+    "lineage_file": "config/gates/features/b0b-calendar-k1.lineage.json",
     "expected_required_by_prefix": {
       "B0A1-": 24,
       "B0A2-": 38,

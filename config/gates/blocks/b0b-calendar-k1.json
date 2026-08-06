@@ -1,0 +1,1172 @@
+{
+  "schema_version": 1,
+  "block_id": "b0b-calendar-k1",
+  "title": "B0b calendar K1 offline work and tool boundary sharpening",
+  "engine_min_version": "1.0.0",
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "phase_definitions": {
+    "preflight": {
+      "applicable": true,
+      "required": true,
+      "reason": "Prerequisites: worktree and branch, tools, platform, manifest, guard base, the derived K1 definition and the guard trust model."
+    },
+    "targeted": {
+      "applicable": true,
+      "required": true,
+      "reason": "The checks the tool sharpening and the K1 work need on the current change set."
+    },
+    "offline-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Every reproducible offline check including both complete test suites, the closing K1 matrix, the historical integrity of B0a-1 to B0a-4 and the current preservation manifest."
+    },
+    "platform-live": {
+      "applicable": true,
+      "required": true,
+      "reason": "The guard package changed and was reactivated by the owner, so the live regression of the active guard is mandatory. This phase covers the guard only. The platform dependent K1 gates are carried as open K1 gates inside the evidence and are deliberately not disguised as a not_applicable phase."
+    },
+    "module-final": {
+      "applicable": true,
+      "required": true,
+      "reason": "Aggregates the closing state: feature completeness, preservation, the K1 matrix, phase results and evidence."
+    }
+  },
+  "targeted_selection": {
+    "base_ref": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+    "always": [
+      "tg-calendar-tests",
+      "tg-claim-lint",
+      "tg-classification-schemes",
+      "tg-k1-definition",
+      "tg-not-applicable-review",
+      "tg-pii-tests",
+      "tg-rule-changes",
+      "tg-violation-corpus"
+    ],
+    "rules": [
+      {
+        "rule_id": "r-calendar",
+        "paths": [
+          "src/personaljarvis/calendar/*",
+          "tests/personal/calendar/*"
+        ],
+        "checks": [
+          "tg-calendar-tests"
+        ]
+      },
+      {
+        "rule_id": "r-pii",
+        "paths": [
+          "tools/guard/*",
+          "tools/gates/*"
+        ],
+        "checks": [
+          "tg-pii-tests",
+          "tg-rule-changes",
+          "tg-violation-corpus"
+        ]
+      },
+      {
+        "rule_id": "r-k1",
+        "paths": [
+          "config/gates/k1/*"
+        ],
+        "checks": [
+          "tg-k1-definition",
+          "tg-classification-schemes"
+        ]
+      }
+    ]
+  },
+  "checks": [
+    {
+      "check_id": "pf-baseline-commit",
+      "phase": "preflight",
+      "required": true,
+      "description": "Declared baseline commit is present.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "baseline",
+          "--commit",
+          "7986bee"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-claude-config",
+      "phase": "preflight",
+      "required": true,
+      "description": "Required project configuration is in place.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "claude-config",
+          "--require-file",
+          "CLAUDE.md"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-guard-base",
+      "phase": "preflight",
+      "required": true,
+      "description": "Product guard base derived mechanically.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-k1-definition",
+      "phase": "preflight",
+      "required": true,
+      "description": "K1 definition is derived and bound.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "k1-definition"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-manifest",
+      "phase": "preflight",
+      "required": true,
+      "description": "Block manifest validates.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b0b-calendar-k1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-platform",
+      "phase": "preflight",
+      "required": true,
+      "description": "Declared platform requirements.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "platform",
+          "--systems",
+          "Darwin",
+          "--architectures",
+          "x86_64"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-tools",
+      "phase": "preflight",
+      "required": true,
+      "description": "Required tools are present.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "tools",
+          "--require-tool",
+          "git",
+          "--min-python",
+          "3.10"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-trust-model",
+      "phase": "preflight",
+      "required": true,
+      "description": "Guard trust model is complete.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "trust-model"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-worktree",
+      "phase": "preflight",
+      "required": true,
+      "description": "Expected worktree and branch.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "spike/calendar-foundation-intel-2026-08-04"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-worktree-state",
+      "phase": "preflight",
+      "required": true,
+      "description": "Clean state, ignored runtime area.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b0b-calendar-k1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-calendar-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Calendar suite including large estates. The suite is pytest based, so only the exit code is parsed.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/personal/calendar"
+        ]
+      },
+      "parser": "exit_only",
+      "timeout_seconds": 1800,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-claim-lint",
+      "phase": "targeted",
+      "required": true,
+      "description": "No stronger protection claim anywhere.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "claim-lint"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-classification-schemes",
+      "phase": "targeted",
+      "required": true,
+      "description": "A/B/C and P/S/H are not used as a classification.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "classification-schemes"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-k1-definition",
+      "phase": "targeted",
+      "required": true,
+      "description": "K1 definition is derived and bound.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "k1-definition"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-not-applicable-review",
+      "phase": "targeted",
+      "required": true,
+      "description": "Rule R3 holds everywhere.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "not-applicable-review"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-pii-tests",
+      "phase": "targeted",
+      "required": true,
+      "description": "Detection and redaction cover the same variants.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_pii_variants",
+          "tests.tooling.gates.test_guard_claims",
+          "tests.tooling.gates.test_k1_definition"
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-rule-changes",
+      "phase": "targeted",
+      "required": true,
+      "description": "Every rule change has both tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "rule-changes"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-violation-corpus",
+      "phase": "targeted",
+      "required": true,
+      "description": "The violation set never shrinks.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "violation-corpus"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-claim-lint",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No stronger protection claim anywhere.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "claim-lint"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-classification-schemes",
+      "phase": "offline-final",
+      "required": true,
+      "description": "A/B/C and P/S/H are not used as a classification.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "classification-schemes"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-exception-policy",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Owner exception stays narrow.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "exception-policy"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-fail-closed-paths",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No silent exit in the guard entries.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "fail-closed-paths"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-feature-lineage",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Feature completeness against B0a-4.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0b-calendar-k1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-guard-base",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Product guard base derived mechanically.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-historical-integrity",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Historical acceptance B0a-1 to B0a-4: presence, hashes, binding.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "historical-integrity"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-history-matrix",
+      "phase": "offline-final",
+      "required": true,
+      "description": "History rewrite audit complete.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "history-matrix"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-hygiene",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Gitignore convention and file hygiene.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/claude_hygiene.py"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-k1-status",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Closing K1 matrix, produced by this run.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "k1-status"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-manifest-validation",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Every manifest and fixture.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b0b-calendar-k1",
+          "--with-fixtures"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-no-worktree-fallback",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No worktree fallback.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "no-worktree-fallback"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-not-applicable-review",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Rule R3 holds everywhere.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "not-applicable-review"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-owner-activation",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Helpers refuse unprivileged runs.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "owner-activation"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-package-determinism",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Guard package hash reproducible.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "package-determinism"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-personal-tests",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Complete personal test suite. pytest based, so only the exit code is parsed.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/personal"
+        ]
+      },
+      "parser": "exit_only",
+      "timeout_seconds": 3600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-preservation",
+      "phase": "offline-final",
+      "required": true,
+      "description": "111 predecessor features preserved.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-repo-guard",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Range classification against the guard.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0b-calendar-k1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-rule-changes",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Every rule change has both tests.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "rule-changes"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-shell-syntax",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Shell entry points parse.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py",
+          "--directory",
+          "scripts"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-static-scan",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Static rules over guard and gate sources.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/static_scan.py",
+          "--path",
+          "tools/gates",
+          "--path",
+          "tools/guard",
+          "--path",
+          "tools/guardpkg",
+          "--path",
+          "scripts/gate.sh",
+          "--path",
+          ".claude/hooks"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-tooling-tests",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Complete tooling test suite.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling",
+          "-t",
+          "."
+        ]
+      },
+      "parser": "unittest",
+      "timeout_seconds": 3600,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-trust-model",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Guard trust model is complete.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "trust-model"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-violation-corpus",
+      "phase": "offline-final",
+      "required": true,
+      "description": "The violation set never shrinks.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "violation-corpus"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pl-active-guard",
+      "phase": "platform-live",
+      "required": true,
+      "description": "Active owner installed guard: version, hash, owner, registration.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "active-guard"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pl-live-current",
+      "phase": "platform-live",
+      "required": true,
+      "description": "Guard live regression in the calendar worktree.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "live-current"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pl-live-plain",
+      "phase": "platform-live",
+      "required": true,
+      "description": "Guard live regression in a worktree without tooling.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "live-plain"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pl-tamper",
+      "phase": "platform-live",
+      "required": true,
+      "description": "The guarded session cannot change the protection chain.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "tamper"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-evidence",
+      "phase": "module-final",
+      "required": true,
+      "description": "Sanitized evidence of every phase.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_evidence"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-feature-lineage",
+      "phase": "module-final",
+      "required": true,
+      "description": "Every B0b and inherited feature.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0b-calendar-k1"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-k1-status",
+      "phase": "module-final",
+      "required": true,
+      "description": "Closing K1 matrix.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "k1-status"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-phase-results",
+      "phase": "module-final",
+      "required": true,
+      "description": "Every required phase has a result.",
+      "runner": {
+        "type": "internal",
+        "name": "module_final_phase_results"
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "mf-preservation",
+      "phase": "module-final",
+      "required": true,
+      "description": "111 predecessor features preserved.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    }
+  ],
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cause_signature_version": "cs-1",
+    "owner_marker": "openjarvis-gate-baseline",
+    "cache_enabled": false,
+    "dependency_lock_paths": [],
+    "config_digest_paths": [
+      "config/gates/k1/calendar-k1-definition.json",
+      "config/gates/k1/calendar-k1-start-matrix.json",
+      "config/governance/guard-trust-model.json"
+    ]
+  },
+  "platform_requirements": {
+    "systems": [
+      "Darwin"
+    ],
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.10"
+  },
+  "evidence_policy": {
+    "sanitized_evidence": true,
+    "raw_log_area": "runtime_only"
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0b-calendar-k1.lineage.json",
+    "own_expected": 22,
+    "own_prefix": "B0B-",
+    "predecessor_file": "config/gates/features/b0a-4-guard.lineage.json"
+  },
+  "product_guard": {
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "allowed_paths": [
+      "*"
+    ],
+    "forbidden_paths": []
+  }
+}

@@ -507,8 +507,94 @@ def mode_not_applicable_review(args):
     )
 
 
+def mode_k1_status(args):
+    """Determine the closing K1 matrix. The numbers come from here, never
+    from a prompt.
+
+    The rule is mechanical: a gate counts as fulfilled exactly when it is
+    offline executable **and** carries a resolvable evidence reference.
+    Everything else is open. Gates removed from K1 are not counted at all.
+    """
+    root = Path.cwd()
+    failures = []
+    definition = json.loads((root / K1_DEFINITION).read_text(encoding="utf-8"))
+    matrix = json.loads((root / K1_START_MATRIX).read_text(encoding="utf-8"))
+    recorded = {gate["gate_id"]: gate for gate in matrix["gates"]}
+
+    rows = []
+    for gate in definition["gates"]:
+        gate_id = gate["gate_id"]
+        source = recorded.get(gate_id, {})
+        evidence = str(source.get("evidence_reference", "")).strip()
+        offline = gate["execution_class"] == "offline"
+        status = "fulfilled" if (offline and evidence) else "open"
+        rows.append(
+            {
+                "gate_id": gate_id,
+                "title": gate["title"],
+                "execution_class": gate["execution_class"],
+                "status": status,
+                "evidence_reference": evidence,
+                "blocking_reason": (
+                    "" if status == "fulfilled"
+                    else str(source.get("offline_closable_reason", ""))
+                ),
+            }
+        )
+        # The recorded expectation must agree with the derived status; a
+        # divergence means the matrix and the definition drifted apart.
+        if source.get("status_after_b0b") not in (None, status):
+            failures.append(_fail(gate_id, "recorded_status_diverges"))
+        if status == "fulfilled" and not evidence:
+            failures.append(_fail(gate_id, "fulfilled_without_evidence"))
+
+    counts = {
+        "total": len(rows),
+        "fulfilled": sum(1 for row in rows if row["status"] == "fulfilled"),
+        "open": sum(1 for row in rows if row["status"] == "open"),
+        "accepted_against_bound_baseline": 0,
+        "blocked": 0,
+        "removed_from_k1": len(definition["removed_from_k1"]),
+    }
+    if counts["fulfilled"] + counts["open"] != counts["total"]:
+        failures.append(_fail("counts", "distribution_does_not_add_up"))
+
+    target = root / ".gate-runtime" / "k1" / "calendar-k1-closing-matrix.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    document = {
+        "schema_version": 1,
+        "kind": "k1_closing_matrix",
+        "produced_by": "gate run",
+        "stage_binding_digest": definition["stage_binding"]["digest"],
+        "counts": counts,
+        "gates": rows,
+        "removed_from_k1": definition["removed_from_k1"],
+        "completion_claim": (
+            "K1 ist nicht offline abgeschlossen." if counts["open"]
+            else "K1 ist offline abgeschlossen."
+        ),
+    }
+    target.write_text(
+        json.dumps(document, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    diagnostics = [
+        f"k1_total={counts['total']}",
+        f"k1_fulfilled={counts['fulfilled']}",
+        f"k1_open={counts['open']}",
+        f"k1_accepted_against_bound_baseline={counts['accepted_against_bound_baseline']}",
+        f"k1_blocked={counts['blocked']}",
+        f"k1_removed={counts['removed_from_k1']}",
+        f"k1_offline_complete={counts['open'] == 0}",
+    ]
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED, failures, diagnostics
+    )
+
+
 MODES = {
     "base-commit-unchanged": mode_base_commit_unchanged,
+    "k1-status": mode_k1_status,
     "classification-schemes": mode_classification_schemes,
     "k1-definition": mode_k1_definition,
     "not-applicable-review": mode_not_applicable_review,

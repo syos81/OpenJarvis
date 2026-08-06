@@ -16,11 +16,16 @@
     },
     {
       "position": 3,
-      "purpose": "closing evidence and handoff",
+      "purpose": "purely normative: derived K1 definition, parity correction, R3",
+      "message": "docs(calendar): derive k1 definition and harden evidence binding"
+    },
+    {
+      "position": 4,
+      "purpose": "purely determinative: gate run, evidence, handoff, report",
       "message": "test(calendar): finalize k1 evidence and handoff"
     }
   ],
-  "max_commits": 3,
+  "max_commits": 4,
   "forbidden_operations": [
     "commit --amend",
     "rebase",
@@ -45,5 +50,11 @@
     "k1_target_open": 7,
     "k1_completion_claim_permitted": false,
     "reason": "Seven of the seventeen gates are not offline closable on this machine; the mechanical reasons are bound per gate in the K1 start matrix. K1 is therefore explicitly not reported as complete."
+  },
+  "plan_change": {
+    "declared_at_start": 3,
+    "actual": 4,
+    "decided_by": "owner",
+    "reason": "The owner split the closing step: commit 3 stays purely normative and carries the derived K1 definition, the parity correction and rule R3; commit 4 is purely determinative and produces the closing matrix from a gate run. The report follows the definition instead of accompanying it."
   }
 }

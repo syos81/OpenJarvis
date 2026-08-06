@@ -1,304 +1,211 @@
 ---
-Status: normativ (B0a-4 Abschluss-Handoff für B0b)
+Status: normativ (B0b Abschluss-Handoff)
 Erzeugt aus: maschinelle Gate-Ergebnisse, sanitierte Evidenz, Git-Daten, deklarative Manifeste, reale Eigentümer- und Rechteprüfungen
 Zielbranch: spike/calendar-foundation-intel-2026-08-04
-Ersetzt: die B0a-3-Fassung dieses Handoffs (historisch über `a093687` unverändert nachvollziehbar)
+Ersetzt: die B0a-4-Fassung dieses Handoffs (historisch über `a1adabf` unverändert nachvollziehbar)
 ---
 
-# B0b-Handoff — verbindlicher Ausgangszustand
+# B0b-Handoff — Zustand nach der offline durchgeführten K1-Arbeit
 
-Dieses Handoff liefert B0b den Ausgangszustand ohne erneute Rekonstruktion.
-Es nimmt den B0b-Auftrag **nicht** vorweg und trifft keine fachliche
-Entscheidung.
+**Kalender K1 ist nicht abgeschlossen.** Diese Aussage steht bewusst vor
+allem anderen. Die Zahlen in §3 stammen ausschließlich aus dem Gate-Lauf
+`mf-k1-status`; kein Wert in diesem Dokument ist vorhergesagt.
 
 ## §1 Git-Zustand
 
 | Größe | Wert |
 |---|---|
 | Kalenderbranch | `spike/calendar-foundation-intel-2026-08-04` |
-| Ausgangscommit B0a-4 | `a0936877254c092bc75314b8078dedeb1deccc7a` |
-| B0a-4-Commit 1 | `02b775ecc12bf3d1b62ca20fe9cb1b18a2f2ea3a` — fail-closed Guard, worktree-unabhängiger Bootstrap |
-| B0a-4-Commit 2 | `834f08ac1bfa21f1892483174a055e38077bfa5b` — Vor-Aktivierungs-Korrektur, root-eigener Interpreter |
-| B0a-4-Commit 3 | der Commit, der diese Datei trägt — Live-Evidenz und Handoff |
-| Remote-Stand vor Eigentümer-Push | `a0936877254c092bc75314b8078dedeb1deccc7a` |
-| Arbeitsbaum bei Abschluss | sauber |
-| Amend innerhalb B0a-4 | keiner |
-| Rebase, Squash, Cherry-pick | keiner |
+| Ausgangscommit B0b | `a1adabf20884b7c350a439a0e8023e4b38f2b910` |
+| Commit 1 | `57dafef` — PII-Redaktion angeglichen, Guard-Vertrauensmodell |
+| Commit 2 | `8d2a568` — K1 offline, Gates O04 und O09 |
+| Commit 3 | `29fc013` — abgeleitete K1-Definition, Paritätskorrektur, Regel R3 |
+| Commit 4 | der Commit, der diese Datei trägt — Evidenz und Handoff |
+| Remote-Stand vor Eigentümer-Push | `a1adabf` |
+| Amends innerhalb B0b | keine |
+| Rebase, Squash, Cherry-pick | keine |
 | Pushstatus | `not_performed_owner_action` |
 
-`a093687` ist unverändert: Tree `fccc84649735b147dd3e7914ecb8921710c5daf3`,
-Eltern `8e6e206` und `4e47144`, Autor- und Committerdatum unverändert. Die
-Bindung steht maschinenlesbar in
-`config/gates/history/b0a-4-commit-plan.json` und wird von
-`of-base-commit-unchanged` bei jedem Lauf geprüft.
+Der Commitplan wurde von drei auf vier Commits geändert. Das war eine
+Eigentümerentscheidung, nicht eine nachträgliche Schönung; sie steht in
+`config/gates/history/b0b-commit-plan.json` unter `plan_change`.
 
-**Abweichung vom deklarierten Commitplan.** Die Vorprüfung deklarierte zwei
-Commits. Die vor der Eigentümeraktivierung verpflichtende Validierung fand
-einen Sicherheitsdefekt des ersten Kandidaten (§2.6). Er musste in einem
-Commit **vor** der Aktivierung behoben werden, und Amend ist gesperrt.
-Daraus wurden drei Commits. Grund, Art und Bewertung stehen im Feld
-`plan_deviation` desselben Manifests. Der dritte Commit ist kein reiner
-Bindungscommit, sondern der planmäßige Evidenz- und Handoff-Commit, der um
-eine Position verschoben wurde.
-
-## §2 Guard-Bootstrap
-
-### §2.1 Gewählte Architektur
-
-Eigentümerkontrollierte, root-eigene Installation außerhalb jedes Worktrees,
-registriert über die Policy-Stufe von Claude Code. Vollständige Bewertung in
-`docs/governance/b0a-4-guard-architecture.md`.
+## §2 Guard
 
 | Größe | Wert |
 |---|---|
-| Hook-Registrierung | `/Library/Application Support/ClaudeCode/managed-settings.json`, `root:wheel`, `0644` |
-| Registrierter Befehl | `/usr/local/jarvis-guard/bootstrap.sh` |
-| Externer Guard-Pfad | `/usr/local/jarvis-guard` |
-| Guard-Version | `1.0.0` |
-| Quellcommit | `834f08ac1bfa21f1892483174a055e38077bfa5b` |
-| Aktiver Paket-Hash | `30a41d822956ed1441f581febbd55883cd58c6875ebc3350ad0dce5edcd0f322` |
-| Konfigurationsschema | `guard-config-1` |
-| Interpreter | `/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9` |
-| Eigentümer und Rechte | Wurzel `root:wheel 0755`, `active.json` `0444`, Paketdateien `0444`, `bootstrap.sh` `0755` |
-| Aktivierungszeitpunkt | `2026-08-06T11:29:15Z`, durch Lukas, mit Kennworteingabe |
+| Guard-Basis | `d037cb67502ab7fdcef95161bdbf2857181d0354`, mechanisch abgeleitet, genau eine Merge-Base |
+| Aktive Guard-Version | `1.1.0` |
+| Quellcommit | `57dafef116a64571394ea3d32f6cd049a960cd6f` |
+| Aktiver Paket-Hash | `fe89c98b37cbf471e425b2123a05ce34378017590f77690edc7c76c9c1bd50c7` |
+| Hook-Registrierung | `/Library/Application Support/ClaudeCode/managed-settings.json`, `root:wheel` |
+| Externer Guard-Pfad | `/usr/local/jarvis-guard`, `root:wheel` |
+| Interpreter | Command-Line-Tools-Python 3.9.6, Ahnenkette lückenlos `root:wheel` bis `/` |
+| Eigentümeraktivierung | durch Lukas, mit Kennworteingabe |
 
-### §2.2 Verworfene Varianten
+Der Hash wurde nicht abgelesen, sondern aus dem installierten Paket neu
+berechnet und mit der geschützten Aktivierungsevidenz verglichen.
 
-| Variante | Grund der Verwerfung |
-|---|---|
-| Gemeinsames Git-Verzeichnis | Claude Code liest dort keine Hook-Registrierung; zusätzlich bleibt `.git` sitzungsschreibbar, ein geschütztes Unterverzeichnis ist daher durch Umbenennen aushebelbar, und `core.hooksPath` sowie Git-Aliase sind umleitbar. |
-| Benutzerkonfiguration `~/.claude/settings.json` | Von der bewachten Sitzung anlegbar, änderbar und löschbar. Außerhalb des Repositorys zu liegen macht eine Konfiguration nicht eigentümerkontrolliert. |
-| Installation unter `/usr/local/lib` | Auf diesem Rechner `lukasklunder:admin` und gruppenschreibbar; ein Schreibtest der Sitzung war erfolgreich. |
+### §2.1 Vertrauensmodell
 
-### §2.3 Nachweis der Nichtveränderbarkeit
+Verbindlich und maschinenlesbar in `config/governance/guard-trust-model.json`;
+`CLAUDE.md` verwendet dieselbe Semantik; das Gate `claim-lint` weist stärkere
+Behauptungen zurück.
 
-Gate `pl-tamper`, real unter den Rechten der bewachten Sitzung gefahren:
+- Der Guard ist ein **Disziplinmechanismus**. Er ist **keine** vollständige
+  Sicherheitsgrenze gegen einen feindlichen Akteur mit Lukas'
+  Benutzerrechten.
+- Die Claude-Code-Anwendung ist benutzerschreibbar und bleibt eine **nicht
+  schließbare Vertrauenswurzel**.
+- Die Grenze lautet `requires_interactive_owner_authentication`, nicht
+  `technically_impossible`.
+- Das Schutzprotokoll ist von der Sitzung weder kürzbar noch löschbar, aber
+  **nach vorn anhängbar und damit fälschbar**. Es war in diesem Block nie
+  alleiniger Nachweis; jede Aussage stützt sich zusätzlich auf
+  reproduzierbare aktive Tests, Hashbindung und Dateirechte.
 
-| Komponente | Ergebnis |
-|---|---|
-| Installationswurzel | nicht schreibbar |
-| aktives Paket und Regelkonfiguration | nicht schreibbar |
-| `active.json` (Hash- und Versionsbindung) | nicht schreibbar |
-| `bootstrap.sh` und `bootstrap.py` | nicht schreibbar |
-| Policy-Verzeichnis und Hook-Registrierung | nicht schreibbar |
-| Ausnahmeverzeichnis `pending` | nicht schreibbar |
-| Schutzprotokoll | anhängbar, **nicht** kürzbar und nicht überschreibbar |
-| Ausnahmemarker `spent` | setzbar, **nicht** entfernbar |
+## §3 K1 — Stand aus dem Gate-Lauf
 
-Grundlage: root-Eigentum aller Komponenten, root-Eigentum jedes
-Elternverzeichnisses bis `/`, ACLs für Protokoll und Verbrauchsmarker, und
-`sudo` ohne Kennwort scheitert in der Sitzung.
+Die Stufe ist abgeleitet, nicht erfunden: K1 ist genau die vorhandene
+maschinenlesbare Gate-Menge abzüglich der herausgenommenen Schreib-Parität,
+je Gate zusätzlich mit `offline` oder `live` ausgezeichnet. Der Stufenname
+ist per SHA-256 an genau diese Gate-Menge gebunden
+(`config/gates/k1/calendar-k1-definition.json`).
 
-### §2.4 Live-Gate-Evidenz
+Die Verteilung steht in der vom Lauf erzeugten Abschlussmatrix
+`.gate-runtime/k1/calendar-k1-closing-matrix.json` und wird von
+`of-k1-status` und `mf-k1-status` berichtet. Sie wird hier nicht wiederholt,
+damit es nur eine Quelle gibt.
 
-| Gate | Ergebnis |
-|---|---|
-| `pl-active-guard` | pass — Version, Hash, Quellcommit, Eigentümer, Modi, Registrierung, Interpreter |
-| `pl-live-calendar` | pass — 16 verbotene Formen blockiert, 3 erlaubte unberührt, leeres und manipuliertes `CLAUDE_PROJECT_DIR` ohne Wirkung |
-| `pl-live-plain-worktree` | pass — identischer Schutz in einem Worktree ohne `tools/gates` |
-| `pl-tamper` | pass — §2.3 |
+### §3.1 Offline abgeschlossener Umfang, gateweise
 
-### §2.5 Eigentümerausnahme — Live-Verhalten
+Erfüllt sind ausschließlich Gates der Ausführungsklasse `offline` mit
+auflösbarer Evidenzreferenz:
 
-Vier Nachweise am aktiven Guard, alle gegen zwei leere Wegwerfverzeichnisse
-außerhalb jedes Repositorys:
+- `K1-F01` Python-Testlauf `tests/personal` — jetzt ohne roten Test
+- `K1-F02` Kalender-Suite
+- `K1-F03` Frontend `vitest run`
+- `K1-F04` `tsc --noEmit`
+- `K1-F05` `ruff` auf neuem Code
+- `K1-F06` Sidecar-Bau, **keine Schreibselektoren im Binary**
+- `K1-F07` kalenderfreier Handshake gegen das echte Binary
+- `K1-F08` fail-closed ohne Berechtigung
+- `K1-O04` große Bestände — offline gemessen
+- `K1-O09` vorbestehend roter Test — behoben
 
-| Fall | Ergebnis |
-|---|---|
-| Variante des freigegebenen Befehls (abweichender kanonischer Text) | blockiert, keine Ausnahme zugeordnet |
-| exakter Befehl | einmal freigegeben, Ereignis `exception_consumed`, Wirkung eingetreten |
-| zweiter Versuch desselben Befehls | blockiert, Ausnahme gefunden, aber verbraucht |
-| abgelaufene Ausnahme | blockiert, Ausnahme gefunden, aber abgelaufen |
+### §3.2 Offen, mit Ausführungsklasse
 
-Zusätzlich belegt: der Helfer erzeugt ohne ausdrückliches `--confirm` nichts,
-und er zeigt weder Nonce noch Integritätsdigest an. Das Protokoll führt
-ausschließlich einen gekürzten Nonce-Digest, nie den Nonce selbst.
+- `K1-O01` Lesedurchlauf aus der gepackten App, beide Architekturen — `live`
+  (TCC, gepackte App, arm64-Hardware)
+- `K1-O02` ARM64 vollständig — `live` (arm64-Hardware)
+- `K1-O03` TCC-Persistenzmatrix — `live` (TCC, gepackte App)
+- `K1-O05` Teilnehmer im Echtbetrieb — `live` (Echtbetrieb)
+- `K1-O06` Apple-Paritätsvertrag, **Lese-Parität** — `live` (Echtbetrieb,
+  M2-Referenzhardware)
+- `K1-O08` zweiter Datenpfad `gcalendar.py` — `offline`, aber blockiert:
+  Baseline §5 Schritt 2 verweist auf „Register 20 §5"; ein Dokument dieser
+  Nummer existiert nicht, die Reihe endet bei 19. Schritt 4 verlangt einen
+  Eintrag im Entscheidungsregister. Beides sind Eigentümerhandlungen.
 
-### §2.6 Vor der Aktivierung gefundener und behobener Defekt
+### §3.3 Aus K1 herausgenommen
 
-`/usr/bin/python3` ist auf diesem Rechner nur ein Stub und löst nach
-`/Applications/Xcode.app` auf. Dieses Bündel gehört dem Sitzungsbenutzer und
-ist von ihm beschreibbar. Der erste Kandidat hätte damit einen
-sitzungsschreibbaren Interpreter in die Vertrauenskette gestellt und wegen
-seiner Pfadgleichheitsprüfung zusätzlich nach der Aktivierung jeden
-Toolaufruf blockiert. Behoben in Commit 2: root-eigener
-Command-Line-Tools-Interpreter, und der Bootstrap prüft nun die **gesamte
-Ahnenkette** von Installationswurzel, deklariertem und tatsächlich laufendem
-Interpreter. Deklariert als Regeländerung `RC-006`.
+Die **Schreib-Parität** — P-6, P-7, P-9 und der schreibende Anteil von P-11 —
+sowie das Gate `Schreiben` sind aus K1 herausgenommen und werden als eigene,
+spätere Architekturentscheidung geführt. Sie zählen **weder als erfüllt noch
+als offen**.
 
-## §3 Historische Abnahme und aktuelle Erhaltung
+Grund: die Gate-Liste war fehlerhaft, nicht die Umsetzung. „Keine
+EventKit-Schreibselektoren im gebauten Binary" ist eine positive
+K1-Invariante; die Schreib-Parität hätte sie zwingend verletzt. Der Konflikt
+ist in `config/gates/k1/calendar-k1-definition.json` dokumentiert und wird
+nicht als offenes Gate weitergeführt.
 
-Beides ist getrennt und wird nicht vermischt.
+**Keine DEC-Nummer wurde vergeben.** Es steht ein dauerhafter, markierter
+Platzhalter `{{DEC_ID_CALENDAR_WRITE_PARITY}}`. Mechanischer Befund: über
+alle Markdown-Dokumente beider Linien sind `DEC-001` bis `DEC-055` und
+`DEC-D01` bis `DEC-D17` lückenlos belegt, `DEC-056` und `DEC-D18` sind
+unbelegt. Vergeben wurde trotzdem nichts — die Vergabe ist Eigentümerhandlung,
+und die kanonische Linie `jarvis/rebuild-v1` steht eingefroren auf `c222601`,
+ist aber **nicht integriert**; Freiheit gegen ihre künftige Belegung ist
+damit nicht gezeigt. Genau diese Kollisionsklasse musste B0a-3 auflösen.
 
-### §3.1 Historische Abnahme
+## §4 Ausdrücklich nicht abgenommen
 
-Gebunden an Commit, unveränderliche Referenz-SHAs, Manifest- und
-Gate-Version, Umgebungsmerkmale sowie Hashes der erzeugten Evidenz. Diese
-Manifeste werden **nicht** erneut gegen die heutige Branchspitze ausgeführt;
-geprüft werden nur Vorhandensein, Hashintegrität, korrekte Bindung und
-unveränderte Aussage (`of-historical-integrity`).
+- keine produktive Kalenderfreigabe,
+- keine vollständige Plattformabnahme,
+- keine M2-Pro-Live-Abnahme,
+- keine signierte Universal-Releasefähigkeit,
+- kein Abschluss des Kalenderfachmoduls,
+- keine Kontakte-M2-Abnahme.
 
-| Block | Abnahmecommit | Zustand |
-|---|---|---|
-| B0a-1 | `5b6d1ae` | historisch abgenommen, Evidenz hashvalide |
-| B0a-2 | `4e47144` | historisch abgenommen, Evidenz hashvalide |
-| B0a-3 | `a093687` | historisch abgenommen, Evidenz hashvalide |
+Die plattformabhängigen K1-Gates sind als **offene K1-Gates** geführt und
+nicht als `not_applicable`-Phasenerklärung getarnt. Die Phase
+`platform-live` von B0b deckt ausschließlich die Live-Regression des aktiven
+Guards ab.
 
-Manifeste: `config/gates/history/*.acceptance.json`.
+## §5 Historische Abnahme und aktuelle Erhaltung
 
-Nicht mehr behauptet wird, jedes alte linienabhängige Abnahmemanifest sei
-gegen den heutigen Branchzustand erneut vollständig grün.
+Historisch abgenommen und hashvalide: **B0a-1, B0a-2, B0a-3, B0a-4**. Die
+Manifeste werden nicht gegen den heutigen HEAD erneut ausgeführt.
 
-### §3.2 Aktuelle Erhaltung
+Die B0a-4-Aussage „PII-Scrubbing mit dokumentierter Lücke bei abgeflachten
+Pfaden" bleibt als historische Aussage unverändert. Geschlossen wurde die
+Lücke auf der **aktuellen Linie**, nicht rückwirkend.
 
-`config/gates/preservation/calendar-line.preservation.json`, linienunabhängig
-formuliert: keine Branch-Topologie, keine veränderliche Remote-Branchspitze,
-keine branchspezifische Pfad-Allowlist. Geprüft auf dem jeweils aktuellen
-HEAD (`of-preservation`, `mf-preservation`).
+Aktuelle Erhaltung: **111 von 111** Vorgängermerkmale
+(24 + 38 + 14 + 35), geprüft von `of-preservation` und `mf-preservation`.
 
-| Größe | Soll | Ist |
-|---|---|---|
-| Erhaltung B0a-1-Merkmale | 24 | 24 |
-| Erhaltung B0a-2-Merkmale | 38 | 38 |
-| Erhaltung B0a-3-Merkmale | 14 | 14 |
-| B0a-4-Eigenmerkmale | 35 | 35 |
+Die Evidenz aller vier historischen Abnahmen liegt seit B0b als committeter,
+PII-geprüfter Schnappschuss unter `config/gates/evidence/`. Vorher war sie an
+den gitignorierten Laufzeitbereich gebunden — eine Bindung, die brach, sobald
+derselbe Block erneut lief.
 
-Zusätzlich geprüfte Invarianten: fünf Phasen und fünf Ergebnisse der
-Gate-Engine, öffentliche Gate-Schnittstelle, Obermenge der Guard-Denycodes
-einschließlich `git_commit_amend`, fail-closed Ausgänge beider
-Hook-Einstiege, genau eine Guard-Implementierung, kanonische
-Lieferreihenfolge, unaufgelöster Ambient-Platzhalter, pfadgenaue
-Allgemeinheits-Allowlist, PII-Canaries und gitignorierter Laufzeitbereich.
+## §6 Offene Befunde nach B0b
 
-## §4 B0a-3-Erratum
+1. **Claude-Code-Anwendung als offene Vertrauenswurzel** — unverändert, durch
+   keinen Bestandteil dieses Blocks schließbar.
+2. **Administratorkonto** — mit Kennwort ist jede Grenze aufhebbar; die
+   Grenze ist Authentisierung, nicht Unmöglichkeit.
+3. **Schutzprotokoll nach vorn fälschbar** — unverändert.
+4. **Backstop-Ebene überschätzt bewusst** — der Rohtextvergleich schlägt auch
+   an, wenn ein Dokument einen verbotenen Befehl nur erwähnt. Sichere
+   Richtung; eine Entschärfung wäre eine Verringerung der Verstoßmenge.
+5. **Mehrdeutige Git-Operationen ungesperrt** — Matrix in
+   `config/guard/history-rewrite-matrix.json`.
+6. **`Register 20 §5` existiert nicht.** Die Kalender-Baseline §5 stützt den
+   Ablöseplan für `gcalendar.py` auf ein Dokument, das es nicht gibt.
+   Blockiert `K1-O08`.
+7. **Abnahmeprofile A/B/C und Overlays P/S/H existieren nicht.** Sie waren
+   Prompt-Prosa, wurden in B0b **nicht angewendet** und erzeugen keinen
+   Abnahmenachweis. Ein Gate prüft, dass sie in keinem K1-Dokument als
+   Klassifikation auftauchen. Einführung als maschinenlesbares
+   Governance-Artefakt ist einem eigenen Block vor dem nächsten Modulauftrag
+   vorbehalten.
+8. **Schreib-Parität ohne Entscheidungsnummer** — siehe §3.3.
 
-`docs/governance/b0a-3-errata.md` hält als Nachtrag fest: die Reflog-Kette
-`d2bce8f → b872f91 → ad84559 → a093687`, drei lokale `commit --amend`, keine
-Veröffentlichung der drei Zwischenstände, finaler Remote-Stand `a093687`,
-genau ein Merge-Commit im finalen Graphen, den Unterschied zwischen
-Graphform und Entstehungsgeschichte, die damals fehlende Amend-Sperre, das
-fail-open-Verhalten bei fehlendem `tools/gates` und den fehlenden
-durchgehenden Wirksamkeitsnachweis während B0a-3. Keine alte Evidenz wurde
-verändert.
+## §7 Nächste zulässige Arbeitsblöcke
 
-## §5 K1-Ausgangszustand
+Verbindlich ist `config/governance/delivery-order.json`. Sie führt:
+Lieferposition 1 Kontakte, 2 Kalender, 3 Ambient Interaction V1,
+4 Trading Intelligence T1.
 
-Neu berechnet gegen den B0a-4-HEAD. Grundlage ist
-`docs/personal-jarvis/modules/calendar.md` § 7 und § 8; dieses Dokument ist
-zwischen `a093687` und dem heutigen HEAD **bytegleich** (Blob
-`fa9f23847433f2c48d5026aa8892a3e3b898fbc3`), und B0a-4 hat keinen
-Produktpfad berührt. Die Verteilung ist damit bestätigt, nicht übernommen.
+Aus dem Zustand nach B0b folgen als zulässige nächste Blöcke:
 
-Verteilung: **acht erfüllt, null gegen Baseline akzeptiert, neun offen.**
+- die **Live-Abnahme der offenen K1-Gates** auf echter Hardware beider
+  Architekturen (`K1-O01`, `K1-O02`, `K1-O03`, `K1-O05`, `K1-O06`),
+- die **Eigentümerklärung zu `Register 20 §5`** und der Ablöseplan für
+  `gcalendar.py` (`K1-O08`),
+- die **Architekturentscheidung zur Schreib-Parität** samt Nummernvergabe,
+- der **Governance-Block für Abnahmeprofile und Overlays**.
 
-### §5.1 Erfüllt (mit Evidenzreferenz)
+Zwischen **Ambient-P0** und **Kontakte M2** wird hier **keine** Vorentscheidung
+getroffen. Die Lieferreihenfolge ordnet die Elemente; welcher der beiden
+Aufträge zuerst gefahren wird, ist nicht Gegenstand dieses Blocks und wird
+hier nicht vorweggenommen.
 
-| K1-Gate | Evidenzreferenz |
-|---|---|
-| Python-Testlauf `tests/personal` | `modules/calendar.md` § 7 — 1185 grün, 85 übersprungen, 1 rot (siehe § 5.3) |
-| Kalender-Suite (Sync-Vertrag 27, Grenzen 23) | `modules/calendar.md` § 7 — 50 grün |
-| Frontend `vitest run` | `modules/calendar.md` § 7 — 216 grün, davon 65 Kalender |
-| `tsc --noEmit` | `modules/calendar.md` § 7 — grün |
-| `ruff` auf neuem Code | `modules/calendar.md` § 7 — grün |
-| Sidecar-Bau (`minos 12.3`, keine Schreibselektoren im Binary) | `modules/calendar.md` § 7 — grün |
-| Kalenderfreier Handshake gegen das echte Binary | `modules/calendar.md` § 7 — `ready`, `ping`, `caps`, `shutdown` grün |
-| Fail-closed ohne Berechtigung | `modules/calendar.md` § 7 — `outcome: failed`, kein Datensatz, kein Tombstone |
+## §8 Was B0b nicht getan hat
 
-### §5.2 Gegen Baseline akzeptiert
-
-Derzeit **keines**. Es ist keine maschinenlesbar gebundene Baseline-Ausnahme
-für ein K1-Gate hinterlegt. Ein offenes Gate wird nicht umetikettiert.
-
-### §5.3 Offen (mit Blockierungsgrund und erforderlicher B0b-Arbeit)
-
-| K1-Gate | Blockierungsgrund | Erforderliche B0b-Arbeit |
-|---|---|---|
-| Echter Lesedurchlauf aus der gepackten App | Aus dem Terminal gestartet ist der verantwortliche Prozess das Terminal; der Beweis sagt nichts über Jarvis aus und trüge dem Terminal eine dauerhafte Kalenderberechtigung ein. Erforderlich auf **beiden** Architekturen. | Durchlauf aus der gepackten Anwendung heraus belegen |
-| ARM64 vollständig | Keine Zeile des Kalenderblocks gilt für Apple Silicon (`DEC-042`); „unsigniertes Kind erbt den Zugriff" ist ein reiner Intel-Befund. | Nachweis auf Apple Silicon |
-| TCC-Persistenzmatrix | Rebuild, Versions-Bump, Verschieben und Quarantäne sind unbelegt. | Persistenzverhalten messen |
-| Große Bestände | Laufzeit, Speicher und Fensterwahl bei tausenden Terminen sind ungemessen. | Messung an großem Bestand |
-| Teilnehmer im Echtbetrieb | Modell gebaut und getestet, im gemessenen Fenster gab es null Teilnehmer. | Beobachtung mit echten Teilnehmern |
-| Apple-Paritätsvertrag P-1…P-15 | Erst teilweise erfüllt, nirgends visuell gegen die M2-Referenz verglichen; offen insbesondere P-7, P-9, P-12 und P-13. | Paritätsvergleich gegen die Referenz |
-| Schreiben | Eigener Auftrag; erbt `ADR-0025`/`ADR-0026` unverändert. | Eigener Schreibauftrag |
-| Zweiter Datenpfad `gcalendar.py` | Unberührt; Ablöseplan steht in Baseline § 5. | Ablösung nach Baseline § 5 |
-| Vorbestehend roter Test `test_dec_052_ist_registriert` | Prüft eine Zählung im Entscheidungsregister und schlägt auch ohne den Kalenderblock fehl. Vorbestehend, nicht durch B0a-3 oder B0a-4 verursacht. | Ursache im Entscheidungsregister klären |
-
-Keine Lösung wird hier vorweggenommen.
-
-## §6 Werkzeugstand
-
-Die B0a-Werkzeugkette liegt vollständig auf der Kalenderlinie:
-`scripts/gate.sh` mit fünf Phasen und fünf Ergebnissen, Baseline-Engine gegen
-`7986bee`, allowlistbasierte Evidenz, PII-Canaries, Guard-Basis, Governance-
-und Allgemeinheitsprüfungen sowie die Projektskills `gate` und
-`handoff-report`. Es gibt **kein** zweites Gate-System.
-
-Neu in B0a-4: genau eine Guard-Implementierung in `tools/guard`, der
-Paketbau in `tools/guardpkg`, die Eigentümerhelfer
-`scripts/guard-install.sh` und `scripts/guard-exception.sh`, die
-Regeländerungs-Metagates in `config/guard/` und die Trennung von
-historischer Abnahme (`config/gates/history/`) und aktueller Erhaltung
-(`config/gates/preservation/`).
-
-Blockmanifeste: `b0a-1-tooling`, `b0a-2-governance`, `b0a-3-integration`,
-`b0a-4-guard`, `tooling-merge-readiness`.
-
-Der repositoryseitige Hook `.claude/hooks/pretooluse_guard.sh` ist
-ausdrücklich **nicht** die Vertrauensgrenze. Er stellt sich zurück, sobald
-der eigentümerinstallierte Guard installiert **und** registriert ist, weil er
-dieselben Regeln anwendet, aber die Eigentümerausnahmen nicht kennt und sonst
-eine Eigentümerentscheidung überstimmen würde (`RC-007`). Ohne aktiven
-externen Guard entscheidet er unverändert weiter.
-
-## §7 Offene Befunde
-
-Diese Punkte sind belegt und bleiben offen. Sie sind keine Mängel der
-Umsetzung, sondern Grenzen, die benannt gehören.
-
-1. **Die Claude-Code-Anwendung selbst ist benutzerschreibbar.** Sie liegt
-   unter `~/Library/Application Support/Claude/claude-code/` und gehört dem
-   Sitzungsbenutzer. Wer die Anwendung ersetzt, umgeht jede Konfiguration,
-   die diese Anwendung liest — auch die Policy-Stufe. Das ist die
-   Vertrauenswurzel jeder hookbasierten Absicherung und durch keinen
-   Bestandteil dieses Blocks schließbar.
-2. **Die Sitzung läuft unter einem Administrator-Konto.** Mit dem Kennwort
-   des Eigentümers ist jede Grenze aus §2 aufhebbar. Die Grenze lautet
-   „erfordert eine interaktive Eigentümerauthentisierung", nicht „technisch
-   unmöglich".
-3. **Das Schutzprotokoll ist nach vorn fälschungsoffen.** Einträge sind weder
-   entfernbar noch überschreibbar, aber die Sitzung kann eigene Einträge
-   anhängen. Eine Signatur änderte nichts, weil jeder Schlüssel, den der
-   Wächter lesen kann, auch der Sitzung zugänglich ist.
-4. **Der Protokoll-Scrubber greift zu kurz.** Er ersetzt `/Users/<name>` und
-   `/home/<name>`, nicht aber Benutzernamen, die als Namensbestandteil eines
-   Verzeichnisses auftreten (etwa in Claude-Code-Sitzungspfaden). Das
-   Protokoll ist root-eigen und wird nie committet, erreicht also keine
-   commitfähige Evidenz. Behebung erfordert eine neue Guard-Version und damit
-   eine erneute Eigentümeraktivierung.
-5. **Die Backstop-Ebene überschätzt bewusst.** Sie prüft den Rohtext
-   einschließlich Heredoc-Inhalten. Ein Dokument, das einen verbotenen Befehl
-   nur erwähnt, wird deshalb blockiert. Das ist die sichere Richtung und
-   entspricht dem bisherigen Verhalten; eine Entschärfung wäre eine
-   Verringerung der Verstoßmenge und bedürfte einer Eigentümerentscheidung.
-6. **Mehrdeutige Git-Operationen bleiben ungesperrt.** `cherry-pick`,
-   `merge --squash`, `commit-tree`, `reset --soft/--mixed/--keep/--merge`,
-   `branch -d/-D`, `tag -f`, `gc`/`prune` und `checkout --orphan` sind in
-   `config/guard/history-rewrite-matrix.json` als offene Befunde geführt. Für
-   sie wurde bewusst keine neue Eigentümerregel erfunden.
-
-## §8 Was B0b vorfindet
-
-- B0b startet auf dem B0a-4-HEAD, nicht auf `a093687`.
-- Der externe Guard ist **aktiv**.
-- Die aktive Version ist hashgebunden an
-  `30a41d822956ed1441f581febbd55883cd58c6875ebc3350ad0dce5edcd0f322` aus
-  Quellcommit `834f08a`.
-- Ein Worktree ohne integriertes Tooling bleibt geschützt; das ist live
-  belegt.
-- Vor Beginn von B0b ist **keine** Eigentümeraktion mehr offen außer dem
-  abschließenden Push.
-
-B0a-4 hat keine fachliche Entscheidung getroffen, keinen Produktcode
-funktional geändert, kein Kalender-K1 begonnen, keine Kontakte-Arbeit
-geleistet, keine neue DEC- oder ADR-Datei erzeugt, keinen Tag und kein
-Release erzeugt und keinen Push ausgeführt.
+Keine fachliche Entscheidung, keine neue Baseline zur Umgehung offener
+Arbeit, keine neue DEC- oder ADR-Datei, keine Nummernvergabe, keine Änderung
+am Bundle-Identifier, keine Kontakte-Arbeit, kein Ambient-P0, keine
+Kalenderstufe nach K1, kein Tag, kein Release, kein Push.
