@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "kind": "acceptance_profile_lock",
+  "statement": "The labels below were prompt prose. They were never a repository artifact, they were never applied, and they produce no acceptance evidence. The derivation of an additional acceptance profile layer returned not_justified, so no profile artifact and no profile schema is created and the labels stay locked permanently rather than until the next block.",
+  "derivation_result": "not_justified",
+  "derivation_source": "tools/gates/profiles.py",
+  "derivation_is_computed_not_declared": true,
+  "locked_labels": [
+    "Abnahmeprofil A",
+    "Abnahmeprofil B",
+    "Abnahmeprofil C",
+    "Overlay P",
+    "Overlay S",
+    "Overlay H",
+    "Overlays P, S und H"
+  ],
+  "scanned_paths": [
+    "CLAUDE.md",
+    "config",
+    "docs"
+  ],
+  "exempt_paths": [
+    "config/governance/acceptance-profile-lock.json"
+  ],
+  "exempt_reason": "Only the declaration itself may name the locked labels, because it has to name them in order to forbid them.",
+  "preserved_check": {
+    "mode": "classification-schemes",
+    "runner": "tools/gates/runners/history_checks.py",
+    "scope": "K1 documents",
+    "relation": "Preserved unchanged and sharpened, not replaced. The K1 check keeps its own scope; this lock adds the permanent repository wide scope."
+  },
+  "existing_acceptance_profiles_are_untouched": {
+    "value": true,
+    "values": [
+      "fachmodul_definition_of_done",
+      "technischer_block_p0_spike_vor_umfangsfestlegung"
+    ],
+    "source": "config/governance/delivery-order.json",
+    "note": "These really exist and are not affected. The lock concerns only the never defined labels."
+  },
+  "historical_evidence": {
+    "rewritten": false,
+    "note": "No historical statement is edited. The B0b finding that the labels do not exist stays exactly as it was written."
+  }
+}

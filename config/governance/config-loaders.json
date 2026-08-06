@@ -126,6 +126,29 @@
       ]
     },
     {
+      "binding_id": "governance-acceptance-profile-lock",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/acceptance-profile-lock.json",
+      "reason": "The permanent lock of the never defined acceptance labels; the declared field set is its accepting reader.",
+      "required_fields": [
+        "derivation_is_computed_not_declared",
+        "derivation_result",
+        "derivation_source",
+        "exempt_paths",
+        "exempt_reason",
+        "existing_acceptance_profiles_are_untouched",
+        "historical_evidence",
+        "kind",
+        "locked_labels",
+        "preserved_check",
+        "scanned_paths",
+        "schema_version",
+        "statement"
+      ]
+    },
+    {
       "binding_id": "governance-ambient-placeholder",
       "expectation": "accepted",
       "kind": "structural",

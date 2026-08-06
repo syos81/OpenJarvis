@@ -11,13 +11,13 @@
     },
     {
       "position": 2,
-      "purpose": "purely normative: the decision number reservation register tool and the corrected allocation scanner",
-      "message": "feat(governance): add the decision number reservation register tool"
+      "purpose": "purely normative: the acceptance profile derivation computed from the manifests, and the permanent lock of the never defined labels",
+      "message": "feat(gates): derive the acceptance profile result from the block manifests"
     },
     {
       "position": 3,
-      "purpose": "purely normative: the acceptance profile derivation computed from the manifests, and the permanent lock of the never defined labels",
-      "message": "feat(gates): derive the acceptance profile result from the block manifests"
+      "purpose": "purely normative: the decision number reservation register tool and the corrected allocation scanner",
+      "message": "feat(governance): add the decision number reservation register tool"
     },
     {
       "position": 4,
@@ -60,5 +60,11 @@
     "reason": "The runtime package gains tools/guard/fixture.py and the guard version moves to 1.2.0, so the package content and its digest change.",
     "owner_activation_required": true,
     "activation_point": "owner decision, outside this block; no gate of this block depends on the activation"
+  },
+  "plan_change": {
+    "decided_by": "owner",
+    "change": "positions 2 and 3 swapped before either was committed",
+    "reason": "The owner fixed the order for the continuation: loader and metagate, then the fixture configuration, then the target bound rule, then the profile derivation, and only after that the register tool, the block manifest, the runner and the missing tests. The plan follows that order rather than the other way round.",
+    "recorded_before_the_affected_commit": true
   }
 }
