@@ -21,7 +21,7 @@ export TZ=UTC
 export PYTHONDONTWRITEBYTECODE=1
 
 readonly DEFAULT_TARGET="/usr/local/jarvis-guard"
-readonly GUARD_PYTHON="/usr/bin/python3"
+readonly GUARD_PYTHON="/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9"
 readonly MAX_TTL=600
 
 TARGET="${DEFAULT_TARGET}"

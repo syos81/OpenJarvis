@@ -47,6 +47,15 @@
       "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_every_failure_path_blocks",
       "counter_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_intact_installation_still_decides",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-006",
+      "rule_id": "interpreter_trust",
+      "kind": "sharpening",
+      "summary": "The interpreter check moves from a path comparison to an ownership check over the whole ancestor chain of the declared and of the actually running interpreter, and the installation root gets the same ancestor check.",
+      "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_interpreter_below_a_writable_ancestor_blocks",
+      "counter_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_missing_interpreter_blocks",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [],

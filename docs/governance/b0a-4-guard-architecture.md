@@ -105,7 +105,7 @@ Systempfad aussieht. Gewählt wird ein neues Verzeichnis direkt unterhalb von
 | Hash- und Versionsbindung | `/usr/local/jarvis-guard/active.json` | `root:wheel`, `0444` |
 | Aktives Guard-Paket | `/usr/local/jarvis-guard/active/guard/` | `root:wheel`, Verz. `0755`, Dateien `0444` |
 | Aktive Regelkonfiguration | `/usr/local/jarvis-guard/active/guard/rules.json` | `root:wheel`, `0444` |
-| Interpreter | `/usr/bin/python3` | `root:wheel`, `0755` |
+| Interpreter | `/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9` | `root:wheel`, `0755`, gesamte Ahnenkette root |
 | Ausnahmen (Prüfung) | `/usr/local/jarvis-guard/var/exceptions/pending/` | `root:wheel`, `0755` |
 | Ausnahmen (Verbrauch) | `/usr/local/jarvis-guard/var/exceptions/spent/` | `root:wheel`, `01733` + ACL |
 | Schutzprotokoll | `/usr/local/jarvis-guard/var/guard.log` | `root:wheel`, `0644` + ACL |
@@ -128,6 +128,34 @@ Rechten der bewachten Sitzung läuft. Beide wurden vorab real geprüft:
 Wichtiger Nebenbefund aus demselben Test: Der **Eigentümer** einer Datei
 kann eine ACL jederzeit entfernen. ACLs allein genügen deshalb nicht; sie
 wirken nur, weil die Objekte root gehören und die Sitzung nicht root ist.
+
+### §4.2a Interpreterbefund — `/usr/bin/python3` ist untauglich
+
+Die naheliegende Wahl `/usr/bin/python3` ist auf diesem Rechner **unsicher**.
+Die Datei selbst ist `root:wheel`, sie ist aber nur ein Stub. Real ausgeführt
+wird:
+
+```
+/usr/bin/python3
+  -> /Applications/Xcode.app/Contents/Developer/usr/bin/python3
+  -> /Applications/Xcode.app/Contents/Developer/Library/Frameworks/
+     Python3.framework/Versions/3.9/bin/python3.9
+```
+
+`/Applications/Xcode.app` gehört `lukasklunder:staff`, und ein Schreibversuch
+der Sitzung in das Framework-Verzeichnis war erfolgreich. Ein Interpreter,
+den die bewachte Sitzung austauschen kann, hebt die gesamte Schutzkette auf.
+
+Gewählt wird deshalb der Interpreter der Command Line Tools. Für ihn gilt
+`root:wheel` für die Datei **und** für jedes Elternverzeichnis bis `/`; ein
+Schreibversuch der Sitzung scheitert.
+
+Daraus folgt eine allgemeine Prüfregel im Bootstrap: nicht nur die Datei,
+sondern die **gesamte Ahnenkette** von Interpreter und Installationswurzel
+muss root gehören und darf für Gruppe und andere nicht schreibbar sein.
+Dieselbe Regel entwertet auch `/usr/local/lib` aus §4 automatisch. Zusätzlich
+wird nicht nur der deklarierte, sondern auch der tatsächlich laufende
+Interpreter geprüft.
 
 ### §4.3 Wiederherstellungsweg für Lukas
 

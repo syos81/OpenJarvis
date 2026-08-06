@@ -22,11 +22,16 @@
     },
     {
       "position": 2,
+      "purpose": "pre activation correction of a security defect",
+      "message": "fix(guard): pin the guard to a root owned interpreter"
+    },
+    {
+      "position": 3,
       "purpose": "live evidence and B0b handoff",
       "message": "test(guard): verify active bootstrap and refresh b0b handoff"
     }
   ],
-  "max_commits": 2,
+  "max_commits": 3,
   "third_binding_commit_required": false,
   "third_binding_commit_rationale": "The runtime evidence area is gitignored, so no committed artefact needs a digest of another committed artefact of this block. Every binding used here is either a git object of an earlier commit or a digest of a file that is not itself rewritten by a later B0a-4 commit.",
   "forbidden_operations": [
@@ -38,5 +43,13 @@
     "force push",
     "automatic push"
   ],
-  "push_status": "not_performed_owner_action"
+  "push_status": "not_performed_owner_action",
+  "plan_deviation": {
+    "declared_in_preflight": 2,
+    "actual": 3,
+    "kind": "additional pre activation correction commit",
+    "reason": "The mandatory validation before the owner activation found that /usr/bin/python3 on this machine is a stub that resolves into a developer tools bundle owned by the guarded session user. Activating the first candidate would have put a session writable interpreter into the trust chain and, because of the path equality check, would additionally have blocked every tool call. The defect had to be corrected in a commit before the activation; amending the first commit is forbidden, so a second implementation commit was unavoidable and the evidence commit moved to position three.",
+    "not_a_binding_commit": true,
+    "reported_as_deviation": true
+  }
 }

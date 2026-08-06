@@ -30,7 +30,11 @@ export TZ=UTC
 export PYTHONDONTWRITEBYTECODE=1
 
 readonly DEFAULT_TARGET="/usr/local/jarvis-guard"
-readonly GUARD_PYTHON="/usr/bin/python3"
+# /usr/bin/python3 is only a stub. On this platform it resolves into a
+# developer tools bundle that can belong to the ordinary user, which would
+# put a session writable interpreter into the trust chain. The Command Line
+# Tools framework binary is root owned along its whole ancestor chain.
+readonly GUARD_PYTHON="/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9"
 readonly GIT_BIN="/usr/bin/git"
 readonly POLICY_DIR="/Library/Application Support/ClaudeCode"
 readonly POLICY_FILE="${POLICY_DIR}/managed-settings.json"
@@ -57,7 +61,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-[ "$(id -u)" = "0" ] || die "must run as root (use sudo); the guarded session cannot activate the guard"
+# --dry-run builds and reports only; it installs nothing and therefore needs
+# no privileges. Every path that touches the protected installation does.
+if [ "${DRY_RUN}" != "yes" ]; then
+  [ "$(id -u)" = "0" ] || die "must run as root (use sudo); the guarded session cannot activate the guard"
+fi
 [ -n "${COMMIT}" ] || die "--commit is required"
 [ -n "${EXPECT_HASH}" ] || die "--expect-hash is required"
 [ -n "${SESSION_USER}" ] || die "--session-user is required when SUDO_USER is unset"
@@ -78,7 +86,19 @@ readonly SCRIPT_DIR
 WORKTREE="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
 readonly WORKTREE
 
-"${GIT_BIN}" -C "${WORKTREE}" cat-file -e "${COMMIT}^{commit}" 2>/dev/null \
+# Running as root against a repository owned by the session user trips git's
+# ownership check. The path is derived from this script's own location, so
+# trusting it here is not a widening of the boundary.
+GIT_COMMON="$("${GIT_BIN}" -C "${WORKTREE}" rev-parse --git-common-dir 2>/dev/null || echo "")"
+readonly GIT_COMMON
+git_repo() {
+  "${GIT_BIN}" -c "safe.directory=${WORKTREE}" \
+    -c "safe.directory=${GIT_COMMON}" \
+    -c "safe.directory=*" \
+    -C "${WORKTREE}" "$@"
+}
+
+git_repo cat-file -e "${COMMIT}^{commit}" 2>/dev/null \
   || die "commit not present in this repository: ${COMMIT}"
 
 STAGE="$(mktemp -d -t jarvis-guard-stage)"
@@ -94,7 +114,7 @@ trap cleanup EXIT
 # 2. build from the commit object, never from the working tree
 SOURCE="${STAGE}/source"
 mkdir -p "${SOURCE}"
-"${GIT_BIN}" -C "${WORKTREE}" archive --format=tar "${COMMIT}" tools/guard tools/guardpkg \
+git_repo archive --format=tar "${COMMIT}" tools/guard tools/guardpkg \
   | tar -x -C "${SOURCE}" -f -
 [ -d "${SOURCE}/tools/guard" ] || die "commit does not contain tools/guard"
 [ -f "${SOURCE}/tools/guardpkg/bootstrap.py" ] || die "commit does not contain the bootstrap"

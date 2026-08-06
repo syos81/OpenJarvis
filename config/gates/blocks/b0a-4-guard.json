@@ -40,8 +40,14 @@
   "targeted_selection": {
     "base_ref": "a0936877254c092bc75314b8078dedeb1deccc7a",
     "always": [
+      "tg-errata",
       "tg-fail-closed-paths",
+      "tg-guard-tests",
+      "tg-history-matrix",
+      "tg-hook-tests",
       "tg-no-worktree-fallback",
+      "tg-owner-activation",
+      "tg-package-determinism",
       "tg-rule-changes",
       "tg-violation-corpus"
     ],
@@ -49,8 +55,8 @@
       {
         "rule_id": "r-guard",
         "paths": [
-          "tools/guard/",
-          "tools/guardpkg/"
+          "tools/guard/*",
+          "tools/guardpkg/*"
         ],
         "checks": [
           "tg-guard-tests",
@@ -72,7 +78,7 @@
       {
         "rule_id": "r-errata",
         "paths": [
-          "docs/governance/"
+          "docs/governance/*"
         ],
         "checks": [
           "tg-errata"
@@ -81,7 +87,7 @@
       {
         "rule_id": "r-hook",
         "paths": [
-          ".claude/hooks/",
+          ".claude/hooks/*",
           "tools/gates/hookguard.py"
         ],
         "checks": [

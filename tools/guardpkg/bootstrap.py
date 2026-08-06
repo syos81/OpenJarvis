@@ -114,6 +114,53 @@ def owner_controlled(path, *, expect_uid=0, allow_missing=False):
     return True
 
 
+def chain_owner_controlled(path, *, expect_uid=0):
+    """True when ``path`` **and every ancestor directory** is protected.
+
+    A protected file below a writable directory is not protected: the
+    directory owner can rename or replace it. This is not theoretical — on
+    this platform ``/usr/bin/python3`` is a stub that resolves into a
+    developer tools bundle whose ancestors may belong to the ordinary user,
+    and ``/usr/local/lib`` is commonly re-owned by a package manager.
+
+    Symlinks are followed here, but each link and each resolved component
+    must itself satisfy the ownership rule.
+    """
+    seen = set()
+    current = os.path.abspath(path)
+    while True:
+        if current in seen:  # pragma: no cover - loop guard
+            return False
+        seen.add(current)
+        try:
+            link_info = os.lstat(current)
+        except OSError:
+            return False
+        # ``root`` is always acceptable in an ancestor chain; in production
+        # ``expect_uid`` is ``0``, so this reduces to root only. The second
+        # value exists so the throwaway installations of the test suite can
+        # exercise the same code path.
+        if link_info.st_uid not in (0, expect_uid):
+            return False
+        if link_info.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            # A shared directory is acceptable only with the sticky bit: it
+            # then lets nobody but the entry owner, the directory owner or
+            # root rename or remove an entry, so a protected component inside
+            # it still cannot be replaced. ``/tmp`` is the canonical case.
+            if not (
+                stat.S_ISDIR(link_info.st_mode) and link_info.st_mode & stat.S_ISVTX
+            ):
+                return False
+        if stat.S_ISLNK(link_info.st_mode):
+            resolved = os.path.realpath(current)
+            if not chain_owner_controlled(resolved, expect_uid=expect_uid):
+                return False
+        parent = os.path.dirname(current)
+        if parent == current:
+            return True
+        current = parent
+
+
 def package_files(active_dir):
     """Every file of the package, as sorted repository relative POSIX paths."""
     collected = []
@@ -196,6 +243,11 @@ def verify_installation(root, *, expect_uid=0):
         if not owner_controlled(path, expect_uid=expect_uid):
             raise BootstrapError(CODE_NOT_OWNER_CONTROLLED, os.path.basename(path))
 
+    # The installation root must not sit below a directory the guarded
+    # session can rename or replace.
+    if not chain_owner_controlled(root, expect_uid=expect_uid):
+        raise BootstrapError(CODE_NOT_OWNER_CONTROLLED, "install_root_ancestor")
+
     manifest_path = os.path.join(root, "active.json")
     if os.path.exists(manifest_path) and not owner_controlled(
         manifest_path, expect_uid=expect_uid
@@ -211,11 +263,15 @@ def verify_installation(root, *, expect_uid=0):
     interpreter = manifest["interpreter"]
     if not os.path.isfile(interpreter) or not os.access(interpreter, os.X_OK):
         raise BootstrapError(CODE_INTERPRETER_MISSING, "missing")
-    if not owner_controlled(interpreter, expect_uid=expect_uid):
+    if not chain_owner_controlled(interpreter, expect_uid=expect_uid):
         raise BootstrapError(CODE_INTERPRETER_MISSING, "not_owner_controlled")
+    # What actually runs matters, not only what is declared. A stub that
+    # resolves into a user writable bundle is rejected here.
     running = os.path.realpath(sys.executable or "")
-    if running and running != os.path.realpath(interpreter):
-        raise BootstrapError(CODE_INTERPRETER_MISSING, "mismatch")
+    if not running:
+        raise BootstrapError(CODE_INTERPRETER_MISSING, "unresolved")
+    if not chain_owner_controlled(running, expect_uid=expect_uid):
+        raise BootstrapError(CODE_INTERPRETER_MISSING, "running_not_owner_controlled")
 
     active_dir = os.path.join(root, "active")
     files = package_files(active_dir)

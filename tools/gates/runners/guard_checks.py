@@ -40,7 +40,7 @@ GUARD_ENTRY_SCRIPTS = (
 )
 DEFAULT_INSTALL_ROOT = "/usr/local/jarvis-guard"
 POLICY_FILE = "/Library/Application Support/ClaudeCode/managed-settings.json"
-SYSTEM_PYTHON = "/usr/bin/python3"
+SYSTEM_PYTHON = "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9"
 
 
 def _fail(identifier, code):
@@ -334,7 +334,6 @@ def mode_owner_activation(args):
             "0" * 64,
             "--session-user",
             "nobody",
-            "--dry-run",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

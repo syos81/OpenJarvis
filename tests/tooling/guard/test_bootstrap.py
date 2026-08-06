@@ -141,6 +141,39 @@ class TestFailClosed(_support.TempInstallationMixin):
             self._decide(expect_uid=0), "GUARD_INSTALL_ROOT_NOT_OWNER_CONTROLLED"
         )
 
+    def test_interpreter_below_a_writable_ancestor_blocks(self):
+        # A protected binary below a directory the session can rename is not
+        # protected. This is the concrete defect found before activation:
+        # /usr/bin/python3 is a stub that resolves into a developer tools
+        # bundle whose ancestors belong to the ordinary user.
+        bundle = self.tmp_path / "writable-bundle"
+        bundle.mkdir()
+        os.chmod(str(bundle), 0o777)
+        fake = bundle / "python3"
+        fake.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        os.chmod(str(fake), 0o755)
+        manifest = json.loads((self.root / "active.json").read_text(encoding="utf-8"))
+        manifest["interpreter"] = str(fake)
+        (self.root / "active.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        self._assert_blocked(self._decide(), "GUARD_INTERPRETER_MISSING")
+
+    def test_install_root_below_a_writable_ancestor_blocks(self):
+        import shutil
+
+        writable = self.tmp_path / "writable-parent"
+        writable.mkdir()
+        os.chmod(str(writable), 0o777)
+        relocated = writable / "install"
+        shutil.copytree(str(self.root), str(relocated))
+        response = _support.run_bootstrap(relocated, self.bash_payload("ls"))
+        self.assertEqual(_support.decision_of(response), "deny")
+        self.assertIn(
+            "GUARD_INSTALL_ROOT_NOT_OWNER_CONTROLLED",
+            _support.reason_of(response),
+        )
+
     def test_corrupt_rule_configuration_blocks(self):
         target = self.root / "active" / "guard" / "rules.json"
         os.chmod(str(target), 0o644)
