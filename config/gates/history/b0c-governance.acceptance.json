@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "kind": "historical_acceptance",
+  "block_id": "b0c-governance",
+  "title": "B0c governance: configuration binding, target bound release, reservation register, acceptance profiles",
+  "acceptance_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+  "immutable_refs": {
+    "block_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+    "block_start_commit": "06b7d7e3740325a12c4b1a2c41d3192e4f696c14",
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "06b7d7e3740325a12c4b1a2c41d3192e4f696c14"
+  },
+  "gate_engine_version": "1.0.0",
+  "manifest_schema_version": 1,
+  "feature_schema_version": 1,
+  "own_feature_prefix": "B0C-",
+  "own_feature_count": 30,
+  "external_inputs": [],
+  "environment": {
+    "system": "Darwin",
+    "architecture": "x86_64",
+    "min_python": "3.10"
+  },
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. No phase was declared not_applicable, no result was interpreted and no manual run replaced a gate.",
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail",
+    "runtime_evidence_present_and_changed": "fail",
+    "rationale": "The bound evidence is a committed snapshot, so it is always present and always reproducible. Absence is therefore a failure, not a declared not_applicable."
+  },
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b0c-governance/preflight.json",
+      "phase": "preflight",
+      "sha256": "cb2433bfc4e75747d18e5d5b62653b1119559a433ac1a7bd93752db1579f2619",
+      "recorded_status": "pass",
+      "recorded_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+      "recorded_manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0c-governance/targeted.json",
+      "phase": "targeted",
+      "sha256": "d6cfcc69be030f422a68e143baf035dc6799402fb2082d1b454f0d7af9f3c144",
+      "recorded_status": "pass",
+      "recorded_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+      "recorded_manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0c-governance/offline-final.json",
+      "phase": "offline-final",
+      "sha256": "17afb13b35f5f81ab4f6e0046d3641568897d7b031620529ec394a8946f88543",
+      "recorded_status": "pass",
+      "recorded_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+      "recorded_manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0c-governance/platform-live.json",
+      "phase": "platform-live",
+      "sha256": "e855fb4128604d505ffefa9c7d3d80988600b07f5eaed86f5b7b858f2ddcb197",
+      "recorded_status": "pass",
+      "recorded_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+      "recorded_manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0c-governance/module-final.json",
+      "phase": "module-final",
+      "sha256": "6a3314aa6b357efed873d0d4a63b6ae250f7334f2953c17bde5b97b7b2a26d5b",
+      "recorded_status": "pass",
+      "recorded_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+      "recorded_manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    }
+  ],
+  "evidence_binding_note": "The sanitised phase results are committed beside this record, so the binding survives a later re-run of the same block. Raw logs stay in the gitignored runtime area and are never committed or quoted.",
+  "committed_artifacts": [
+    {
+      "path": "config/gates/blocks/b0c-governance.json",
+      "blob_sha256": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637"
+    },
+    {
+      "path": "config/gates/features/b0c-governance.lineage.json",
+      "blob_sha256": "5c25a0ad5dc13783154531daa176a37de489b8c1703b3599e7d63b7646ced4a8"
+    },
+    {
+      "path": "config/gates/history/b0c-commit-plan.json",
+      "blob_sha256": "8e507916fa8566ab52bb156f1c73666855fc5ee5b1df7cd6060b78dd983e9dcb"
+    },
+    {
+      "path": "config/governance/acceptance-profile-lock.json",
+      "blob_sha256": "d8519a640acbd1d0f2fee4cb1eafb2a1cca772af80e32a0ba77153b27ef77795"
+    },
+    {
+      "path": "config/governance/baseline-errata.json",
+      "blob_sha256": "7ecaae1b82403481ee3e7d4e6a77468e13ed411eb438a7945ef4b9ae9d959251"
+    },
+    {
+      "path": "config/governance/config-loaders.json",
+      "blob_sha256": "289660ba728508a2390207c5170911e85d45f45b1d026c8407fc09a94e9e9a35"
+    },
+    {
+      "path": "config/governance/guard-trust-model.json",
+      "blob_sha256": "f586ae89ed34cb3fce5000f16aa354aefb2c298b371358709ead15d36b932044"
+    },
+    {
+      "path": "config/guard/rule-changes.json",
+      "blob_sha256": "536eb5229417dfd2f833c2c10bef5b0e55c05d3400999e4cce1e1d29e98ab5bc"
+    },
+    {
+      "path": "config/guard/violation-corpus.json",
+      "blob_sha256": "754f8e5352e171472345b95ef4215abe0aca64cf28dffd35f4b1461aa5e53c66"
+    }
+  ],
+  "guard_activation": {
+    "guard_version": "1.1.0",
+    "source_commit": "57dafef116a64571394ea3d32f6cd049a960cd6f",
+    "package_sha256": "fe89c98b37cbf471e425b2123a05ce34378017590f77690edc7c76c9c1bd50c7",
+    "performed_by": "owner",
+    "verified": true,
+    "candidate_version": "1.2.0",
+    "candidate_is_active": false,
+    "note": "The block was accepted against the guard version that is actually active. No phase passes --expect-version and no check requires a particular version; the candidate package is a consequence of this block, not a precondition of it."
+  },
+  "documented_limitations": [
+    "The Claude Code application is user writable and remains an open trust root.",
+    "The protected protocol is append only, not authentic.",
+    "An unusable guard configuration locks the session out entirely; only the owner restores it. Rule R4 removes the most likely cause, not the property.",
+    "Expired and version-foreign owner exception objects are not yet ignored and collected; the deny reason is masked by a corrupt-exception error. Open finding, scheduled for the guard hardening block after B0c.",
+    "The register data itself does not exist yet. This block delivers the schema, the model, the store and the tool; the canonical ref is created by an owner action."
+  ],
+  "phase_results": {
+    "preflight": {
+      "status": "pass",
+      "checks": 11,
+      "run_id": "bc9c69593564897952fb0530bbfcfac0",
+      "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637"
+    },
+    "targeted": {
+      "status": "pass",
+      "checks": 13,
+      "run_id": "3e1817ee18ca41c3871dcebfa9232995",
+      "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637"
+    },
+    "offline-final": {
+      "status": "pass",
+      "checks": 30,
+      "run_id": "e55705b051ea70a1ed2f21f5b20a317b",
+      "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637"
+    },
+    "platform-live": {
+      "status": "pass",
+      "checks": 5,
+      "run_id": "e65e3fd7e156e9992c6a89873da722d8",
+      "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637"
+    },
+    "module-final": {
+      "status": "pass",
+      "checks": 4,
+      "run_id": "f952b63426285122f474b0ff04e88f81",
+      "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637"
+    }
+  },
+  "block_scope": {
+    "range": "06b7d7e3740325a12c4b1a2c41d3192e4f696c14..HEAD",
+    "changed_paths": 35,
+    "outside_tooling_and_governance": [],
+    "note": "Determined, not declared. The product guard of this block spans the repository wide guard base and therefore covers earlier blocks as well, so the scope of this block is stated here against the commit it actually started from."
+  }
+}

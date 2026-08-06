@@ -1,0 +1,49 @@
+{
+  "baseline_commit": null,
+  "block": "b0c-governance",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "tg-claim-lint",
+    "tg-classification-schemes",
+    "tg-config-loaders",
+    "tg-errata",
+    "tg-fixture-rule",
+    "tg-governance-tests",
+    "tg-not-applicable-review",
+    "tg-pii-tests",
+    "tg-profile-derivation",
+    "tg-profile-lock",
+    "tg-rule-changes",
+    "tg-scanner-method",
+    "tg-violation-corpus"
+  ],
+  "commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T19:59:46Z",
+  "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+  "phase": "targeted",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "18d4a1d0a088221a1a0f7c6ad6bd6b9b01fe3a93f5c3f3943accd5db20ebc278",
+    "3b46913dc080283afb6e6a3c80452260d8e6915625d318d3de0c1c0be26e743b",
+    "5436ce110be63573d4c0c4c75a1790dc92a6064d7dc8427683c22f818dd0b677",
+    "60184205216e577229e7e25c59af47d80e9fa693f68b681228fa3d9b383b21bc",
+    "73b13fab56c661126a1ff7de52a8bd89d87d4aca10f66e35e0538dc4ad9c620d",
+    "78877070edb55e9edc3391b4d4c5fa29701d214b7304056d163a50f5ed56a317",
+    "8c60127a574372b6477a5ee1c75fa0e513de957163d94f8f9ab93bc751211044",
+    "972a8417c515910850fdc8f4556e13724bcbaaaff852fc85ac84b526e1fb4dca",
+    "a0c0399390e878d6f6113ff1b74910ccd0592ebfba0debe616fa008c576a63b1",
+    "d726d2848be821428fdb39895283ec96630f6511e4b3e2de31f71d1974e17aa9",
+    "e5360bd70bfd71d2a07993100d96c4a55665c92b28ba9d1147863d0cb6b37cf4",
+    "e8754348ceef65c96b8594bfe1b1448085b3aa0040b226e1961b5b979747ae04",
+    "fadc5c5ca30649ca41f75b5d64ebe3edf63b932d790f8da2329a1f2aef7b06e8"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "3e1817ee18ca41c3871dcebfa9232995",
+  "schema_version": 1,
+  "started_at": "2026-08-06T19:59:26Z",
+  "status": "pass"
+}

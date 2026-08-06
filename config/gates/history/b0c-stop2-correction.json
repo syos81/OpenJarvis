@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "kind": "correction_note",
+  "note_id": "COR-B0C-001",
+  "concerns": {
+    "document": "docs/governance/b0b-handoff.md",
+    "section": "§3.3 Aus K1 herausgenommen",
+    "statement": "ueber alle Markdown-Dokumente beider Linien sind DEC-001 bis DEC-055 und DEC-D01 bis DEC-D17 lueckenlos belegt, DEC-056 und DEC-D18 sind unbelegt"
+  },
+  "finding": "The statement rested on a defective method. B0b determined the number state with a text scan over every markdown document, and that scan cannot tell an allocation from a mention: a sentence naming a number as free made the same scan report it as taken. The method was unreliable in both directions and could never have carried a safe allocation decision, independently of whether its result happened to be right.",
+  "corrected_method": {
+    "engine": "tools/decreg/scan.py",
+    "rule": "An allocation is a row in a decision register table whose first cell is the decision id. Everything else — prose, reports, commit messages — is a mention and changes nothing.",
+    "gate_check": "of-scanner-method",
+    "test": "tests/tooling/governance/test_register_tool.py::TestScanAgainstTheRealLines"
+  },
+  "result": "confirmed",
+  "result_statement": "The corrected method confirms the B0b statement. Run against both lines it yields DEC-001 to DEC-055 and DEC-D01 to DEC-D17 contiguous with no gaps, and DEC-056 and DEC-D18 as the first unallocated numbers of their series.",
+  "what_changed": "Not the conclusion, but what carries it. The statement is no longer supported by a method that could not distinguish an allocation from a mention; it is supported by one that can, and that is checked by a gate.",
+  "historical_evidence": {
+    "rewritten": false,
+    "statement": "The B0b handoff is not edited. Its wording, its bytes and its digest stay exactly as they are. This is a correction note beside it, not a replacement of it."
+  },
+  "still_not_an_allocation": "Confirming that DEC-056 and DEC-D18 are free neither reserves nor allocates them. Allocation stays an owner action, and from now on it runs through the reservation register rather than through a scan.",
+  "recorded_at_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+  "observed": {
+    "lines": [
+      "HEAD",
+      "refs/remotes/origin/jarvis/rebuild-v1"
+    ],
+    "allocations_per_line": {
+      "HEAD": 65,
+      "refs/remotes/origin/jarvis/rebuild-v1": 67
+    },
+    "series": {
+      "DEC-": {
+        "allocated": 55,
+        "gaps": [],
+        "first_unused": "DEC-056"
+      },
+      "DEC-D": {
+        "allocated": 17,
+        "gaps": [],
+        "first_unused": "DEC-D18"
+      }
+    }
+  }
+}

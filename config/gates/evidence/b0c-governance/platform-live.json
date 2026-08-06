@@ -1,0 +1,33 @@
+{
+  "baseline_commit": null,
+  "block": "b0c-governance",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "pl-active-guard",
+    "pl-guard-activation",
+    "pl-live-current",
+    "pl-live-plain",
+    "pl-tamper"
+  ],
+  "commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T20:02:06Z",
+  "manifest_digest": "b3824038326e18a351ec66dac84968f158fa2b8c58250bd26f531093a7188637",
+  "phase": "platform-live",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "1094988d1b5975895df8bc1382955a6a98b9b4c721bea00acdd4e30157effa1c",
+    "2e20bd5ddea147e1402df149c3652df77f61e043e52fcbc92bf3ed2a0824d997",
+    "7dce70f356305554d8d489d283ec90629861d59a8afe1c2d9bd3a62faee62005",
+    "9949d5e8800b43dc05d5a172211d1abf8f8933b3a13051d2c0c38958d681f173",
+    "d917c1e09a26488850e61d12a20e575f61bd2fe9c486a2a27093592a3d4f5fa3"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "e65e3fd7e156e9992c6a89873da722d8",
+  "schema_version": 1,
+  "started_at": "2026-08-06T20:01:52Z",
+  "status": "pass"
+}

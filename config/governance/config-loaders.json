@@ -387,8 +387,10 @@
       "expectation": "accepted",
       "kind": "structural",
       "optional_fields": [
+        "block_scope",
         "documented_limitations",
-        "guard_activation"
+        "guard_activation",
+        "phase_results"
       ],
       "pattern": "config/gates/history/*.acceptance.json",
       "reason": "Historical acceptance records. Frozen data with a fixed field set.",
@@ -456,6 +458,29 @@
         "schema_version",
         "scope",
         "statement"
+      ]
+    },
+    {
+      "binding_id": "history-stop2-correction",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/b0c-stop2-correction.json",
+      "reason": "The correction note beside the B0b statement; the declared field set is its accepting reader.",
+      "required_fields": [
+        "concerns",
+        "corrected_method",
+        "finding",
+        "historical_evidence",
+        "kind",
+        "note_id",
+        "observed",
+        "recorded_at_commit",
+        "result",
+        "result_statement",
+        "schema_version",
+        "still_not_an_allocation",
+        "what_changed"
       ]
     },
     {
