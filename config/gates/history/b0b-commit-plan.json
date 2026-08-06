@@ -23,9 +23,19 @@
       "position": 4,
       "purpose": "purely determinative: gate run, evidence, handoff, report",
       "message": "test(calendar): finalize k1 evidence and handoff"
+    },
+    {
+      "position": 5,
+      "purpose": "purely normative: K1-O08 re-anchored to its real source",
+      "message": "docs(calendar): re-anchor k1-o08 to its real normative source"
+    },
+    {
+      "position": 6,
+      "purpose": "purely determinative: regenerated matrix, evidence, handoff, report",
+      "message": "test(calendar): finalize k1 matrix after o08 anchoring"
     }
   ],
-  "max_commits": 4,
+  "max_commits": 6,
   "forbidden_operations": [
     "commit --amend",
     "rebase",
@@ -53,8 +63,12 @@
   },
   "plan_change": {
     "declared_at_start": 3,
-    "actual": 4,
+    "actual": 6,
     "decided_by": "owner",
-    "reason": "The owner split the closing step: commit 3 stays purely normative and carries the derived K1 definition, the parity correction and rule R3; commit 4 is purely determinative and produces the closing matrix from a gate run. The report follows the definition instead of accompanying it."
+    "reason": "The owner split the closing step: commit 3 stays purely normative and carries the derived K1 definition, the parity correction and rule R3; commit 4 is purely determinative and produces the closing matrix from a gate run. The report follows the definition instead of accompanying it.",
+    "second_change": {
+      "decided_by": "owner",
+      "reason": "A gate whose acceptance criterion points at a non existent document is undefined, not open. K1-O08 had to be resolved before the block could close: re-anchored to a really existing normative source in a purely normative commit, with the regenerated matrix, evidence and report following in the next one."
+    }
   }
 }

@@ -20,14 +20,18 @@ allem anderen. Die Zahlen in §3 stammen ausschließlich aus dem Gate-Lauf
 | Commit 1 | `57dafef` — PII-Redaktion angeglichen, Guard-Vertrauensmodell |
 | Commit 2 | `8d2a568` — K1 offline, Gates O04 und O09 |
 | Commit 3 | `29fc013` — abgeleitete K1-Definition, Paritätskorrektur, Regel R3 |
-| Commit 4 | der Commit, der diese Datei trägt — Evidenz und Handoff |
+| Commit 4 | `6a26543` — erster feststellender Lauf |
+| Commit 5 | `fe88e5a` — normativ: K1-O08 an seiner realen Quelle neu verankert |
+| Commit 6 | der Commit, der diese Datei trägt — neu erzeugte Matrix, Evidenz, Handoff |
 | Remote-Stand vor Eigentümer-Push | `a1adabf` |
 | Amends innerhalb B0b | keine |
 | Rebase, Squash, Cherry-pick | keine |
 | Pushstatus | `not_performed_owner_action` |
 
-Der Commitplan wurde von drei auf vier Commits geändert. Das war eine
-Eigentümerentscheidung, nicht eine nachträgliche Schönung; sie steht in
+Der Commitplan wuchs von drei auf sechs Commits. Beide Erweiterungen waren
+Eigentuemerentscheidungen, keine nachtraegliche Schoenung: zuerst die
+Trennung von normativem und feststellendem Abschluss, dann die Aufloesung
+von K1-O08 vor dem Blockabschluss. Beides steht in
 `config/gates/history/b0b-commit-plan.json` unter `plan_change`.
 
 ## §2 Guard
@@ -102,10 +106,28 @@ auflösbarer Evidenzreferenz:
 - `K1-O05` Teilnehmer im Echtbetrieb — `live` (Echtbetrieb)
 - `K1-O06` Apple-Paritätsvertrag, **Lese-Parität** — `live` (Echtbetrieb,
   M2-Referenzhardware)
-- `K1-O08` zweiter Datenpfad `gcalendar.py` — `offline`, aber blockiert:
-  Baseline §5 Schritt 2 verweist auf „Register 20 §5"; ein Dokument dieser
-  Nummer existiert nicht, die Reihe endet bei 19. Schritt 4 verlangt einen
-  Eintrag im Entscheidungsregister. Beides sind Eigentümerhandlungen.
+- `K1-O08` zweiter Datenpfad `gcalendar.py` — `offline`, **neu verankert**.
+  Das Gate stuetzte sich auf die kontrollierte Suchprojektion nach
+  `Z-1, Register 20 §5`. Dieses Dokument existiert nicht: die Reihe endet
+  bei 19, und `Z-1` wie `Suchprojektion` kommen im ganzen Repository nur in
+  genau dieser Zitatstelle vor. Ein Gate mit nicht existierendem Kriterium
+  ist nicht offen, sondern undefiniert.
+
+  Das Kriterium wird von real existierenden verbindlichen Quellen getragen,
+  deshalb Neuverankerung statt Herausnahme — belegt in
+  `config/gates/k1/calendar-k1-definition.json` unter `gate_anchoring`:
+  **06 §1** (`personal/jarvis.db` als einzige kanonische Datenbank; Memory
+  und Suchindizes ausschliesslich abgeleitet und jederzeit vollstaendig neu
+  aufbaubar), **06 §2** (verbindliches Speicher-Register, Zeile
+  Personal-Suchindex: abgeleitet, technisch, Rebuild statt Backup),
+  **11** (DomainEvent-Dispatcher beliefert die Suchindex-Aktualisierung —
+  der kontrollierte Weg), **02** (`tools/storage/` als abgeleiteter
+  Suchindex) sowie **AV-11** und **AV-16**. Keine Ersatzquelle erfunden.
+
+  Das Gate bleibt danach in K1 und bleibt offen — jetzt mit definiertem,
+  erreichbarem Kriterium und benannter Restarbeit: Baseline §5 Schritt 3
+  stellt die Verbraucher um, Schritt 4 verlangt einen Registereintrag. Das
+  ist abgegrenzte Eigentuemerarbeit, kein unerfuellbarer Rest.
 
 ### §3.3 Aus K1 herausgenommen
 
@@ -172,9 +194,21 @@ derselbe Block erneut lief.
    Richtung; eine Entschärfung wäre eine Verringerung der Verstoßmenge.
 5. **Mehrdeutige Git-Operationen ungesperrt** — Matrix in
    `config/guard/history-rewrite-matrix.json`.
-6. **`Register 20 §5` existiert nicht.** Die Kalender-Baseline §5 stützt den
-   Ablöseplan für `gcalendar.py` auf ein Dokument, das es nicht gibt.
-   Blockiert `K1-O08`.
+6. **Die zitierte Registerstelle existiert nicht.** Die Kalender-Baseline §5
+   zitiert fuer den Abloeseplan von `gcalendar.py` ein Dokument, das es nicht
+   gibt. `K1-O08` ist deshalb an 06 §1, 06 §2, 11, 02 sowie AV-11 und AV-16
+   neu verankert. Der Zitatfehler in der Baseline selbst ist damit **nicht**
+   behoben — die Baseline ist eingefroren, ihre Korrektur ist eine
+   Eigentuemerhandlung.
+9. **Kein kanonisches Reservierungsregister fuer Entscheidungsnummern.**
+   Solange beide Linien getrennt gefuehrt werden, laesst sich Nummernfreiheit
+   nur gegen eingefrorene Staende pruefen, nie gegen die kuenftige Belegung
+   der jeweils anderen Linie. Die dauerhafte Loesung ist **ein einziges
+   kanonisches Reservierungsregister auf einer geschuetzten Governance-Ref**,
+   das beide Linien vor jeder Vergabe pruefen; Kopien in beiden Zweigen
+   liefen wieder auseinander. Das gehoert in den Governance-Block zusammen
+   mit den Abnahmeprofilen und ist ausdruecklich **nicht** Gegenstand von
+   B0b.
 7. **Abnahmeprofile A/B/C und Overlays P/S/H existieren nicht.** Sie waren
    Prompt-Prosa, wurden in B0b **nicht angewendet** und erzeugen keinen
    Abnahmenachweis. Ein Gate prüft, dass sie in keinem K1-Dokument als
@@ -196,7 +230,9 @@ Aus dem Zustand nach B0b folgen als zulässige nächste Blöcke:
 - die **Eigentümerklärung zu `Register 20 §5`** und der Ablöseplan für
   `gcalendar.py` (`K1-O08`),
 - die **Architekturentscheidung zur Schreib-Parität** samt Nummernvergabe,
-- der **Governance-Block für Abnahmeprofile und Overlays**.
+- der **Governance-Block fuer Abnahmeprofile und Overlays**, zusammen mit
+  dem kanonischen Reservierungsregister fuer Entscheidungsnummern (§6 Nr. 9),
+- die **Korrektur der Zitatstelle in der Kalender-Baseline §5**.
 
 Zwischen **Ambient-P0** und **Kontakte M2** wird hier **keine** Vorentscheidung
 getroffen. Die Lieferreihenfolge ordnet die Elemente; welcher der beiden
