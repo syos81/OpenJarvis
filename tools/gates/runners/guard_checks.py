@@ -26,6 +26,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
@@ -606,7 +607,11 @@ def mode_tamper(args):
     # A consumed exception marker must not be removable.
     spent = root / "var" / "exceptions" / "spent"
     if spent.is_dir():
-        marker = spent / "tamper-probe-marker"
+        # A unique name per run: the ACL deliberately prevents removing a
+        # claimed marker, so a fixed name would make this probe single use.
+        marker = spent / (
+            "tamper-probe-%d-%d" % (os.getpid(), time.time_ns())
+        )
         try:
             handle = os.open(str(marker), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o444)
         except OSError:

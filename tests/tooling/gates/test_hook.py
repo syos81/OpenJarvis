@@ -319,7 +319,11 @@ class TestAskLogging(HookTestBase):
             "cwd": str(self.repo),
         }
         stdout = io.StringIO()
-        code = hookguard.main(stdin=io.StringIO(json.dumps(payload)), stdout=stdout)
+        code = hookguard.main(
+            stdin=io.StringIO(json.dumps(payload)),
+            stdout=stdout,
+            authoritative=lambda: False,
+        )
         self.assertEqual(code, 0)
         response = json.loads(stdout.getvalue())
         specific = response["hookSpecificOutput"]
@@ -338,7 +342,11 @@ class TestAskLogging(HookTestBase):
             "cwd": str(self.repo),
         }
         stdout = io.StringIO()
-        code = hookguard.main(stdin=io.StringIO(json.dumps(payload)), stdout=stdout)
+        code = hookguard.main(
+            stdin=io.StringIO(json.dumps(payload)),
+            stdout=stdout,
+            authoritative=lambda: False,
+        )
         self.assertEqual(code, 0)
         self.assertEqual(
             json.loads(stdout.getvalue()), {"guardOutcome": "no_opinion"}
@@ -354,9 +362,101 @@ class TestAskLogging(HookTestBase):
             "cwd": str(self.repo),
         }
         stdout = io.StringIO()
-        hookguard.main(stdin=io.StringIO(json.dumps(payload)), stdout=stdout)
+        hookguard.main(
+            stdin=io.StringIO(json.dumps(payload)),
+            stdout=stdout,
+            authoritative=lambda: False,
+        )
         self.assertNotIn("permissionDecision", stdout.getvalue())
 
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TestAuthoritativeGuardDeference(HookTestBase):
+    """RC-007: the repository side layer must not veto an owner exception."""
+
+    def _fake_installation(self, *, register=True, root_owned=True):
+        root = self.tmp_path / "guard-install"
+        root.mkdir(exist_ok=True)
+        wrapper = root / "bootstrap.sh"
+        wrapper.write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+        policy = self.tmp_path / "managed-settings.json"
+        command = str(wrapper) if register else "/somewhere/else.sh"
+        policy.write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "*",
+                                "hooks": [
+                                    {"type": "command", "command": command}
+                                ],
+                            }
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        return root, policy
+
+    def test_deference_requires_root_ownership(self):
+        # Sharpening test for RC-007: a session created installation must
+        # never switch the repository layer off. These files belong to the
+        # session user, so deference must be refused.
+        root, policy = self._fake_installation()
+        self.assertFalse(
+            hookguard.authoritative_guard_active(
+                install_root=root, policy_file=policy
+            )
+        )
+
+    def test_deference_requires_a_matching_registration(self):
+        root, policy = self._fake_installation(register=False)
+        self.assertFalse(
+            hookguard.authoritative_guard_active(
+                install_root=root, policy_file=policy
+            )
+        )
+
+    def test_missing_installation_keeps_the_repository_layer_active(self):
+        missing = self.tmp_path / "absent"
+        policy = self.tmp_path / "absent.json"
+        self.assertFalse(
+            hookguard.authoritative_guard_active(
+                install_root=missing, policy_file=policy
+            )
+        )
+
+    def test_repository_layer_still_blocks_without_an_active_guard(self):
+        # Counter test for RC-007: with no authoritative guard the repository
+        # layer keeps detecting and blocking exactly as before.
+        decision, reason, _ = self.bash("git commit --am" "end")
+        self.assertEqual(decision, hookguard.DECISION_DENY)
+        self.assertEqual(reason, "git_commit_amend")
+
+
+    def test_entry_point_abstains_when_the_owner_guard_is_active(self):
+        # Sharpening test for RC-007: with an active authoritative guard the
+        # repository layer must not answer at all, so it cannot veto an owner
+        # exception it is unable to see.
+        payload = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit --am" "end"},
+            "cwd": str(self.repo),
+        }
+        stdout = io.StringIO()
+        code = hookguard.main(
+            stdin=io.StringIO(json.dumps(payload)),
+            stdout=stdout,
+            authoritative=lambda: True,
+        )
+        self.assertEqual(code, 0)
+        response = json.loads(stdout.getvalue())
+        self.assertEqual(response["guardOutcome"], "no_opinion")
+        self.assertEqual(response["deferredTo"], "authoritative_guard")
+        self.assertNotIn("permissionDecision", stdout.getvalue())

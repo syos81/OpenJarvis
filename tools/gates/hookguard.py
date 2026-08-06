@@ -61,6 +61,49 @@ LEGACY_REASON_CODES = {
 }
 
 
+#: Where the owner installed, authoritative guard lives, and where its
+#: registration must be found. Both are read only from here.
+ACTIVE_INSTALL_ROOT = Path("/usr/local/jarvis-guard")  # gate-allow: absolute_user_path
+ACTIVE_POLICY_FILE = Path(
+    "/Library/Application Support/ClaudeCode/managed-settings.json"
+)
+
+
+def authoritative_guard_active(
+    install_root=ACTIVE_INSTALL_ROOT, policy_file=ACTIVE_POLICY_FILE
+):
+    """True when the owner installed guard is present *and* registered.
+
+    Both conditions are required. A wrapper that exists but is not registered
+    guards nothing, and a registration that points somewhere else is not this
+    guard. Everything checked here is root owned; the session cannot make this
+    function return ``True`` by writing anything it is allowed to write.
+    """
+    wrapper = Path(install_root) / "bootstrap.sh"
+    try:
+        for path in (Path(install_root), wrapper, Path(policy_file)):
+            info = os.lstat(str(path))
+            if info.st_uid != 0:
+                return False
+        registration = json.loads(
+            Path(policy_file).read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError):
+        return False
+    groups = registration.get("hooks", {}).get("PreToolUse", [])
+    if not isinstance(groups, list):
+        return False
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        for hook in group.get("hooks", []) or []:
+            if not isinstance(hook, dict):
+                continue
+            if str(hook.get("command", "")) == str(wrapper):
+                return True
+    return False
+
+
 _RULES_CACHE = []
 
 
@@ -223,8 +266,13 @@ def build_response(decision, reason_code):
     }
 
 
-def main(argv=None, *, stdin=None, stdout=None):
-    """Repository side entry point. Fail closed on every error path."""
+def main(argv=None, *, stdin=None, stdout=None, authoritative=None):
+    """Repository side entry point. Fail closed on every error path.
+
+    ``authoritative`` is the predicate that decides whether the owner
+    installed guard has already ruled. It is injectable so the tests can
+    exercise this layer in isolation; production passes nothing.
+    """
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
     try:
@@ -238,6 +286,25 @@ def main(argv=None, *, stdin=None, stdout=None):
         payload = None
     if not isinstance(payload, dict):
         stdout.write(json.dumps(_deny(guard_errors.GUARD_INPUT_MALFORMED)) + "\n")
+        return 0
+
+    # The authoritative guard applies the same rules on a verified package and
+    # additionally knows the owner exceptions. Deciding here as well would let
+    # this session writable layer veto an owner decision it cannot see. It
+    # therefore abstains — but only when the owner installed guard is really
+    # installed *and* really registered, both checked on root owned files.
+    is_authoritative = authoritative or authoritative_guard_active
+    if is_authoritative():
+        stdout.write(
+            json.dumps(
+                {
+                    "guardOutcome": "no_opinion",
+                    "deferredTo": "authoritative_guard",
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
         return 0
 
     try:

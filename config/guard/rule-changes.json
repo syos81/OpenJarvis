@@ -56,6 +56,15 @@
       "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_interpreter_below_a_writable_ancestor_blocks",
       "counter_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_missing_interpreter_blocks",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-007",
+      "rule_id": "repository_layer_authority",
+      "kind": "sharpening",
+      "summary": "When the owner installed guard is both installed and registered on root owned files, the repository side layer abstains instead of deciding. It applies the same rules but cannot see the owner exceptions, so deciding would let a session writable layer veto an owner decision. Without an active authoritative guard the repository layer keeps deciding unchanged.",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_deference_requires_root_ownership",
+      "counter_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_repository_layer_still_blocks_without_an_active_guard",
+      "violation_set_effect": "unchanged"
     }
   ],
   "declared_relaxations": [],
