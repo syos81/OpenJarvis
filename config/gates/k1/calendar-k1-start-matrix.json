@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "kind": "k1_start_matrix",
+  "matrix_id": "calendar-k1-start-matrix",
+  "start_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+  "canonical_sources": [
+    "docs/personal-jarvis/modules/calendar.md",
+    "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
+    "docs/governance/b0b-handoff.md"
+  ],
+  "notes": {
+    "k1_term": "Der Begriff 'Kalender K1' ist im Repository nirgends als Stufe definiert. Er kommt in keinem Kalenderdokument vor; die Kalender-Baseline verwendet ihn kein einziges Mal. Er existiert ausschliesslich in den Governance-Handoffs. Diese Matrix verwendet ihn deshalb als Sammelbezeichnung fuer die in docs/personal-jarvis/modules/calendar.md §7 und §8 gefuehrten Gates und definiert ihn nicht neu.",
+    "acceptance_profiles_and_overlays": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+  },
+  "counts": {
+    "total": 17,
+    "fulfilled_at_start": 8,
+    "open_at_start": 9,
+    "offline_closable_open": 2,
+    "target_fulfilled_after_b0b": 10,
+    "target_open_after_b0b": 7
+  },
+  "gates": [
+    {
+      "gate_id": "K1-F01",
+      "title": "Python-Testlauf tests/personal",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — 1185 gruen, 85 uebersprungen, 1 rot (siehe §8)",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F02",
+      "title": "Kalender-Suite (Sync-Vertrag 27, Grenzen 23)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — 50 gruen",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F03",
+      "title": "Frontend vitest run",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — 216 gruen, davon 65 Kalender",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F04",
+      "title": "tsc --noEmit",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — gruen",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F05",
+      "title": "ruff auf neuem Code",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — gruen",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F06",
+      "title": "Sidecar-Bau (minos 12.3, keine Schreibselektoren im Binary)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — gruen",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F07",
+      "title": "Kalenderfreier Handshake gegen das echte Binary",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — ready, ping, caps, shutdown gruen",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-F08",
+      "title": "Fail-closed ohne Berechtigung",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "status_at_start": "fulfilled",
+      "evidence_reference": "modules/calendar.md §7 — outcome failed, kein Datensatz, kein Tombstone",
+      "blocking_reason": "",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "keine Aenderung; nur Erhaltungspruefung auf dem aktuellen HEAD"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "bereits erfuellt",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-O01",
+      "title": "Echter Lesedurchlauf aus der gepackten App auf beiden Architekturen",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 1",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Aus dem Terminal gestartet ist der verantwortliche Prozess das Terminal; der Beweis sagt nichts ueber Jarvis aus und truege dem Terminal eine dauerhafte Kalenderberechtigung ein. Erforderlich auf beiden Architekturen.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "Erfordert eine gepackte, signierte App, eine reale TCC-Erteilung durch den Eigentuemer und zusaetzlich Apple-Silicon-Hardware. Nichts davon ist offline auf diesem x86_64-Rechner herstellbar.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O02",
+      "title": "ARM64 vollstaendig",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 2",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Keine Zeile des Kalenderblocks gilt fuer Apple Silicon (DEC-042); 'unsigniertes Kind erbt den Zugriff' ist ein reiner Intel-Befund.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "Erfordert Apple-Silicon-Hardware. Der Arbeitsrechner ist x86_64; Rosetta ersetzt keine native Abnahme.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O03",
+      "title": "TCC-Persistenzmatrix (Rebuild, Versions-Bump, Verschieben, Quarantaene)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 3",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Rebuild, Versions-Bump, Verschieben und Quarantaene sind unbelegt.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "Erfordert reale TCC-Zustaende einer installierten, gepackten App. Offline nicht herstellbar.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O04",
+      "title": "Grosse Bestaende (Laufzeit, Speicher, Fensterwahl)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 4",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Laufzeit, Speicher und Fensterwahl bei tausenden Terminen sind ungemessen.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "src/personaljarvis/calendar",
+        "tests/personal/calendar"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "Der Sync-Vertrag ist ueber den FakeCalendarClient und eine echte migrierte Datenbankdatei kalenderfrei messbar. Es wird kein EKEventStore und keine TCC-Abfrage benoetigt.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "fulfilled"
+    },
+    {
+      "gate_id": "K1-O05",
+      "title": "Teilnehmer im Echtbetrieb",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 5",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Modell gebaut und getestet, im gemessenen Fenster gab es null Teilnehmer.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "Die Gate-Definition verlangt ausdruecklich Echtbetrieb, also reale Kalenderdaten mit Teilnehmern. Synthetische Fixtures erfuellen diese Definition nicht.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O06",
+      "title": "Apple-Paritaetsvertrag P-1 bis P-15",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 6, docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md §4",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Erst teilweise erfuellt, nirgends visuell gegen die M2-Referenz verglichen; offen insbesondere P-7, P-9, P-12 und P-13.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "P-7 verlangt Verschieben mit Freigabeanfrage und Vorschau, P-9 Serienbearbeitung mit Read-back der Nachbarinstanzen. Beides sind Mutationspfade. Der Kalender v1 ist ausdruecklich nur lesend, und der Sidecar-Bau bricht bei EventKit-Schreibselektoren im Binary ab. K1-O06 zu schliessen wuerde damit das bereits erfuellte Gate K1-F06 regressieren. P-13 verlangt zusaetzlich einen visuellen Vergleich gegen die M2-Referenz.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "K1-F06",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O07",
+      "title": "Schreiben",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 7",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Eigener Auftrag; erbt ADR-0025/ADR-0026 unveraendert.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "Die Gate-Definition weist Schreiben ausdruecklich einem eigenen Auftrag zu. Umsetzung waere eine spaetere Kalenderstufe und liegt ausserhalb der Umfangsgrenzen dieses Blocks.",
+      "requires_owner_decision": true,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O08",
+      "title": "Zweiter Datenpfad gcalendar.py",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 8, docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md §5",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Unberuehrt; Abloeseplan steht in Baseline §5.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [],
+      "offline_closable": false,
+      "offline_closable_reason": "Baseline §5 Schritt 2 setzt die kontrollierte Suchprojektion nach 'Register 20 §5' voraus. Ein Dokument dieser Nummer existiert nicht; die Reihe endet bei 19. Schritt 4 verlangt zusaetzlich einen Eintrag im Entscheidungsregister. Beides sind Eigentuemerhandlungen.",
+      "requires_owner_decision": true,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "open"
+    },
+    {
+      "gate_id": "K1-O09",
+      "title": "Vorbestehend roter Test test_dec_052_ist_registriert",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 10",
+      "status_at_start": "open",
+      "evidence_reference": "",
+      "blocking_reason": "Prueft eine Zaehlung im Entscheidungsregister und schlaegt auch ohne den Kalenderblock fehl. Vorbestehend, nicht durch B0a-3 oder B0a-4 verursacht.",
+      "acceptance_profile": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "overlays": {
+        "declared_in_repository": false,
+        "note": "The repository defines no A/B/C acceptance profile and no P/S/H overlay. The only acceptance profiles that exist are 'fachmodul_definition_of_done' and 'technischer_block_p0_spike_vor_umfangsfestlegung' in config/governance/delivery-order.json. 'P' exists solely as the Apple parity contract P-1..P-15 in the calendar baseline. Nothing is invented here."
+      },
+      "allowed_change_scope": [
+        "tests/personal/contacts"
+      ],
+      "offline_closable": true,
+      "offline_closable_reason": "Die Behauptung des Tests ist ein veraltetes Literal. Das Entscheidungsregister nennt selbst 48 akzeptierte Entscheidungen und haelt ausdruecklich fest, dass die fruehere Zaehlung '44 / 6 offene' ueberholt ist. Die Korrektur erfindet keine Entscheidung, sie zieht den Test der bereits registrierten Aussage nach.",
+      "requires_owner_decision": false,
+      "conflicts_with_fulfilled_gate": "",
+      "target_state_b0b": "fulfilled"
+    }
+  ]
+}

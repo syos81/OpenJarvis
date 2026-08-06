@@ -12,15 +12,24 @@ Two jobs live here:
 
 ``contains_canary`` additionally matches encoded and unicode-normalised
 variants, so a leak cannot hide behind base64, percent encoding or NFD.
+
+Detection and redaction share exactly one variant source,
+``tools.guard.textnorm``. Before B0b they were two independent tables: a
+flattened user path was *detected* but not *redacted*, so a value could be
+recognised as personal and still be written out verbatim. Every spelling the
+detection knows must now also be redacted or rejected.
 """
 
 from __future__ import annotations
 
-import base64
-import binascii
 import re
+import sys
 import unicodedata
-import urllib.parse
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from tools.guard import textnorm  # noqa: E402
 
 # --------------------------------------------------------------------------
 # Masks applied first: they are structurally safe and would otherwise trip the
@@ -38,8 +47,10 @@ _UUID_RE = re.compile(
 _ADDR_RE = re.compile(r"\b0x[0-9a-fA-F]{4,}\b")
 _PID_RE = re.compile(r"\b(pid|PID|process)[ =:]+\d+\b")
 _TMPDIR_RE = re.compile(r"/(?:private/)?(?:var/folders|tmp)/[^\s'\"]*")
-_HOME_PATH_RE = re.compile(r"/(?:Users|home)/[^/\s'\":]+(?:/[^\s'\":]*)?")
-_TILDE_RE = re.compile(r"(?<![\w])~/[^\s'\"]*")
+#: Every user path spelling comes from the shared variant source, so a
+#: flattened path can no longer slip past the redaction.
+_HOME_PATH_RE = textnorm.HOME_SLASH_RE
+_TILDE_RE = textnorm.HOME_TILDE_RE
 _EMAIL_RE = re.compile(r"\b[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}\b")
 _PHONE_RE = re.compile(r"(?<![\w.])\+?\d[\d ()/.-]{6,}\d(?![\w.])")
 _TOKEN_RE = re.compile(
@@ -61,6 +72,8 @@ _NORMALISERS = (
     ("<addr>", _ADDR_RE),
     ("<pid>", _PID_RE),
     ("<tmp>", _TMPDIR_RE),
+    # every user path spelling, shared with the detection side
+    *[("<home>", pattern) for _kind, pattern in textnorm.USER_PATH_PATTERNS],
     ("<home>", _HOME_PATH_RE),
     ("<home>", _TILDE_RE),
     ("<tmpname>", _RANDOM_TMPNAME_RE),
@@ -78,6 +91,10 @@ _VIOLATION_PATTERNS = (
     ("pii_secret", _TOKEN_RE),
     ("pii_secret_assignment", _SECRET_KV_RE),
     ("pii_absolute_user_path", _HOME_PATH_RE),
+    ("pii_absolute_user_path", textnorm.HOME_BACKSLASH_RE),
+    ("pii_flattened_user_path", textnorm.HOME_HYPHEN_RE),
+    ("pii_flattened_user_path", textnorm.HOME_UNDERSCORE_RE),
+    ("pii_encoded_user_path", textnorm.HOME_PERCENT_RE),
     ("pii_home_shorthand", _TILDE_RE),
     ("pii_uuid", _UUID_RE),
     ("pii_phone", _PHONE_RE),
@@ -152,59 +169,31 @@ def assert_clean(value, path: str = "$") -> None:
 # --------------------------------------------------------------------------
 # Canary matching
 # --------------------------------------------------------------------------
-_SEPARATORS_RE = re.compile(r"[\s\-_.()/\\]+")
+_SEPARATORS_RE = textnorm.SEPARATORS_RE
+
+#: The declared variant kinds. Detection and redaction derive from the same
+#: list, so the two can no longer drift apart.
+VARIANT_KINDS = textnorm.VARIANT_KINDS
 
 
 def _decode_candidates(text: str):
-    """Yield plausible decodings of ``text`` for encoded-leak detection."""
-    yield text
-    try:
-        yield urllib.parse.unquote(text)
-    except (ValueError, UnicodeDecodeError):
-        pass
-    try:
-        yield text.encode("ascii", "ignore").decode("unicode_escape")
-    except (UnicodeDecodeError, UnicodeEncodeError, ValueError):
-        pass
-    for token in re.findall(r"[A-Za-z0-9+/=_-]{8,}", text):
-        padded = token.replace("-", "+").replace("_", "/")
-        padded += "=" * (-len(padded) % 4)
-        try:
-            decoded = base64.b64decode(padded, validate=False)
-        except (binascii.Error, ValueError):
-            continue
-        try:
-            yield decoded.decode("utf-8")
-        except UnicodeDecodeError:
-            continue
+    """Bounded decoding candidates — shared with the redaction side."""
+    return textnorm.decode_candidates(text)
 
 
 def _canonical_forms(text: str):
-    forms = set()
-    for candidate in _decode_candidates(text):
-        for normal_form in ("NFKC", "NFD"):
-            normalised = unicodedata.normalize(normal_form, candidate)
-            stripped = "".join(
-                ch for ch in normalised if not unicodedata.combining(ch)
-            )
-            for variant in (normalised, stripped):
-                folded = variant.casefold()
-                forms.add(folded)
-                forms.add(_SEPARATORS_RE.sub("", folded))
-    return forms
+    """Canonical forms — shared with the redaction side."""
+    return textnorm.canonical_forms(text)
 
 
 def contains_canary(haystack: str, needle: str) -> bool:
     """True if ``needle`` appears in ``haystack``, including encoded forms."""
-    if not haystack or not needle:
-        return False
-    haystack_forms = _canonical_forms(haystack)
-    needle_forms = {form for form in _canonical_forms(needle) if len(form) >= 4}
-    return any(
-        needle_form in haystack_form
-        for needle_form in needle_forms
-        for haystack_form in haystack_forms
-    )
+    return textnorm.contains(haystack, needle)
+
+
+def redact(text: str) -> str:
+    """Redact every recognised user path spelling in ``text``."""
+    return textnorm.redact_user_paths(text)
 
 
 def find_canaries(value, canaries):

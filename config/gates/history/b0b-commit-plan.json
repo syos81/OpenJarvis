@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "kind": "commit_plan",
+  "block_id": "b0b-calendar-k1",
+  "start_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+  "planned_commits": [
+    {
+      "position": 1,
+      "purpose": "tooling and trust model correction",
+      "message": "fix(tooling): align pii redaction and define guard trust limits"
+    },
+    {
+      "position": 2,
+      "purpose": "calendar K1 work that is offline closable",
+      "message": "feat(calendar): complete k1 offline foundation"
+    },
+    {
+      "position": 3,
+      "purpose": "closing evidence and handoff",
+      "message": "test(calendar): finalize k1 evidence and handoff"
+    }
+  ],
+  "max_commits": 3,
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "automatic push"
+  ],
+  "push_status": "not_performed_owner_action",
+  "guard_package_affected": {
+    "value": true,
+    "reason": "The shared PII variant source tools/guard/textnorm.py is part of the runtime package and tools/guard/audit.py now uses it. The package content therefore changed.",
+    "owner_activation_required": true,
+    "activation_point": "after commit 1, before the closing platform-live"
+  },
+  "scope_decision": {
+    "decided_by": "owner",
+    "target": "reduced and honest",
+    "k1_target_fulfilled": 10,
+    "k1_target_open": 7,
+    "k1_completion_claim_permitted": false,
+    "reason": "Seven of the seventeen gates are not offline closable on this machine; the mechanical reasons are bound per gate in the K1 start matrix. K1 is therefore explicitly not reported as complete."
+  }
+}

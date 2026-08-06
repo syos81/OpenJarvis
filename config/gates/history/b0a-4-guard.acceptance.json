@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "kind": "historical_acceptance",
+  "block_id": "b0a-4-guard",
+  "title": "B0a-4 fail closed guard bootstrap and B0b starting state",
+  "acceptance_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+  "immutable_refs": {
+    "block_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "a0936877254c092bc75314b8078dedeb1deccc7a"
+  },
+  "gate_engine_version": "1.0.0",
+  "manifest_schema_version": 1,
+  "feature_schema_version": 1,
+  "own_feature_prefix": "B0A4-",
+  "own_feature_count": 35,
+  "external_inputs": [],
+  "environment": {
+    "system": "Darwin",
+    "architecture": "x86_64",
+    "min_python": "3.10"
+  },
+  "guard_activation": {
+    "guard_version": "1.0.0",
+    "source_commit": "834f08ac1bfa21f1892483174a055e38077bfa5b",
+    "package_sha256": "30a41d822956ed1441f581febbd55883cd58c6875ebc3350ad0dce5edcd0f322",
+    "performed_by": "owner",
+    "verified": true
+  },
+  "documented_limitations": [
+    "PII scrubbing with a documented gap for flattened paths; the guard protocol redacted the slash spelling only. Closed on the current line by B0b rule change RC-008; the historical statement stays as it was.",
+    "The Claude Code application is user writable and remains an open trust root.",
+    "The protected protocol is append only, not authentic."
+  ],
+  "committed_artifacts": [
+    {
+      "path": "config/gates/blocks/b0a-4-guard.json",
+      "blob_sha256": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb"
+    },
+    {
+      "path": "config/gates/features/b0a-4-guard.lineage.json",
+      "blob_sha256": "dcef7ea97511273564d1f59039d5cfc0cbc6768d6b3237cd742134ac9f380ae5"
+    },
+    {
+      "path": "config/gates/history/b0a-1-tooling.acceptance.json",
+      "blob_sha256": "1b7793e9ff0d34ca421e52f0b63bdcaca06dea934db921a46232565eba17772a"
+    },
+    {
+      "path": "config/gates/history/b0a-2-governance.acceptance.json",
+      "blob_sha256": "b48766a0818fd4376ae4e07c9fc62b0c854232db68855e20d82cccef980b56e0"
+    },
+    {
+      "path": "config/gates/history/b0a-3-integration.acceptance.json",
+      "blob_sha256": "830d42091420718bfea6937694a717b78fcb6b8144cd119ca2278e8ae4cd4d2a"
+    },
+    {
+      "path": "config/gates/history/b0a-4-commit-plan.json",
+      "blob_sha256": "4f9199397e40288b11710c7d28c9b57aeeac0b580b72519052b43cb7296bbd4b"
+    },
+    {
+      "path": "config/gates/preservation/calendar-line.preservation.json",
+      "blob_sha256": "52a96342199731dae3646f7eee529f0ae00c276176ce72ef5eaeee60b855ec77"
+    },
+    {
+      "path": "config/guard/history-rewrite-matrix.json",
+      "blob_sha256": "62c83d715e21078a2a3d078e200e60666f071900c7bf06714106f5c575c3f203"
+    },
+    {
+      "path": "config/guard/rule-changes.json",
+      "blob_sha256": "9591d9de8e7d6ecc3b1582f736dc2cfdfa3cdc1606e21e0fb3511f02af639162"
+    },
+    {
+      "path": "config/guard/violation-corpus.json",
+      "blob_sha256": "919e4ff526a44ea320f4493ff3860930544c610a5d0e231b665050629afea466"
+    },
+    {
+      "path": "docs/governance/b0a-3-errata.md",
+      "blob_sha256": "c12dd2f3638f8a8854340081d22d9d92a295e7043e148d3fda2f2ec666914976"
+    },
+    {
+      "path": "docs/governance/b0a-4-guard-architecture.md",
+      "blob_sha256": "15522f471812f434819feb6b5926383c4efad889ce5b6ce741585eeafd8c3844"
+    },
+    {
+      "path": "docs/governance/b0b-handoff.md",
+      "blob_sha256": "431b31dd825b3375d6df59e7f4184668c9d2d3bc736bd6368e2ce09ef444d979"
+    },
+    {
+      "path": "scripts/guard-exception.sh",
+      "blob_sha256": "dd78ab8ea042cddf9d99067c9ef950a341246cc0e4c1868a4d521791c0a2bc4e"
+    },
+    {
+      "path": "scripts/guard-install.sh",
+      "blob_sha256": "75b0518d9a306591240cc02c5256b8cec7b2b99305498880ff16dc21744ecad0"
+    }
+  ],
+  "runtime_evidence": [
+    {
+      "path": ".gate-runtime/evidence/b0a-4-guard.preflight.json",
+      "phase": "preflight",
+      "sha256": "dd10d69046c3fdeab5ffa71c037f6cfaa47c5c13b9dc30e3ea5bcf5f7142d05a",
+      "recorded_status": "pass",
+      "recorded_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+      "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "machine_local_runtime"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-4-guard.targeted.json",
+      "phase": "targeted",
+      "sha256": "d78fad47b0184f602ae1ffe639c3890ab4fd549cd419920fbe74bc3bfc37dc6d",
+      "recorded_status": "pass",
+      "recorded_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+      "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "machine_local_runtime"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-4-guard.offline-final.json",
+      "phase": "offline-final",
+      "sha256": "e9a2dcf3f33ccffce339eb1c1b40f9e08cc516dc9faedac9e7cb72908eb17b86",
+      "recorded_status": "pass",
+      "recorded_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+      "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "machine_local_runtime"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-4-guard.platform-live.json",
+      "phase": "platform-live",
+      "sha256": "0ba746f6b6e17d6ade8e622e988c0317ad43891425e715774aab35646732ac6a",
+      "recorded_status": "pass",
+      "recorded_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+      "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "machine_local_runtime"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-4-guard.module-final.json",
+      "phase": "module-final",
+      "sha256": "0f43c63b92f58962fbafd745565ede173ee752a035cebd233f6889e1ca1664af",
+      "recorded_status": "pass",
+      "recorded_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+      "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "machine_local_runtime"
+    }
+  ],
+  "assertion": "The block was accepted at this commit against these immutable references. This manifest is never re-run against a later branch tip; only presence, hash integrity, correct binding and unchanged statement are verified.",
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_present_and_changed": "fail",
+    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure."
+  }
+}

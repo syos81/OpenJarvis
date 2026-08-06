@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "model_id": "guard-trust-model-1",
+  "canonical": true,
+  "description": "The one normative place that states what the guard is and what it is not. Documentation, handoffs, gate reports and CLAUDE.md use this semantics; a gate rejects any stronger protection claim.",
+  "applies_to": {
+    "guard_version_min": "1.0.0",
+    "components": [
+      "policy hook registration",
+      "bootstrap wrapper",
+      "bootstrap entrypoint",
+      "active guard package",
+      "active version and hash binding",
+      "rule configuration",
+      "owner exception check and consumption",
+      "protected protocol"
+    ]
+  },
+  "purpose": "A discipline mechanism. It keeps ordinary tool use inside the agreed workflow and makes a forbidden operation fail before it runs.",
+  "protected_against": [
+    "mistakes and slips during ordinary tool use",
+    "forbidden commands issued through the normal tool path",
+    "process drift away from the agreed workflow",
+    "unintended history rewriting, in particular commit --amend",
+    "unintended destructive operations",
+    "bypassing agreed workflows through ordinary tool usage",
+    "silent modification of the active rule set from inside the guarded session"
+  ],
+  "not_protected_against": [
+    "a hostile actor who already holds the owner's user rights",
+    "an actor who can obtain interactive owner authentication",
+    "replacement of the Claude Code application itself",
+    "modification of the operating system or its security subsystems",
+    "an actor with physical access to an unlocked machine",
+    "forged entries appended to the protected protocol"
+  ],
+  "trust_roots": [
+    {
+      "root": "claude_code_application",
+      "location_class": "user writable application bundle",
+      "closable": false,
+      "note": "The application reads the policy configuration. Whoever can replace the application can ignore every hook. No component of this guard can close this."
+    },
+    {
+      "root": "root_owned_installation",
+      "location_class": "root owned system path with a fully root owned ancestor chain",
+      "closable": true,
+      "note": "Verified mechanically on every guard start: owner, mode, symlink freedom, version and package hash."
+    },
+    {
+      "root": "root_owned_interpreter",
+      "location_class": "root owned interpreter with a fully root owned ancestor chain",
+      "closable": true,
+      "note": "Both the declared and the actually running interpreter are checked, including stub and wrapper resolution."
+    }
+  ],
+  "owner_authentication_boundary": {
+    "value": "requires_interactive_owner_authentication",
+    "rejected_value": "technically_impossible",
+    "statement": "The active guard chain cannot be changed by the normal running Claude Code session without an additional interactive owner action.",
+    "mechanism": "Every protected component is root owned; the session runs unprivileged and sudo requires a password."
+  },
+  "log_integrity_limit": {
+    "truncatable_by_session": false,
+    "deletable_by_session": false,
+    "appendable_by_session": true,
+    "forgeable_forward": true,
+    "cryptographic_provenance": false,
+    "statement": "The protected protocol cannot be shortened or deleted by the normal session, but it can be enriched with further entries and is therefore forgeable in the forward direction.",
+    "rationale": "The guard runs with the privileges of the guarded session. Any key the guard can read, the session can read too, so a signature would not establish provenance."
+  },
+  "evidence_use_limit": {
+    "protocol_is_sole_proof": false,
+    "single_entry_proves_origin": false,
+    "supporting_signal_only": true,
+    "required_additional_support": [
+      "reproducible active tests",
+      "package hash binding",
+      "file ownership and mode checks",
+      "independent evidence"
+    ],
+    "forward_appended_entries_may_override_history": false,
+    "statement": "The protocol is a supporting signal. A security or gate statement must additionally rest on reproducible active tests, hash binding, file permissions and independent evidence. A forward appended entry never overrides or weakens a historical acceptance."
+  },
+  "prohibited_claims": [
+    "technisch unmöglich zu umgehen",
+    "gegen einen feindlichen lokalen Benutzer abgesichert",
+    "vollständig manipulationssicher",
+    "unangreifbare Sicherheitsgrenze",
+    "kann unter Benutzerrechten nicht deaktiviert werden",
+    "technically impossible to bypass",
+    "secured against a hostile local user",
+    "completely tamper proof",
+    "tamper-proof",
+    "unbreakable security boundary",
+    "cannot be disabled under user rights",
+    "append-only and therefore authentic",
+    "append only and therefore authentic"
+  ],
+  "permitted_claims": [
+    "Die aktive Guard-Kette kann von der normalen laufenden Claude-Code-Sitzung nicht ohne eine zusätzliche interaktive Eigentümerhandlung verändert werden.",
+    "The active guard chain cannot be changed by the normal running Claude Code session without an additional interactive owner action.",
+    "Der Guard ist ein Disziplinmechanismus, keine vollständige Sicherheitsgrenze gegen einen feindlichen Akteur mit Benutzerrechten.",
+    "The guard is a discipline mechanism, not a complete security boundary against a hostile actor holding user rights.",
+    "Das geschützte Protokoll ist nicht kürzbar und nicht löschbar, aber nach vorn anhängbar und damit fälschbar.",
+    "The protected protocol cannot be truncated or deleted by the session, but it can be appended to and is therefore forgeable forward."
+  ],
+  "claim_lint": {
+    "scanned_paths": [
+      "docs/governance",
+      "docs/tooling",
+      "CLAUDE.md",
+      "config/governance",
+      "config/gates",
+      "tools/guard",
+      "tools/guardpkg",
+      "tools/gates"
+    ],
+    "declared_exclusions": [
+      {
+        "path": "config/governance/guard-trust-model.json",
+        "reason": "This file defines the prohibited claims and must therefore contain them verbatim.",
+        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_excluded_path_is_not_a_blanket_exemption"
+      },
+      {
+        "path": "tools/gates/runners/guard_checks.py",
+        "reason": "The lint implementation loads the prohibited claims and reports them.",
+        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation"
+      },
+      {
+        "path": "tests/tooling/gates/test_guard_claims.py",
+        "reason": "The test fixtures for the lint necessarily contain a prohibited claim.",
+        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation"
+      }
+    ]
+  }
+}

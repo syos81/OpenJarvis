@@ -12,6 +12,13 @@ marker at all.
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from tools.guard import textnorm  # noqa: E402
+
 MARKER = "".join(("GATE", "CANARY"))
 
 _USER_ROOT = "/" + "Users" + "/" + f"{MARKER.lower()}person"
@@ -33,5 +40,7 @@ CANARIES = {
     "unicode_spelling": _wrap("Ännelie Mustermann-Straße"),
 }
 
-#: Encoded / normalised variants that must be caught as well.
-VARIANT_KINDS = ("plain", "base64", "percent", "nfd", "case", "separators")
+#: Encoded / normalised variants that must be caught as well. The list is
+#: not maintained here: it comes from the one shared variant source, so
+#: detection and redaction cannot declare different coverage.
+VARIANT_KINDS = textnorm.VARIANT_KINDS

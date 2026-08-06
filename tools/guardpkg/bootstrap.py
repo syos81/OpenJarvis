@@ -31,7 +31,9 @@ import stat
 import sys
 
 SCHEMA = "guard-active-1"
-SUPPORTED_GUARD_VERSIONS = ("1.0.0",)
+#: Both are accepted so an owner rollback to the previous package still
+#: boots. The active manifest pins exactly one of them.
+SUPPORTED_GUARD_VERSIONS = ("1.0.0", "1.1.0")
 
 ACTIVE_MANIFEST_FIELDS = (
     "activated_at",

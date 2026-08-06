@@ -16,9 +16,11 @@
     "expected_required_by_prefix": {
       "B0A1-": 24,
       "B0A2-": 38,
-      "B0A3-": 14
+      "B0A3-": 14,
+      "B0A4-": 35
     },
-    "rule": "Every listed predecessor feature must still be present, required, mapped to a resolvable location and reported as pass. A missing one is fail, never not_applicable."
+    "rule": "Every listed predecessor feature must still be present, required, mapped to a resolvable location and reported as pass. A missing one is fail, never not_applicable.",
+    "total_predecessor_features": 111
   },
   "invariants": [
     {
@@ -90,7 +92,9 @@
       "area": "guard",
       "description": "There is exactly one guard implementation; the gate side module is an adapter over it.",
       "kind": "files_contain",
-      "paths": ["tools/gates/hookguard.py"],
+      "paths": [
+        "tools/gates/hookguard.py"
+      ],
       "needle": "from tools.guard"
     },
     {
@@ -105,7 +109,9 @@
       "area": "governance",
       "description": "The ambient placeholder is still a placeholder and has not been resolved.",
       "kind": "files_contain",
-      "paths": ["config/governance/ambient-placeholder.json"],
+      "paths": [
+        "config/governance/ambient-placeholder.json"
+      ],
       "needle": "{{DEC_ID_AMBIENT_INTERACTION_V1}}"
     },
     {
@@ -127,8 +133,50 @@
       "area": "privacy",
       "description": "Raw logs stay in the gitignored runtime area.",
       "kind": "files_contain",
-      "paths": [".gitignore"],
+      "paths": [
+        ".gitignore"
+      ],
       "needle": ".gate-runtime"
+    },
+    {
+      "invariant_id": "guard-trust-model",
+      "area": "guard",
+      "description": "The canonical guard trust model is present.",
+      "kind": "file_present",
+      "path": "config/governance/guard-trust-model.json"
+    },
+    {
+      "invariant_id": "guard-trust-boundary",
+      "area": "guard",
+      "description": "The boundary is owner authentication, not impossibility.",
+      "kind": "files_contain",
+      "paths": [
+        "config/governance/guard-trust-model.json",
+        "CLAUDE.md"
+      ],
+      "needle": "requires_interactive_owner_authentication"
+    },
+    {
+      "invariant_id": "pii-shared-variant-source",
+      "area": "privacy",
+      "description": "Detection and redaction use one shared variant source.",
+      "kind": "files_contain",
+      "paths": [
+        "tools/gates/sanitize.py",
+        "tools/guard/audit.py",
+        "tools/gates/canaries.py"
+      ],
+      "needle": "textnorm"
+    },
+    {
+      "invariant_id": "pii-flattened-redaction",
+      "area": "privacy",
+      "description": "The flattened user path spelling is redacted, not only detected.",
+      "kind": "files_contain",
+      "paths": [
+        "tools/guard/textnorm.py"
+      ],
+      "needle": "HOME_HYPHEN_RE"
     }
   ]
 }

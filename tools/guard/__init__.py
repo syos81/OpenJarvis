@@ -19,7 +19,7 @@ from __future__ import annotations
 
 #: Version of the guard implementation. Bumped by the owner together with a
 #: reinstallation; the active installation is pinned to this value.
-GUARD_VERSION = "1.0.0"
+GUARD_VERSION = "1.1.0"
 
 #: Schema identifier of ``rules.json``. A mismatch is a hard block.
 CONFIG_SCHEMA = "guard-config-1"

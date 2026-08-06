@@ -158,6 +158,31 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
 - Kein Force-Push, kein Push auf einen Produktbranch, kein Merge, kein Rebase,
   kein Cherry-pick, kein Tag und kein Release durch einen Agenten.
 
+## Guard-Vertrauensmodell
+
+Verbindlich und maschinenlesbar in `config/governance/guard-trust-model.json`.
+Dokumentation, Handoffs, Gateberichte und diese Datei verwenden dieselbe
+Semantik; das Gate `claim-lint` weist stärkere Schutzbehauptungen zurück.
+
+- Der Guard ist ein **Disziplinmechanismus** gegen Versehen, unerlaubte
+  Befehle, Prozessdrift, unbeabsichtigte Historienumschreibung und
+  unbeabsichtigte destruktive Operationen.
+- Er ist **keine** vollständige Sicherheitsgrenze gegen einen feindlichen
+  Akteur, der bereits mit Lukas' Benutzerrechten arbeitet oder interaktive
+  Eigentümerauthentisierung erlangen kann.
+- Die Claude-Code-Anwendung selbst ist benutzerschreibbar und bleibt eine
+  nicht vollständig schließbare Vertrauenswurzel.
+- Die Grenze lautet `requires_interactive_owner_authentication`, nicht
+  `technically_impossible`. Zulässige Aussage: die aktive Guard-Kette kann
+  von der normalen laufenden Claude-Code-Sitzung nicht ohne eine zusätzliche
+  interaktive Eigentümerhandlung verändert werden.
+- Das geschützte Protokoll ist von der Sitzung weder kürzbar noch löschbar,
+  aber nach vorn anhängbar und damit fälschbar. Es ist kein
+  kryptografischer Herkunftsnachweis und nie alleiniger Beweis; Sicherheits-
+  und Gateaussagen stützen sich zusätzlich auf reproduzierbare aktive Tests,
+  Hashbindung, Dateirechte und unabhängige Evidenz. Vorwärts angehängte
+  Einträge entkräften keine historische Abnahme.
+
 ## Agenten-Philosophie
 
 Jarvis besteht aus spezialisierten Agenten, die unabhängig voneinander

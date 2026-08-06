@@ -42,6 +42,7 @@ PACKAGE_MEMBERS = (
     "owner_exception.py",
     "rules.json",
     "rules.py",
+    "textnorm.py",
 )
 
 

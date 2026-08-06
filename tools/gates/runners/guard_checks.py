@@ -13,6 +13,8 @@ Modes:
 ``exception-policy``    the owner exception stays narrow and single use
 ``active-guard``        read only verification of the installed active guard
 ``tamper``              the guarded session cannot change the protection chain
+``trust-model``         the guard trust model is complete and consistent
+``claim-lint``          no artifact makes a stronger protection claim
 """
 
 from __future__ import annotations
@@ -629,6 +631,150 @@ def mode_tamper(args):
     )
 
 
+TRUST_MODEL = "config/governance/guard-trust-model.json"
+
+_TRUST_MODEL_FIELDS = (
+    "applies_to",
+    "canonical",
+    "claim_lint",
+    "description",
+    "evidence_use_limit",
+    "log_integrity_limit",
+    "model_id",
+    "not_protected_against",
+    "owner_authentication_boundary",
+    "permitted_claims",
+    "prohibited_claims",
+    "protected_against",
+    "purpose",
+    "schema_version",
+    "trust_roots",
+)
+
+
+def mode_trust_model(args):
+    """The trust model must be complete and must not overstate protection."""
+    root = Path.cwd()
+    failures = []
+    model = _load(root, TRUST_MODEL)
+    missing = sorted(set(_TRUST_MODEL_FIELDS) - set(model))
+    for field in missing:
+        failures.append(_fail(f"trust_model.{field}", "field_missing"))
+
+    boundary = model.get("owner_authentication_boundary", {})
+    if boundary.get("value") != "requires_interactive_owner_authentication":
+        failures.append(_fail("boundary", "wrong_boundary_value"))
+    if boundary.get("rejected_value") != "technically_impossible":
+        failures.append(_fail("boundary", "rejected_value_not_declared"))
+
+    log_limit = model.get("log_integrity_limit", {})
+    for field, expected in (
+        ("truncatable_by_session", False),
+        ("deletable_by_session", False),
+        ("appendable_by_session", True),
+        ("forgeable_forward", True),
+        ("cryptographic_provenance", False),
+    ):
+        if log_limit.get(field) is not expected:
+            failures.append(_fail(f"log_limit.{field}", "wrong_log_limit"))
+
+    evidence = model.get("evidence_use_limit", {})
+    for field, expected in (
+        ("protocol_is_sole_proof", False),
+        ("single_entry_proves_origin", False),
+        ("supporting_signal_only", True),
+        ("forward_appended_entries_may_override_history", False),
+    ):
+        if evidence.get(field) is not expected:
+            failures.append(_fail(f"evidence.{field}", "wrong_evidence_limit"))
+
+    hostile = " ".join(str(item) for item in model.get("not_protected_against", []))
+    for needle in ("hostile actor", "interactive owner authentication"):
+        if needle not in hostile:
+            failures.append(_fail("not_protected_against", "incomplete"))
+
+    roots = model.get("trust_roots", [])
+    open_roots = [item for item in roots if item.get("closable") is False]
+    if not open_roots:
+        failures.append(_fail("trust_roots", "no_open_trust_root_declared"))
+    if not any("claude" in str(item.get("root", "")).lower() for item in open_roots):
+        failures.append(_fail("trust_roots", "application_root_not_declared"))
+
+    if not model.get("prohibited_claims") or not model.get("permitted_claims"):
+        failures.append(_fail("claims", "claim_lists_incomplete"))
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED,
+        failures,
+        [f"prohibited_claims={len(model.get('prohibited_claims', []))}"],
+    )
+
+
+def _claim_scan_targets(root, model):
+    """Every file the claim lint inspects, minus the declared exclusions."""
+    excluded = {
+        entry["path"] for entry in model["claim_lint"]["declared_exclusions"]
+    }
+    suffixes = (".md", ".json", ".py", ".sh", ".txt")
+    targets = []
+    for relative in model["claim_lint"]["scanned_paths"]:
+        candidate = root / relative
+        if candidate.is_file():
+            files = [candidate]
+        elif candidate.is_dir():
+            files = sorted(
+                path
+                for path in candidate.rglob("*")
+                if path.is_file() and path.suffix in suffixes
+            )
+        else:
+            continue
+        for path in files:
+            as_relative = str(path.relative_to(root))
+            if as_relative in excluded:
+                continue
+            if "__pycache__" in as_relative:
+                continue
+            targets.append(path)
+    return sorted(set(targets))
+
+
+def find_claim_violations(root, model):
+    """Return ``(relative_path, claim)`` for every prohibited claim found."""
+    hits = []
+    claims = [str(claim).lower() for claim in model["prohibited_claims"]]
+    for path in _claim_scan_targets(Path(root), model):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        for claim in claims:
+            if claim in text:
+                hits.append((str(path.relative_to(Path(root))), claim))
+    return sorted(set(hits))
+
+
+def mode_claim_lint(args):
+    """No artifact may claim more protection than the trust model allows."""
+    root = Path.cwd()
+    failures = []
+    model = _load(root, TRUST_MODEL)
+    for relative, claim in find_claim_violations(root, model):
+        failures.append(_fail(f"{relative}:{claim[:40]}", "prohibited_claim"))
+    for entry in model["claim_lint"]["declared_exclusions"]:
+        if not entry.get("reason"):
+            failures.append(_fail(entry.get("path", "?"), "exclusion_without_reason"))
+        if not _test_reference_resolves(root, entry.get("abuse_test", "")):
+            failures.append(
+                _fail(entry.get("path", "?"), "exclusion_without_abuse_test")
+            )
+    scanned = len(_claim_scan_targets(root, model))
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED,
+        failures,
+        [f"scanned_files={scanned}"],
+    )
+
+
 def mode_architecture_declaration(args):
     """The variant assessment and the declared own feature count must exist."""
     root = Path.cwd()
@@ -817,6 +963,8 @@ def mode_live_plain(args):
 
 MODES = {
     "active-guard": mode_active_guard,
+    "claim-lint": mode_claim_lint,
+    "trust-model": mode_trust_model,
     "architecture-declaration": mode_architecture_declaration,
     "live-current": mode_live_current,
     "live-plain": mode_live_plain,

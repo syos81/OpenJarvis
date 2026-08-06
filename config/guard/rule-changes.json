@@ -65,6 +65,15 @@
       "sharpening_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_deference_requires_root_ownership",
       "counter_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_repository_layer_still_blocks_without_an_active_guard",
       "violation_set_effect": "unchanged"
+    },
+    {
+      "change_id": "RC-008",
+      "rule_id": "pii_detection_and_redaction_parity",
+      "kind": "sharpening",
+      "summary": "Detection and redaction now derive from one shared variant source. A flattened user path was previously detected as personal and still written out verbatim; every spelling the detection knows is now redacted by the evidence scrubber and by the guard protocol, or the outgoing evidence is rejected.",
+      "sharpening_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_flattened_path_is_redacted",
+      "counter_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_slash_path_is_redacted",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [],
@@ -78,6 +87,11 @@
       "path": "tests/tooling/guard",
       "purpose": "Guard tests. They run in throwaway temporary installations and never touch the active guard.",
       "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_tests_do_not_shadow_the_active_installation"
+    },
+    {
+      "path": "tests/tooling/gates/test_pii_variants.py",
+      "purpose": "Declared PII fixtures. Every value is invented; the real account name is asserted absent at runtime and never written into the file.",
+      "abuse_test": "tests/tooling/gates/test_pii_variants.py::TestFixtureDiscipline::test_synthetic_values_only"
     }
   ]
 }

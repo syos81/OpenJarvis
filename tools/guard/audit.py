@@ -27,8 +27,7 @@ import json
 import os
 import re
 
-#: Absolute home prefixes are replaced before anything is written.
-_HOME_PREFIXES = ("/Users/", "/home/")  # gate-allow: absolute_user_path
+from . import textnorm
 
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _LONG_HEX = re.compile(r"\b[0-9a-fA-F]{24,}\b")
@@ -49,9 +48,9 @@ def short_digest(value, length=16):
 def scrub(text, max_length=MAX_EXCERPT):
     """Remove personal and secret material from a free text excerpt."""
     value = str(text)
-    for prefix in _HOME_PREFIXES:
-        pattern = re.compile(re.escape(prefix) + r"[^/\s:]*")
-        value = pattern.sub("<home>", value)
+    # One shared variant source with the evidence scrubber: a flattened path
+    # such as a Claude Code session directory is redacted here too.
+    value = textnorm.redact_user_paths(value)
     value = _EMAIL.sub("<email>", value)
     value = _BEARER.sub("<secret>", value)
     value = _LONG_HEX.sub("<hex>", value)
@@ -141,9 +140,8 @@ def append_entry(path, entry):
 def assert_clean(entry):
     """Raise when an entry still carries personal or secret material."""
     payload = json.dumps(entry, sort_keys=True)
-    for prefix in _HOME_PREFIXES:
-        if prefix in payload:
-            raise ValueError("protocol entry contains an absolute user path")
+    if textnorm.redact_user_paths(payload) != payload:
+        raise ValueError("protocol entry contains a user path")
     if _EMAIL.search(payload):
         raise ValueError("protocol entry contains an address")
     return True
