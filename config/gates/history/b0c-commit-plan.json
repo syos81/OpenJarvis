@@ -21,16 +21,21 @@
     },
     {
       "position": 4,
-      "purpose": "purely normative: the B0c block manifest and its gate runner for all five phases",
-      "message": "feat(gates): add the b0c block manifest and its runner"
+      "purpose": "purely normative: the B0c gate runner for every declared check, and the missing errata tests",
+      "message": "feat(gates): add the b0c check runner and the frozen document errata tests"
     },
     {
       "position": 5,
-      "purpose": "purely determinative: gate run, sanitised evidence, correction note, handoff",
+      "purpose": "purely normative: the B0c block manifest and its feature lineage",
+      "message": "feat(gates): add the b0c block manifest and its feature lineage"
+    },
+    {
+      "position": 6,
+      "purpose": "purely determinative: gate run, sanitised evidence, correction note, acceptance manifest, handoff",
       "message": "test(governance): finalize b0c evidence and handoff"
     }
   ],
-  "max_commits": 5,
+  "max_commits": 6,
   "forbidden_operations": [
     "commit --amend",
     "rebase",
@@ -65,6 +70,12 @@
     "decided_by": "owner",
     "change": "positions 2 and 3 swapped before either was committed",
     "reason": "The owner fixed the order for the continuation: loader and metagate, then the fixture configuration, then the target bound rule, then the profile derivation, and only after that the register tool, the block manifest, the runner and the missing tests. The plan follows that order rather than the other way round.",
-    "recorded_before_the_affected_commit": true
+    "recorded_before_the_affected_commit": true,
+    "second_change": {
+      "decided_by": "agent, under the owner's standing permission to split the normative part",
+      "change": "the former position 4 is split into a runner commit and a manifest commit",
+      "reason": "A block manifest references its runner by argv. Committing the manifest first would create a position that points at something the same commit does not contain, which the split condition forbids. The runner therefore lands first and is green on its own against every declared mode; the manifest follows and is green against the engine and a real preflight run.",
+      "recorded_before_the_affected_commit": true
+    }
   }
 }
