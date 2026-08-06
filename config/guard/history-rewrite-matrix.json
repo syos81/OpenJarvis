@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "description": "Finite audit of local git operations against the binding formulation 'commit amend and comparable history rewriting'. Every operation lands in exactly one category. Ambiguous operations are reported as open findings; no new owner rule is invented for them.",
+  "block_id": "b0a-4-guard",
+  "categories": ["blocked", "open_finding", "out_of_scope"],
+  "operations": [
+    {
+      "operation": "git commit --amend",
+      "category": "blocked",
+      "code": "git_commit_amend",
+      "rationale": "Replaces the tip commit object. The mandatory case of this block."
+    },
+    {
+      "operation": "git rebase",
+      "category": "blocked",
+      "code": "git_rebase",
+      "rationale": "Rewrites a range of commits. Already in the B0a-1 deny set."
+    },
+    {
+      "operation": "git pull --rebase",
+      "category": "blocked",
+      "code": "git_pull_rebase",
+      "rationale": "Rebase behind a different subcommand; the same rewrite."
+    },
+    {
+      "operation": "git reset --hard",
+      "category": "blocked",
+      "code": "git_reset_hard",
+      "rationale": "Moves the branch and discards the worktree state. Already in the B0a-1 deny set."
+    },
+    {
+      "operation": "git filter-branch",
+      "category": "blocked",
+      "code": "git_filter_branch",
+      "rationale": "Rewrites every commit of a range. Unambiguously the same class as amend."
+    },
+    {
+      "operation": "git filter-repo",
+      "category": "blocked",
+      "code": "git_filter_repo",
+      "rationale": "External equivalent of filter-branch."
+    },
+    {
+      "operation": "git update-ref",
+      "category": "blocked",
+      "code": "git_update_ref",
+      "rationale": "Moves a branch to an arbitrary commit; equivalent in effect to reset for that ref."
+    },
+    {
+      "operation": "git branch --force",
+      "category": "blocked",
+      "code": "git_branch_force",
+      "rationale": "Moves an existing branch to another commit; the same ref rewrite."
+    },
+    {
+      "operation": "git replace",
+      "category": "blocked",
+      "code": "git_replace_mutating",
+      "rationale": "Substitutes objects and therefore rewrites apparent history. The read only --list form stays permitted."
+    },
+    {
+      "operation": "git reflog expire / delete / drop",
+      "category": "blocked",
+      "code": "git_reflog_destructive",
+      "rationale": "Destroys the recovery path that makes a rewrite reconstructible. The B0a-3 amend chain was only provable because the reflog existed."
+    },
+    {
+      "operation": "git stash clear",
+      "category": "blocked",
+      "code": "git_stash_clear",
+      "rationale": "Equivalent to stash drop for every entry; stash drop was already denied."
+    },
+    {
+      "operation": "git push",
+      "category": "blocked",
+      "code": "git_push",
+      "rationale": "Owner action, not a rewrite. Listed for completeness; already in the B0a-1 deny set and it also covers every forced push variant."
+    },
+    {
+      "operation": "git cherry-pick",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Creates new commits, it does not rewrite existing ones. Forbidden for this block by scope, but a permanent guard rule would need an owner decision."
+    },
+    {
+      "operation": "git merge --squash",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Produces a new commit from a range without touching the range. Not a rewrite of existing history."
+    },
+    {
+      "operation": "git commit-tree",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Plumbing that can build arbitrary history but moves no reference on its own."
+    },
+    {
+      "operation": "git reset --soft / --mixed / --keep / --merge",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Moves the branch without discarding the worktree. Whether the non --hard forms count as a rewrite is a genuine owner question."
+    },
+    {
+      "operation": "git branch -d / -D",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Deleting a merged temporary branch is routine work; deleting an unmerged one loses reachability. Ambiguous."
+    },
+    {
+      "operation": "git tag -f",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Moves a tag. A tag is not history, but it is a published marker."
+    },
+    {
+      "operation": "git gc / git prune",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Routine maintenance that can nevertheless remove unreachable objects of an earlier rewrite."
+    },
+    {
+      "operation": "git checkout --orphan",
+      "category": "open_finding",
+      "code": "",
+      "rationale": "Starts a parentless line. It rewrites nothing that exists."
+    },
+    {
+      "operation": "git notes",
+      "category": "out_of_scope",
+      "code": "",
+      "rationale": "Annotates commits without changing them."
+    }
+  ]
+}

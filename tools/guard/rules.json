@@ -1,0 +1,209 @@
+{
+  "config_schema": "guard-config-1",
+  "config_version": "1.0.0",
+  "wrappers": {
+    "arch": 1,
+    "builtin": 0,
+    "caffeinate": 0,
+    "command": 0,
+    "doas": 0,
+    "env": 0,
+    "exec": 0,
+    "nice": 1,
+    "nohup": 0,
+    "script": 1,
+    "stdbuf": 1,
+    "su": 1,
+    "sudo": 1,
+    "time": 0,
+    "timeout": 1,
+    "xargs": 1
+  },
+  "git_denies": [
+    {
+      "code": "git_branch_force",
+      "subcommand": "branch",
+      "require_any_option": ["-f", "--force"],
+      "rewrite_class": "ref_move"
+    },
+    {
+      "code": "git_clean",
+      "subcommand": "clean",
+      "rewrite_class": "worktree_destructive"
+    },
+    {
+      "code": "git_commit_amend",
+      "subcommand": "commit",
+      "require_any_option": ["--amend"],
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_filter_branch",
+      "subcommand": "filter-branch",
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_filter_repo",
+      "subcommand": "filter-repo",
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_pull_rebase",
+      "subcommand": "pull",
+      "require_any_option": ["--rebase"],
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_push",
+      "subcommand": "push",
+      "rewrite_class": "publication"
+    },
+    {
+      "code": "git_rebase",
+      "subcommand": "rebase",
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_reflog_destructive",
+      "subcommand": "reflog",
+      "require_any_positional": ["delete", "drop", "expire"],
+      "rewrite_class": "recovery_destructive"
+    },
+    {
+      "code": "git_replace_mutating",
+      "subcommand": "replace",
+      "allow_only_options": ["-l", "--list"],
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_reset_hard",
+      "subcommand": "reset",
+      "require_any_option": ["--hard"],
+      "rewrite_class": "history_rewrite"
+    },
+    {
+      "code": "git_stash_clear",
+      "subcommand": "stash",
+      "require_any_positional": ["clear"],
+      "rewrite_class": "recovery_destructive"
+    },
+    {
+      "code": "git_stash_drop",
+      "subcommand": "stash",
+      "require_any_positional": ["drop"],
+      "rewrite_class": "recovery_destructive"
+    },
+    {
+      "code": "git_update_ref",
+      "subcommand": "update-ref",
+      "rewrite_class": "ref_move"
+    }
+  ],
+  "binary_denies": [
+    {
+      "code": "rm_rf",
+      "binary": "rm",
+      "require_recursive_flag": true
+    }
+  ],
+  "env_file_readers": [
+    "bat",
+    "cat",
+    "cp",
+    "head",
+    "less",
+    "more",
+    "od",
+    "strings",
+    "tail",
+    "xxd"
+  ],
+  "backstop_patterns": [
+    {
+      "code": "env_file_access",
+      "regex": "(^|[\\s;&|<>])(cat|less|more|head|tail|bat)\\s+[^\\s;&|]*"
+    },
+    {
+      "code": "git_push",
+      "regex": "(^|[;&|]\\s*)git(\\s+-[^\\s]+\\s+\\S+)*\\s+push\\b"
+    },
+    {
+      "code": "git_reset_hard",
+      "regex": "(^|[;&|]\\s*)git(\\s+-[^\\s]+\\s+\\S+)*\\s+reset\\b[^;&|]*--hard\\b"
+    },
+    {
+      "code": "git_rebase",
+      "regex": "(^|[;&|]\\s*)git(\\s+-[^\\s]+\\s+\\S+)*\\s+rebase\\b"
+    },
+    {
+      "code": "git_clean",
+      "regex": "(^|[;&|]\\s*)git(\\s+-[^\\s]+\\s+\\S+)*\\s+clean\\b"
+    },
+    {
+      "code": "git_stash_drop",
+      "regex": "(^|[;&|]\\s*)git(\\s+-[^\\s]+\\s+\\S+)*\\s+stash\\s+drop\\b"
+    },
+    {
+      "code": "rm_rf",
+      "regex": "(^|[;&|]\\s*)rm\\s+(-[a-zA-Z]*\\s+)*-[a-zA-Z]*[rR]"
+    },
+    {
+      "code": "git_commit_amend",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}\\bcommit\\b[^;&|\\n]{0,240}--amend\\b"
+    },
+    {
+      "code": "git_commit_amend",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}--amend\\b[^;&|\\n]{0,240}\\bcommit\\b"
+    },
+    {
+      "code": "git_filter_branch",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}\\bfilter-branch\\b"
+    },
+    {
+      "code": "git_filter_repo",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}\\bfilter-repo\\b"
+    },
+    {
+      "code": "git_update_ref",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}\\bupdate-ref\\b"
+    },
+    {
+      "code": "git_reflog_destructive",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}\\breflog\\s+(expire|delete|drop)\\b"
+    },
+    {
+      "code": "git_stash_clear",
+      "regex": "(^|[^A-Za-z0-9_.-])git\\b[^;&|\\n]{0,240}\\bstash\\s+clear\\b"
+    }
+  ],
+  "env_file_pattern": "(^|/)\\.env(\\.|$)",
+  "alias_resolution": {
+    "enabled": true,
+    "max_depth": 3,
+    "git_binary": "/usr/bin/git",
+    "timeout_seconds": 5
+  },
+  "exception_policy": {
+    "max_ttl_seconds": 600,
+    "nonce_hex_length": 32,
+    "reason_min_length": 8
+  },
+  "reason_text": {
+    "env_file_access": "Hard deny: .env files are never read by tooling.",
+    "git_branch_force": "Hard deny: forcibly moving a branch is not permitted.",
+    "git_clean": "Hard deny: git clean is not permitted.",
+    "git_commit_amend": "Hard deny: git commit --amend rewrites history and is not permitted.",
+    "git_filter_branch": "Hard deny: git filter-branch rewrites history and is not permitted.",
+    "git_filter_repo": "Hard deny: git filter-repo rewrites history and is not permitted.",
+    "git_pull_rebase": "Hard deny: git pull --rebase rewrites history and is not permitted.",
+    "git_push": "Hard deny: git push requires an explicit owner decision.",
+    "git_rebase": "Hard deny: git rebase is not permitted.",
+    "git_reflog_destructive": "Hard deny: destroying the reflog removes the recovery path.",
+    "git_replace_mutating": "Hard deny: git replace rewrites apparent history and is not permitted.",
+    "git_reset_hard": "Hard deny: git reset --hard is not permitted.",
+    "git_stash_clear": "Hard deny: git stash clear is not permitted.",
+    "git_stash_drop": "Hard deny: git stash drop is not permitted.",
+    "git_update_ref": "Hard deny: git update-ref can move a branch and is not permitted.",
+    "rm_rf": "Hard deny: recursive rm is not permitted."
+  }
+}

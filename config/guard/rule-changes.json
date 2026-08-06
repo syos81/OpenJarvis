@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "description": "Every change to an existing guard check rule, with the mandatory pair of tests. A sharpening test covers the newly recognised or newly permitted edge case and fails before the change; a counter test proves the originally repelled violation is still detected and blocked.",
+  "block_id": "b0a-4-guard",
+  "changes": [
+    {
+      "change_id": "RC-001",
+      "rule_id": "hard_deny_command_set",
+      "kind": "sharpening",
+      "summary": "The hard deny set gains commit --amend and the comparable local history rewrite operations; detection moves from raw text to parsed arguments.",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestHardDenies::test_commit_amend_is_a_hard_deny",
+      "counter_test": "tests/tooling/gates/test_hook.py::TestHardDenies::test_guard_rules_and_settings_deny_list_stay_in_sync",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-002",
+      "rule_id": "worktree_undetermined",
+      "kind": "sharpening",
+      "summary": "A mutating request in an undeterminable repository state blocks instead of escalating to ask.",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_undetermined_worktree_blocks",
+      "counter_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_undetermined_worktree_is_still_detected",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-003",
+      "rule_id": "no_opinion_signal",
+      "kind": "sharpening",
+      "summary": "Abstention is stated positively so a crashed guard can no longer be mistaken for a guard without an opinion; the wrapper blocks on anything else.",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestAskLogging::test_hook_entry_point_states_that_it_has_no_opinion",
+      "counter_test": "tests/tooling/gates/test_hook.py::TestAskLogging::test_no_opinion_carries_no_permission_decision",
+      "violation_set_effect": "unchanged"
+    },
+    {
+      "change_id": "RC-004",
+      "rule_id": "bash_target_extraction",
+      "kind": "sharpening",
+      "summary": "Targets are extracted per command segment after environment prefixes and wrappers are stripped, so a wrapped or chained mutation no longer hides its target.",
+      "sharpening_test": "tests/tooling/guard/test_parser.py::TestTargets::test_wrapped_mutation_still_exposes_its_target",
+      "counter_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_mutating_bash_into_a_foreign_worktree_asks",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-005",
+      "rule_id": "hook_error_handling",
+      "kind": "sharpening",
+      "summary": "Every hook error path blocks; the previous silent exit 0 on missing project directory, missing tooling or missing interpreter is removed.",
+      "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_every_failure_path_blocks",
+      "counter_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_intact_installation_still_decides",
+      "violation_set_effect": "grows"
+    }
+  ],
+  "declared_relaxations": [],
+  "fixtures": [
+    {
+      "path": "config/guard/violation-corpus.json",
+      "purpose": "Declared corpus for the violation set comparison. Every entry is a synthetic command string; none of them is ever executed.",
+      "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_corpus_entries_are_never_executed"
+    },
+    {
+      "path": "tests/tooling/guard",
+      "purpose": "Guard tests. They run in throwaway temporary installations and never touch the active guard.",
+      "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_tests_do_not_shadow_the_active_installation"
+    }
+  ]
+}

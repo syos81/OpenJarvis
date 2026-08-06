@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "kind": "current_preservation",
+  "manifest_id": "calendar-line-preservation",
+  "description": "Line independent preservation manifest. It is evaluated against whatever HEAD the run sees. It contains no branch name, no remote branch tip, no branch topology and no branch specific path allowlist, so it stays valid when the line moves on.",
+  "line_independent": true,
+  "forbidden_inputs": [
+    "branch_name",
+    "remote_branch_tip",
+    "branch_topology",
+    "branch_specific_path_allowlist",
+    "worktree_path"
+  ],
+  "feature_preservation": {
+    "lineage_file": "config/gates/features/b0a-4-guard.lineage.json",
+    "expected_required_by_prefix": {
+      "B0A1-": 24,
+      "B0A2-": 38,
+      "B0A3-": 14
+    },
+    "rule": "Every listed predecessor feature must still be present, required, mapped to a resolvable location and reported as pass. A missing one is fail, never not_applicable."
+  },
+  "invariants": [
+    {
+      "invariant_id": "gate-phases",
+      "area": "gate_engine",
+      "description": "Exactly the five binding phases exist, in order.",
+      "kind": "python_sequence",
+      "module": "tools.gates.manifest",
+      "attribute": "PHASES",
+      "expected": [
+        "preflight",
+        "targeted",
+        "offline-final",
+        "platform-live",
+        "module-final"
+      ]
+    },
+    {
+      "invariant_id": "gate-results",
+      "area": "gate_engine",
+      "description": "Exactly the five binding results exist.",
+      "kind": "python_set",
+      "module": "tools.gates.statuses",
+      "attribute": "ALL_STATUSES",
+      "expected": [
+        "blocked",
+        "fail",
+        "not_applicable",
+        "pass",
+        "pass_with_baseline"
+      ]
+    },
+    {
+      "invariant_id": "gate-entrypoint",
+      "area": "gate_engine",
+      "description": "The public gate interface exists and stays the only entry.",
+      "kind": "file_present",
+      "path": "scripts/gate.sh"
+    },
+    {
+      "invariant_id": "guard-deny-superset",
+      "area": "guard",
+      "description": "The active rule set still contains every B0a-1 deny code plus the mandatory amend block.",
+      "kind": "guard_codes_superset",
+      "expected": [
+        "env_file_access",
+        "git_clean",
+        "git_commit_amend",
+        "git_push",
+        "git_rebase",
+        "git_reset_hard",
+        "git_stash_drop",
+        "rm_rf"
+      ]
+    },
+    {
+      "invariant_id": "guard-fail-closed-entries",
+      "area": "guard",
+      "description": "Both guard entry scripts emit a blocking decision on their error paths.",
+      "kind": "files_contain",
+      "paths": [
+        ".claude/hooks/pretooluse_guard.sh",
+        "tools/guardpkg/bootstrap.sh"
+      ],
+      "needle": "permissionDecision"
+    },
+    {
+      "invariant_id": "guard-single-implementation",
+      "area": "guard",
+      "description": "There is exactly one guard implementation; the gate side module is an adapter over it.",
+      "kind": "files_contain",
+      "paths": ["tools/gates/hookguard.py"],
+      "needle": "from tools.guard"
+    },
+    {
+      "invariant_id": "governance-delivery-order",
+      "area": "governance",
+      "description": "The single canonical delivery and module order is present.",
+      "kind": "file_present",
+      "path": "config/governance/delivery-order.json"
+    },
+    {
+      "invariant_id": "governance-ambient-placeholder",
+      "area": "governance",
+      "description": "The ambient placeholder is still a placeholder and has not been resolved.",
+      "kind": "files_contain",
+      "paths": ["config/governance/ambient-placeholder.json"],
+      "needle": "{{DEC_ID_AMBIENT_INTERACTION_V1}}"
+    },
+    {
+      "invariant_id": "governance-generality-scope",
+      "area": "governance",
+      "description": "Provider terms stay bound to a path exact allowlist.",
+      "kind": "file_present",
+      "path": "config/governance/generality-scope.json"
+    },
+    {
+      "invariant_id": "pii-canaries",
+      "area": "privacy",
+      "description": "The PII canaries of the evidence allowlist are still in place.",
+      "kind": "file_present",
+      "path": "tests/tooling/gates/test_evidence_canary.py"
+    },
+    {
+      "invariant_id": "pii-runtime-area",
+      "area": "privacy",
+      "description": "Raw logs stay in the gitignored runtime area.",
+      "kind": "files_contain",
+      "paths": [".gitignore"],
+      "needle": ".gate-runtime"
+    }
+  ]
+}

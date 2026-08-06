@@ -1,0 +1,96 @@
+{
+  "acceptance_commit": "4e471446f98d8cefe71a8c98f086e7fd243f3e44",
+  "assertion": "The block was accepted at this commit against these immutable references. This manifest is never re-run against a later branch tip or a different worktree path; only presence, hash integrity, correct binding and unchanged statement are verified.",
+  "block_id": "b0a-2-governance",
+  "committed_artifacts": [
+    {
+      "blob_sha256": "1f9e59b527f83848d6bfab4a00bd44e0295977180e0f9d374888b32d956fd637",
+      "path": "config/gates/blocks/b0a-2-governance.json"
+    },
+    {
+      "blob_sha256": "4210b210229cda9c0ed28764cb05ee20a50dd68c550448b2306ad177a5cac3a7",
+      "path": "config/gates/features/b0a-2-governance.lineage.json"
+    },
+    {
+      "blob_sha256": "0bc83cd86cb250da52add77edf6d3778a6c8b478726130ac295b2f658669e4d8",
+      "path": "config/governance/ambient-placeholder.json"
+    },
+    {
+      "blob_sha256": "6db0be982019b20ecf7d15fc5d0cbd83222096aa8776a87654560e942f180bd8",
+      "path": "config/governance/delivery-order.json"
+    },
+    {
+      "blob_sha256": "bba3fee16b380877756122e42e21ad009fb57443e84a9189d615c202db449545",
+      "path": "config/governance/generality-scope.json"
+    },
+    {
+      "blob_sha256": "a105d88927c43a4429608e7d43260165411bc3cb78c2a5384fa71c919c32e925",
+      "path": "docs/governance/b0a-2-ambient-interaction-v1.md"
+    },
+    {
+      "blob_sha256": "2149e17869c48001e7a2c18e31a6690c378435f8364fd2950fc1a13fc8acc701",
+      "path": "docs/governance/b0a-2-closing-rules.md"
+    },
+    {
+      "blob_sha256": "0637ac898883d2c8d4e0eb77ca49d647ffacbf46dd8eea4d455d171808ffd8c3",
+      "path": "docs/governance/b0a-2-decision-collisions.md"
+    },
+    {
+      "blob_sha256": "f5d6a28212a536700a8ad1bd229cf66fe6049be756717fd8d168f1dda3afd6c1",
+      "path": "docs/governance/b0a-2-delivery-order.md"
+    },
+    {
+      "blob_sha256": "03c446bbc5dc6711ad0915388b4aac5888e17d53a80ddb071560057c4c9bb880",
+      "path": "docs/governance/b0a-2-module-map.md"
+    }
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.10",
+    "system": "Darwin"
+  },
+  "external_inputs": [],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "4e471446f98d8cefe71a8c98f086e7fd243f3e44",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 38,
+  "own_feature_prefix": "B0A2-",
+  "reexecution_policy": {
+    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure.",
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_present_and_changed": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": ".gate-runtime/evidence/b0a-2-governance.preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "1f9e59b527f83848d6bfab4a00bd44e0295977180e0f9d374888b32d956fd637",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "fail",
+      "scope": "machine_local_runtime",
+      "sha256": "bf4d2c4c0192ec6d3a79e95e767c29f21451b7240d73214bdea6163235cc5408"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-2-governance.offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "1f9e59b527f83848d6bfab4a00bd44e0295977180e0f9d374888b32d956fd637",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "fail",
+      "scope": "machine_local_runtime",
+      "sha256": "02e34e148c1e5df6d8fcdf1dae735a8069a69c9f02f0dd027b6f1882e3dc7782"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B0a-2 governance, module map and delivery order"
+}

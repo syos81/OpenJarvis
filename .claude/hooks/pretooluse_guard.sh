@@ -1,11 +1,14 @@
-#!/usr/bin/env bash
-# PreToolUse guard: hard denies, path canonicalisation, foreign worktree
-# protection. The decision logic lives in tools/gates/hookguard.py so it can be
-# tested in isolated temporary repositories.
+#!/bin/bash
+# Repository side PreToolUse hook — defence in depth, **not** the trust anchor.
 #
-# The hook must never break the session: if no interpreter is available it
-# stays silent (exit 0) and the normal permission rules from settings.json
-# — including the hard denies — remain in force.
+# The authoritative guard is the owner installed copy outside every worktree,
+# registered through the protected policy settings. This hook lives inside
+# the guarded worktree and is therefore modifiable by the guarded session; it
+# is never the protection boundary and must never be reported as one.
+#
+# Fail closed regardless: every error path — unresolvable project directory,
+# missing guard source, missing interpreter, crashing decision, empty output
+# — blocks the request. There is no silent exit 0 any more.
 
 set -euo pipefail
 
@@ -14,31 +17,43 @@ export LANG=C
 export TZ=UTC
 export PYTHONDONTWRITEBYTECODE=1
 
+readonly GUARD_PYTHON="/usr/bin/python3"
+
+deny() {
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+  exit 0
+}
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
-if [ -z "${PROJECT_DIR}" ]; then
-  PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-fi
-if [ -z "${PROJECT_DIR}" ] || [ ! -d "${PROJECT_DIR}/tools/gates" ]; then
-  exit 0
+if [ -z "${PROJECT_DIR}" ] || [ ! -d "${PROJECT_DIR}/tools/guard" ]; then
+  PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/../.." && pwd -P)"
 fi
 
-GUARD_PYTHON="${GATE_PYTHON:-}"
-if [ -z "${GUARD_PYTHON}" ] && [ -x "${PROJECT_DIR}/.venv/bin/python" ]; then
-  GUARD_PYTHON="${PROJECT_DIR}/.venv/bin/python"
-fi
-if [ -z "${GUARD_PYTHON}" ]; then
-  for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
-    if command -v "${candidate}" >/dev/null 2>&1; then
-      if "${candidate}" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
-        GUARD_PYTHON="$(command -v "${candidate}")"
-        break
-      fi
-    fi
-  done
-fi
-if [ -z "${GUARD_PYTHON}" ]; then
-  exit 0
+if [ ! -d "${PROJECT_DIR}/tools/guard" ]; then
+  deny "GUARD_PROJECT_DIR_UNRESOLVED: the repository side guard source is not reachable"
 fi
 
-PYTHONPATH="${PROJECT_DIR}${PYTHONPATH:+:${PYTHONPATH}}" \
-  exec "${GUARD_PYTHON}" -m tools.gates.hookguard
+if [ ! -x "${GUARD_PYTHON}" ]; then
+  deny "GUARD_INTERPRETER_MISSING: no owner controlled interpreter is available"
+fi
+
+GUARD_OUTPUT=""
+if ! GUARD_OUTPUT="$(cd "${PROJECT_DIR}" && PYTHONPATH="${PROJECT_DIR}" \
+  "${GUARD_PYTHON}" -B -m tools.gates.hookguard 2>/dev/null)"; then
+  GUARD_OUTPUT=""
+fi
+
+case "${GUARD_OUTPUT}" in
+  *'"permissionDecision"'*)
+    printf '%s\n' "${GUARD_OUTPUT}"
+    ;;
+  *'"guardOutcome"'*)
+    : # the guard deliberately has no opinion
+    ;;
+  *)
+    deny "GUARD_BOOTSTRAP_FAILED: the repository side guard could not produce a decision"
+    ;;
+esac
+
+exit 0

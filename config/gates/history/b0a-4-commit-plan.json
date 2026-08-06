@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "kind": "commit_plan",
+  "block_id": "b0a-4-guard",
+  "start_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+  "base_commit_binding": {
+    "commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+    "tree": "fccc84649735b147dd3e7914ecb8921710c5daf3",
+    "parents": [
+      "8e6e2063fc3b41db9c4a434a54037eb64ac47f0a",
+      "4e471446f98d8cefe71a8c98f086e7fd243f3e44"
+    ],
+    "author_date": "2026-08-06T10:04:04+02:00",
+    "committer_date": "2026-08-06T10:18:41+02:00",
+    "rule": "This commit is published. It is never changed, never amended and never replaced. Its tree and parent list are bound here so any rewrite is detected mechanically."
+  },
+  "planned_commits": [
+    {
+      "position": 1,
+      "purpose": "implementation candidate",
+      "message": "fix(guard): make bootstrap fail closed and worktree independent"
+    },
+    {
+      "position": 2,
+      "purpose": "live evidence and B0b handoff",
+      "message": "test(guard): verify active bootstrap and refresh b0b handoff"
+    }
+  ],
+  "max_commits": 2,
+  "third_binding_commit_required": false,
+  "third_binding_commit_rationale": "The runtime evidence area is gitignored, so no committed artefact needs a digest of another committed artefact of this block. Every binding used here is either a git object of an earlier commit or a digest of a file that is not itself rewritten by a later B0a-4 commit.",
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "force push",
+    "automatic push"
+  ],
+  "push_status": "not_performed_owner_action"
+}

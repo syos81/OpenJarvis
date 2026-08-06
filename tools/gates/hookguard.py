@@ -1,22 +1,23 @@
-"""Repository local ``PreToolUse`` guard.
+"""Repository scoped ``PreToolUse`` guard — **not** the trust anchor.
 
-Three layers, in this order:
+Since B0a-4 there is exactly one guard implementation: ``tools/guard``. This
+module is a thin adapter over it and exists for two reasons:
 
-1. **Hard denies** — ``git push``, ``git reset --hard``, ``git rebase``,
-   ``git clean``, ``git stash drop``, ``rm -rf`` and reading ``.env`` files.
-   They always win and are never downgraded to ``ask``.
-2. **Foreign worktree protection** — a mutating target that canonicalises
-   into another worktree of the same repository escalates to ``ask``; it is
-   never allowed automatically. Direct, relative and symlinked paths are
-   treated alike, and a not yet existing target is canonicalised through its
-   nearest existing parent.
-3. **Normal work** — a mutating target inside the current worktree is
-   allowed; anything the guard cannot classify with confidence escalates to
-   ``ask``.
+* it keeps the B0a-1 public surface (``decide``, ``canonicalize``,
+  ``log_decision``, the gitignored hook raw log) so the inherited features
+  stay verifiable on the current line,
+* it drives the repository side hook, which is a *second*, defence in depth
+  layer only.
 
-Every ``ask`` and every ``deny`` is written to the gitignored hook raw log
-together with the observable request. Only what the hook actually observed is
-recorded — no owner approval is ever invented.
+The repository side layer is deliberately declared non authoritative: it
+lives inside the guarded worktree and is therefore modifiable by the guarded
+session. The authoritative guard is the owner installed copy outside every
+worktree, registered through the protected policy settings. Nothing here may
+ever be presented as the protection boundary.
+
+Decision layers, results and reason codes are the ones of ``tools/guard``;
+the legacy reason codes are preserved through :data:`LEGACY_REASON_CODES` so
+inherited evidence keeps its meaning.
 """
 
 from __future__ import annotations
@@ -24,112 +25,102 @@ from __future__ import annotations
 import datetime
 import json
 import os
-import re
-import shlex
 import sys
+import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from tools.guard import GUARD_VERSION  # noqa: E402
+from tools.guard import audit as guard_audit  # noqa: E402
+from tools.guard import decide as guard_decide  # noqa: E402
+from tools.guard import errors as guard_errors  # noqa: E402
+from tools.guard import rules as guard_rules  # noqa: E402
 
 from . import gitutil
 from . import paths as gate_paths
 from . import sanitize
 
-DECISION_ALLOW = "allow"
-DECISION_DENY = "deny"
-DECISION_ASK = "ask"
+DECISION_ALLOW = guard_decide.DECISION_ALLOW
+DECISION_DENY = guard_decide.DECISION_DENY
+DECISION_ASK = guard_decide.DECISION_ASK
 
-#: Hard deny rules on Bash command lines. Order is stable for reporting.
-HARD_DENY_COMMAND_RULES = (
-    ("git_push", re.compile(r"(^|[;&|]\s*)git(\s+-[^\s]+\s+\S+)*\s+push\b")),
-    (
-        "git_reset_hard",
-        re.compile(r"(^|[;&|]\s*)git(\s+-[^\s]+\s+\S+)*\s+reset\b[^;&|]*--hard\b"),
-    ),
-    ("git_rebase", re.compile(r"(^|[;&|]\s*)git(\s+-[^\s]+\s+\S+)*\s+rebase\b")),
-    ("git_clean", re.compile(r"(^|[;&|]\s*)git(\s+-[^\s]+\s+\S+)*\s+clean\b")),
-    (
-        "git_stash_drop",
-        re.compile(r"(^|[;&|]\s*)git(\s+-[^\s]+\s+\S+)*\s+stash\s+drop\b"),
-    ),
-    ("rm_rf", re.compile(r"(^|[;&|]\s*)rm\s+(-[a-zA-Z]*\s+)*-[a-zA-Z]*[rR]")),
+FILE_TOOLS = guard_decide.FILE_TOOLS
+READ_TOOLS = guard_decide.READ_TOOLS
+
+#: Canonical location of the repository side rule configuration.
+RULES_PATH = Path(__file__).resolve().parents[1] / "guard" / "rules.json"
+
+#: New reason code -> B0a-1 reason code. Only names are mapped; a decision is
+#: never rewritten here.
+LEGACY_REASON_CODES = {
+    guard_errors.ASK_FOREIGN_WORKTREE: "foreign_worktree_mutation",
+    guard_errors.ASK_AMBIGUOUS_TARGET: "ambiguous_mutating_command",
+    guard_errors.DENY_WORKTREE_UNDETERMINED: "worktree_undetermined",
+    guard_errors.DENY_UNPARSEABLE_COMMAND: "unparseable_command",
+}
+
+
+_RULES_CACHE = []
+
+
+def _rules():
+    """Load the repository side rule configuration once per process."""
+    if not _RULES_CACHE:
+        _RULES_CACHE.append(guard_rules.load_rules(RULES_PATH))
+    return _RULES_CACHE[0]
+
+
+def _context(now=None):
+    return guard_decide.Context(
+        rules=_rules(),
+        guard_version=GUARD_VERSION,
+        now=int(now if now is not None else time.time()),
+        exceptions_enabled=False,
+    )
+
+
+#: Every hard deny code the active rule set can produce, with its sentence.
+#: Kept as a tuple so the B0a-1 consistency test keeps its shape.
+def _hard_deny_rules():
+    rules = _rules()
+    return tuple((code, rules.message(code)) for code in rules.codes())
+
+
+HARD_DENY_COMMAND_RULES = _hard_deny_rules()
+
+#: Declared classification of the local history rewrite operations. The audit
+#: of comparable operations lives in ``config/guard/history-rewrite-matrix.json``.
+REWRITE_CLASSES = _rules().rewrite_classes()
+
+REASON_TEXT = dict(_rules().reason_text)
+REASON_TEXT.update(
+    {
+        "foreign_worktree_mutation": (
+            "This would modify a different worktree of the same repository. "
+            "Escalating to Lukas; the request is recorded in the local hook log."
+        ),
+        "ambiguous_mutating_command": (
+            "Mutating command whose targets cannot be determined with confidence."
+        ),
+        "worktree_undetermined": (
+            "The current worktree could not be determined; a mutating request "
+            "is blocked instead of released."
+        ),
+        "unparseable_command": "The command could not be parsed safely.",
+        "current_worktree_mutation": "Target is inside the current worktree.",
+    }
 )
-
-_ENV_FILE_RE = re.compile(r"(^|/)\.env(\.|$)")
-
-FILE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
-READ_TOOLS = ("Read",)
-
-MUTATING_COMMANDS = {
-    "chmod",
-    "chown",
-    "cp",
-    "dd",
-    "install",
-    "ln",
-    "mkdir",
-    "mv",
-    "rm",
-    "rmdir",
-    "tee",
-    "touch",
-    "truncate",
-}
-MUTATING_GIT_SUBCOMMANDS = {
-    "add",
-    "am",
-    "apply",
-    "checkout",
-    "cherry-pick",
-    "commit",
-    "merge",
-    "mv",
-    "reset",
-    "restore",
-    "revert",
-    "rm",
-    "stash",
-    "switch",
-    "worktree",
-}
-SHELL_CONTROL_TOKENS = (";", "&&", "||", "|", "$(", "`", ">", ">>")
 
 
 def canonicalize(raw_path, base_dir):
-    """Canonicalise a target: expand, absolutise, normalise, resolve links.
-
-    A not yet existing target is canonicalised through its nearest existing
-    parent, so a new file below a foreign worktree is still recognised.
-    """
-    candidate = Path(os.path.expanduser(str(raw_path)))
-    if not candidate.is_absolute():
-        candidate = Path(base_dir) / candidate
-    candidate = Path(os.path.normpath(str(candidate)))
-    remainder = []
-    existing = candidate
-    while not existing.exists():
-        parent = existing.parent
-        if parent == existing:
-            break
-        remainder.append(existing.name)
-        existing = parent
-    try:
-        resolved = existing.resolve()
-    except OSError:  # pragma: no cover - defensive
-        resolved = existing
-    for part in reversed(remainder):
-        resolved = resolved / part
-    return resolved
-
-
-def _is_inside(path, root):
-    try:
-        Path(path).relative_to(Path(root))
-    except ValueError:
-        return False
-    return True
+    """Canonicalise a target through its nearest existing parent."""
+    return guard_decide.canonicalize(raw_path, base_dir)
 
 
 def hard_deny_reason(tool_name, tool_input):
     """Return a hard deny reason code, or ``None``."""
+    rules = _rules()
     if tool_name in FILE_TOOLS + READ_TOOLS:
         target = str(
             tool_input.get("file_path")
@@ -137,140 +128,51 @@ def hard_deny_reason(tool_name, tool_input):
             or tool_input.get("path")
             or ""
         )
-        if target and _ENV_FILE_RE.search(target):
-            return "env_file_access"
+        code = guard_rules.evaluate_path(rules, target)
+        if code:
+            return code
     if tool_name == "Bash":
-        command = str(tool_input.get("command", ""))
-        for code, pattern in HARD_DENY_COMMAND_RULES:
-            if pattern.search(command):
-                return code
-        if re.search(r"(^|[\s;&|<>])(cat|less|more|head|tail|bat)\s+[^\s;&|]*", command):
-            for token in re.findall(r"[^\s;&|<>]+", command):
-                if _ENV_FILE_RE.search(token):
-                    return "env_file_access"
+        code, _layer = guard_rules.evaluate_command(
+            rules, str(tool_input.get("command", ""))
+        )
+        return code
     return None
-
-
-def _bash_targets(command):
-    """Return ``(targets, ambiguous, mutating)`` for a Bash command line."""
-    ambiguous = any(token in command for token in SHELL_CONTROL_TOKENS)
-    try:
-        tokens = shlex.split(command)
-    except ValueError:
-        return [], True, True
-    if not tokens:
-        return [], False, False
-    mutating = False
-    targets = []
-    head = Path(tokens[0]).name
-    if head in MUTATING_COMMANDS:
-        mutating = True
-    if head == "git":
-        index = 1
-        while index < len(tokens) and tokens[index].startswith("-"):
-            if tokens[index] == "-C" and index + 1 < len(tokens):
-                targets.append(tokens[index + 1])
-                index += 2
-                continue
-            index += 1
-        if index < len(tokens) and tokens[index] in MUTATING_GIT_SUBCOMMANDS:
-            mutating = True
-    if any(token in (">", ">>") for token in tokens):
-        mutating = True
-    for token in tokens[1:]:
-        if token.startswith("-"):
-            continue
-        if "/" in token or token in (".", ".."):
-            targets.append(token)
-    return targets, ambiguous, mutating
 
 
 def decide(payload, *, worktree_lookup=None):
     """Decide on one PreToolUse request.
 
-    Returns ``(decision, reason_code, record)`` where ``record`` carries the
-    observable detail for the gitignored hook log.
+    Returns ``(decision, reason_code, record)``. ``reason_code`` uses the
+    B0a-1 vocabulary where one exists.
     """
-    tool_name = str(payload.get("tool_name", ""))
-    tool_input = payload.get("tool_input") or {}
-    cwd = str(payload.get("cwd") or os.getcwd())
-    record = {
-        "tool": tool_name,
-        "original_target": "",
-        "canonical_target": "",
-        "current_worktree": "",
-        "foreign_worktree": "",
-    }
+    context = _context()
+    if worktree_lookup is not None:
+        original = guard_decide.worktree_lookup
 
-    hard = hard_deny_reason(tool_name, tool_input)
-    if hard:
-        record["original_target"] = str(
-            tool_input.get("file_path") or tool_input.get("command") or ""
-        )
-        return DECISION_DENY, hard, record
+        def patched(_context, cwd):
+            return worktree_lookup(cwd)
 
-    if tool_name in FILE_TOOLS:
-        raw_targets = [
-            str(
-                tool_input.get("file_path")
-                or tool_input.get("notebook_path")
-                or tool_input.get("path")
-                or ""
-            )
-        ]
-        ambiguous = not raw_targets[0]
-        mutating = True
-        record["original_target"] = raw_targets[0]
-    elif tool_name == "Bash":
-        command = str(tool_input.get("command", ""))
-        raw_targets, ambiguous, mutating = _bash_targets(command)
-        record["original_target"] = sanitize.scrub(command, max_length=200)
+        guard_decide.worktree_lookup = patched
+        try:
+            decision = guard_decide.decide(payload, context)
+        finally:
+            guard_decide.worktree_lookup = original
     else:
-        return None, "not_applicable_tool", record
+        decision = guard_decide.decide(payload, context)
 
-    if not mutating:
-        return None, "non_mutating", record
-
-    lookup = worktree_lookup or _default_worktree_lookup
-    current_worktree, worktrees = lookup(cwd)
-    record["current_worktree"] = str(current_worktree or "")
-
-    if current_worktree is None:
-        return DECISION_ASK, "worktree_undetermined", record
-
-    for raw in raw_targets:
-        if not raw:
-            continue
-        canonical = canonicalize(raw, cwd)
-        for candidate in worktrees:
-            if candidate == current_worktree:
-                continue
-            if _is_inside(canonical, candidate):
-                record["canonical_target"] = str(canonical)
-                record["foreign_worktree"] = str(candidate)
-                return DECISION_ASK, "foreign_worktree_mutation", record
-
-    if ambiguous:
-        return DECISION_ASK, "ambiguous_mutating_command", record
-
-    if raw_targets:
-        record["canonical_target"] = str(canonicalize(raw_targets[0], cwd))
-    return DECISION_ALLOW, "current_worktree_mutation", record
-
-
-def _default_worktree_lookup(cwd):
-    try:
-        current = gitutil.toplevel(cwd).resolve()
-    except gitutil.GitError:
-        return None, []
-    try:
-        worktrees = [
-            Path(record["worktree"]).resolve()
-            for record in gitutil.worktree_list(cwd=cwd)
-        ]
-    except gitutil.GitError:  # pragma: no cover - defensive
-        worktrees = [current]
-    return current, worktrees
+    record = {
+        "tool": decision.tool,
+        "original_target": (
+            guard_audit.scrub(decision.local_original_target, max_length=200)
+            if decision.tool == "Bash"
+            else decision.local_original_target
+        ),
+        "canonical_target": decision.local_canonical_target,
+        "current_worktree": decision.local_current_worktree,
+        "foreign_worktree": decision.local_foreign_worktree,
+    }
+    reason = LEGACY_REASON_CODES.get(decision.reason_code, decision.reason_code)
+    return decision.decision, reason, record
 
 
 def log_decision(decision, reason_code, record, *, worktree, now=None):
@@ -321,37 +223,29 @@ def build_response(decision, reason_code):
     }
 
 
-REASON_TEXT = {
-    "env_file_access": "Hard deny: .env files are never read by tooling.",
-    "git_push": "Hard deny: git push requires an explicit owner decision.",
-    "git_reset_hard": "Hard deny: git reset --hard is not permitted.",
-    "git_rebase": "Hard deny: git rebase is not permitted.",
-    "git_clean": "Hard deny: git clean is not permitted.",
-    "git_stash_drop": "Hard deny: git stash drop is not permitted.",
-    "rm_rf": "Hard deny: recursive rm is not permitted.",
-    "foreign_worktree_mutation": (
-        "This would modify a different worktree of the same repository. "
-        "Escalating to Lukas; the request is recorded in the local hook log."
-    ),
-    "ambiguous_mutating_command": (
-        "Mutating command whose targets cannot be determined with confidence."
-    ),
-    "worktree_undetermined": "The current worktree could not be determined.",
-    "current_worktree_mutation": "Target is inside the current worktree.",
-}
-
-
 def main(argv=None, *, stdin=None, stdout=None):
+    """Repository side entry point. Fail closed on every error path."""
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
     try:
-        payload = json.load(stdin)
+        raw = stdin.read()
+    except Exception:  # noqa: BLE001 - unreadable input must not release
+        stdout.write(json.dumps(_deny(guard_errors.GUARD_INPUT_MALFORMED)) + "\n")
+        return 0
+    try:
+        payload = json.loads(raw) if raw and raw.strip() else None
     except ValueError:
-        payload = {}
+        payload = None
     if not isinstance(payload, dict):
-        payload = {}
+        stdout.write(json.dumps(_deny(guard_errors.GUARD_INPUT_MALFORMED)) + "\n")
+        return 0
 
-    decision, reason_code, record = decide(payload)
+    try:
+        decision, reason_code, record = decide(payload)
+    except Exception:  # noqa: BLE001 - an internal error must never release
+        stdout.write(json.dumps(_deny(guard_errors.GUARD_INTERNAL_ERROR)) + "\n")
+        return 0
+
     if decision in (DECISION_ASK, DECISION_DENY):
         cwd = str(payload.get("cwd") or os.getcwd())
         try:
@@ -360,12 +254,23 @@ def main(argv=None, *, stdin=None, stdout=None):
             worktree = None
         try:
             log_decision(decision, reason_code, record, worktree=worktree)
-        except OSError:  # pragma: no cover - logging must never break the hook
+        except OSError:  # pragma: no cover - the raw log must not break the hook
             pass
     if decision is None:
+        stdout.write(json.dumps({"guardOutcome": "no_opinion"}) + "\n")
         return 0
     stdout.write(json.dumps(build_response(decision, reason_code)) + "\n")
     return 0
+
+
+def _deny(code):
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": DECISION_DENY,
+            "permissionDecisionReason": code + ": " + guard_errors.message(code),
+        }
+    }
 
 
 if __name__ == "__main__":  # pragma: no cover - process entry point

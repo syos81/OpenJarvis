@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "description": "Declared corpus for the violation set comparison. Every entry is a synthetic command string that is evaluated by the rule engine and never executed. 'previously_detected' records whether the B0a-1 rule set already blocked the entry; the metagate fails when any of those entries stops being blocked.",
+  "block_id": "b0a-4-guard",
+  "baseline_rule_set": "b0a-1",
+  "entries": [
+    {
+      "entry_id": "legacy-push-plain",
+      "command": "git push origin main",
+      "expected_code": "git_push",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-push-chained",
+      "command": "true; git push origin main",
+      "expected_code": "git_push",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-reset-hard",
+      "command": "git reset --hard HEAD~1",
+      "expected_code": "git_reset_hard",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-rebase",
+      "command": "git rebase main",
+      "expected_code": "git_rebase",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-clean",
+      "command": "git clean -fd",
+      "expected_code": "git_clean",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-stash-drop",
+      "command": "git stash drop",
+      "expected_code": "git_stash_drop",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-rm-rf",
+      "command": "rm -rf build",
+      "expected_code": "rm_rf",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-rm-fr",
+      "command": "rm -fr build",
+      "expected_code": "rm_rf",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-rm-r-f",
+      "command": "rm -r -f build",
+      "expected_code": "rm_rf",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-env-read",
+      "command": "cat .env.local",
+      "expected_code": "env_file_access",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "legacy-push-with-global-option",
+      "command": "git -C /tmp/other push origin side",
+      "expected_code": "git_push",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "amend-plain",
+      "command": "git commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-no-edit-after",
+      "command": "git commit --amend --no-edit",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-no-edit-before",
+      "command": "git commit --no-edit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-dash-c",
+      "command": "git -C /tmp/other commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-git-dir",
+      "command": "git --git-dir=/tmp/other/.git commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-work-tree",
+      "command": "git --work-tree=/tmp/other commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-via-env",
+      "command": "env GIT_AUTHOR_NAME=x git commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-with-env-prefix",
+      "command": "GIT_EDITOR=true git commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-chained",
+      "command": "git add -A && git commit --amend --no-edit",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-piped",
+      "command": "printf x | git commit --amend -F -",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-subshell",
+      "command": "(git commit --amend)",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-absolute-binary",
+      "command": "/usr/bin/git commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-nohup",
+      "command": "nohup git commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "amend-with-config-option",
+      "command": "git -c user.name=x commit --amend",
+      "expected_code": "git_commit_amend",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-filter-branch",
+      "command": "git filter-branch --all",
+      "expected_code": "git_filter_branch",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-filter-repo",
+      "command": "git filter-repo --path src",
+      "expected_code": "git_filter_repo",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-update-ref",
+      "command": "git update-ref refs/heads/main HEAD~1",
+      "expected_code": "git_update_ref",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-branch-force",
+      "command": "git branch -f main HEAD~1",
+      "expected_code": "git_branch_force",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-branch-force-long",
+      "command": "git branch --force main HEAD~1",
+      "expected_code": "git_branch_force",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-reflog-expire",
+      "command": "git reflog expire --expire=now --all",
+      "expected_code": "git_reflog_destructive",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-reflog-delete",
+      "command": "git reflog delete HEAD@{1}",
+      "expected_code": "git_reflog_destructive",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-stash-clear",
+      "command": "git stash clear",
+      "expected_code": "git_stash_clear",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-pull-rebase",
+      "command": "git pull --rebase origin main",
+      "expected_code": "git_pull_rebase",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "rewrite-replace",
+      "command": "git replace HEAD HEAD~1",
+      "expected_code": "git_replace_mutating",
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-replace-list",
+      "command": "git replace --list",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-status",
+      "command": "git status --short",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-log",
+      "command": "git log --oneline -n 5",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-commit",
+      "command": "git commit -m 'ordinary work'",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-add",
+      "command": "git add -A",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-reflog-show",
+      "command": "git reflog show -n 5",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-branch-list",
+      "command": "git branch --list",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-stash-list",
+      "command": "git stash list",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-rm-non-recursive",
+      "command": "rm build/artefact.txt",
+      "expected_code": null,
+      "previously_detected": false
+    },
+    {
+      "entry_id": "permitted-plain-listing",
+      "command": "ls -la src",
+      "expected_code": null,
+      "previously_detected": false
+    }
+  ]
+}

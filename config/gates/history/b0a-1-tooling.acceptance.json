@@ -1,0 +1,92 @@
+{
+  "acceptance_commit": "5b6d1ae8d9cdee07587fb5774ebf432786971e1a",
+  "assertion": "The block was accepted at this commit against these immutable references. This manifest is never re-run against a later branch tip or a different worktree path; only presence, hash integrity, correct binding and unchanged statement are verified.",
+  "block_id": "b0a-1-tooling",
+  "committed_artifacts": [
+    {
+      "blob_sha256": "f1c0f18088e2713462f843eb37707085eebe1b8075d08da76bad7b63d9f7260a",
+      "path": ".claude/hooks/pretooluse_guard.sh"
+    },
+    {
+      "blob_sha256": "5c23d0ce212d08942464e8ab6732af7ca9d3668677ae448ff11b2e4fd883ac70",
+      "path": ".claude/settings.json"
+    },
+    {
+      "blob_sha256": "c119c0afac6726ec6b0ff63d88cafd179364a57d10b54fbaea6d360eb4db1b51",
+      "path": ".claude/skills/gate/SKILL.md"
+    },
+    {
+      "blob_sha256": "3eb5f992bce5ea285140b8743cb1bd88a3c1581587d2a98dd06510d3232c5e25",
+      "path": ".claude/skills/handoff-report/SKILL.md"
+    },
+    {
+      "blob_sha256": "a5d1e06d3c72e600be6266d73c1cd14af7de63f07cd3f114c6574809cfdba6c4",
+      "path": "CLAUDE.md"
+    },
+    {
+      "blob_sha256": "0294a9d45aceed11fba2f4b9614ad728b9a95bf228141bdd8bda95e6d850bbbe",
+      "path": "config/gates/blocks/b0a-1-tooling.json"
+    },
+    {
+      "blob_sha256": "115c1449f0bb1770651173651ac6cd9ffe7b226b8d29a560dede5b5f03f80125",
+      "path": "config/gates/features/b0a-1-tooling.lineage.json"
+    },
+    {
+      "blob_sha256": "c07368de3bc4970aeb75f1f4fbadf027e4e5d9beabef44532ccde728d247a288",
+      "path": "config/gates/features/b0a-1-tooling.predecessor.json"
+    },
+    {
+      "blob_sha256": "5b4c8a7a723c7b677850a47454941850e654a896c5040cd20b9b8abafc44b2c1",
+      "path": "scripts/gate.sh"
+    }
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.10",
+    "system": "Darwin"
+  },
+  "external_inputs": [],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "5b6d1ae8d9cdee07587fb5774ebf432786971e1a",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 24,
+  "own_feature_prefix": "B0A1-",
+  "reexecution_policy": {
+    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure.",
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_present_and_changed": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": ".gate-runtime/evidence/b0a-1-tooling.preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "c512c5bbcfcd799b3d72d0ac25b7c8c4066c0a8860b71aef366e303b9485b945",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "fail",
+      "scope": "machine_local_runtime",
+      "sha256": "7e1e26116542195f1d0ec97c93eb16c54d79449fcd4ea4db5dff0c66e59ecdbc"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-1-tooling.offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "c512c5bbcfcd799b3d72d0ac25b7c8c4066c0a8860b71aef366e303b9485b945",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "fail",
+      "scope": "machine_local_runtime",
+      "sha256": "3a544c79fe5836b035e3009aaf4d0f4de17552805016d95f0828e55ed9a1f55f"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B0a-1 deterministic gates and evidence"
+}

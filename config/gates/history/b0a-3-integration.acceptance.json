@@ -1,0 +1,121 @@
+{
+  "acceptance_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+  "assertion": "The block was accepted at this commit against these immutable references. This manifest is never re-run against a later branch tip or a different worktree path; only presence, hash integrity, correct binding and unchanged statement are verified.",
+  "block_id": "b0a-3-integration",
+  "committed_artifacts": [
+    {
+      "blob_sha256": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+      "path": "config/gates/blocks/b0a-3-integration.json"
+    },
+    {
+      "blob_sha256": "d6007b2bf402c646c5af838ec752b88cfabaec19c3a7c2ef3ad2490d7d311087",
+      "path": "config/gates/features/b0a-3-integration.lineage.json"
+    },
+    {
+      "blob_sha256": "493be1bc81a70d80eebc0573282bad1ccf4c612532b0f74190a86573592a1bde",
+      "path": "config/governance/b0a-3-id-migration.json"
+    },
+    {
+      "blob_sha256": "823a9b49e8efff6a52f63c4a4ad71501f4bf02b8d65a127f799683f4132b3dc5",
+      "path": "config/governance/decision-citations.json"
+    },
+    {
+      "blob_sha256": "b55033528feca100e4de8b6f803d5fdc5aa037b296ae44251b58d716967b7747",
+      "path": "config/governance/decision-collisions.json"
+    },
+    {
+      "blob_sha256": "b21cbb786c1a8d1d06ce743f1b2697fbdbb00468f563bd2b875ae772a03e5cc1",
+      "path": "config/governance/tooling-merge.json"
+    },
+    {
+      "blob_sha256": "5c3e8f85660a010e4c2b2313a28a054494596bd17e20391f5757858a62ddd996",
+      "path": "docs/governance/b0a-2-tooling-merge-addendum.md"
+    },
+    {
+      "blob_sha256": "ee0d6cca718a40862850e0453a101d620f300cd4851ba882f8f3ea040ec056b7",
+      "path": "docs/governance/b0b-handoff.md"
+    }
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.10",
+    "system": "Darwin"
+  },
+  "external_inputs": [],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 14,
+  "own_feature_prefix": "B0A3-",
+  "reexecution_policy": {
+    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure.",
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_present_and_changed": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": ".gate-runtime/evidence/b0a-3-integration.preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "machine_local_runtime",
+      "sha256": "811c641da8b11104e39dfa34377131fd63b82b3a05c6b855bb4066d3963056ff"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-3-integration.targeted.json",
+      "phase": "targeted",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "machine_local_runtime",
+      "sha256": "f536af06b2d757b22ee0f956f4fe8ef1cb1a2375d96b1899ec25cfbb579115fe"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-3-integration.offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "machine_local_runtime",
+      "sha256": "31b332ce54f097af22eeb8c3eccb5c30294f37e1cf87eeed72972193e3d8106e"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-3-integration.platform-live.json",
+      "phase": "platform-live",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "not_applicable",
+      "scope": "machine_local_runtime",
+      "sha256": "c413e84a1747c4b046c48c8c9e8c67df595788d98448e91ca4d0c2dcd713ead6"
+    },
+    {
+      "path": ".gate-runtime/evidence/b0a-3-integration.module-final.json",
+      "phase": "module-final",
+      "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "machine_local_runtime",
+      "sha256": "0f3e1a0fd65b26956e818c51a4f0792c65424f34cb01b9cceab93ce7c3bc74cb"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B0a-3 decision collision resolution and tooling integration"
+}

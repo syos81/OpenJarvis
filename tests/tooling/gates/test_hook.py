@@ -150,9 +150,10 @@ class TestHardDenies(HookTestBase):
             self.assertTrue((_support.REPO_ROOT / relative).is_file())
 
     def test_guard_rules_and_settings_deny_list_stay_in_sync(self):
+        # Counter test for rule change RC-001: the B0a-1 deny set must remain
+        # complete. The set may grow — it may never shrink.
         codes = {code for code, _ in hookguard.HARD_DENY_COMMAND_RULES}
-        self.assertEqual(
-            codes,
+        self.assertTrue(
             {
                 "git_push",
                 "git_reset_hard",
@@ -160,8 +161,18 @@ class TestHardDenies(HookTestBase):
                 "git_clean",
                 "git_stash_drop",
                 "rm_rf",
-            },
+            }.issubset(codes)
         )
+
+    def test_commit_amend_is_a_hard_deny(self):
+        # Sharpening test for rule change RC-001.
+        self.assertIn(
+            "git_commit_amend",
+            {code for code, _ in hookguard.HARD_DENY_COMMAND_RULES},
+        )
+        decision, reason, _ = self.bash("git commit --am" "end")
+        self.assertEqual(decision, hookguard.DECISION_DENY)
+        self.assertEqual(reason, "git_commit_amend")
 
 
 class TestWorktreeProtection(HookTestBase):
@@ -225,11 +236,21 @@ class TestWorktreeProtection(HookTestBase):
         self.assertIsNone(decision)
         self.assertEqual(reason, "non_mutating")
 
-    def test_undetermined_worktree_asks(self):
+    def test_undetermined_worktree_blocks(self):
+        # Sharpening test for rule change RC-002: an undeterminable repository
+        # state used to escalate to ask; a mutating request now blocks.
         decision, reason, _ = self.write(
             self.tmp_path / "loose.txt", cwd=self.tmp_path
         )
-        self.assertEqual(decision, hookguard.DECISION_ASK)
+        self.assertEqual(decision, hookguard.DECISION_DENY)
+        self.assertEqual(reason, "worktree_undetermined")
+
+    def test_undetermined_worktree_is_still_detected(self):
+        # Counter test for rule change RC-002: the condition itself must still
+        # be recognised, not silently dropped.
+        _decision, reason, _ = self.write(
+            self.tmp_path / "loose.txt", cwd=self.tmp_path
+        )
         self.assertEqual(reason, "worktree_undetermined")
 
     def test_canonicalisation_handles_missing_parents(self):
@@ -306,7 +327,10 @@ class TestAskLogging(HookTestBase):
         self.assertEqual(specific["permissionDecision"], "ask")
         self.assertIn("permissionDecisionReason", specific)
 
-    def test_hook_entry_point_stays_silent_when_it_has_no_opinion(self):
+    def test_hook_entry_point_states_that_it_has_no_opinion(self):
+        # Sharpening test for rule change RC-003: silence and a crashed guard
+        # are indistinguishable, so abstention is now stated positively and
+        # the wrapper blocks on anything else.
         payload = {
             "hook_event_name": "PreToolUse",
             "tool_name": "Bash",
@@ -316,7 +340,22 @@ class TestAskLogging(HookTestBase):
         stdout = io.StringIO()
         code = hookguard.main(stdin=io.StringIO(json.dumps(payload)), stdout=stdout)
         self.assertEqual(code, 0)
-        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(
+            json.loads(stdout.getvalue()), {"guardOutcome": "no_opinion"}
+        )
+
+    def test_no_opinion_carries_no_permission_decision(self):
+        # Counter test for rule change RC-003: abstention must never look like
+        # a permission decision.
+        payload = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git status --short"},
+            "cwd": str(self.repo),
+        }
+        stdout = io.StringIO()
+        hookguard.main(stdin=io.StringIO(json.dumps(payload)), stdout=stdout)
+        self.assertNotIn("permissionDecision", stdout.getvalue())
 
 
 if __name__ == "__main__":  # pragma: no cover
