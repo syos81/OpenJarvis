@@ -1,0 +1,38 @@
+{
+  "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+  "block": "b0a-1-tooling",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "of-canary-tests",
+    "of-feature-lineage",
+    "of-manifest-validation",
+    "of-repo-guard",
+    "of-shell-syntax",
+    "of-static-scan",
+    "of-tooling-tests"
+  ],
+  "commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T08:28:36Z",
+  "manifest_digest": "c512c5bbcfcd799b3d72d0ac25b7c8c4066c0a8860b71aef366e303b9485b945",
+  "phase": "offline-final",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "2000e0c24fe17a2a30ac34bafa3fad67a0a606463b14e89d5a0bf4e3d5af3628",
+    "5c55c5e7a3b6444bdd309e87d9f294ecafa3e9201484dbdfdbd075c146bb956b",
+    "64d2e27ae2f45fd36cba41049145b051787d9dabf5f30f5580f398396da772f1",
+    "a94898ec189d6a7c782790e99e77d3d887d7bdbefa289eda3872750c731bbd05",
+    "fa37fee7af1692138c7596522398a0681ef217616f0f2993466de53b3939dd3d",
+    "faf73a3dc88b3a88563f1ad093d6fa55ae388b45a4330eb56f8fe16b29802170",
+    "fc1fe738562e53471870a2fb03584bbd0754ec62e33a501021f3e8fc2becdf07"
+  ],
+  "reason_codes": [
+    "check_failed",
+    "check_passed"
+  ],
+  "run_id": "0583fd271067bfc249f98d74e1273e8f",
+  "schema_version": 1,
+  "started_at": "2026-08-06T08:27:35Z",
+  "status": "fail"
+}

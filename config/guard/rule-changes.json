@@ -74,6 +74,15 @@
       "sharpening_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_flattened_path_is_redacted",
       "counter_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_slash_path_is_redacted",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-009",
+      "rule_id": "historical_evidence_binding",
+      "kind": "sharpening",
+      "summary": "Rule R3. Historical acceptance evidence is bound to a committed, PII checked snapshot instead of the gitignored runtime area, and a missing document is a failure instead of a declared not_applicable. A guaranteed to exist artifact must never default to not_applicable, and a hash binding to a volatile, re-runnable file is not durable.",
+      "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_no_acceptance_manifest_defaults_to_not_applicable",
+      "counter_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_changed_evidence_is_still_detected",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [],
@@ -92,6 +101,11 @@
       "path": "tests/tooling/gates/test_pii_variants.py",
       "purpose": "Declared PII fixtures. Every value is invented; the real account name is asserted absent at runtime and never written into the file.",
       "abuse_test": "tests/tooling/gates/test_pii_variants.py::TestFixtureDiscipline::test_synthetic_values_only"
+    },
+    {
+      "path": "config/gates/evidence",
+      "purpose": "Committed, PII checked snapshots of the historical gate evidence. They are data, never re-executed, and bound by hash.",
+      "abuse_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_evidence_is_bound_to_a_committed_snapshot"
     }
   ]
 }

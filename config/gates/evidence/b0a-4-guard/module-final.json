@@ -1,0 +1,33 @@
+{
+  "baseline_commit": null,
+  "block": "b0a-4-guard",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "mf-commit-plan",
+    "mf-evidence",
+    "mf-feature-lineage",
+    "mf-phase-results",
+    "mf-preservation"
+  ],
+  "commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T12:05:50Z",
+  "manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+  "phase": "module-final",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "1b1727ad8b266cde7237d9b07394be92d994d3a4578611179cbba8e2b255ac86",
+    "412abd2640972c6dc3218b8dddcf84ed66dd7e8aac9f02c9ae237405d003840e",
+    "d18fa3dd46bfa8618f04078c6702e757319bb607d299d73d00539ab256fe4792"
+  ],
+  "reason_codes": [
+    "check_passed",
+    "evidence_complete",
+    "phase_results_consistent"
+  ],
+  "run_id": "5960f66dd7e0a13e7f1987b189c6104d",
+  "schema_version": 1,
+  "started_at": "2026-08-06T12:05:49Z",
+  "status": "pass"
+}

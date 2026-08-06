@@ -1,0 +1,23 @@
+{
+  "baseline_commit": null,
+  "block": "b0a-3-integration",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "platform-live.declared"
+  ],
+  "commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T08:20:45Z",
+  "manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
+  "phase": "platform-live",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [],
+  "reason_codes": [
+    "phase_not_applicable_by_manifest"
+  ],
+  "run_id": "42f3cd3d408bfd4b19a92328a834aa13",
+  "schema_version": 1,
+  "started_at": "2026-08-06T08:20:45Z",
+  "status": "not_applicable"
+}

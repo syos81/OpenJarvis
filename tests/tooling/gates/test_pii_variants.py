@@ -14,8 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from tools.gates import canaries  # noqa: E402
-from tools.gates import sanitize  # noqa: E402
+from tools.gates import (
+    canaries,  # noqa: E402
+    sanitize,  # noqa: E402
+)
 from tools.guard import audit as guard_audit  # noqa: E402
 from tools.guard import textnorm  # noqa: E402
 

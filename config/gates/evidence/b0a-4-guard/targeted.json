@@ -1,0 +1,43 @@
+{
+  "baseline_commit": null,
+  "block": "b0a-4-guard",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "tg-errata",
+    "tg-fail-closed-paths",
+    "tg-guard-tests",
+    "tg-history-matrix",
+    "tg-hook-tests",
+    "tg-no-worktree-fallback",
+    "tg-owner-activation",
+    "tg-package-determinism",
+    "tg-rule-changes",
+    "tg-violation-corpus"
+  ],
+  "commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T12:03:40Z",
+  "manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+  "phase": "targeted",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "0b2adcfa78c9f3205962762bb2ccdce1a25ebe287832935b1f455ad44b244818",
+    "288522e968fb5e36af0eb1309ebed9fa305236ed96a9cdffabc82e0b69b16183",
+    "2ac071b6b322a985133a8d4ba680e77bf6e6af4590a3a0ad8145072c142a320b",
+    "3f8e5b73746ab8af4950b1a3f6783b5dfa606eba254f384a0af825bd920c0030",
+    "65c91126d537ca1ac18a642162f3da62325e49513d7d95da32ca0c886daffd03",
+    "9ba936fa631b2505261f19b3249bba3733c2329225a3fc3c8dcfd2475ea0c35f",
+    "a045e83a8a15142a840fd99fe6a2220c325a98168d2a228f5ab4a3cbaa4b0241",
+    "b04cdbd65fb5fe0915817a339e0043726d0088dc895f6f2de15158b0362bade6",
+    "b5ad96fa59d4716e70fbf5cf68d90e8cb121a4f1b1133c662614b895f4a90d3c",
+    "f0e32fb6ae70eb110375358b6bf32bd971bee949aa56cb59939962304362ea54"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "1ccbe78d7040ce3b063f4c51018b05be",
+  "schema_version": 1,
+  "started_at": "2026-08-06T12:03:21Z",
+  "status": "pass"
+}

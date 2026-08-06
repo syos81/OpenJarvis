@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "kind": "r3_not_applicable_review",
+  "rule": "R3",
+  "statement": "Kein Gate-Ergebnis darf per Vorgabe not_applicable liefern, wenn das zugrundeliegende Artefakt garantiert existiert.",
+  "scope": "every not_applicable default in config/",
+  "findings": [
+    {
+      "location": "config/gates/history/b0a-1-tooling.acceptance.json",
+      "field": "reexecution_policy.runtime_evidence_absent",
+      "was": "not_applicable",
+      "verdict": "same construction error",
+      "reason": "Die Evidenz war an Dateien im gitignorierten Laufzeitbereich gebunden; ein fehlender Stand haette still bestanden.",
+      "fix": "Evidenz als PII-geprueften, committeten Schnappschuss unter config/gates/evidence/ gebunden; Vorgabe auf fail verschaerft."
+    },
+    {
+      "location": "config/gates/history/b0a-2-governance.acceptance.json",
+      "field": "reexecution_policy.runtime_evidence_absent",
+      "was": "not_applicable",
+      "verdict": "same construction error",
+      "reason": "wie B0a-1",
+      "fix": "wie B0a-1"
+    },
+    {
+      "location": "config/gates/history/b0a-3-integration.acceptance.json",
+      "field": "reexecution_policy.runtime_evidence_absent",
+      "was": "not_applicable",
+      "verdict": "same construction error",
+      "reason": "wie B0a-1",
+      "fix": "wie B0a-1"
+    }
+  ],
+  "examined_and_cleared": [
+    {
+      "location": "config/gates/blocks/b0a-1-tooling.json, b0a-2-governance.json, b0a-3-integration.json, tooling-merge-readiness.json",
+      "field": "phase_definitions.*.declared_result",
+      "verdict": "not the same error",
+      "reason": "Eine Phase wird mit sachlicher Begruendung fuer nicht anwendbar erklaert. Es gibt kein garantiert existierendes Artefakt, das still uebersprungen wuerde."
+    },
+    {
+      "location": "config/gates/fixtures/manifests/**",
+      "field": "phase_definitions.*.declared_result",
+      "verdict": "not the same error",
+      "reason": "Deklarierte, pfadgenaue Positiv- und Negativfixtures der Manifestvalidierung."
+    },
+    {
+      "location": "config/gates/preservation/calendar-line.preservation.json",
+      "field": "feature_preservation.rule, invariants.gate-results.expected",
+      "verdict": "not the same error",
+      "reason": "Einmal Regeltext, der not_applicable ausdruecklich ausschliesst, einmal die Aufzaehlung der fuenf zulaessigen Ergebniswerte."
+    },
+    {
+      "location": "config/gates/history/b0a-4-guard.acceptance.json",
+      "field": "reexecution_policy.runtime_evidence_absent",
+      "verdict": "already fixed earlier in B0b",
+      "reason": "Derselbe Fehler, in derselben Sitzung durch den gebrochenen Hash sichtbar geworden und behoben."
+    }
+  ],
+  "result": "three findings, all of the same class, all fixed"
+}

@@ -43,7 +43,10 @@ GUARD_ENTRY_SCRIPTS = (
 )
 DEFAULT_INSTALL_ROOT = "/usr/local/jarvis-guard"
 POLICY_FILE = "/Library/Application Support/ClaudeCode/managed-settings.json"
-SYSTEM_PYTHON = "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9"
+SYSTEM_PYTHON = (
+    "/Library/Developer/CommandLineTools/Library/Frameworks"
+    "/Python3.framework/Versions/3.9/bin/python3.9"
+)
 
 
 def _fail(identifier, code):

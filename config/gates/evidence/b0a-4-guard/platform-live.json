@@ -1,0 +1,31 @@
+{
+  "baseline_commit": null,
+  "block": "b0a-4-guard",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "pl-active-guard",
+    "pl-live-calendar",
+    "pl-live-plain-worktree",
+    "pl-tamper"
+  ],
+  "commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T12:05:49Z",
+  "manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
+  "phase": "platform-live",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "24f7456f8e357507c6af73d7fd86a1d28f830ae91c7b61371e5d436f647e320a",
+    "35bd8db6fa5fc208feb4c3cb96a11d23c4ea5d5816866a18051a9b022bd8108d",
+    "a769bae26b3af86dc2aa707783dc8138a67ae66588b89e814f0015cdc8276d56",
+    "f454bea10293e70157a9bbfc0e504a707a1a5375df69597b078703fff0b9bb2d"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "385d435f2855f1549a0d5efa5ba5c9e2",
+  "schema_version": 1,
+  "started_at": "2026-08-06T12:05:33Z",
+  "status": "pass"
+}

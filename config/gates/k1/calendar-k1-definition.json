@@ -1,0 +1,242 @@
+{
+  "schema_version": 1,
+  "kind": "k1_definition",
+  "definition_id": "calendar-k1",
+  "stage_name": "Kalender K1",
+  "derivation": "Abgeleitet, nicht erfunden. K1 ist genau die bereits vorhandene maschinenlesbare Gate-Menge aus config/gates/k1/calendar-k1-start-matrix.json abzueglich der herausgenommenen Schreib-Paritaet. Einziger neuer Inhalt ist die Offline-/Live-Auszeichnung je Gate, abgeleitet aus dem, was das jeweilige Gate nach seiner eigenen Definition braucht.",
+  "derived_from": {
+    "start_matrix": "config/gates/k1/calendar-k1-start-matrix.json",
+    "start_matrix_sha256": "7b9b2c003ee94fec9e498b11e700b2a87f7cde9255758d33c646b9858b1a28ee",
+    "module_document": "docs/personal-jarvis/modules/calendar.md",
+    "baseline": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md"
+  },
+  "stage_binding": {
+    "algorithm": "sha256 over the sorted gate ids, newline separated",
+    "gate_ids": [
+      "K1-F01",
+      "K1-F02",
+      "K1-F03",
+      "K1-F04",
+      "K1-F05",
+      "K1-F06",
+      "K1-F07",
+      "K1-F08",
+      "K1-O01",
+      "K1-O02",
+      "K1-O03",
+      "K1-O04",
+      "K1-O05",
+      "K1-O06",
+      "K1-O08",
+      "K1-O09"
+    ],
+    "digest": "bda7b4e2d0993fa1828b890678d33286fe7b81ae0091cbb9634b66989892b364",
+    "statement": "Der Stufenname ist an genau diese Gate-Menge gebunden. Aendert sich die Menge, aendert sich der Digest, und die Stufe ist eine andere."
+  },
+  "execution_classes": {
+    "offline": "Ohne TCC, ohne gepackte App, ohne arm64-Hardware und ohne Echtbetrieb pruefbar.",
+    "live": "Braucht mindestens eines davon."
+  },
+  "gates": [
+    {
+      "gate_id": "K1-F01",
+      "title": "Python-Testlauf tests/personal",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F02",
+      "title": "Kalender-Suite (Sync-Vertrag 27, Grenzen 23)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F03",
+      "title": "Frontend vitest run",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F04",
+      "title": "tsc --noEmit",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F05",
+      "title": "ruff auf neuem Code",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F06",
+      "title": "Sidecar-Bau (minos 12.3, keine Schreibselektoren im Binary)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F07",
+      "title": "Kalenderfreier Handshake gegen das echte Binary",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-F08",
+      "title": "Fail-closed ohne Berechtigung",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §7",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-O01",
+      "title": "Echter Lesedurchlauf aus der gepackten App auf beiden Architekturen",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 1",
+      "execution_class": "live",
+      "requires": [
+        "tcc",
+        "packaged_app",
+        "arm64_hardware"
+      ]
+    },
+    {
+      "gate_id": "K1-O02",
+      "title": "ARM64 vollstaendig",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 2",
+      "execution_class": "live",
+      "requires": [
+        "arm64_hardware"
+      ]
+    },
+    {
+      "gate_id": "K1-O03",
+      "title": "TCC-Persistenzmatrix (Rebuild, Versions-Bump, Verschieben, Quarantaene)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 3",
+      "execution_class": "live",
+      "requires": [
+        "tcc",
+        "packaged_app"
+      ]
+    },
+    {
+      "gate_id": "K1-O04",
+      "title": "Grosse Bestaende (Laufzeit, Speicher, Fensterwahl)",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 4",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-O05",
+      "title": "Teilnehmer im Echtbetrieb",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 5",
+      "execution_class": "live",
+      "requires": [
+        "real_operation"
+      ]
+    },
+    {
+      "gate_id": "K1-O06",
+      "title": "Apple-Paritaetsvertrag, Lese-Paritaet",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 6, docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md §4",
+      "execution_class": "live",
+      "requires": [
+        "real_operation",
+        "m2_reference_hardware"
+      ],
+      "scope_note": "Nur die Lese-Paritaet ist Bestandteil von K1. Die Schreib-Paritaet ist herausgenommen.",
+      "parity_items": [
+        "P-1",
+        "P-10",
+        "P-11-read",
+        "P-12",
+        "P-13",
+        "P-14",
+        "P-15",
+        "P-2",
+        "P-3",
+        "P-4",
+        "P-5",
+        "P-8"
+      ]
+    },
+    {
+      "gate_id": "K1-O08",
+      "title": "Zweiter Datenpfad gcalendar.py",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 8, docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md §5",
+      "execution_class": "offline",
+      "requires": []
+    },
+    {
+      "gate_id": "K1-O09",
+      "title": "Vorbestehend roter Test test_dec_052_ist_registriert",
+      "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 10",
+      "execution_class": "offline",
+      "requires": []
+    }
+  ],
+  "removed_from_k1": [
+    {
+      "gate_id": "K1-O07",
+      "title": "Schreiben",
+      "reason": "Schreiben ist die Schreibfaehigkeit selbst und wird als eigene, spaetere Architekturentscheidung gefuehrt. Es zaehlt in K1 weder als erfuellt noch als offen.",
+      "counts_as": "neither_fulfilled_nor_open",
+      "tracked_as": "separate later architecture decision"
+    }
+  ],
+  "parity_contract_split": {
+    "rule": "Ein Paritaetspunkt ist Schreib-Paritaet genau dann, wenn seine eigene Pruefung in Baseline §4 eine Provider-Mutation verlangt.",
+    "read_parity_in_k1": {
+      "P-1": "Seitenleiste und Kalendergruppen",
+      "P-2": "Ansichten",
+      "P-3": "Zeitachsen und Ganztagsbereiche",
+      "P-4": "Suche",
+      "P-5": "Ereignisdetails",
+      "P-8": "Mehrtaegige und wiederkehrende Ereignisse",
+      "P-10": "Zeitzonen und schwebende Termine",
+      "P-11-read": "Feldumfang, lesender und anzeigender Anteil",
+      "P-12": "Kontextmenues und Tastatur (Pruefung ist ein Bedienbarkeitstest fuer Ansehen und Vorbereiten, ohne Provider-Aufruf)",
+      "P-13": "Hell-/Dunkelmodus und Barrierefreiheit",
+      "P-14": "Externe Aenderungen",
+      "P-15": "Zustaende"
+    },
+    "write_parity_removed": {
+      "P-6": "Create/Update/Delete aus dem Kalender — Pruefung verlangt Freigabe, genau einen Provider-Aufruf und Read-back",
+      "P-7": "Drag-and-drop und Groessenaenderung — das Loslassen erzeugt eine Freigabeanfrage; Pruefung verlangt den Beleg ueber den Provider-Aufruf",
+      "P-9": "Einzel- vs. Serienbearbeitung — Pruefung verlangt Read-back der Nachbarinstanzen nach einer Mutation",
+      "P-11-write": "Feldumfang, schreibender Anteil"
+    }
+  },
+  "invariant_conflict": {
+    "documented_not_carried_as_open_gate": true,
+    "invariant": "Keine EventKit-Schreibselektoren im gebauten Binary — positive K1-Invariante, geprueft von native/calendar-bridge/build.sh und belegt durch Gate K1-F06.",
+    "conflicting_requirement": "Die Schreib-Paritaet P-6, P-7, P-9 und der schreibende Anteil von P-11 verlangen Provider-Mutationen und damit Schreibselektoren im Binary.",
+    "resolution": "Die Gate-Liste war fehlerhaft, nicht die Umsetzung. K1 erhaelt ausschliesslich Lese-Paritaet; die Schreib-Paritaet ist herausgenommen. Die Invariante bleibt positiver Bestandteil von K1. Der Konflikt wird hier dokumentiert und nicht als offenes Gate weitergefuehrt."
+  },
+  "separate_write_decision": {
+    "subject": "Schreib-Paritaet und Kalender-Schreibfaehigkeit als eigene, spaetere Architekturentscheidung.",
+    "decision_id": null,
+    "placeholder": "{{DEC_ID_CALENDAR_WRITE_PARITY}}",
+    "placeholder_is_permanent_until_owner_allocation": true,
+    "allocation_rule": "R2",
+    "mechanical_finding": {
+      "scanned": "alle Markdown-Dokumente beider Linien: jarvis/rebuild-v1@c22260175db4a2b2fe4e606fa8ae6cfd298cee94 und die Kalenderlinie auf ihrem aktuellen Stand",
+      "dec_series_used": "DEC-001 bis DEC-055, lueckenlos",
+      "dec_series_first_unused": "DEC-056",
+      "deferred_series_used": "DEC-D01 bis DEC-D17, lueckenlos",
+      "deferred_series_first_unused": "DEC-D18",
+      "canonical_line_state": "jarvis/rebuild-v1 steht lokal und entfernt auf c222601 und ist in die Kalenderlinie nicht integriert.",
+      "why_no_number_is_allocated": "Zwei Gruende. Erstens verbietet CLAUDE.md die eigenmaechtige Vergabe neuer DEC- oder ADR-Nummern; die Vergabe ist eine Eigentuemerhandlung. Zweitens ist die kanonische Linie nicht integriert und wird fortgesetzt; eine Nummer, die heute gegen einen eingefrorenen Stand frei ist, ist damit nicht gegen die kuenftige Belegung derselben Serie frei. Genau diese Kollisionsklasse musste B0a-3 aufloesen."
+    }
+  },
+  "classification_schemes_not_used": {
+    "acceptance_profile_a_b_c": false,
+    "overlay_p_s_h": false,
+    "statement": "Die Kuerzel A/B/C und P/S/H sind in keinem K1-Dokument angewendet. Sie existieren im Repository nicht als Governance-Artefakt und erzeugen keinen Abnahmenachweis. 'P' kommt ausschliesslich als Apple-Paritaetsvertrag P-1 bis P-15 vor."
+  }
+}

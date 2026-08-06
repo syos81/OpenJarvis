@@ -58,35 +58,36 @@
   "own_feature_count": 24,
   "own_feature_prefix": "B0A1-",
   "reexecution_policy": {
-    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure.",
+    "rationale": "The bound evidence is a committed snapshot, so it is always present and always reproducible. Absence is therefore a failure, not a declared not_applicable.",
     "rerun_against_current_head": false,
-    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_absent": "fail",
     "runtime_evidence_present_and_changed": "fail"
   },
   "runtime_evidence": [
     {
-      "path": ".gate-runtime/evidence/b0a-1-tooling.preflight.json",
+      "path": "config/gates/evidence/b0a-1-tooling/preflight.json",
       "phase": "preflight",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "c512c5bbcfcd799b3d72d0ac25b7c8c4066c0a8860b71aef366e303b9485b945",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "fail",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "7e1e26116542195f1d0ec97c93eb16c54d79449fcd4ea4db5dff0c66e59ecdbc"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-1-tooling.offline-final.json",
+      "path": "config/gates/evidence/b0a-1-tooling/offline-final.json",
       "phase": "offline-final",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "c512c5bbcfcd799b3d72d0ac25b7c8c4066c0a8860b71aef366e303b9485b945",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "fail",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "3a544c79fe5836b035e3009aaf4d0f4de17552805016d95f0828e55ed9a1f55f"
     }
   ],
   "schema_version": 1,
-  "title": "B0a-1 deterministic gates and evidence"
+  "title": "B0a-1 deterministic gates and evidence",
+  "evidence_binding_note": "Rebound in B0b under rule R3: the previous binding pointed at the gitignored runtime area and declared a missing file not_applicable. A guaranteed-to-exist artifact must never default to not_applicable, and a hash binding to a volatile, re-runnable file is not durable."
 }

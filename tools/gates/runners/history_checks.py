@@ -45,6 +45,25 @@ HISTORY_DIR = Path("config/gates/history")
 PRESERVATION = Path("config/gates/preservation/calendar-line.preservation.json")
 ERRATA = Path("docs/governance/b0a-3-errata.md")
 COMMIT_PLAN = HISTORY_DIR / "b0a-4-commit-plan.json"
+K1_DEFINITION = Path("config/gates/k1/calendar-k1-definition.json")
+K1_START_MATRIX = Path("config/gates/k1/calendar-k1-start-matrix.json")
+R3_REVIEW = HISTORY_DIR / "r3-not-applicable-review.json"
+
+#: Classification schemes that do not exist in this repository. They must
+#: not appear as a per gate classification in any K1 document.
+ABSENT_SCHEMES = (
+    "Abnahmeprofil A",
+    "Abnahmeprofil B",
+    "Abnahmeprofil C",
+    "Overlay P",
+    "Overlay S",
+    "Overlay H",
+    "Overlays P, S und H",
+)
+K1_DOCUMENT_PATHS = (
+    "config/gates/k1",
+    "docs/personal-jarvis/modules/calendar.md",
+)
 
 #: Tokens the B0a-3 erratum must state. Each one is a finding the closing
 #: report of that block did not name.
@@ -229,7 +248,9 @@ def mode_preservation(args):
         if len(required) != count:
             failures.append(_fail(f"preserve.{prefix}", "required_count_mismatch"))
         if len(passing) != count:
-            failures.append(_fail(f"preserve.{prefix}", "preserved_feature_not_passing"))
+            failures.append(
+                _fail(f"preserve.{prefix}", "preserved_feature_not_passing")
+            )
         for feature in required:
             if not str(feature.get("current_location", "")).strip():
                 failures.append(
@@ -350,8 +371,147 @@ def mode_errata(args):
     return _report.emit(_report.PASSED if not failures else _report.FAILED, failures)
 
 
+def mode_k1_definition(args):
+    """The K1 definition must be derived, bound and free of inventions."""
+    root = Path.cwd()
+    failures = []
+    diagnostics = []
+    definition = json.loads((root / K1_DEFINITION).read_text(encoding="utf-8"))
+    matrix = json.loads((root / K1_START_MATRIX).read_text(encoding="utf-8"))
+
+    if definition.get("kind") != "k1_definition":
+        failures.append(_fail("definition", "not_a_k1_definition"))
+
+    actual = hashlib.sha256(
+        (root / K1_START_MATRIX).read_bytes()
+    ).hexdigest()
+    if definition["derived_from"].get("start_matrix_sha256") != actual:
+        failures.append(_fail("derived_from", "start_matrix_binding_stale"))
+
+    matrix_ids = {gate["gate_id"] for gate in matrix["gates"]}
+    definition_ids = {gate["gate_id"] for gate in definition["gates"]}
+    removed_ids = {item["gate_id"] for item in definition["removed_from_k1"]}
+    invented = sorted(definition_ids - matrix_ids)
+    for gate_id in invented:
+        failures.append(_fail(gate_id, "gate_not_derived_from_matrix"))
+    if definition_ids | removed_ids != matrix_ids:
+        failures.append(_fail("definition", "gate_set_does_not_partition"))
+    if definition_ids & removed_ids:
+        failures.append(_fail("definition", "gate_both_kept_and_removed"))
+
+    binding = definition["stage_binding"]
+    expected = hashlib.sha256(
+        "\n".join(sorted(definition_ids)).encode("utf-8")
+    ).hexdigest()
+    if binding.get("digest") != expected:
+        failures.append(_fail("stage_binding", "digest_does_not_match_set"))
+    if sorted(binding.get("gate_ids", [])) != sorted(definition_ids):
+        failures.append(_fail("stage_binding", "gate_ids_do_not_match_set"))
+
+    for gate in definition["gates"]:
+        if gate.get("execution_class") not in ("offline", "live"):
+            failures.append(_fail(gate["gate_id"], "execution_class_missing"))
+        needs = gate.get("requires", [])
+        if bool(needs) != (gate.get("execution_class") == "live"):
+            failures.append(_fail(gate["gate_id"], "execution_class_not_derived"))
+
+    for item in definition["removed_from_k1"]:
+        if item.get("counts_as") != "neither_fulfilled_nor_open":
+            failures.append(_fail(item["gate_id"], "removed_gate_still_counted"))
+
+    split = definition["parity_contract_split"]
+    if set(split["read_parity_in_k1"]) & set(split["write_parity_removed"]):
+        failures.append(_fail("parity", "item_in_both_halves"))
+    if not definition["invariant_conflict"].get(
+        "documented_not_carried_as_open_gate"
+    ):
+        failures.append(_fail("invariant_conflict", "carried_as_open_gate"))
+
+    write_decision = definition["separate_write_decision"]
+    if write_decision.get("decision_id") is not None:
+        failures.append(_fail("write_decision", "number_allocated_without_owner"))
+    if not str(write_decision.get("placeholder", "")).startswith("{{"):
+        failures.append(_fail("write_decision", "placeholder_not_marked"))
+
+    schemes = definition["classification_schemes_not_used"]
+    if schemes.get("acceptance_profile_a_b_c") or schemes.get("overlay_p_s_h"):
+        failures.append(_fail("schemes", "absent_scheme_declared_used"))
+
+    diagnostics.append(f"k1_gates={len(definition_ids)}")
+    diagnostics.append(f"stage_digest={binding.get('digest', '')[:16]}")
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED, failures, diagnostics
+    )
+
+
+def find_scheme_usages(root):
+    """Return ``(relative_path, token)`` for every absent scheme mention."""
+    hits = []
+    for relative in K1_DOCUMENT_PATHS:
+        candidate = Path(root) / relative
+        files = (
+            [candidate]
+            if candidate.is_file()
+            else sorted(p for p in candidate.rglob("*") if p.is_file())
+            if candidate.is_dir()
+            else []
+        )
+        for path in files:
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for token in ABSENT_SCHEMES:
+                if token in text:
+                    hits.append((str(path.relative_to(Path(root))), token))
+    return sorted(set(hits))
+
+
+def mode_classification_schemes(args):
+    """A/B/C and P/S/H must not be used as a classification in K1 documents."""
+    root = Path.cwd()
+    failures = [
+        _fail(f"{relative}:{token}", "absent_classification_scheme_used")
+        for relative, token in find_scheme_usages(root)
+    ]
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED, failures
+    )
+
+
+def mode_not_applicable_review(args):
+    """Rule R3 — no silent not_applicable for a guaranteed artifact."""
+    root = Path.cwd()
+    failures = []
+    diagnostics = []
+    review = json.loads((root / R3_REVIEW).read_text(encoding="utf-8"))
+    if review.get("rule") != "R3":
+        failures.append(_fail("review", "not_an_r3_review"))
+
+    for path in sorted((root / HISTORY_DIR).glob("*.acceptance.json")):
+        document = json.loads(path.read_text(encoding="utf-8"))
+        policy = document.get("reexecution_policy", {})
+        if policy.get("runtime_evidence_absent") != "fail":
+            failures.append(_fail(path.name, "guaranteed_artifact_defaults_na"))
+        for entry in document.get("runtime_evidence", []):
+            if entry.get("scope") != "committed_snapshot":
+                failures.append(_fail(path.name, "evidence_not_a_snapshot"))
+            if str(entry.get("path", "")).startswith(".gate-runtime"):
+                failures.append(_fail(path.name, "evidence_bound_to_runtime_area"))
+    diagnostics.append(f"reviewed_findings={len(review.get('findings', []))}")
+    diagnostics.append(
+        f"examined_and_cleared={len(review.get('examined_and_cleared', []))}"
+    )
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED, failures, diagnostics
+    )
+
+
 MODES = {
     "base-commit-unchanged": mode_base_commit_unchanged,
+    "classification-schemes": mode_classification_schemes,
+    "k1-definition": mode_k1_definition,
+    "not-applicable-review": mode_not_applicable_review,
     "commit-plan": mode_commit_plan,
     "errata": mode_errata,
     "historical-integrity": mode_historical_integrity,

@@ -54,68 +54,69 @@
   "own_feature_count": 14,
   "own_feature_prefix": "B0A3-",
   "reexecution_policy": {
-    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure.",
+    "rationale": "The bound evidence is a committed snapshot, so it is always present and always reproducible. Absence is therefore a failure, not a declared not_applicable.",
     "rerun_against_current_head": false,
-    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_absent": "fail",
     "runtime_evidence_present_and_changed": "fail"
   },
   "runtime_evidence": [
     {
-      "path": ".gate-runtime/evidence/b0a-3-integration.preflight.json",
+      "path": "config/gates/evidence/b0a-3-integration/preflight.json",
       "phase": "preflight",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "pass",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "811c641da8b11104e39dfa34377131fd63b82b3a05c6b855bb4066d3963056ff"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-3-integration.targeted.json",
+      "path": "config/gates/evidence/b0a-3-integration/targeted.json",
       "phase": "targeted",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "pass",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "f536af06b2d757b22ee0f956f4fe8ef1cb1a2375d96b1899ec25cfbb579115fe"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-3-integration.offline-final.json",
+      "path": "config/gates/evidence/b0a-3-integration/offline-final.json",
       "phase": "offline-final",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "pass",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "31b332ce54f097af22eeb8c3eccb5c30294f37e1cf87eeed72972193e3d8106e"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-3-integration.platform-live.json",
+      "path": "config/gates/evidence/b0a-3-integration/platform-live.json",
       "phase": "platform-live",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "not_applicable",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "c413e84a1747c4b046c48c8c9e8c67df595788d98448e91ca4d0c2dcd713ead6"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-3-integration.module-final.json",
+      "path": "config/gates/evidence/b0a-3-integration/module-final.json",
       "phase": "module-final",
       "recorded_commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
       "recorded_engine_version": "1.0.0",
       "recorded_manifest_digest": "cb28f0e229625a185854392169f0f624af90dbbb7c29737199c73ab001e6f5b2",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
       "recorded_status": "pass",
-      "scope": "machine_local_runtime",
+      "scope": "committed_snapshot",
       "sha256": "0f3e1a0fd65b26956e818c51a4f0792c65424f34cb01b9cceab93ce7c3bc74cb"
     }
   ],
   "schema_version": 1,
-  "title": "B0a-3 decision collision resolution and tooling integration"
+  "title": "B0a-3 decision collision resolution and tooling integration",
+  "evidence_binding_note": "Rebound in B0b under rule R3: the previous binding pointed at the gitignored runtime area and declared a missing file not_applicable. A guaranteed-to-exist artifact must never default to not_applicable, and a hash binding to a volatile, re-runnable file is not durable."
 }

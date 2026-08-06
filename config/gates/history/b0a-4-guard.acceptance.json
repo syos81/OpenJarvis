@@ -97,7 +97,7 @@
   ],
   "runtime_evidence": [
     {
-      "path": ".gate-runtime/evidence/b0a-4-guard.preflight.json",
+      "path": "config/gates/evidence/b0a-4-guard/preflight.json",
       "phase": "preflight",
       "sha256": "dd10d69046c3fdeab5ffa71c037f6cfaa47c5c13b9dc30e3ea5bcf5f7142d05a",
       "recorded_status": "pass",
@@ -105,10 +105,10 @@
       "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
       "recorded_engine_version": "1.0.0",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
-      "scope": "machine_local_runtime"
+      "scope": "committed_snapshot"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-4-guard.targeted.json",
+      "path": "config/gates/evidence/b0a-4-guard/targeted.json",
       "phase": "targeted",
       "sha256": "d78fad47b0184f602ae1ffe639c3890ab4fd549cd419920fbe74bc3bfc37dc6d",
       "recorded_status": "pass",
@@ -116,21 +116,21 @@
       "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
       "recorded_engine_version": "1.0.0",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
-      "scope": "machine_local_runtime"
+      "scope": "committed_snapshot"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-4-guard.offline-final.json",
+      "path": "config/gates/evidence/b0a-4-guard/offline-final.json",
       "phase": "offline-final",
-      "sha256": "e9a2dcf3f33ccffce339eb1c1b40f9e08cc516dc9faedac9e7cb72908eb17b86",
+      "sha256": "c7bdb96a1122f777a77620ab320268c072c5b5c0fadd720c7882e723920e2710",
       "recorded_status": "pass",
       "recorded_commit": "a1adabf20884b7c350a439a0e8023e4b38f2b910",
       "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
       "recorded_engine_version": "1.0.0",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
-      "scope": "machine_local_runtime"
+      "scope": "committed_snapshot"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-4-guard.platform-live.json",
+      "path": "config/gates/evidence/b0a-4-guard/platform-live.json",
       "phase": "platform-live",
       "sha256": "0ba746f6b6e17d6ade8e622e988c0317ad43891425e715774aab35646732ac6a",
       "recorded_status": "pass",
@@ -138,10 +138,10 @@
       "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
       "recorded_engine_version": "1.0.0",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
-      "scope": "machine_local_runtime"
+      "scope": "committed_snapshot"
     },
     {
-      "path": ".gate-runtime/evidence/b0a-4-guard.module-final.json",
+      "path": "config/gates/evidence/b0a-4-guard/module-final.json",
       "phase": "module-final",
       "sha256": "0f43c63b92f58962fbafd745565ede173ee752a035cebd233f6889e1ca1664af",
       "recorded_status": "pass",
@@ -149,14 +149,15 @@
       "recorded_manifest_digest": "93f0d30d229ede8e09e0cd097c073f6b96be68973223359d30897fe1e83d93fb",
       "recorded_engine_version": "1.0.0",
       "recorded_platform_class": "darwin/x86_64/12.7.6",
-      "scope": "machine_local_runtime"
+      "scope": "committed_snapshot"
     }
   ],
   "assertion": "The block was accepted at this commit against these immutable references. This manifest is never re-run against a later branch tip; only presence, hash integrity, correct binding and unchanged statement are verified.",
   "reexecution_policy": {
     "rerun_against_current_head": false,
-    "runtime_evidence_absent": "not_applicable",
+    "runtime_evidence_absent": "fail",
     "runtime_evidence_present_and_changed": "fail",
-    "rationale": "The runtime area is gitignored and machine local by design. Its absence on another machine is a declared manifest rule, not a hidden pass; a present but changed file is a failure."
-  }
+    "rationale": "The bound evidence is a committed snapshot, so it is always present and always reproducible. Absence is therefore a failure, not a declared not_applicable."
+  },
+  "evidence_binding_note": "The evidence is bound to a committed, PII checked snapshot under config/gates/evidence/, not to the gitignored runtime area. The first binding of this manifest pointed at the runtime files and broke as soon as a later verification run of the same block overwrote one of them at the same commit. A hash binding to a volatile, re-runnable file is not a durable binding; the statement fields were unchanged throughout. The snapshot is a git object and cannot drift."
 }

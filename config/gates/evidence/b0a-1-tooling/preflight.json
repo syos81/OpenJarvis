@@ -1,0 +1,38 @@
+{
+  "baseline_commit": null,
+  "block": "b0a-1-tooling",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "pf-baseline-commit",
+    "pf-claude-config",
+    "pf-manifest",
+    "pf-platform",
+    "pf-tools",
+    "pf-worktree",
+    "pf-worktree-state"
+  ],
+  "commit": "a0936877254c092bc75314b8078dedeb1deccc7a",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-06T08:27:35Z",
+  "manifest_digest": "c512c5bbcfcd799b3d72d0ac25b7c8c4066c0a8860b71aef366e303b9485b945",
+  "phase": "preflight",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "23a56830e068b348dadff20beaaa23e8573ea2a0c9feb875620f55361d47e8cf",
+    "7a12e9746e1b0203f964c9d696135abe596567868a4bd220bd60a1a112464fe0",
+    "82af97a90044a47b46af8e8ac4c7db1e598c14192f6b913b03311d66e4fb2b5e",
+    "9010160bc47e8038521973c35d01b1cb3c4b91fd1e2b05a4820a1ce24d96f0fd",
+    "ad41cc2e43f71ef0fb4581485eccf16dd54a0aca5f8581336a45ecdffd08011e",
+    "cc6c02dffd5838abf45eaf587aa1f16cdf6de4ffa77e1838b0c310c9f4a753eb",
+    "f03c8ab971ab870f43731b8b2a3589c9f27c6261fa5bcfabe38a6dbf769d3fff"
+  ],
+  "reason_codes": [
+    "check_failed",
+    "check_passed"
+  ],
+  "run_id": "003f8271a72b496edcf7f2a7fdb936f4",
+  "schema_version": 1,
+  "started_at": "2026-08-06T08:27:33Z",
+  "status": "fail"
+}
