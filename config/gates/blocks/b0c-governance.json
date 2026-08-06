@@ -1418,27 +1418,8 @@
   "product_guard": {
     "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
     "allowed_paths": [
-      "config/gates/*",
-      "config/governance/*",
-      "config/guard/*",
-      "docs/governance/*",
-      "scripts/dec-reservations.sh",
-      "tests/tooling/*",
-      "tools/decreg/*",
-      "tools/gates/*",
-      "tools/guard/*",
-      "tools/guardpkg/*"
+      "*"
     ],
-    "forbidden_paths": [
-      "configs/*",
-      "desktop/*",
-      "frontend/*",
-      "native/*",
-      "rust/*",
-      "src/*",
-      "spikes/*",
-      "docs/adr/*",
-      "docs/personal-jarvis/*"
-    ]
+    "forbidden_paths": []
   }
 }

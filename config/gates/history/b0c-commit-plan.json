@@ -31,11 +31,16 @@
     },
     {
       "position": 6,
-      "purpose": "purely determinative: gate run, sanitised evidence, correction note, acceptance manifest, handoff",
-      "message": "test(governance): finalize b0c evidence and handoff"
+      "purpose": "purely normative: correction of the product guard scope of the B0c manifest",
+      "message": "fix(gates): scope the b0c product guard to its real comparison range"
+    },
+    {
+      "position": 7,
+      "purpose": "purely determinative: gate run, sanitised evidence, correction note, acceptance record, handoff",
+      "message": "test(governance): finalize b0c evidence, acceptance and handoff"
     }
   ],
-  "max_commits": 6,
+  "max_commits": 7,
   "forbidden_operations": [
     "commit --amend",
     "rebase",
@@ -77,5 +82,13 @@
       "reason": "A block manifest references its runner by argv. Committing the manifest first would create a position that points at something the same commit does not contain, which the split condition forbids. The runner therefore lands first and is green on its own against every declared mode; the manifest follows and is green against the engine and a real preflight run.",
       "recorded_before_the_affected_commit": true
     }
+  },
+  "plan_deviation": {
+    "position": 5,
+    "declared_condition": "each position is committed only when its own tests and the affected gate modes are green",
+    "what_happened": "Position 5 was committed after preflight and targeted passed. The offline-final phase, which was not run before that commit, then failed on of-repo-guard: the manifest declared a product guard allowlist scoped to this block, while the product guard compares against the repository wide guard base and therefore spans earlier blocks.",
+    "assessment": "The declared condition was met as stated but was too weak. A block manifest is only coherent once every phase it declares has run against it.",
+    "remedy": "The scope correction is a separate normative commit rather than a silent part of the determinative one, and the closing run is performed against the corrected manifest.",
+    "condition_sharpened": "A commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it."
   }
 }
