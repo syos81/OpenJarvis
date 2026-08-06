@@ -203,4 +203,21 @@ def test_dec_052_ist_registriert():
     register = _lies(WURZEL / "docs/personal-jarvis/decisions-register.md")
     assert "DEC-052" in register
     assert "ADR-0026" in register
-    assert "44 akzeptierte Entscheidungen" in register
+
+    # Die Zaehlung wird nicht mehr als Literal festgenagelt. Das Register
+    # selbst haelt fest, dass die fruehere Angabe "44 / 6 offene" ueberholt
+    # ist; ein fixes Literal war deshalb dauerhaft rot. Geprueft wird jetzt
+    # die Aussage gegen die Tabelle: die genannte Zahl muss der Anzahl der
+    # akzeptierten Eintraege in §1 entsprechen. DEC-037 traegt eine
+    # qualifizierte Annahme ("accepted (modulbezogen)") und zaehlt mit.
+    genannt = re.search(r"(\d+)\s+akzeptierte Entscheidungen", register)
+    assert genannt, "das Register nennt keine Zaehlung"
+    abschnitt_eins = register.split("## §2")[0]
+    gezaehlt = [
+        zeile
+        for zeile in re.findall(r"^\|\s*DEC-\d+\s*\|(.*)$", abschnitt_eins, re.M)
+        if zeile.split("|")[1].strip().startswith("accepted")
+    ]
+    assert int(genannt.group(1)) == len(gezaehlt), (
+        f"Register nennt {genannt.group(1)}, gezaehlt wurden {len(gezaehlt)}"
+    )

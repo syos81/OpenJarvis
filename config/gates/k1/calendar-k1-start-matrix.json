@@ -18,7 +18,11 @@
     "open_at_start": 9,
     "offline_closable_open": 2,
     "target_fulfilled_after_b0b": 10,
-    "target_open_after_b0b": 7
+    "target_open_after_b0b": 7,
+    "fulfilled_after_b0b": 10,
+    "open_after_b0b": 7,
+    "accepted_against_bound_baseline_after_b0b": 0,
+    "blocked_after_b0b": 0
   },
   "gates": [
     {
@@ -41,7 +45,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F02",
@@ -63,7 +68,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F03",
@@ -85,7 +91,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F04",
@@ -107,7 +114,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F05",
@@ -129,7 +137,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F06",
@@ -151,7 +160,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F07",
@@ -173,7 +183,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-F08",
@@ -195,7 +206,8 @@
       ],
       "offline_closable": true,
       "offline_closable_reason": "bereits erfuellt",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled"
     },
     {
       "gate_id": "K1-O01",
@@ -217,7 +229,8 @@
       "offline_closable_reason": "Erfordert eine gepackte, signierte App, eine reale TCC-Erteilung durch den Eigentuemer und zusaetzlich Apple-Silicon-Hardware. Nichts davon ist offline auf diesem x86_64-Rechner herstellbar.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O02",
@@ -239,7 +252,8 @@
       "offline_closable_reason": "Erfordert Apple-Silicon-Hardware. Der Arbeitsrechner ist x86_64; Rosetta ersetzt keine native Abnahme.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O03",
@@ -261,14 +275,15 @@
       "offline_closable_reason": "Erfordert reale TCC-Zustaende einer installierten, gepackten App. Offline nicht herstellbar.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O04",
       "title": "Grosse Bestaende (Laufzeit, Speicher, Fensterwahl)",
       "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 4",
       "status_at_start": "open",
-      "evidence_reference": "",
+      "evidence_reference": "tests/personal/calendar/test_large_volume.py — 4000 Termine ueber 4 Kalender mit je 3 Teilnehmern, Erstlauf und Wiederholungslauf gemessen, Fensterverkleinerung und -vergroesserung ohne Tombstones, Fenster je Lauf protokolliert. Kalenderfrei.",
       "blocking_reason": "Laufzeit, Speicher und Fensterwahl bei tausenden Terminen sind ungemessen.",
       "acceptance_profile": {
         "declared_in_repository": false,
@@ -286,7 +301,9 @@
       "offline_closable_reason": "Der Sync-Vertrag ist ueber den FakeCalendarClient und eine echte migrierte Datenbankdatei kalenderfrei messbar. Es wird kein EKEventStore und keine TCC-Abfrage benoetigt.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled",
+      "closed_in": "b0b"
     },
     {
       "gate_id": "K1-O05",
@@ -308,7 +325,8 @@
       "offline_closable_reason": "Die Gate-Definition verlangt ausdruecklich Echtbetrieb, also reale Kalenderdaten mit Teilnehmern. Synthetische Fixtures erfuellen diese Definition nicht.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O06",
@@ -330,7 +348,8 @@
       "offline_closable_reason": "P-7 verlangt Verschieben mit Freigabeanfrage und Vorschau, P-9 Serienbearbeitung mit Read-back der Nachbarinstanzen. Beides sind Mutationspfade. Der Kalender v1 ist ausdruecklich nur lesend, und der Sidecar-Bau bricht bei EventKit-Schreibselektoren im Binary ab. K1-O06 zu schliessen wuerde damit das bereits erfuellte Gate K1-F06 regressieren. P-13 verlangt zusaetzlich einen visuellen Vergleich gegen die M2-Referenz.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "K1-F06",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O07",
@@ -352,7 +371,8 @@
       "offline_closable_reason": "Die Gate-Definition weist Schreiben ausdruecklich einem eigenen Auftrag zu. Umsetzung waere eine spaetere Kalenderstufe und liegt ausserhalb der Umfangsgrenzen dieses Blocks.",
       "requires_owner_decision": true,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O08",
@@ -374,14 +394,15 @@
       "offline_closable_reason": "Baseline §5 Schritt 2 setzt die kontrollierte Suchprojektion nach 'Register 20 §5' voraus. Ein Dokument dieser Nummer existiert nicht; die Reihe endet bei 19. Schritt 4 verlangt zusaetzlich einen Eintrag im Entscheidungsregister. Beides sind Eigentuemerhandlungen.",
       "requires_owner_decision": true,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "open"
+      "target_state_b0b": "open",
+      "status_after_b0b": "open"
     },
     {
       "gate_id": "K1-O09",
       "title": "Vorbestehend roter Test test_dec_052_ist_registriert",
       "source_item": "docs/personal-jarvis/modules/calendar.md §8 Nr. 10",
       "status_at_start": "open",
-      "evidence_reference": "",
+      "evidence_reference": "tests/personal/contacts/test_mutation_channel_contract_static.py::test_dec_052_ist_registriert — die Zaehlung wird gegen die Tabelle in §1 geprueft statt gegen ein Literal; das Register haelt selbst fest, dass '44 / 6 offene' ueberholt ist.",
       "blocking_reason": "Prueft eine Zaehlung im Entscheidungsregister und schlaegt auch ohne den Kalenderblock fehl. Vorbestehend, nicht durch B0a-3 oder B0a-4 verursacht.",
       "acceptance_profile": {
         "declared_in_repository": false,
@@ -398,7 +419,9 @@
       "offline_closable_reason": "Die Behauptung des Tests ist ein veraltetes Literal. Das Entscheidungsregister nennt selbst 48 akzeptierte Entscheidungen und haelt ausdruecklich fest, dass die fruehere Zaehlung '44 / 6 offene' ueberholt ist. Die Korrektur erfindet keine Entscheidung, sie zieht den Test der bereits registrierten Aussage nach.",
       "requires_owner_decision": false,
       "conflicts_with_fulfilled_gate": "",
-      "target_state_b0b": "fulfilled"
+      "target_state_b0b": "fulfilled",
+      "status_after_b0b": "fulfilled",
+      "closed_in": "b0b"
     }
   ]
 }
