@@ -158,8 +158,48 @@ Pushstatus: **`not_performed_owner_action`**.
    noch Verweis.
 3. **Oberflächenparität als allgemeine Fähigkeit**, mit den Instanzen
    Kalender und Kontakte — nicht als zwei Sonderfälle.
-4. **Mechanische Architekturklassifikation der fünf offenen K1-Gates**
+4. **R6 in die Registrierung aufnehmen**, zusammen mit R1 bis R4.
+5. **Mechanische Architekturklassifikation der fünf offenen K1-Gates**
    (`K1-O01`, `K1-O02`, `K1-O03`, `K1-O05`, `K1-O06`): je Gate ausweisen, was
    `x86_64`-abnehmbar ist, was `arm64` verlangt und was nicht
    architekturabhängig ist, jeweils mit Beleg. Diese Klassifikation ist in
    B0c **nicht** erstellt worden und wird hier auch nicht vorweggenommen.
+
+## §10 Nachtrag: Regel R6
+
+Kein Satz der Abschnitte §1 bis §9 ist geändert. Dieser Nachtrag steht daneben.
+
+Der Trockenlauf der Guard-Aktivierung hat verweigert: der als `--expect-hash`
+veröffentlichte Wert gehörte nicht zu dem Commit, für den er veröffentlicht
+wurde. Es wurde nichts installiert. Der vollständige Befund mit allen
+Belegen liegt in
+`config/gates/history/b0c-expectation-correction.json`.
+
+Kurzfassung, jeweils mechanisch belegt:
+
+- Der veröffentlichte Wert gehört zu **keinem** Commit. Er stammt aus einem
+  nie committeten Arbeitsbaumzustand und wurde danach zweimal weitergereicht,
+  statt neu abgeleitet zu werden.
+- **Kein** B0c-Artefakt führt ihn. Null Vorkommen im getrackten Baum und im
+  gesamten Arbeitsbaum.
+- Er hat **keine** Gate- oder Abnahmeaussage getragen: kein Manifest übergibt
+  `--expect-hash`, der Aktivierungsmodus leitet den Kandidatenwert selbst ab
+  und nimmt keinen deklarierten Erwartungswert entgegen, und die committete
+  Evidenz enthält überhaupt keinen Paket-Hash. Der Gesamtstatus `pass` bleibt
+  deshalb bestehen; das ist belegt, nicht eingeschätzt. Der Fehler in der
+  veröffentlichten Anweisung bleibt davon unberührt real.
+- `package-determinism` hat es nicht gefangen, weil es das nie geprüft hat:
+  es baut zweimal aus derselben Quelle und vergleicht die beiden Ergebnisse
+  miteinander. Es fehlte eine Prüfung, dass ein veröffentlichter
+  Erwartungswert zu dem Commit gehört, für den er ausgewiesen wird.
+
+**Regel R6.** Jeder Erwartungswert einer Eigentümerhandlung muss
+reproduzierbar aus genau dem Commit und Artefakt abgeleitet sein, auf die
+sich die Handlung bezieht, und diese Ableitung gehört zur Abnahmeevidenz.
+Umgesetzt als `RC-013` mit Schärfungstest, Gegentest und vier
+Negativkontrollen; durchgesetzt von `pf-owner-expectations` und
+`of-owner-expectations`, die jeden deklarierten Wert aus dem Commitobjekt neu
+ableiten.
+
+Die committete B0c-Evidenz und das Abnahmemanifest sind **nicht** verändert
+worden.

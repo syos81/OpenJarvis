@@ -303,6 +303,21 @@
       ]
     },
     {
+      "binding_id": "governance-owner-expectations",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/owner-expectations.json",
+      "reason": "Rule R6: the declared expectation values of owner actions, each re-derived from the commit it is claimed for.",
+      "required_fields": [
+        "expectations",
+        "kind",
+        "rule",
+        "schema_version",
+        "statement"
+      ]
+    },
+    {
       "binding_id": "governance-tooling-merge",
       "expectation": "accepted",
       "kind": "structural",
@@ -440,6 +455,30 @@
         "push_status",
         "schema_version",
         "start_commit"
+      ]
+    },
+    {
+      "binding_id": "history-expectation-correction",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/b0c-expectation-correction.json",
+      "reason": "The correction note beside the B0c acceptance; the declared field set is its accepting reader.",
+      "required_fields": [
+        "concerns",
+        "corrected_expectation",
+        "finding",
+        "historical_evidence",
+        "kind",
+        "note_id",
+        "question_1_provenance",
+        "question_2_artifacts",
+        "question_3_did_it_carry_a_statement",
+        "question_4_why_no_check_caught_it",
+        "recorded_at_commit",
+        "rule",
+        "schema_version",
+        "verification_after_the_rule"
       ]
     },
     {

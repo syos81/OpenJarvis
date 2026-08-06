@@ -131,6 +131,23 @@
       "violation_set_effect_scope": "exactly the fields a declared reader accepts; every other unknown field is still rejected",
       "owner_decision": "Owner decision of 2026-08-06 establishing rule R4 after the reversed edit order locked the session out: when a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit.",
       "finding_origin": "Derived from a real finding, not from a hypothesis: adding fixture_targets to rules.json before rules.py knew the field made the repository side guard unable to decide and blocked every tool call. Fail closed worked as designed; the defect was the order."
+    },
+    {
+      "change_id": "RC-013",
+      "block_id": "b0c-governance",
+      "rule_id": "owner_expectation_derivation",
+      "kind": "sharpening",
+      "summary": "Rule R6. An expectation value handed to the owner for an owner action must be reproducibly derivable from exactly the commit and the artifact the action refers to, and that derivation belongs to the acceptance evidence. A value carried forward from an earlier derivation is not an expectation value; --expect-hash exists so the owner checks against an independently derived value, not against whatever the installer builds at that moment.",
+      "sharpening_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_value_from_another_commit_is_rejected",
+      "counter_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_correctly_derived_value_still_passes",
+      "negative_controls": [
+        "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_an_unknown_artifact_kind_is_rejected_not_skipped",
+        "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_a_commit_that_does_not_exist_is_rejected",
+        "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_an_abbreviated_commit_is_rejected",
+        "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_a_missing_declaration_is_a_failure_not_a_pass"
+      ],
+      "violation_set_effect": "grows",
+      "finding_origin": "Derived from a real finding: a guard package hash was derived once from an uncommitted worktree state, then published twice for two different commits without being derived again from either. The owner's dry run refused it. Reproduced mechanically — replacing one superseded function in the committed tree reproduces the published value exactly."
     }
   ],
   "declared_relaxations": [
@@ -182,6 +199,11 @@
       "path": "config/governance/config-loaders.json",
       "purpose": "Declared binding of every configuration file to its authoritative reader. It binds itself too; rule R4 has no exception for its own declaration.",
       "abuse_test": "tests/tooling/gates/test_config_loaders.py::TestBindingsHoldForTheWorktree::test_the_binding_document_binds_itself"
+    },
+    {
+      "path": "tests/tooling/gates/test_expectations.py",
+      "purpose": "Declared fixture for rule R6. Every repository is a fresh temporary one built from copies of the guard sources; the protected repository is never committed to, and the two synthetic commits are asserted to really differ so the sharpening test cannot pass on a tie.",
+      "abuse_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_the_two_commits_really_differ"
     }
   ]
 }

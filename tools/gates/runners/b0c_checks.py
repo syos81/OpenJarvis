@@ -12,6 +12,7 @@ Modes, one per declared check:
 ``scanner-method``      allocation and mention are told apart, on both lines
 ``fixture-rule``        the target bound release fires only where it may
 ``guard-activation``    the candidate and the active installation, reported
+``owner-expectations``  every owner expectation value re-derived from its commit
 
 Every mode is read only with one exception: ``register-model`` writes into a
 throwaway bare repository below the declared fixture root and nowhere else.
@@ -34,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tools.gates import configload  # noqa: E402
 from tools.gates import errata as errata_module  # noqa: E402
+from tools.gates import expectations as expectations_module  # noqa: E402
 from tools.gates import profiles  # noqa: E402
 from tools.gates.runners import _report  # noqa: E402
 
@@ -61,6 +63,23 @@ def mode_config_loaders(args):
     found, diagnostics = configload.check(root)
     return _emit(
         [_fail(relative, code) for relative, code in found], diagnostics
+    )
+
+
+# -- rule R6 ----------------------------------------------------------------
+
+
+def mode_owner_expectations(args):
+    """Every expectation value re-derived from the commit it is claimed for.
+
+    Not a comparison against a remembered value: each entry is rebuilt from
+    the commit object here, so a value that was carried forward from another
+    tree cannot survive this check.
+    """
+    root = Path.cwd()
+    found, diagnostics = expectations_module.check(root)
+    return _emit(
+        [_fail(identifier, code) for identifier, code in found], diagnostics
     )
 
 
@@ -450,6 +469,7 @@ MODES = {
     "errata": mode_errata,
     "fixture-rule": mode_fixture_rule,
     "guard-activation": mode_guard_activation,
+    "owner-expectations": mode_owner_expectations,
     "profile-derivation": mode_profile_derivation,
     "profile-lock": mode_profile_lock,
     "register-model": mode_register_model,

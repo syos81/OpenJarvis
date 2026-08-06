@@ -1797,6 +1797,39 @@
         "ref": "config/gates/history/b0c-commit-plan.json"
       },
       "status": "pass"
+    },
+    {
+      "feature_id": "B0C-031",
+      "required": true,
+      "description": "Rule R6: every expectation value of an owner action is re-derived from the commit and artifact the action refers to, never carried forward.",
+      "current_location": "tools/gates/expectations.py, config/governance/owner-expectations.json",
+      "verification": {
+        "type": "gate_check",
+        "ref": "of-owner-expectations"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0C-032",
+      "required": true,
+      "description": "A value derived from another tree than the declared commit is rejected, and a correctly derived one still passes.",
+      "current_location": "tools/gates/expectations.py",
+      "verification": {
+        "type": "test",
+        "ref": "tests/tooling/gates/test_expectations.py::TestTheRule"
+      },
+      "status": "pass"
+    },
+    {
+      "feature_id": "B0C-033",
+      "required": true,
+      "description": "The derivation of every owner expectation value is part of the acceptance evidence, not of a message.",
+      "current_location": "config/governance/owner-expectations.json",
+      "verification": {
+        "type": "file",
+        "ref": "config/governance/owner-expectations.json"
+      },
+      "status": "pass"
     }
   ]
 }

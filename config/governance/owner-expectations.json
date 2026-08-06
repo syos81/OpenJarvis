@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "kind": "owner_expectation_values",
+  "rule": "R6",
+  "statement": "Every expectation value handed to the owner for an owner action is reproducibly derivable from exactly the commit and the artifact the action refers to. The derivation belongs to the acceptance evidence. A value that is merely repeated from an earlier derivation is not an expectation value.",
+  "expectations": [
+    {
+      "expectation_id": "EXP-001-guard-package-b0c-acceptance",
+      "owner_action": "guard activation via scripts/guard-install.sh",
+      "artifact": "guard_runtime_package",
+      "commit": "a4a6e7f1154d539eb1281868a48f41d3de4926cd",
+      "value": "249743e9a9eecaebe403abaa92b1783179ac9c7ffd9e57c70d310881859a2d7b",
+      "derivation": "git archive <commit> is unpacked into a scratch tree and tools/guardpkg/build.py --source <tree> is run against it; the reported package_sha256 is the value. Built from the commit object, never from a worktree.",
+      "published_at_commit": "a4a6e7f1154d539eb1281868a48f41d3de4926cd"
+    }
+  ]
+}

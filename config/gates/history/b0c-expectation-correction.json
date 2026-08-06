@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "kind": "correction_note",
+  "note_id": "COR-B0C-002",
+  "concerns": {
+    "block_id": "b0c-governance",
+    "artifact": "the guard activation command published to the owner",
+    "acceptance_commit": "a4a6e7f1154d539eb1281868a48f41d3de4926cd"
+  },
+  "finding": "The package hash published as the --expect-hash value for the guard activation did not belong to the commit it was published for. The owner's dry run refused it and installed nothing, which is exactly what --expect-hash is for.",
+  "question_1_provenance": {
+    "published_value": "953a0c5df422d524570591721e0668f931c28285e70aaeb61d8a04cf9684ea86",
+    "belongs_to_commit": null,
+    "belongs_to": "an uncommitted worktree state: the HEAD tree with the superseded longest-prefix version of _root_prefix in tools/guard/fixture.py, which existed for a few minutes before the symlink defect in it was fixed and was never committed.",
+    "proof": "Replacing that one function in the committed HEAD tree and rebuilding reproduces the published value exactly.",
+    "installer_value": "249743e9a9eecaebe403abaa92b1783179ac9c7ffd9e57c70d310881859a2d7b",
+    "installer_value_belongs_to": "every commit of the B0c range: tools/guard changed only in the first of them and not afterwards, so the package digest is identical for 6feb7ce through a4a6e7f.",
+    "carried_forward": true,
+    "carried_forward_detail": "The same value was published for 87ca814 and again for a4a6e7f. It was derived once, before either commit existed, and never re-derived from either. That is the defect: not a wrong calculation, but a value that was repeated instead of derived."
+  },
+  "question_2_artifacts": {
+    "any_b0c_artifact_carries_the_published_value": false,
+    "method": "Search for the value across the tracked tree at HEAD and across the whole worktree including untracked files.",
+    "occurrences": 0,
+    "acceptance_record_guard_activation_package_sha256": "fe89c98b37cbf471e425b2123a05ce34378017590f77690edc7c76c9c1bd50c7",
+    "that_value_is": "the package of the guard installation that is actually active (1.1.0), read from active.json. It is correct and unrelated to the published candidate value; the acceptance record carries no candidate hash field at all."
+  },
+  "question_3_did_it_carry_a_statement": {
+    "verdict": "no",
+    "b0c_status_revised": false,
+    "b0c_status_stands": "pass",
+    "mechanical_evidence": [
+      "No block manifest passes --expect-hash or --expect-version; the search over config/gates/blocks returns nothing.",
+      "The guard-activation gate mode builds the candidate package itself at run time and compares it against active.json. It accepts no declared expectation value, so no gate could consume the published one.",
+      "The committed B0c evidence contains no package hash at all; the only digests in it are raw log digests.",
+      "The published value occurs in no artifact of the block."
+    ],
+    "where_it_did_appear": "Only in the message to the owner. It was an instruction, not an artifact, and no gate result or acceptance statement rests on it.",
+    "why_this_is_not_an_excuse": "The instruction is still an output of the block, and it was wrong. What the evidence establishes is narrower and is stated narrowly: the machine status is not affected. The defect in the published instruction is real and is the reason for rule R6."
+  },
+  "question_4_why_no_check_caught_it": {
+    "check": "package-determinism",
+    "verdict": "not_its_task",
+    "what_it_does": "It builds the package twice from the same source and compares the two digests to each other. That establishes reproducibility of one source state.",
+    "what_it_never_did": "It never relates a digest to a commit. A value derived from any source is reproducible in that sense, including one derived from an uncommitted worktree.",
+    "is_it_a_hole": false,
+    "missing_check": "There was no check that a published expectation value belongs to the commit it is claimed for. That check did not exist and now does."
+  },
+  "rule": {
+    "rule_id": "R6",
+    "statement": "Every expectation value of an owner action must be reproducibly derivable from exactly the commit and the artifact the action refers to, and that derivation belongs to the acceptance evidence.",
+    "engine": "tools/gates/expectations.py",
+    "declaration": "config/governance/owner-expectations.json",
+    "gate_checks": [
+      "pf-owner-expectations",
+      "of-owner-expectations"
+    ],
+    "rule_change": "RC-013",
+    "sharpening_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_value_from_another_commit_is_rejected",
+    "counter_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_correctly_derived_value_still_passes"
+  },
+  "corrected_expectation": {
+    "commit": "a4a6e7f1154d539eb1281868a48f41d3de4926cd",
+    "artifact": "guard_runtime_package",
+    "value": "249743e9a9eecaebe403abaa92b1783179ac9c7ffd9e57c70d310881859a2d7b",
+    "derivation": "git archive <commit> unpacked into a scratch tree; tools/guardpkg/build.py --source <tree>; the reported package_sha256 is the value. Built from the commit object, never from a worktree.",
+    "re_derived_by_gate": "of-owner-expectations"
+  },
+  "historical_evidence": {
+    "rewritten": false,
+    "statement": "The committed B0c evidence and the B0c acceptance record are not edited. Their bytes and their digests stay exactly as they are. This is a note beside them, the same procedure as the erratum to the frozen baseline."
+  },
+  "verification_after_the_rule": {
+    "note": "A fresh run against the amended state. It does not replace the committed acceptance evidence of B0c, which stays bound to the acceptance commit.",
+    "phases": {
+      "preflight": {
+        "status": "pass",
+        "checks": 12
+      },
+      "targeted": {
+        "status": "pass",
+        "checks": 14
+      },
+      "offline-final": {
+        "status": "pass",
+        "checks": 31
+      },
+      "platform-live": {
+        "status": "pass",
+        "checks": 5
+      },
+      "module-final": {
+        "status": "pass",
+        "checks": 4
+      }
+    }
+  },
+  "recorded_at_commit": "a4a6e7f1154d539eb1281868a48f41d3de4926cd"
+}

@@ -47,6 +47,7 @@
       "tg-fixture-rule",
       "tg-governance-tests",
       "tg-not-applicable-review",
+      "tg-owner-expectations",
       "tg-pii-tests",
       "tg-profile-derivation",
       "tg-profile-lock",
@@ -216,6 +217,26 @@
       },
       "parser": "gate_json",
       "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-owner-expectations",
+      "phase": "preflight",
+      "required": true,
+      "description": "Every expectation value handed to the owner belongs to the commit it is claimed for.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
       "baseline_eligible": false,
       "evidence_profile": "tooling"
     },
@@ -474,6 +495,26 @@
       },
       "parser": "gate_json",
       "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "tg-owner-expectations",
+      "phase": "targeted",
+      "required": true,
+      "description": "Every owner expectation value is re-derived from the commit it is claimed for (rule R6).",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
       "baseline_eligible": false,
       "evidence_profile": "tooling"
     },
@@ -916,6 +957,26 @@
       },
       "parser": "gate_json",
       "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-owner-expectations",
+      "phase": "offline-final",
+      "required": true,
+      "description": "Every owner expectation value is re-derived from the commit it is claimed for (rule R6).",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
       "baseline_eligible": false,
       "evidence_profile": "tooling"
     },
@@ -1411,7 +1472,7 @@
   },
   "feature_lineage": {
     "lineage_file": "config/gates/features/b0c-governance.lineage.json",
-    "own_expected": 30,
+    "own_expected": 33,
     "own_prefix": "B0C-",
     "predecessor_file": "config/gates/features/b0b-calendar-k1.lineage.json"
   },
