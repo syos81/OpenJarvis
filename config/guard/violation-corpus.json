@@ -273,6 +273,36 @@
       "command": "ls -la src",
       "expected_code": null,
       "previously_detected": false
+    },
+    {
+      "entry_id": "fixture-origin-by-name",
+      "command": "git push origin refs/governance/dec-reservations",
+      "expected_code": "git_push",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "fixture-alias-onto-origin",
+      "command": "git push mirror refs/governance/dec-reservations",
+      "expected_code": "git_push",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "fixture-parent-reference",
+      "command": "git push .gate-runtime/fixtures/git/../../../elsewhere.git HEAD:refs/governance/dec-reservations",
+      "expected_code": "git_push",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "fixture-update-ref-without-repository",
+      "command": "git update-ref refs/governance/dec-reservations HEAD",
+      "expected_code": "git_update_ref",
+      "previously_detected": true
+    },
+    {
+      "entry_id": "fixture-second-segment",
+      "command": "git push .gate-runtime/fixtures/git/throwaway.git HEAD:refs/governance/dec-reservations; git push origin main",
+      "expected_code": "git_push",
+      "previously_detected": true
     }
   ]
 }

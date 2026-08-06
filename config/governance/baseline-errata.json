@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "kind": "frozen_document_errata",
+  "statement": "A frozen document is never edited. Its wording, its bytes and its digest stay exactly as they are. When it cites a reference that does not exist, the citation stays and an erratum resolves it. An erratum never rewrites history and never replaces a document.",
+  "errata": [
+    {
+      "erratum_id": "ERR-001-calendar-baseline-register-20",
+      "affected_document": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
+      "affected_document_sha256": "1154d0a5de423969e16a59f99149ccf41a715564dc58c8cd7f4210bc00839682",
+      "citing_section": "## §5 Ablöseplan `gcalendar.py`",
+      "invalid_reference": "Register 20 §5",
+      "reason": "Die zitierte Registerstelle existiert nicht. Die Dokumentreihe docs/personal-jarvis/ endet bei 19; ein Dokument 20 gibt es nicht. Die im selben Zitat genannte Kennung Z-1 ist im gesamten Repository ausschliesslich an dieser einen Stelle belegt und nirgends definiert. Das Kriterium selbst wird von den unten genannten, real existierenden verbindlichen Quellen getragen; erfunden wird nichts.",
+      "replacement_anchors": [
+        {
+          "path": "docs/personal-jarvis/06-data-ownership-and-storage-register.md",
+          "section": "§1 Kanonizität",
+          "quote_anchor": "ausschließlich abgeleitet"
+        },
+        {
+          "path": "docs/personal-jarvis/06-data-ownership-and-storage-register.md",
+          "section": "§2 Speicher-Register (verbindlich)",
+          "quote_anchor": "Personal-Suchindex"
+        },
+        {
+          "path": "docs/personal-jarvis/11-sync-outboxes-events-and-conflicts.md",
+          "section": "DomainEvent-Dispatcher",
+          "quote_anchor": "Suchindex-Aktualisierung"
+        },
+        {
+          "path": "docs/personal-jarvis/01-architecture-constitution.md",
+          "section": "AV-16",
+          "quote_anchor": "Memory und Suchindizes sind ausschließlich abgeleitet"
+        }
+      ],
+      "recorded_at_utc": "2026-08-06T15:03:59Z",
+      "source_commit": "06b7d7e3740325a12c4b1a2c41d3192e4f696c14"
+    }
+  ]
+}

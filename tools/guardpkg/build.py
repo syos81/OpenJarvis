@@ -39,6 +39,7 @@ PACKAGE_MEMBERS = (
     "decide.py",
     "entry.py",
     "errors.py",
+    "fixture.py",
     "owner_exception.py",
     "rules.json",
     "rules.py",

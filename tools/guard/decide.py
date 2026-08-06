@@ -7,6 +7,10 @@ Layers, in this order. A later layer can never overrule an earlier one:
 1. **hard denies** — argument based, with a raw text backstop.
 2. **owner exception** — consulted only for a layer 1 deny, only for the
    exact canonicalised command, only once.
+2a. **target bound fixture rule** — consulted only for an eligible layer 1
+   deny, and only released when the target fully resolves into a throwaway
+   bare repository below the declared fixture root. Unlike an exception it
+   needs no present owner, which is why a gate may depend on it.
 3. **worktree protection** — a mutating target that canonicalises into a
    different worktree of the same repository escalates to ``ask``.
 4. **normal work** — a mutating target inside the current worktree is
@@ -23,6 +27,7 @@ import subprocess
 from pathlib import Path
 
 from . import errors
+from . import fixture
 from . import owner_exception
 from . import rules as rules_module
 
@@ -235,6 +240,25 @@ def decide(payload, context):
         command = str(tool_input.get("command", ""))
         code, layer = rules_module.evaluate_command(rules, command, cwd=cwd)
         if code:
+            verdict = fixture.evaluate(
+                rules,
+                code,
+                command,
+                cwd,
+                lambda args, where: _run_git(context, args, where),
+            )
+            if verdict.granted:
+                return Decision(
+                    DECISION_ALLOW,
+                    errors.ALLOW_FIXTURE_TARGET,
+                    detection_layer="fixture",
+                    tool=tool_name,
+                    command_digest=owner_exception.command_digest(command),
+                    request_excerpt=command,
+                    worktree_id=_safe_worktree_id(cwd),
+                    local_original_target=command,
+                    local_canonical_target=verdict.local_target,
+                )
             outcome = _consult_exception(context, cwd, command)
             if outcome is not None and outcome.granted:
                 return Decision(

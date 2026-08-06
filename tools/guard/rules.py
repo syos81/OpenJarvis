@@ -92,6 +92,7 @@ class RuleSet:
         "backstops",
         "alias_resolution",
         "exception_policy",
+        "fixture_targets",
         "reason_text",
     )
 
@@ -108,6 +109,10 @@ class RuleSet:
         ]
         self.alias_resolution = dict(raw["alias_resolution"])
         self.exception_policy = dict(raw["exception_policy"])
+        # Optional by design. An absent block means no fixture release at
+        # all, which is the fail closed default; a present block is fully
+        # validated by ``fixture.configuration``.
+        self.fixture_targets = dict(raw.get("fixture_targets") or {})
         self.reason_text = dict(raw["reason_text"])
 
     def codes(self):
@@ -143,6 +148,12 @@ _REQUIRED_CONFIG_FIELDS = (
     "wrappers",
 )
 
+#: Fields the loader accepts but does not require. Rule R4: the accepting
+#: reader is effective before the data exists, never after it.
+_OPTIONAL_CONFIG_FIELDS = (
+    "fixture_targets",
+)
+
 
 def load_rules(path):
     """Load and validate ``rules.json``. Raises :class:`ConfigError`."""
@@ -157,7 +168,7 @@ def load_rules(path):
     missing = sorted(set(_REQUIRED_CONFIG_FIELDS) - set(raw))
     if missing:
         raise ConfigError("rules_missing_fields:" + ",".join(missing))
-    unknown = sorted(set(raw) - set(_REQUIRED_CONFIG_FIELDS))
+    unknown = sorted(set(raw) - set(_REQUIRED_CONFIG_FIELDS) - set(_OPTIONAL_CONFIG_FIELDS))
     if unknown:
         raise ConfigError("rules_unknown_fields:" + ",".join(unknown))
     if raw.get("config_schema") != CONFIG_SCHEMA:

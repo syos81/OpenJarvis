@@ -133,5 +133,29 @@
         "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation"
       }
     ]
+  },
+  "fail_closed_operating_property": {
+    "value": "invalid_configuration_locks_the_session_out_entirely",
+    "statement": "The guard is fail closed without exception. A guard configuration its own loader cannot accept therefore does not degrade into a weaker decision, it produces no decision at all, and every tool call of the guarded session is blocked — including reads. The session cannot repair this, because repairing it would require the very tools that are blocked. Only the owner restores it.",
+    "is_a_defect": false,
+    "reason_not_a_defect": "Blocking on an unusable rule set is the intended reading of fail closed. The alternative — deciding while the rule set is unknown — would be the defect. This property is documented for the same reason as requires_interactive_owner_authentication: it is stated plainly rather than softened.",
+    "observed": {
+      "block_id": "b0c-governance",
+      "date_utc": "2026-08-06",
+      "trigger": "A new field was written into the rule configuration before its loader accepted the field. The loader rejects unknown fields, so the repository side guard could not build a decision.",
+      "reason_code": "GUARD_BOOTSTRAP_FAILED",
+      "classification": "finding",
+      "not_classified_as": "incident",
+      "recovery": "owner action: restore the configuration file from the committed state",
+      "recovery_is_owner_only": true
+    },
+    "mitigation": {
+      "rule": "R4",
+      "statement": "When a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit. No configuration file may carry a field its declared loader does not yet accept.",
+      "enforced_by": "config/governance/config-loaders.json",
+      "engine": "tools/gates/configload.py",
+      "does_not_remove_the_property": true,
+      "note": "R4 removes the most likely cause. It does not remove the property itself: any unusable configuration still blocks, and that is intended."
+    }
   }
 }

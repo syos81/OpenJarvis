@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "kind": "commit_plan",
+  "block_id": "b0c-governance",
+  "start_commit": "06b7d7e3740325a12c4b1a2c41d3192e4f696c14",
+  "planned_commits": [
+    {
+      "position": 1,
+      "purpose": "purely normative: rule R4 with its general enforcement, and the target bound fixture rule for push and update-ref",
+      "message": "feat(guard): bind configuration to its reader and add the target bound fixture rule"
+    },
+    {
+      "position": 2,
+      "purpose": "purely normative: the decision number reservation register tool and the corrected allocation scanner",
+      "message": "feat(governance): add the decision number reservation register tool"
+    },
+    {
+      "position": 3,
+      "purpose": "purely normative: the acceptance profile derivation computed from the manifests, and the permanent lock of the never defined labels",
+      "message": "feat(gates): derive the acceptance profile result from the block manifests"
+    },
+    {
+      "position": 4,
+      "purpose": "purely normative: the B0c block manifest and its gate runner for all five phases",
+      "message": "feat(gates): add the b0c block manifest and its runner"
+    },
+    {
+      "position": 5,
+      "purpose": "purely determinative: gate run, sanitised evidence, correction note, handoff",
+      "message": "test(governance): finalize b0c evidence and handoff"
+    }
+  ],
+  "max_commits": 5,
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "automatic push"
+  ],
+  "push_status": "not_performed_owner_action",
+  "split_justification": {
+    "declared_in_advance": true,
+    "decided_by": "owner",
+    "separation": "normative and determinative stay in separate commits; positions 1 to 4 are normative, position 5 is determinative",
+    "reason": "The owner permitted splitting the normative part across several commits after a context break left finished work uncommitted. Each position is coherent on its own and is committed only when its own tests and the affected gate modes are green, so no position depends on a later one to be correct.",
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates",
+      "the full tooling test suite passes",
+      "the configuration loader binding check passes",
+      "no position leaves the guard in a state where it cannot decide"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified."
+  },
+  "guard_package_affected": {
+    "value": true,
+    "reason": "The runtime package gains tools/guard/fixture.py and the guard version moves to 1.2.0, so the package content and its digest change.",
+    "owner_activation_required": true,
+    "activation_point": "owner decision, outside this block; no gate of this block depends on the activation"
+  }
+}

@@ -59,6 +59,7 @@ DENY_HIDDEN_FORBIDDEN_PATTERN = "DENY_HIDDEN_FORBIDDEN_PATTERN"
 ASK_FOREIGN_WORKTREE = "ASK_FOREIGN_WORKTREE"
 ASK_AMBIGUOUS_TARGET = "ASK_AMBIGUOUS_TARGET"
 DENY_WORKTREE_UNDETERMINED = "DENY_WORKTREE_UNDETERMINED"
+ALLOW_FIXTURE_TARGET = "fixture_target_release"
 
 #: Short, non-secret sentences. No path, no nonce, no command text.
 MESSAGES = {
@@ -91,6 +92,10 @@ MESSAGES = {
     ),
     DENY_WORKTREE_UNDETERMINED: (
         "mutating request in an undeterminable repository state"
+    ),
+    ALLOW_FIXTURE_TARGET: (
+        "released by the target bound rule: a throwaway bare repository "
+        "below the declared fixture root"
     ),
 }
 

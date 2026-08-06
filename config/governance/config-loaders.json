@@ -1,0 +1,526 @@
+{
+  "bindings": [
+    {
+      "binding_id": "baseline-errata",
+      "call_style": "root_relative",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.errata:load_document",
+      "pattern": "config/governance/baseline-errata.json",
+      "reason": "The errata document has a real reader that validates the envelope and every erratum, including the digest binding to the frozen document."
+    },
+    {
+      "binding_id": "block-manifest",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.manifest:load",
+      "pattern": "config/gates/blocks/*.json",
+      "reason": "Block manifests are validated by the manifest engine, which is the only reader that decides phases, checks and results."
+    },
+    {
+      "binding_id": "config-loader-bindings",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/config-loaders.json",
+      "reason": "The binding document declares its own reader too. R4 has no exception for itself.",
+      "required_fields": [
+        "bindings",
+        "coverage_roots",
+        "kind",
+        "rule",
+        "schema_version",
+        "statement"
+      ]
+    },
+    {
+      "binding_id": "feature-lineage",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/features/*.lineage.json",
+      "reason": "Feature lineage documents. The field set is the reader for the completeness comparison against the immediate predecessor.",
+      "required_fields": [
+        "artifact_id",
+        "artifact_version",
+        "features",
+        "predecessor_artifact_id",
+        "predecessor_feature_list_sha256",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "feature-predecessor",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/features/*.predecessor.json",
+      "reason": "Predecessor feature list. Same reader family as the lineage, without the lineage binding fields.",
+      "required_fields": [
+        "artifact_id",
+        "artifact_version",
+        "features"
+      ]
+    },
+    {
+      "binding_id": "gate-evidence",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/evidence/**/*.json",
+      "reason": "Committed, PII checked snapshots of historical gate evidence. The declared field set is the accepting reader; the evidence itself is never re-executed.",
+      "required_fields": [
+        "baseline_commit",
+        "block",
+        "cache_state",
+        "cause_signature_digest",
+        "check_ids",
+        "commit",
+        "engine_version",
+        "finished_at",
+        "manifest_digest",
+        "phase",
+        "platform_class",
+        "raw_log_sha256",
+        "reason_codes",
+        "run_id",
+        "schema_version",
+        "started_at",
+        "status"
+      ]
+    },
+    {
+      "binding_id": "generality-contract",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/generality-fixtures/contract.json",
+      "reason": "The generality contract fixture.",
+      "required_fields": [
+        "activation_source",
+        "contract_id",
+        "fixtures",
+        "mechanism_test",
+        "must_not_require",
+        "must_prove",
+        "note",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "generality-organization",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/generality-fixtures/organization-*.json",
+      "reason": "Synthetic organization fixtures. Every value is invented; no real organization enters a schema.",
+      "required_fields": [
+        "fixture_id",
+        "note",
+        "organization",
+        "process_types",
+        "roles",
+        "schema_version",
+        "synthetic"
+      ]
+    },
+    {
+      "binding_id": "governance-ambient-placeholder",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/ambient-placeholder.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "forbidden",
+        "note",
+        "placeholder",
+        "placeholder_id",
+        "required_locations",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "governance-b0a-3-id-migration",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/b0a-3-id-migration.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "canonical_ids_unchanged",
+        "guard_base",
+        "lines",
+        "mappings",
+        "migration_id",
+        "note",
+        "owner_determination",
+        "schema_version",
+        "target_id_precheck"
+      ]
+    },
+    {
+      "binding_id": "governance-decision-citations",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/decision-citations.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "citation_format",
+        "citations",
+        "lines",
+        "placeholder",
+        "registry_id",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "governance-decision-collisions",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/decision-collisions.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "canonical_ids_unchanged",
+        "guard_base",
+        "historical_resolution",
+        "lines",
+        "normative_source",
+        "open_collisions",
+        "registry_id",
+        "resolved_in_block",
+        "rules",
+        "schema_version",
+        "status"
+      ]
+    },
+    {
+      "binding_id": "governance-delivery-order",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/delivery-order.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "after_position_4",
+        "ambient_placeholder",
+        "canonical",
+        "elements",
+        "forbidden_order_sources",
+        "not_assigned_to_tooling_merge",
+        "schema_version",
+        "source_id"
+      ]
+    },
+    {
+      "binding_id": "governance-generality-scope",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/generality-scope.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "config_id",
+        "core_paths",
+        "declared_identifiers",
+        "exceptions",
+        "organization_terms",
+        "process_activation",
+        "provider_allowed_paths",
+        "provider_terms",
+        "scan_scope",
+        "schema_version",
+        "sensitive_identifiers"
+      ]
+    },
+    {
+      "binding_id": "governance-guard-trust-model",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/guard-trust-model.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "applies_to",
+        "canonical",
+        "claim_lint",
+        "description",
+        "evidence_use_limit",
+        "fail_closed_operating_property",
+        "log_integrity_limit",
+        "model_id",
+        "not_protected_against",
+        "owner_authentication_boundary",
+        "permitted_claims",
+        "prohibited_claims",
+        "protected_against",
+        "purpose",
+        "schema_version",
+        "trust_roots"
+      ]
+    },
+    {
+      "binding_id": "governance-normative-sources",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/normative-sources.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "collision_and_mapping",
+        "historical_non_normative",
+        "historical_resolution_records",
+        "mechanism_files",
+        "registry_id",
+        "rule",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "governance-tooling-merge",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/tooling-merge.json",
+      "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
+      "required_fields": [
+        "allowed_paths",
+        "assigned_decisions",
+        "direction",
+        "executes_merge",
+        "forbidden_actions",
+        "forbidden_paths",
+        "forbidden_suffixes",
+        "inherited_blocks",
+        "not_assigned_decisions",
+        "note",
+        "policy_id",
+        "required_module_final_blocks",
+        "schema_version",
+        "source_ref",
+        "target_ref"
+      ]
+    },
+    {
+      "binding_id": "guard-history-matrix",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/guard/history-rewrite-matrix.json",
+      "reason": "The history rewrite matrix with its blocked and open findings.",
+      "required_fields": [
+        "block_id",
+        "categories",
+        "description",
+        "operations",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "guard-rule-changes",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/guard/rule-changes.json",
+      "reason": "The declared rule changes with their mandatory pair of tests, and the declared fixtures.",
+      "required_fields": [
+        "block_id",
+        "changes",
+        "declared_relaxations",
+        "description",
+        "fixtures",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "guard-rules",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.guard.rules:load_rules",
+      "pattern": "tools/guard/rules.json",
+      "reason": "The guard rule set has a real loader that rejects both missing and unknown fields. It is the trust anchor, so its reader is authoritative."
+    },
+    {
+      "binding_id": "guard-violation-corpus",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/guard/violation-corpus.json",
+      "reason": "The declared violation corpus. Evaluated, never executed.",
+      "required_fields": [
+        "baseline_rule_set",
+        "block_id",
+        "description",
+        "entries",
+        "schema_version"
+      ]
+    },
+    {
+      "binding_id": "history-acceptance",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [
+        "documented_limitations",
+        "guard_activation"
+      ],
+      "pattern": "config/gates/history/*.acceptance.json",
+      "reason": "Historical acceptance records. Frozen data with a fixed field set.",
+      "required_fields": [
+        "acceptance_commit",
+        "assertion",
+        "block_id",
+        "committed_artifacts",
+        "environment",
+        "evidence_binding_note",
+        "external_inputs",
+        "feature_schema_version",
+        "gate_engine_version",
+        "immutable_refs",
+        "kind",
+        "manifest_schema_version",
+        "own_feature_count",
+        "own_feature_prefix",
+        "reexecution_policy",
+        "runtime_evidence",
+        "schema_version",
+        "title"
+      ]
+    },
+    {
+      "binding_id": "history-commit-plan",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [
+        "base_commit_binding",
+        "guard_package_affected",
+        "plan_change",
+        "plan_deviation",
+        "scope_decision",
+        "split_justification",
+        "third_binding_commit_rationale",
+        "third_binding_commit_required"
+      ],
+      "pattern": "config/gates/history/*-commit-plan.json",
+      "reason": "Commit plans of finished blocks. Frozen data with a fixed field set.",
+      "required_fields": [
+        "block_id",
+        "forbidden_operations",
+        "kind",
+        "max_commits",
+        "planned_commits",
+        "push_status",
+        "schema_version",
+        "start_commit"
+      ]
+    },
+    {
+      "binding_id": "history-r3-review",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/r3-not-applicable-review.json",
+      "reason": "The R3 review record. One document, one field set.",
+      "required_fields": [
+        "examined_and_cleared",
+        "findings",
+        "kind",
+        "result",
+        "rule",
+        "schema_version",
+        "scope",
+        "statement"
+      ]
+    },
+    {
+      "binding_id": "k1-definition",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/k1/calendar-k1-definition.json",
+      "reason": "The K1 gate definition, including the gate anchoring the errata layer resolves against.",
+      "required_fields": [
+        "classification_schemes_not_used",
+        "definition_id",
+        "derivation",
+        "derived_from",
+        "execution_classes",
+        "gate_anchoring",
+        "gates",
+        "invariant_conflict",
+        "kind",
+        "parity_contract_split",
+        "removed_from_k1",
+        "schema_version",
+        "separate_write_decision",
+        "stage_binding",
+        "stage_name"
+      ]
+    },
+    {
+      "binding_id": "k1-start-matrix",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/k1/calendar-k1-start-matrix.json",
+      "reason": "The K1 start matrix. Frozen data with a fixed field set.",
+      "required_fields": [
+        "canonical_sources",
+        "counts",
+        "gates",
+        "kind",
+        "matrix_id",
+        "notes",
+        "schema_version",
+        "start_commit"
+      ]
+    },
+    {
+      "binding_id": "manifest-fixture-invalid",
+      "call_style": "path",
+      "expectation": "rejected",
+      "kind": "callable",
+      "loader": "tools.gates.manifest:load",
+      "pattern": "config/gates/fixtures/manifests/invalid/*.json",
+      "reason": "Declared fixture: a manifest the engine must reject. A loader that accepts one of these is broken, so the expectation is inverted on purpose."
+    },
+    {
+      "binding_id": "manifest-fixture-valid",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.manifest:load",
+      "pattern": "config/gates/fixtures/manifests/valid/*.json",
+      "reason": "Declared fixture: a manifest the engine must accept."
+    },
+    {
+      "binding_id": "preservation-manifest",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/preservation/*.json",
+      "reason": "Preservation manifests for the line independent invariants.",
+      "required_fields": [
+        "description",
+        "feature_preservation",
+        "forbidden_inputs",
+        "invariants",
+        "kind",
+        "line_independent",
+        "manifest_id",
+        "schema_version"
+      ]
+    }
+  ],
+  "coverage_roots": [
+    "config",
+    "tools/guard"
+  ],
+  "kind": "configuration_loader_binding",
+  "rule": "R4",
+  "schema_version": 1,
+  "statement": "Schema before data. When a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit. No configuration file may carry a field its declared loader does not yet accept. Every configuration file below a coverage root is bound to exactly one reader, and every gate loads it with that reader; a failure fails the block."
+}

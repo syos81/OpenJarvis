@@ -92,9 +92,66 @@
       "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_every_anchor_resolves",
       "counter_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_a_dangling_anchor_is_still_detected",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-011",
+      "block_id": "b0c-governance",
+      "rule_id": "target_bound_fixture_release",
+      "kind": "relaxation",
+      "summary": "push and update-ref gain a target bound release. It fires only when the target fully resolves into a throwaway bare repository below a strictly canonicalised, declared fixture root. The real origin, every protected ref, a remote alias resolving onto a protected remote, a symlink that redirects and a parent reference all stay blocked. Unlike an owner exception the release needs no present owner, which is what makes a gate that depends on it reproducible.",
+      "sharpening_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureRelease::test_push_into_a_declared_fixture_is_released",
+      "counter_test": "tests/tooling/guard/test_fixture_rule.py::TestCounterControl::test_push_to_the_real_origin_is_still_blocked",
+      "negative_controls": [
+        "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_symlink_escape_out_of_the_fixture_root_is_blocked",
+        "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_a_parent_reference_path_is_blocked",
+        "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_a_fixture_path_pointing_at_the_real_repository_is_blocked",
+        "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_a_remote_alias_resolving_onto_origin_is_blocked"
+      ],
+      "violation_set_effect": "shrinks",
+      "violation_set_effect_scope": "inside the declared fixture root only; at layer 1 the recognised violation set is unchanged, and every corpus entry stays blocked",
+      "owner_decision": "Owner decision of 2026-08-06: no guard exception but a target bound rule. An exception needs sudo and expires after 600 seconds; a gate whose run presupposes a present person is not a reproducible gate, and offline-final has to run without the owner.",
+      "activation_status": "candidate_not_active",
+      "activation_note": "The active installation stays at guard 1.1.0. This change is effective for the guarded session only after the owner reinstalls; no gate depends on that activation."
+    },
+    {
+      "change_id": "RC-012",
+      "block_id": "b0c-governance",
+      "rule_id": "rules_unknown_fields",
+      "kind": "relaxation",
+      "summary": "Rule R4, schema before data. The rule loader gains a declared set of optional fields, so a configuration format can be extended only after its accepting reader knows the field. An undeclared field is still rejected. Enforced generally by a binding of every configuration file to its authoritative reader; a file no reader accepts fails the block.",
+      "sharpening_test": "tests/tooling/gates/test_config_loaders.py::TestLoaderAcceptsWhatIsDeclared::test_a_declared_optional_field_is_accepted",
+      "counter_test": "tests/tooling/gates/test_config_loaders.py::TestLoaderAcceptsWhatIsDeclared::test_an_undeclared_field_is_still_rejected",
+      "negative_controls": [
+        "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_field_the_declared_reader_does_not_accept_fails",
+        "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_configuration_file_without_a_binding_fails",
+        "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_binding_that_matches_nothing_fails",
+        "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_real_loader_rejection_fails_the_check"
+      ],
+      "violation_set_effect": "shrinks",
+      "violation_set_effect_scope": "exactly the fields a declared reader accepts; every other unknown field is still rejected",
+      "owner_decision": "Owner decision of 2026-08-06 establishing rule R4 after the reversed edit order locked the session out: when a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit.",
+      "finding_origin": "Derived from a real finding, not from a hypothesis: adding fixture_targets to rules.json before rules.py knew the field made the repository side guard unable to decide and blocked every tool call. Fail closed worked as designed; the defect was the order."
     }
   ],
-  "declared_relaxations": [],
+  "declared_relaxations": [
+    {
+      "relaxation_id": "REL-001",
+      "change_id": "RC-011",
+      "scope": "The declared fixture root .gate-runtime/fixtures/git of the current worktree, and only a throwaway bare repository below it.",
+      "still_blocked": [
+        "the real origin, by name and through any remote alias that resolves onto it",
+        "every declared protected ref, wherever it is pushed",
+        "a target that leaves the fixture root through a symlink",
+        "a target addressed through a symlink inside the fixture root",
+        "a path carrying a parent reference",
+        "a target that is not a bare repository",
+        "a target that is, contains or lies inside the protected repository",
+        "any command that is not a single unelevated segment without options"
+      ],
+      "owner_decision": "Owner decision of 2026-08-06. The two test rule forbids shrinking the violation set only outside declared fixtures; this relaxation lies inside one and is covered by that rule.",
+      "abuse_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureDiscipline::test_no_repository_is_ever_created_inside_the_protected_repository"
+    }
+  ],
   "fixtures": [
     {
       "path": "config/guard/violation-corpus.json",
@@ -115,6 +172,16 @@
       "path": "config/gates/evidence",
       "purpose": "Committed, PII checked snapshots of the historical gate evidence. They are data, never re-executed, and bound by hash.",
       "abuse_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_evidence_is_bound_to_a_committed_snapshot"
+    },
+    {
+      "path": "tests/tooling/guard/test_fixture_rule.py",
+      "purpose": "Declared fixture for the target bound release. Every repository lives below a fresh temporary directory; none is ever created inside the protected repository, and the declared root stays relative and below the gitignored runtime area.",
+      "abuse_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureDiscipline::test_no_repository_is_ever_created_inside_the_protected_repository"
+    },
+    {
+      "path": "config/governance/config-loaders.json",
+      "purpose": "Declared binding of every configuration file to its authoritative reader. It binds itself too; rule R4 has no exception for its own declaration.",
+      "abuse_test": "tests/tooling/gates/test_config_loaders.py::TestBindingsHoldForTheWorktree::test_the_binding_document_binds_itself"
     }
   ]
 }

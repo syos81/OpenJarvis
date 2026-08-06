@@ -188,6 +188,21 @@
     "nonce_hex_length": 32,
     "reason_min_length": 8
   },
+  "fixture_targets": {
+    "enabled": true,
+    "eligible_codes": ["git_push", "git_update_ref"],
+    "declared_roots": [".gate-runtime/fixtures/git"],
+    "protected_remote_names": ["origin"],
+    "protected_ref_patterns": [
+      "HEAD",
+      "refs/heads/main",
+      "refs/heads/master",
+      "refs/heads/jarvis/*",
+      "refs/remotes/*",
+      "refs/stash",
+      "refs/tags/*"
+    ]
+  },
   "reason_text": {
     "env_file_access": "Hard deny: .env files are never read by tooling.",
     "git_branch_force": "Hard deny: forcibly moving a branch is not permitted.",
