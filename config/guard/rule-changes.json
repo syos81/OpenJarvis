@@ -83,6 +83,15 @@
       "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_no_acceptance_manifest_defaults_to_not_applicable",
       "counter_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_changed_evidence_is_still_detected",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-010",
+      "rule_id": "gate_anchoring",
+      "kind": "sharpening",
+      "summary": "A gate whose acceptance criterion points at a document that does not exist is undefined, not open. It is either re-anchored to a really existing normative source, with the finding proven, or removed from the stage with a reason. A substitute source is never invented.",
+      "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_every_anchor_resolves",
+      "counter_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_a_dangling_anchor_is_still_detected",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [],

@@ -238,5 +238,60 @@
     "acceptance_profile_a_b_c": false,
     "overlay_p_s_h": false,
     "statement": "Die Kuerzel A/B/C und P/S/H sind in keinem K1-Dokument angewendet. Sie existieren im Repository nicht als Governance-Artefakt und erzeugen keinen Abnahmenachweis. 'P' kommt ausschliesslich als Apple-Paritaetsvertrag P-1 bis P-15 vor."
+  },
+  "gate_anchoring": {
+    "rule": "Ein Gate, dessen Abnahmekriterium auf ein nicht existierendes Dokument zeigt, ist nicht offen, sondern undefiniert. Es wird entweder an einer real existierenden normativen Quelle neu verankert oder begruendet aus K1 herausgenommen. Eine Ersatzquelle wird nie erfunden.",
+    "anchors": [
+      {
+        "gate_id": "K1-O08",
+        "dangling_reference": {
+          "cited_in": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md §5 Nr. 2",
+          "citation": "kontrollierte Suchprojektion (Z-1, Register 20 §5)",
+          "status": "does_not_exist",
+          "evidence": "Die Dokumentreihe docs/personal-jarvis/ endet bei 19. Die Zeichenfolge 'Z-1' kommt im gesamten Repository ausschliesslich in genau dieser Zitatstelle vor, ebenso 'Suchprojektion'. Es gibt kein Dokument 20 und keine Definition Z-1."
+        },
+        "resolution": "re_anchored",
+        "resolution_reason": "Das Kriterium, das 'Register 20 §5' tragen sollte, wird von real existierenden, verbindlichen Quellen bereits getragen. Die Verankerung ist damit Ableitung, keine Erfindung.",
+        "carrying_sources": [
+          {
+            "path": "docs/personal-jarvis/06-data-ownership-and-storage-register.md",
+            "section": "§1 Kanonizitaet",
+            "carries": "personal/jarvis.db ist die einzige kanonische Datenbank aller Fachmodule; Memory und Suchindizes sind ausschliesslich abgeleitet und jederzeit vollstaendig neu aufbaubar.",
+            "quote_anchor": "ausschließlich abgeleitet"
+          },
+          {
+            "path": "docs/personal-jarvis/06-data-ownership-and-storage-register.md",
+            "section": "§2 Speicher-Register (verbindlich)",
+            "carries": "Registerzeile 'Upstream Memory-/Index-Speicher, Personal-Suchindex': abgeleitete Such- und Kontextdaten, Eigentuemer abgeleitet, Art technisch, Backup nein (Rebuild), Migration nein.",
+            "quote_anchor": "Personal-Suchindex"
+          },
+          {
+            "path": "docs/personal-jarvis/11-sync-outboxes-events-and-conflicts.md",
+            "section": "DomainEvent-Dispatcher",
+            "carries": "Der kontrollierte Weg in den Suchindex: nach dem Commit beliefert der DomainEvent-Dispatcher idempotente Consumer, darunter die Suchindex-Aktualisierung.",
+            "quote_anchor": "Suchindex-Aktualisierung"
+          },
+          {
+            "path": "docs/personal-jarvis/02-openjarvis-boundary-map.md",
+            "section": "Bestandskarte",
+            "carries": "tools/storage/ als abgeleiteter Suchindex.",
+            "quote_anchor": "abgeleiteter"
+          },
+          {
+            "path": "docs/personal-jarvis/01-architecture-constitution.md",
+            "section": "AV-11 und AV-16",
+            "carries": "AV-11 kanonische Datenbank der Fachmodule; AV-16 Memory und Suchindizes ausschliesslich abgeleitet und jederzeit vollstaendig neu aufbaubar.",
+            "quote_anchor": "AV-16"
+          }
+        ],
+        "criterion_after_anchoring": "Die kanonische Kalenderwahrheit entsteht in personal/jarvis.db. Der Suchindex ist ein abgeleiteter, vollstaendig neu aufbaubarer Speicher und wird ueber den DomainEvent-Dispatcher beliefert. gcalendar darf ab dem ersten Leseblock keine neuen Eintraege als eigene Quelle in den Index schreiben; es wird deaktiviert, nicht entfernt.",
+        "status_after_anchoring": "open",
+        "status_reason": "Das Kriterium ist jetzt definiert und erreichbar, nicht mehr undefiniert. Offen bleibt es wegen konkreter, benannter Eigentuemerarbeit: Baseline §5 Schritt 3 verlangt die Umstellung der Verbraucher calendar-prep.toml, morning_digest.py und digest_collect.py, Schritt 4 zusaetzlich einen Eintrag im Entscheidungsregister. Das ist kein unerfuellbarer Rest, sondern abgegrenzte Restarbeit.",
+        "remaining_work": [
+          "Baseline §5 Schritt 3: Verbraucher auf die Read-API bzw. die kontrollierte Projektion umstellen",
+          "Baseline §5 Schritt 4: Entfernung erst nach Registereintrag"
+        ]
+      }
+    ]
   }
 }

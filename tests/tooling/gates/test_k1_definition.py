@@ -137,5 +137,60 @@ class TestRuleR3(unittest.TestCase):
         self.assertTrue(review["examined_and_cleared"])
 
 
+
+class TestGateAnchoring(unittest.TestCase):
+    """RC-010 — no K1 gate may rest on a reference that does not exist."""
+
+    def test_every_anchor_resolves(self):
+        # Sharpening test: a gate whose criterion pointed at a non existent
+        # document used to be carried as merely open.
+        problems = history_checks.check_anchors(REPO_ROOT, DEFINITION)
+        self.assertEqual(problems, [])
+
+    def test_a_dangling_anchor_is_still_detected(self):
+        # Counter test: the originally repelled defect must still be caught.
+        broken = json.loads(json.dumps(DEFINITION))
+        anchor = broken["gate_anchoring"]["anchors"][0]
+        anchor["carrying_sources"][0]["path"] = (
+            "docs/personal-jarvis/20-does-not-exist.md"
+        )
+        problems = history_checks.check_anchors(REPO_ROOT, broken)
+        self.assertIn(
+            ("K1-O08", "carrying_source_missing"), problems
+        )
+
+    def test_a_source_that_does_not_carry_is_detected(self):
+        broken = json.loads(json.dumps(DEFINITION))
+        anchor = broken["gate_anchoring"]["anchors"][0]
+        anchor["carrying_sources"][0]["quote_anchor"] = "diese Zeichenfolge fehlt"
+        problems = history_checks.check_anchors(REPO_ROOT, broken)
+        self.assertIn(
+            ("K1-O08", "carrying_source_does_not_carry"), problems
+        )
+
+    def test_the_dangling_reference_is_proven_not_asserted(self):
+        anchor = DEFINITION["gate_anchoring"]["anchors"][0]
+        dangling = anchor["dangling_reference"]
+        self.assertEqual(dangling["status"], "does_not_exist")
+        self.assertIn("endet bei 19", dangling["evidence"])
+        self.assertFalse(
+            (REPO_ROOT / "docs/personal-jarvis/20-does-not-exist.md").exists()
+        )
+
+    def test_an_open_anchored_gate_names_its_remaining_work(self):
+        for anchor in DEFINITION["gate_anchoring"]["anchors"]:
+            if anchor["status_after_anchoring"] == "open":
+                with self.subTest(gate=anchor["gate_id"]):
+                    self.assertTrue(anchor["remaining_work"])
+                    self.assertTrue(anchor["status_reason"].strip())
+
+    def test_no_substitute_source_is_invented(self):
+        """Every carrying source must be a file that already existed."""
+        anchor = DEFINITION["gate_anchoring"]["anchors"][0]
+        for source in anchor["carrying_sources"]:
+            with self.subTest(path=source["path"]):
+                self.assertTrue((REPO_ROOT / source["path"]).is_file())
+                self.assertFalse(source["path"].startswith("config/gates/k1"))
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

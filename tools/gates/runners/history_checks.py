@@ -507,6 +507,59 @@ def mode_not_applicable_review(args):
     )
 
 
+def check_anchors(root, definition):
+    """Return ``(gate_id, code)`` for every anchor that does not resolve."""
+    problems = []
+    anchoring = definition.get("gate_anchoring")
+    if not anchoring:
+        return problems
+    for anchor in anchoring.get("anchors", []):
+        gate_id = anchor.get("gate_id", "<unnamed>")
+        resolution = anchor.get("resolution")
+        if resolution not in ("re_anchored", "removed_from_k1"):
+            problems.append((gate_id, "unknown_resolution"))
+            continue
+        dangling = anchor.get("dangling_reference", {})
+        if not dangling.get("evidence"):
+            problems.append((gate_id, "dangling_reference_unproven"))
+        if resolution != "re_anchored":
+            continue
+        sources = anchor.get("carrying_sources", [])
+        if not sources:
+            problems.append((gate_id, "no_carrying_source"))
+        for source in sources:
+            target = Path(root) / source.get("path", "")
+            if not target.is_file():
+                problems.append((gate_id, "carrying_source_missing"))
+                continue
+            text = target.read_text(encoding="utf-8", errors="replace")
+            marker = str(source.get("quote_anchor", ""))
+            if not marker or marker not in text:
+                problems.append((gate_id, "carrying_source_does_not_carry"))
+        if not anchor.get("criterion_after_anchoring"):
+            problems.append((gate_id, "criterion_missing"))
+        if anchor.get("status_after_anchoring") == "open" and not anchor.get(
+            "remaining_work"
+        ):
+            problems.append((gate_id, "open_without_named_remaining_work"))
+    return problems
+
+
+def mode_gate_anchoring(args):
+    """No K1 gate may rest on a reference that does not exist."""
+    root = Path.cwd()
+    definition = json.loads((root / K1_DEFINITION).read_text(encoding="utf-8"))
+    failures = [
+        _fail(gate_id, code) for gate_id, code in check_anchors(root, definition)
+    ]
+    anchors = definition.get("gate_anchoring", {}).get("anchors", [])
+    return _report.emit(
+        _report.PASSED if not failures else _report.FAILED,
+        failures,
+        [f"anchors={len(anchors)}"],
+    )
+
+
 def mode_k1_status(args):
     """Determine the closing K1 matrix. The numbers come from here, never
     from a prompt.
@@ -520,6 +573,13 @@ def mode_k1_status(args):
     definition = json.loads((root / K1_DEFINITION).read_text(encoding="utf-8"))
     matrix = json.loads((root / K1_START_MATRIX).read_text(encoding="utf-8"))
     recorded = {gate["gate_id"]: gate for gate in matrix["gates"]}
+
+    anchors = {
+        anchor["gate_id"]: anchor
+        for anchor in definition.get("gate_anchoring", {}).get("anchors", [])
+    }
+    for gate_id, code in check_anchors(root, definition):
+        failures.append(_fail(gate_id, code))
 
     rows = []
     for gate in definition["gates"]:
@@ -537,8 +597,13 @@ def mode_k1_status(args):
                 "evidence_reference": evidence,
                 "blocking_reason": (
                     "" if status == "fulfilled"
-                    else str(source.get("offline_closable_reason", ""))
+                    else str(
+                        anchors[gate_id]["status_reason"]
+                        if gate_id in anchors
+                        else source.get("offline_closable_reason", "")
+                    )
                 ),
+                "anchored": gate_id in anchors,
             }
         )
         # The recorded expectation must agree with the derived status; a
@@ -594,6 +659,7 @@ def mode_k1_status(args):
 
 MODES = {
     "base-commit-unchanged": mode_base_commit_unchanged,
+    "gate-anchoring": mode_gate_anchoring,
     "k1-status": mode_k1_status,
     "classification-schemes": mode_classification_schemes,
     "k1-definition": mode_k1_definition,

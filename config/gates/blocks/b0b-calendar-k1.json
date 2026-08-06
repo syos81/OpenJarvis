@@ -43,6 +43,7 @@
       "tg-calendar-tests",
       "tg-claim-lint",
       "tg-classification-schemes",
+      "tg-gate-anchoring",
       "tg-k1-definition",
       "tg-not-applicable-review",
       "tg-pii-tests",
@@ -126,6 +127,26 @@
       },
       "parser": "gate_json",
       "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "pf-gate-anchoring",
+      "phase": "preflight",
+      "required": true,
+      "description": "No K1 gate rests on a reference that does not exist.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "gate-anchoring"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
       "baseline_eligible": false,
       "evidence_profile": "tooling"
     },
@@ -365,6 +386,26 @@
       "evidence_profile": "tooling"
     },
     {
+      "check_id": "tg-gate-anchoring",
+      "phase": "targeted",
+      "required": true,
+      "description": "No K1 gate rests on a reference that does not exist.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "gate-anchoring"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
       "check_id": "tg-k1-definition",
       "phase": "targeted",
       "required": true,
@@ -564,6 +605,26 @@
       },
       "parser": "gate_json",
       "timeout_seconds": 900,
+      "baseline_eligible": false,
+      "evidence_profile": "tooling"
+    },
+    {
+      "check_id": "of-gate-anchoring",
+      "phase": "offline-final",
+      "required": true,
+      "description": "No K1 gate rests on a reference that does not exist.",
+      "runner": {
+        "type": "argv",
+        "cwd": "worktree",
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "gate-anchoring"
+        ]
+      },
+      "parser": "gate_json",
+      "timeout_seconds": 300,
       "baseline_eligible": false,
       "evidence_profile": "tooling"
     },
