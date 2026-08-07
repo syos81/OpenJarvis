@@ -140,8 +140,12 @@ class TestClassLevelDefaults:
         with patch(
             "openjarvis.agents._stubs.load_config",
             side_effect=Exception("boom"),
-        ):
+        ) as mock_cfg:
             agent = _TestToolAgentWithDefaults(engine, "m")
+        # Rule R9 (B0f finding): the injection must be observed before the
+        # expectation — the neuter probe showed this test stayed green
+        # without it.
+        assert mock_cfg.called
         assert agent._temperature == 0.3
         assert agent._max_tokens == 4096
         assert agent._max_turns == 25

@@ -1,6 +1,24 @@
 {
   "examined": [
     {
+      "effect_assertion": "assert_called",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/agents/test_channel_agent.py",
+      "function": "test_error_path_also_uses_conversation_id_as_destination",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0f migration finding: the execution probe falsified the former exclusion; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/agents/test_config_defaults.py",
+      "function": "test_class_default_used_when_config_fails",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0f migration finding: the execution probe falsified the former exclusion; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
       "effect_assertion": "assert",
       "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
       "file": "tests/agents/test_config_defaults.py",
@@ -264,6 +282,15 @@
     {
       "effect_assertion": "assert",
       "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_scan.py",
+      "function": "test_scutil_not_available",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0f migration finding: the execution probe falsified the former exclusion; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
       "file": "tests/cli/test_tool_cmd.py",
       "function": "test_tool_inspect_catches_registry_exception",
       "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
@@ -439,6 +466,15 @@
       "function": "test_handles_config_load_failure",
       "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
       "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/telemetry/test_energy_nvidia.py",
+      "function": "test_polling_trapezoidal_integration",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0f migration finding: the execution probe falsified the former exclusion; the first assertion pins the injection to the run",
       "verdict": "evidenced"
     },
     {

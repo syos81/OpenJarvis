@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "kind": "b0f_unit_locality_finding",
+  "block_id": "b0f-dispo-hardening",
+  "classification": "open_gap",
+  "unit_definition": {
+    "source": "tools/gates/astcorpus.py::collect_units",
+    "fact": "A unit is one FunctionDef/AsyncFunctionDef with its class-qualified name; nested function definitions are walked inside their enclosing unit's sweep."
+  },
+  "analysis_boundaries": {
+    "walk": "Both sweeps (tools/gates/astscan.py) analyse ast.walk over one unit's node: intra-unit control flow, nested defs included.",
+    "ends_at": "A call to a sibling or helper unit is not followed; state established or observed in the callee is invisible to the caller's sweep and vice versa."
+  },
+  "connecting_paths": {
+    "derivation": "Mechanically countable as same-file call edges between corpus units: for every corpus unit, calls whose name matches another unit of the same file. Re-derived by tests/tooling/gates/test_b0f_method.py against the current corpus; the count must be greater than zero for the gap to matter, and it is.",
+    "cross_file_note": "Cross-file edges exist additionally via imports; the same-file count already suffices to establish that connecting executable paths are common."
+  },
+  "other_checks_examined": [
+    {
+      "check": "effect evidence (rule R9, tools/gates/effectevidence.py)",
+      "scope": "per declared function, first assertion in that function's own body",
+      "covers_transitions": false
+    },
+    {
+      "check": "empty-set rule at runtime (tools/gates/emptyset.py, engine aggregations)",
+      "scope": "the engine's own cross-module aggregations at run time; not a static property of arbitrary test/validator units",
+      "covers_transitions": false
+    },
+    {
+      "check": "category validators (tools/gates/astcat.py)",
+      "scope": "proof-named consumer units are checked individually where a category claim spans units; this follows declared proofs, it does not discover undeclared cross-unit flows",
+      "covers_transitions": false
+    }
+  ],
+  "minimal_case": {
+    "demonstration": "tests/tooling/gates/test_b0f_method.py::test_the_unit_locality_gap_is_mechanically_real",
+    "fact": "An exception injection moved into a helper called by the test yields zero sweep candidates, while the semantically identical inline form yields one; the connecting call edge is exactly the boundary at which the analysis ends."
+  },
+  "consequence": {
+    "status": "genuine follow-up blocker for a later method decision",
+    "not_resolved_by": "documentation alone; this record classifies the boundary, it does not accept it",
+    "out_of_scope_here": "a general interprocedural or whole-program analysis is explicitly outside block B0f"
+  }
+}

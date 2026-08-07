@@ -80,6 +80,11 @@ TOP_FIELDS = (
     "dispositions",
 )
 RULE_FIELDS = ("statement", "candidate_classes", "class_boundaries")
+#: Register schema 2 (block B0f): an exclusion is carried by a category of
+#: the closed vocabulary in :mod:`tools.gates.astcat`; the free-text reason
+#: is annotation only and can never make an exclusion valid.
+REGISTER_SCHEMA_VERSION = 2
+
 ENTRY_FIELDS = (
     "candidate_id",
     "rule",
@@ -91,6 +96,8 @@ ENTRY_FIELDS = (
     "fingerprint",
     "occurrence",
     "disposition",
+    "category",
+    "category_proof",
     "reason",
     "repair_note",
     "resolved_by_removal",
@@ -481,6 +488,12 @@ def load_register(root, path=REGISTER):
         raise RegisterError("register_field_set")
     if document["kind"] != "ast_disposition_register":
         raise RegisterError("register_kind_unexpected", str(document["kind"]))
+    if document["schema_version"] != REGISTER_SCHEMA_VERSION:
+        # Rule R7: the version names the accepting reader. Schema 1 carried
+        # exclusions on free text alone; this reader refuses it.
+        raise RegisterError(
+            "register_schema_unsupported", str(document["schema_version"])
+        )
     rules = document["rules"]
     if not isinstance(rules, dict) or sorted(rules) != sorted(RULES):
         raise RegisterError("register_rules_incomplete")
@@ -535,6 +548,22 @@ def load_register(root, path=REGISTER):
                 raise RegisterError("entry_repair_note_empty", identifier)
         elif str(entry["repair_note"]):
             raise RegisterError("entry_repair_note_unexpected", identifier)
+        if entry["disposition"] == "exclude_with_reason":
+            from . import astcat
+
+            category = entry["category"]
+            if not str(category).strip():
+                # Free text alone can never make an exclusion valid.
+                raise RegisterError("entry_category_missing", identifier)
+            if category not in astcat.CATEGORIES:
+                raise RegisterError("entry_category_unknown", identifier)
+            if astcat.CATEGORIES[category]["rule"] != rule:
+                raise RegisterError("entry_category_rule_mismatch", identifier)
+            if not isinstance(entry["category_proof"], dict):
+                raise RegisterError("entry_category_proof_missing", identifier)
+        else:
+            if str(entry["category"]) or entry["category_proof"] != {}:
+                raise RegisterError("entry_category_unexpected", identifier)
         if entry["resolved_by_removal"] not in (True, False):
             raise RegisterError("entry_resolution_not_boolean", identifier)
         if entry["resolved_by_removal"] and entry["disposition"] == "exclude_with_reason":
@@ -624,6 +653,27 @@ def validate(root, *, corpus=None, register_path=REGISTER):
                         )
                     )
 
+    # The closed vocabulary is normative for every exclusion: the category's
+    # mechanical criterion must confirm at the current candidate. A category
+    # that no longer holds is a finding, never a formatting problem.
+    from . import astcat
+
+    category_counts = {}
+    for entry in register["dispositions"]:
+        if entry["disposition"] != "exclude_with_reason":
+            continue
+        code = astcat.validate_entry(root, entry)
+        category_counts[entry["category"]] = (
+            category_counts.get(entry["category"], 0) + 1
+        )
+        if code:
+            failures.append(
+                (
+                    f"{entry['file']}::{entry['unit']}::{entry['candidate_id']}",
+                    f"category_unconfirmed:{code}",
+                )
+            )
+
     counts = {rule: 0 for rule in RULES}
     for candidate in candidates:
         counts[candidate.rule] += 1
@@ -644,5 +694,9 @@ def validate(root, *, corpus=None, register_path=REGISTER):
     ]
     diagnostics.extend(
         f"{key}={value}" for key, value in sorted(by_disposition.items())
+    )
+    diagnostics.append(f"categories_used={len(category_counts)}")
+    diagnostics.extend(
+        f"category_{name}={value}" for name, value in sorted(category_counts.items())
     )
     return sorted(failures), sorted(diagnostics)

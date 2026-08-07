@@ -3,9 +3,39 @@
   "corpus_note": "Derived by tools/gates/astcorpus.py from pyproject testpaths, the block manifests' runner and unittest wiring, the shell entry points and the tools import closure; re-derived on every validation, never a stored file list.",
   "dispositions": [
     {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-0097169ed82fe3a8",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "file_part"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/runners/b0f_checks.py",
+      "fingerprint": "ad80bce0874c72ded73db996",
+      "lineno": 248,
+      "occurrence": 0,
+      "reason": "Self-application: each proof reference degrades to an empty string on absent keys and the per-item guard appends covering_proof_missing, so a covered_elsewhere classification cannot pass on missing proof references.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "7455302beebcd46d7b9cd5b00327a8af8046d1ae6522322332132d47de4fa21d",
+      "unit": "mode_method"
+    },
+    {
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-036969cf7cc91e82",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "equality_pin",
+        "names": [
+          "forbidden"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "9eda5fa94b9663c57189f30e",
@@ -22,6 +52,14 @@
       "ast_class": "DictComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-04fc12a2e4d58b1b",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "empty_yields_failure",
+        "names": [
+          "by_position",
+          "element"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "f62d1cbdc69607dafe6461b0",
@@ -38,6 +76,16 @@
       "ast_class": "GeneratorExp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-08b6ce48bd51a8a1",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0a-1-tooling.json",
+        "key_path": [
+          "checks",
+          0,
+          "runner",
+          "argv"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/profiles.py",
       "fingerprint": "2c712b23e2c70f3786b2ed30",
@@ -54,6 +102,14 @@
       "ast_class": "GeneratorExp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-08ffb52f01f82c65",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "fallthrough_nonsuccess",
+        "names": [
+          "failures",
+          "diagnostics"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/signature.py",
       "fingerprint": "fa418caffa8ff5ed6652ce5d",
@@ -70,6 +126,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-0bcfc81e1414efe1",
+      "category": "r10_diagnostics_only_flow",
+      "category_proof": {
+        "mechanism": "label_fields",
+        "names": [
+          "diagnostics"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/generality_checks.py",
       "fingerprint": "daf91dc58c3522ec81cb068c",
@@ -86,6 +149,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-0c5650680fd94315",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "changes"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "b0d90e5728a250ba093a8c4f",
@@ -102,6 +172,15 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-0ebe439f49b6c393",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "equality_pin",
+        "names": [
+          "elements",
+          "positions",
+          "fixed"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "087124691105855a86546ac5",
@@ -118,6 +197,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-10c72c9ee1eaf8a3",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/governance_checks.py",
       "fingerprint": "39e41711f0b4f3698f3b87bf",
@@ -134,6 +215,14 @@
       "ast_class": "Call",
       "candidate_class": "vacuous_quantifier",
       "candidate_id": "r10-10e58fa95b6d8813",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0a-1-tooling.json",
+        "key_path": [
+          "baseline_policy",
+          "dependency_lock_paths"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/manifest.py",
       "fingerprint": "7123be0634b94c8f97364e42",
@@ -150,6 +239,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-1ac4d0f8cce95912",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/governance/normative-sources.json",
+        "key_path": [
+          "historical_resolution_records"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/integration_checks.py",
       "fingerprint": "18191dc1684d37baa54d2345",
@@ -166,6 +262,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-1f9464eb18d88370",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/governance/decision-collisions.json",
+        "key_path": [
+          "canonical_ids_unchanged"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "1cbfe20ec309078165d8166f",
@@ -182,6 +285,23 @@
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-262ba2b8b3dc4fbd",
+      "category": "r10_excusal_only_flow",
+      "category_proof": {
+        "consumers": [
+          {
+            "file": "tools/gates/runners/integration_checks.py",
+            "unit": "mode_reference_migration"
+          },
+          {
+            "file": "tools/gates/runners/integration_checks.py",
+            "unit": "mode_dart_removed"
+          }
+        ],
+        "names": [
+          "mechanism_files",
+          "excluded"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/integration_checks.py",
       "fingerprint": "01156da8d91bc7de86479baf",
@@ -198,6 +318,14 @@
       "ast_class": "DictComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-294344f3793f5f02",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "target",
+          "document"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/profiles.py",
       "fingerprint": "6623ff48f0f35d6e34fd78b5",
@@ -211,9 +339,39 @@
       "unit": "declared_attribution"
     },
     {
+      "ast_class": "SetComp",
+      "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-2a700cef8a3947f8",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "equality_pin",
+        "names": [
+          "covered"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/runners/b0f_checks.py",
+      "fingerprint": "f40c8e49a2132760995a7de6",
+      "lineno": 210,
+      "occurrence": 0,
+      "reason": "Self-application: the re-review coverage set is pinned by equality against the register-derived expected set; an empty or partial walk mismatches and appends category_rereview_incomplete, so a single-case fix can never satisfy the category-wide duty.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "7455302beebcd46d7b9cd5b00327a8af8046d1ae6522322332132d47de4fa21d",
+      "unit": "mode_blind"
+    },
+    {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-2c2f76543ccfdd5f",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "sources"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "a92160c3ff71df00f5fc1471",
@@ -230,6 +388,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-2de49ef4500ff7f5",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "dbc9a2a21d031f4dce250308",
@@ -246,6 +406,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-307a94491b9948b7",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "fallthrough_nonsuccess",
+        "names": [
+          "groups"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/hookguard.py",
       "fingerprint": "0b400a87e25672561e58dc11",
@@ -262,6 +429,14 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-3087f128b3f2c464",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "equality_pin",
+        "names": [
+          "positions",
+          "fixed"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "c31da123c629aff5be4e30dd",
@@ -278,6 +453,19 @@
       "ast_class": "DictComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-3092762f5b6fd741",
+      "category": "r10_diagnostics_only_flow",
+      "category_proof": {
+        "mechanism": "label_fields",
+        "names": [
+          "element_profiles",
+          "profile_values",
+          "elements_by_profile"
+        ],
+        "site": {
+          "file": "tools/gates/profiles.py",
+          "unit": "derive"
+        }
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/profiles.py",
       "fingerprint": "c9f4145675322980efcc042e",
@@ -294,6 +482,13 @@
       "ast_class": "Call",
       "candidate_class": "vacuous_quantifier",
       "candidate_id": "r10-340fc744d479ae34",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "open_roots"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "9821cce47a5697a39843b711",
@@ -310,6 +505,18 @@
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-353d2b4aaa15091c",
+      "category": "r10_excusal_only_flow",
+      "category_proof": {
+        "consumers": [
+          {
+            "file": "tools/gates/runners/generality_checks.py",
+            "unit": "mode_organization_scan"
+          }
+        ],
+        "names": [
+          "exceptions"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/generality_checks.py",
       "fingerprint": "d495e47cefc9c9eb99c5255e",
@@ -326,6 +533,13 @@
       "ast_class": "ListComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-35b2bc67011b0dd0",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0a-1-tooling.json",
+        "key_path": [
+          "checks"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/manifest.py",
       "fingerprint": "7ee56e27cab2af10dfb78f96",
@@ -342,6 +556,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-44e6e88c70e5def2",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/guard/rule-changes.json",
+        "key_path": [
+          "declared_relaxations"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "d7f25698eb276acddbaaf757",
@@ -358,6 +579,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-4fe4dddbf5d18063",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/governance/generality-scope.json",
+        "key_path": [
+          "declared_identifiers"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/generality.py",
       "fingerprint": "3a1db2eb591162fdfee46869",
@@ -374,6 +602,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-549f9f70368b2e25",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "62f453f8bd98ed725faf062d",
@@ -390,6 +620,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-5b7800ea1b383bd6",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "bae4f8439ee8afda55edfe93",
@@ -406,6 +638,14 @@
       "ast_class": "GeneratorExp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-5ef075fed62579af",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0e-test-hardening.json",
+        "key_path": [
+          "baseline_policy",
+          "dependency_lock_paths"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/manifest.py",
       "fingerprint": "862fc24f672c6e29e12bbd12",
@@ -422,6 +662,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-612355d11ca58bde",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "commands"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/preflight_checks.py",
       "fingerprint": "27b46ccd4f3c2fa0fba24589",
@@ -438,6 +685,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-6330827761dcfc93",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/features/b0e-test-hardening.lineage.json",
+        "key_path": [
+          "features"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/features.py",
       "fingerprint": "66c025da5174d5638babb1a9",
@@ -454,6 +708,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-64935f863f4e08fa",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/integration_checks.py",
       "fingerprint": "923e7d248a657f036ff6b98a",
@@ -470,6 +726,30 @@
       "ast_class": "DictComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-64f7ce7885540b88",
+      "category": "r10_excusal_only_flow",
+      "category_proof": {
+        "consumers": [
+          {
+            "file": "tools/gates/runners/governance_checks.py",
+            "unit": "mode_id_freeze"
+          },
+          {
+            "file": "tools/gates/runners/governance_checks.py",
+            "unit": "mode_citations"
+          },
+          {
+            "file": "tools/gates/runners/integration_checks.py",
+            "unit": "mode_reference_migration"
+          },
+          {
+            "file": "tools/gates/runners/integration_checks.py",
+            "unit": "mode_dart_removed"
+          }
+        ],
+        "names": [
+          "excluded"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "84048083ccf1eee33a1d5596",
@@ -486,6 +766,13 @@
       "ast_class": "GeneratorExp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-65835393f0d15b15",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "hostile"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "9823a7ac04f92d6e605d8154",
@@ -502,6 +789,17 @@
       "ast_class": "GeneratorExp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-6699b370d7f33f8a",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "fallthrough_nonsuccess",
+        "names": [
+          "failures"
+        ],
+        "site": {
+          "file": "tools/gates/signature.py",
+          "unit": "build_cause_signature"
+        }
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/signature.py",
       "fingerprint": "7213046ca04f94f85e52d576",
@@ -518,6 +816,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-670bf33661ae7cca",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "commands"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "0edeb60a46db53c2a1c2f939",
@@ -534,6 +839,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-71e9675b813a5865",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "commands"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "e2a8f7bc5ab54f0d4a005b54",
@@ -550,6 +862,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-7745f70c927ba193",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "commands"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/preflight_checks.py",
       "fingerprint": "ee77f637c5be7c6b5cb3a4a7",
@@ -566,6 +885,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-7839e036f2e2e2ee",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "5e35d73f32d4376de1f1beff",
@@ -582,6 +903,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-78aaf52e04f16bf8",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "seen_blocked"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "675270d70663f1c3d7ec1180",
@@ -598,6 +926,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-7bdf9abd7adf1957",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "element"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "2ea44ae63cc087d3c5e32a29",
@@ -614,6 +949,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-8491f7cd1127db34",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "element"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "ce5bd501512f8add551ec7cf",
@@ -630,6 +972,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-856ed931082cb7fc",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "a25eda003f5a65c69f5faa3a",
@@ -645,7 +989,40 @@
     {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-890c9af7dc0415ee",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "dataset"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/runners/b0f_checks.py",
+      "fingerprint": "ab4bce51535ffbb2e652bebc",
+      "lineno": 193,
+      "occurrence": 0,
+      "reason": "Self-application: an absent or empty blind dataset is guarded explicitly \u2014 the mode returns blocked (review_artifacts_missing) before any walk, so missing review inputs can never read as a clean review.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "7455302beebcd46d7b9cd5b00327a8af8046d1ae6522322332132d47de4fa21d",
+      "unit": "mode_blind"
+    },
+    {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-898273e88e987533",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0e-test-hardening.json",
+        "key_path": [
+          "checks",
+          0,
+          "runner",
+          "argv"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/astcorpus.py",
       "fingerprint": "024fb117f102a3f5507ae0aa",
@@ -662,6 +1039,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-8c0291a7f473ecc8",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0e-test-hardening.json",
+        "key_path": [
+          "feature_lineage"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/manifest.py",
       "fingerprint": "8f007d6242bee6f6a27eedbc",
@@ -675,9 +1059,40 @@
       "unit": "_validate_sections"
     },
     {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-8fb5b0da8400535d",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "names",
+          "consumers"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "00195ea209039f69742f2e8c",
+      "lineno": 924,
+      "occurrence": 0,
+      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "unit": "_check_excusal_only_flow"
+    },
+    {
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-91a5d8954a317a50",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "element"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "9a22cf1130bfcd29263dc956",
@@ -694,6 +1109,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-92a6cdb5048e6ff1",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0e-test-hardening.json",
+        "key_path": [
+          "checks"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/manifest.py",
       "fingerprint": "2202934fa1bc8721dfee07eb",
@@ -710,6 +1132,13 @@
       "ast_class": "DictComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-935f7da7c479a39b",
+      "category": "r10_diagnostics_only_flow",
+      "category_proof": {
+        "mechanism": "label_fields",
+        "names": [
+          "anchors"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "68682bde9164c347593ec78d",
@@ -726,6 +1155,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-99ae6c8c24aa91c5",
+      "category": "r10_runtime_emptyset_guarded",
+      "category_proof": {
+        "consumer": {
+          "file": "tools/gates/engine.py",
+          "unit": "GateEngine._internal_evidence"
+        }
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/evidence.py",
       "fingerprint": "57f0fc4644703767d053dce2",
@@ -739,9 +1175,34 @@
       "unit": "phase_evidence_counts"
     },
     {
+      "ast_class": "Call",
+      "candidate_class": "vacuous_quantifier",
+      "candidate_id": "r10-a1f9f5cef709e7df",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "attribute"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "789abe98433366dbad4375a4",
+      "lineno": 711,
+      "occurrence": 0,
+      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "unit": "_check_conditional_import_target"
+    },
+    {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-a465dd903ec127d2",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/generality.py",
       "fingerprint": "c4a0e085e95c7965319c4735",
@@ -758,6 +1219,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-a6856a89616218b8",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/governance/generality-scope.json",
+        "key_path": [
+          "declared_identifiers"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/generality.py",
       "fingerprint": "18665d00f8e4e24534ecdf76",
@@ -774,6 +1242,22 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-aa17c55275815b30",
+      "category": "r10_excusal_only_flow",
+      "category_proof": {
+        "consumers": [
+          {
+            "file": "tools/gates/generality.py",
+            "unit": "declared_identifier_masks"
+          },
+          {
+            "file": "tools/gates/generality.py",
+            "unit": "scan_terms"
+          }
+        ],
+        "names": [
+          "declared"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/generality.py",
       "fingerprint": "67094017e089cc2588b32919",
@@ -790,6 +1274,13 @@
       "ast_class": "ListComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-ad4d2544e6148868",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "open_roots"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "017e7a9d0d4ec293a1b1d5cb",
@@ -806,6 +1297,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-b22fdd5af4f7d8e5",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "5a600ea32921e3f37e525114",
@@ -822,6 +1315,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-b2c773d8b768c20b",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/governance/decision-collisions.json",
+        "key_path": [
+          "historical_resolution"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "91661c681e42eb34f94ed24f",
@@ -838,6 +1338,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-b2fd49e38ce19883",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "fallthrough_nonsuccess",
+        "names": [
+          "check"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/features.py",
       "fingerprint": "755ffe7805add840f74f5841",
@@ -854,6 +1361,13 @@
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-b3f556eaeefd5243",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "ids"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "e5f25f89d631e48f68cb29fe",
@@ -870,6 +1384,13 @@
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-b4fd3790611b06c7",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "not_assigned"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/governance_checks.py",
       "fingerprint": "4134e8bb6decb1ea9696b303",
@@ -886,6 +1407,17 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-b52bffef14bf756c",
+      "category": "r10_diagnostics_only_flow",
+      "category_proof": {
+        "consumer": {
+          "file": "tools/guard/decide.py",
+          "unit": "decide"
+        },
+        "mechanism": "discarded_return",
+        "names": [
+          "record_all"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/guard/observed.py",
       "fingerprint": "3907c5d7b986d25a74909e9d",
@@ -902,6 +1434,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-bbf0f90924ae0de4",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0e-test-hardening.json",
+        "key_path": [
+          "checks"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/manifest.py",
       "fingerprint": "89a1cb51d82d44e2b08f11ba",
@@ -918,6 +1457,13 @@
       "ast_class": "GeneratorExp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-c3330aed7752aa1b",
+      "category": "r10_diagnostics_only_flow",
+      "category_proof": {
+        "mechanism": "label_fields",
+        "names": [
+          "diagnostics"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/engine.py",
       "fingerprint": "0f09c84c05df3f125d0968e7",
@@ -934,6 +1480,8 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-c43f89d36539cac1",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/merge_readiness.py",
       "fingerprint": "764a2fe6c359e317282a7710",
@@ -950,6 +1498,13 @@
       "ast_class": "Call",
       "candidate_class": "vacuous_quantifier",
       "candidate_id": "r10-c6f656a95afb5000",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "visible_skip",
+        "names": [
+          "models"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/storage/test_dense.py",
       "fingerprint": "03cc5e125737439e94f7cd86",
@@ -963,9 +1518,49 @@
       "unit": "_ollama_up"
     },
     {
+      "ast_class": "Call",
+      "candidate_class": "vacuous_quantifier",
+      "candidate_id": "r10-c962735f5da6f3e2",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "attribute"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "eb6198c3c4d4761b3a009c0a",
+      "lineno": 715,
+      "occurrence": 0,
+      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "unit": "_check_conditional_import_target"
+    },
+    {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-cd098eee1ed80417",
+      "category": "r10_excusal_only_flow",
+      "category_proof": {
+        "consumers": [
+          {
+            "file": "tools/gates/governance.py",
+            "unit": "normative_exclusions"
+          },
+          {
+            "file": "tools/gates/runners/integration_checks.py",
+            "unit": "mode_dart_removed"
+          }
+        ],
+        "names": [
+          "registry",
+          "excluded"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/integration_checks.py",
       "fingerprint": "ba8daa0dd45017a976953f49",
@@ -981,7 +1576,33 @@
     {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-ce53f65dd06bef0c",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "names",
+          "consumers"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "1e694a3d651cbdfa91a20573",
+      "lineno": 928,
+      "occurrence": 0,
+      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "unit": "_check_excusal_only_flow"
+    },
+    {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-d128cf65b554fc43",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/runners/history_checks.py",
       "fingerprint": "9863e99d37ccd59afa250338",
@@ -998,6 +1619,17 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-d15d6d0800e94c75",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "equality_pin",
+        "names": [
+          "found"
+        ],
+        "site": {
+          "file": "tools/gates/governance.py",
+          "unit": "verify_resolution"
+        }
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "edb696632e7bd615a5985cba",
@@ -1014,6 +1646,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-db4710b97e5db817",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/governance/generality-scope.json",
+        "key_path": [
+          "declared_identifiers"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/generality_checks.py",
       "fingerprint": "1a457b1bf795ab5998c1b80e",
@@ -1027,9 +1666,41 @@
       "unit": "mode_organization_scan"
     },
     {
+      "ast_class": "Call",
+      "candidate_class": "vacuous_quantifier",
+      "candidate_id": "r10-df2aeb044ec5c2be",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "names",
+          "consumers"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "99ff4d78bff26e1386edb52e",
+      "lineno": 966,
+      "occurrence": 0,
+      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "unit": "_check_excusal_only_flow"
+    },
+    {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-e37e5f711abeca26",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "fallthrough_nonsuccess",
+        "names": [
+          "group",
+          "hook"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/hookguard.py",
       "fingerprint": "90327f9432935c9d7f950ee4",
@@ -1046,6 +1717,8 @@
       "ast_class": "Call",
       "candidate_class": "vacuous_quantifier",
       "candidate_id": "r10-eb050afc96061641",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tests/connectors/test_obsidian.py",
       "fingerprint": "dc5648b148c0cf6b6549a83f",
@@ -1062,6 +1735,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-efb3ebeecba63153",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "length_pin",
+        "names": [
+          "entry"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/integration_checks.py",
       "fingerprint": "03629476432427c0be24b70d",
@@ -1078,6 +1758,13 @@
       "ast_class": "ListComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-f02860bff1585b4e",
+      "category": "r10_runtime_emptyset_guarded",
+      "category_proof": {
+        "consumer": {
+          "file": "tools/gates/engine.py",
+          "unit": "GateEngine._internal_evidence"
+        }
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/evidence.py",
       "fingerprint": "16033e049a79767dcea76c77",
@@ -1094,6 +1781,13 @@
       "ast_class": "Call",
       "candidate_class": "vacuous_quantifier",
       "candidate_id": "r10-f172de9b7ceb280a",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "equality_pin",
+        "names": [
+          "verlangt"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/personal/contacts/test_desktop_dependency_contract.py",
       "fingerprint": "f6c8d3fdfca53464addf42ff",
@@ -1110,6 +1804,13 @@
       "ast_class": "ListComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-f42d64591b635c69",
+      "category": "r10_diagnostics_only_flow",
+      "category_proof": {
+        "mechanism": "label_fields",
+        "names": [
+          "diagnostics"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runner.py",
       "fingerprint": "5b48174031b590ca9062ed41",
@@ -1126,6 +1827,13 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-f458a71eb06cc549",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "membership_pin",
+        "names": [
+          "element"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/governance.py",
       "fingerprint": "e894bc4d84e90697689f59ed",
@@ -1142,6 +1850,8 @@
       "ast_class": "SetComp",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-f69fae525fc7fc59",
+      "category": "",
+      "category_proof": {},
       "disposition": "repair",
       "file": "tools/gates/generality.py",
       "fingerprint": "f68d99fb273acb6742157604",
@@ -1158,6 +1868,16 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-f8be161eeac25bdb",
+      "category": "r10_required_key_prevalidated",
+      "category_proof": {
+        "document": "config/gates/blocks/b0a-1-tooling.json",
+        "key_path": [
+          "checks",
+          0,
+          "runner",
+          "argv"
+        ]
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/astcorpus.py",
       "fingerprint": "d6a36f792cc7b176ea37bfa5",
@@ -1174,6 +1894,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-01263a182ac953bd",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_llamacpp_models.py",
       "fingerprint": "63ad0439aa9350e44b6918cd",
@@ -1190,6 +1912,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-018f28dbac9d80b2",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_twitter_bot_e2e.py",
       "fingerprint": "106f0febaaf064c656a3ee46",
@@ -1206,6 +1930,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-026a9f0654351be5",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_lemonade.py",
       "fingerprint": "c2598f83477157d6b3432844",
@@ -1222,6 +1948,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-05c588b6b4cbe68a",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_slack.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -1238,6 +1966,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-068732cb7ff253bc",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_image_tool.py::TestImageGenerateTool.test_api_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_image_tool.py",
       "fingerprint": "03292ca8ebc083212b161b8c",
@@ -1254,6 +1986,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-076c489f971feb8f",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_email_channel.py",
       "fingerprint": "69d14e2392de6e5ecf1964e3",
@@ -1270,22 +2004,28 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-09febda829b54365",
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "mark_and_fix",
       "file": "tests/telemetry/test_energy_nvidia.py",
       "fingerprint": "2d69bc989ed2571fc4b06005",
       "lineno": 242,
       "occurrence": 0,
-      "reason": "The combined assertions cannot pass without the injection: with the fake's one handle, _probe_hw_counter (src/openjarvis/telemetry/energy_nvidia.py lines 76-85) returns True unless the injected raise fires, so energy_method() == \"polling\" fails un-injected; and the only other route to \"polling\" \u2014 a failed __init__ \u2014 takes sample()'s early return (lines 172-176) leaving energy_joules at 0.0, which the subsequent assert result.energy_joules > 0 rejects; the >0 energy itself comes from the polling loop over nvmlDeviceGetPowerUsage (300 W fake), only reachable when init succeeded.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "Falsified by the r9_injection_load_bearing probe during the B0f migration: the asserted outcome was producible without the injection firing; the first assertion now pins the injection to the run.",
+      "repair_note": "B0f finding: the execution probe showed the test stayed green with the injection neutralised, so the B0e exclusion was unsubstantiated. Repaired like the B0e marks: the injected mock's observation is now the first assertion, and the function is declared under the R9 effect evidence convention.",
+      "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "98909b7eeb65bcad310b299c392c4a1b7b58ac635e826b7f8f95fe7547a6d64b",
+      "source_digest": "d6b53967a57bac5e5d55e5948134901aa98b635aed12f64646f27095e713a525",
       "unit": "TestSamplePolling.test_polling_trapezoidal_integration"
     },
     {
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-0e07faef5d549c2b",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/bench/test_energy.py::TestEnergyBenchmark.test_run_with_errors"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/bench/test_energy.py",
       "fingerprint": "4c052419c422b2adc9658a3b",
@@ -1302,6 +2042,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-0e4094181cd9aad4",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_http_request.py::TestHttpRequestTool.test_request_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_http_request.py",
       "fingerprint": "e48d2bc84c32baab777ef466",
@@ -1318,6 +2062,8 @@
       "ast_class": "Call",
       "candidate_class": "swallowed_perturbation",
       "candidate_id": "r9-1192093690255842",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "fd736d7ebf498f4984daf90d",
@@ -1334,6 +2080,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-122f60e3b23536e4",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_scan.py::TestFileVault.test_command_not_found"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_scan.py",
       "fingerprint": "659eaabe37d4284ecffd9ae5",
@@ -1343,13 +2093,17 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R9",
-      "source_digest": "8e2f6f6d443b0b178e753a2f0aa6c179de3d3b69f6e42aae54493169cacbe400",
+      "source_digest": "84d11fc517cd677031f6c1a71ed1769aa379de52394860ad2bd58b36dfc80d35",
       "unit": "TestFileVault.test_command_not_found"
     },
     {
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-14950d88ec387229",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/bench/test_throughput.py::TestThroughputBenchmark.test_zero_latency_handling"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/bench/test_throughput.py",
       "fingerprint": "4c052419c422b2adc9658a3b",
@@ -1366,6 +2120,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-16c346ec18b7d25e",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/operators/test_operators.py",
       "fingerprint": "f6ed0c6de09bb54c8c3e0884",
@@ -1382,6 +2138,8 @@
       "ast_class": "Call",
       "candidate_class": "guarded_perturbation",
       "candidate_id": "r9-17993cf6a555bf62",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runner.py",
       "fingerprint": "139f4098975d5eb337d3ff7e",
@@ -1398,6 +2156,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-191f5bf9fcb91fda",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_registry_cmd.py::TestRegistryCmd.test_registry_show_handles_exception"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_registry_cmd.py",
       "fingerprint": "cccbf913983283d64ccd0de8",
@@ -1414,6 +2176,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-1aff7a15e19d3033",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser_axtree.py::TestBrowserAXTreeTool.test_execute_snapshot_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser_axtree.py",
       "fingerprint": "6d782c04d872ec65720ecc43",
@@ -1430,6 +2196,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-1b5f4a981a640353",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/telemetry/test_gpu_monitor.py",
       "fingerprint": "3536172f00d3b070e75cb51d",
@@ -1446,6 +2214,8 @@
       "ast_class": "Call",
       "candidate_class": "silent_substitution",
       "candidate_id": "r9-1bdd0df15b403b7f",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/tooling/gates/test_ast_dispositions.py",
       "fingerprint": "d7daf722355423bc3616b913",
@@ -1455,13 +2225,17 @@
       "repair_note": "Self-application of rule R9: assertNotEqual on the rewritten file is the first assertion of the test, before astscan.validate is consulted; the function is declared in config/governance/effect-evidence.json.",
       "resolved_by_removal": false,
       "rule": "R9",
-      "source_digest": "17a2114f47f727a756f9d34b30790781cf4905998039b4268bccd0b3e3650931",
+      "source_digest": "7612f932312478d3b421296a232100ed456c4c8227edbb578e9d36af4fcad7c1",
       "unit": "TestTheComparison.test_an_edited_candidate_breaks_its_binding_in_both_directions"
     },
     {
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-1c076b5aada9367a",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/agents/test_trace_recording.py::test_executor_records_error_trace"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/agents/test_trace_recording.py",
       "fingerprint": "2da6bc8fa25a7dc93332a010",
@@ -1478,6 +2252,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-1ca02f28e5bce2ff",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_registry_cmd.py",
       "fingerprint": "22d81e3d7f19f1c13ab86816",
@@ -1494,6 +2270,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-1f5cd86867d8fd5c",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_ollama.py",
       "fingerprint": "43c3de26693d6db712f877c6",
@@ -1510,6 +2288,8 @@
       "ast_class": "Call",
       "candidate_class": "guarded_perturbation",
       "candidate_id": "r9-205525756e4cd21f",
+      "category": "r9_reraising_error_path",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/cache.py",
       "fingerprint": "95ab86d3adcdf149597ff302",
@@ -1526,6 +2306,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-244cf9fc7eb021d9",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/mining/test_discovery.py::test_check_docker_available_false_when_sdk_missing"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/mining/test_discovery.py",
       "fingerprint": "122b4371e9f5ff62649e0255",
@@ -1542,6 +2326,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-24539cc0f2da7ed9",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_irc_channel.py",
       "fingerprint": "12867526b0f98a61968caf0a",
@@ -1558,6 +2344,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-2648ad7d74fa7875",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_bluebubbles.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -1574,6 +2362,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-27783ae1bed7813e",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/scheduler/test_scheduler.py::TestExecuteTask.test_execute_with_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/scheduler/test_scheduler.py",
       "fingerprint": "665d374baa7fbf2d7d044cf2",
@@ -1590,6 +2382,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-2798b7f9932af0f3",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_matrix_channel.py",
       "fingerprint": "b839a8c05c083d157219a52f",
@@ -1606,6 +2400,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-2a815abbd3aebf37",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/tools/test_web_search.py",
       "fingerprint": "83879e667404fa330f3daa70",
@@ -1622,6 +2418,8 @@
       "ast_class": "Call",
       "candidate_class": "guarded_perturbation",
       "candidate_id": "r9-2c1e75bc7c57148e",
+      "category": "r9_both_outcomes_judged",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/guard_checks.py",
       "fingerprint": "baf9cc5eb8b2c8419be45e00",
@@ -1638,6 +2436,8 @@
       "ast_class": "Call",
       "candidate_class": "guarded_perturbation",
       "candidate_id": "r9-2cde2258d8feffb5",
+      "category": "r9_after_state_observed",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0d_checks.py",
       "fingerprint": "5fa35c8c0e01647828e92b98",
@@ -1654,6 +2454,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-2f2deb6073bbedd2",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/bench/test_latency.py::TestLatencyBenchmark.test_run_with_errors"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/bench/test_latency.py",
       "fingerprint": "4c052419c422b2adc9658a3b",
@@ -1670,6 +2474,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-32db738af2929e83",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_version_check.py",
       "fingerprint": "642b574092ab9db8effe62f3",
@@ -1686,6 +2492,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-36a3ed5076e1f7b9",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_registry_cmd.py::TestRegistryCmd.test_registry_show_handles_error_during_iteration"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_registry_cmd.py",
       "fingerprint": "67c991f2a215c67fd47c5021",
@@ -1702,22 +2512,28 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-3a6a4d774a1d3cc7",
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "mark_and_fix",
       "file": "tests/cli/test_scan.py",
       "fingerprint": "659eaabe37d4284ecffd9ae5",
       "lineno": 396,
       "occurrence": 0,
-      "reason": "status 'skip' comes only from the except around self._run(['scutil','--dns']) (src/openjarvis/cli/scan_cmd.py:330-339). Un-injected, the patched subprocess.run yields a MagicMock stdout: no DoH indicator matches (__contains__ False), splitlines() iterates empty, nameservers stays empty, and check_dns returns the 'ok' / 'Could not parse DNS nameservers' result (scan_cmd.py:365-371) \u2014 not 'skip' \u2014 so the assertion fails without the injection.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "Falsified by the r9_injection_load_bearing probe during the B0f migration: the asserted outcome was producible without the injection firing; the first assertion now pins the injection to the run.",
+      "repair_note": "B0f finding: the execution probe showed the test stayed green with the injection neutralised, so the B0e exclusion was unsubstantiated. Repaired like the B0e marks: the injected mock's observation is now the first assertion, and the function is declared under the R9 effect evidence convention.",
+      "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "8e2f6f6d443b0b178e753a2f0aa6c179de3d3b69f6e42aae54493169cacbe400",
+      "source_digest": "84d11fc517cd677031f6c1a71ed1769aa379de52394860ad2bd58b36dfc80d35",
       "unit": "TestDNS.test_scutil_not_available"
     },
     {
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-3b6335f0dd57b699",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_tool_cmd.py::TestToolCmd.test_tool_list_catches_registry_exception"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_tool_cmd.py",
       "fingerprint": "e07d67dd2fce568d153d8d65",
@@ -1734,6 +2550,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-3bf4debee53d748f",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_llm_tool.py::TestLLMTool.test_engine_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_llm_tool.py",
       "fingerprint": "da638d149f9726faa06e4fd0",
@@ -1750,6 +2570,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-3c52d77b9d41d83f",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/telemetry/test_energy_nvidia.py",
       "fingerprint": "2d69bc989ed2571fc4b06005",
@@ -1759,13 +2581,15 @@
       "repair_note": "tests/telemetry/test_energy_nvidia.py, TestHwCounterProbe.test_probe_fails_on_pre_volta (line 130): after constructing the monitor, make assert fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.called the first assertion, then assert monitor._hw_counter_available is False.",
       "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "98909b7eeb65bcad310b299c392c4a1b7b58ac635e826b7f8f95fe7547a6d64b",
+      "source_digest": "d6b53967a57bac5e5d55e5948134901aa98b635aed12f64646f27095e713a525",
       "unit": "TestHwCounterProbe.test_probe_fails_on_pre_volta"
     },
     {
       "ast_class": "Call",
       "candidate_class": "tolerant_removal_unverified",
       "candidate_id": "r9-3f9536124147af0b",
+      "category": "r9_target_unconsumed_after",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0c_checks.py",
       "fingerprint": "4dec23239e8a228bcb04d6a5",
@@ -1782,6 +2606,8 @@
       "ast_class": "Call",
       "candidate_class": "silent_substitution",
       "candidate_id": "r9-400b063536bf2a17",
+      "category": "r9_after_state_observed",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tests/tooling/guard/test_collect_tool.py",
       "fingerprint": "952bda61bc52ca15e8b04cd3",
@@ -1798,22 +2624,26 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-421b8b257eb04544",
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "mark_and_fix",
       "file": "tests/agents/test_config_defaults.py",
       "fingerprint": "2f7a4f41ff842199dc2fe716",
       "lineno": 138,
       "occurrence": 0,
-      "reason": "Asserted values 0.3/4096/25 are the class-level _default_temperature/_default_max_tokens/_default_max_turns of the test agent, consumed only in the except-branches of BaseAgent.__init__ (src/openjarvis/agents/_stubs.py:98-108) and ToolUsingAgent.__init__ (_stubs.py:355-360). They differ from both the hardcoded fallbacks (0.7/1024/10) and the config defaults; un-injected, the patched load_config returns a MagicMock whose attribute values fail all three equality asserts, so the outcome cannot occur without the injection firing.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "Falsified by the r9_injection_load_bearing probe during the B0f migration: the asserted outcome was producible without the injection firing; the first assertion now pins the injection to the run.",
+      "repair_note": "B0f finding: the execution probe showed the test stayed green with the injection neutralised, so the B0e exclusion was unsubstantiated. Repaired like the B0e marks: the injected mock's observation is now the first assertion, and the function is declared under the R9 effect evidence convention.",
+      "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "ad2b00d538805045f56c52c82c06e2936222a8fb0c0c03551d6aa9cf5a843ec9",
+      "source_digest": "5b12cc342dff49b3d7db183d9774ab28bbd119bfe210d68cb29982ee95e10615",
       "unit": "TestClassLevelDefaults.test_class_default_used_when_config_fails"
     },
     {
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-4cf58f586be084a6",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_telegram.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -1830,6 +2660,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-50cbdf067c807543",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/mining/test_discovery.py::test_check_docker_available_false_when_daemon_down"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/mining/test_discovery.py",
       "fingerprint": "4f64337b99b747a926c012d9",
@@ -1846,6 +2680,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-585c75efd7258b30",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser.py::TestBrowserNavigateTool.test_execute_navigation_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser.py",
       "fingerprint": "ddc0bfdda86e38e18ccc1716",
@@ -1862,6 +2700,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-59ae42bc2936fd7e",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_install_detect.py",
       "fingerprint": "9371590d4af38d75d578624e",
@@ -1878,6 +2718,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-5b8dbf7e38eb391b",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_chat_cmd.py::TestReadInput.test_read_input_keyboard_interrupt"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_chat_cmd.py",
       "fingerprint": "f03115946dffd46140b7601e",
@@ -1894,6 +2738,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-5bfe09305f8dd88b",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/speech/test_faster_whisper.py::test_faster_whisper_health_captures_load_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/speech/test_faster_whisper.py",
       "fingerprint": "3288a34198e90aec941760bb",
@@ -1910,6 +2758,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-5ec737919be992a0",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_twitter_bot_e2e.py",
       "fingerprint": "88078f50ec1b49e3739d5ba1",
@@ -1926,6 +2776,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-604318ed64c319a0",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_engine_model_matrix.py",
       "fingerprint": "7583291f2832a9e1807d7917",
@@ -1942,6 +2794,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-6452c1efbb2d11ae",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_ollama_models.py",
       "fingerprint": "9ebc6813b453af33b80b5ffd",
@@ -1958,6 +2812,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-674e8563cc01beb4",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/server/test_model_management.py::TestModelPull.test_pull_ollama_unreachable"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/server/test_model_management.py",
       "fingerprint": "720f5bb10e0f108ebbf2d7e4",
@@ -1974,6 +2832,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-688b7685133cb7b8",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_vllm_models.py",
       "fingerprint": "3b2e5791d083f786fe96a480",
@@ -1990,6 +2850,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-71139c579ba302dd",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_mlx.py",
       "fingerprint": "835af09bb65a7ec3041bd303",
@@ -2006,6 +2868,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-7847ce6e7541acee",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_sendblue.py",
       "fingerprint": "a833fc3a2008898c1a8b974b",
@@ -2022,6 +2886,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-78bd4d6b75368b73",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/mining/test_discovery.py",
       "fingerprint": "0e245ee07959d446c2539951",
@@ -2038,6 +2904,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-7b68dbc254fa3792",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_http_request.py::TestHttpRequestTool.test_timeout_handling"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_http_request.py",
       "fingerprint": "b921696428b7a391dde657a7",
@@ -2054,6 +2924,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-7d4db93de4674f69",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_audio_tool.py::TestAudioTranscribeTool.test_api_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_audio_tool.py",
       "fingerprint": "d16f8058e5a90073e4a4878a",
@@ -2070,6 +2944,10 @@
       "ast_class": "Call",
       "candidate_class": "swallowed_perturbation",
       "candidate_id": "r9-7dc592e9dc00b3e8",
+      "category": "r9_property_established_at_creation",
+      "category_proof": {
+        "via": "creation_mode"
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/gates/evidence.py",
       "fingerprint": "0e1f9acaa0a574804e86cdbd",
@@ -2086,6 +2964,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-7e13e7e4b71ae37b",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_model_pull.py::TestOllamaPull.test_ollama_pull_connect_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_model_pull.py",
       "fingerprint": "d5717fa36a6930cbb8bf3846",
@@ -2102,6 +2984,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-80051da85d4ec9cc",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_scan.py",
       "fingerprint": "c299d92768129c352947a86c",
@@ -2111,13 +2995,15 @@
       "repair_note": "tests/cli/test_scan.py::TestICloudSync.test_icloud_defaults_error_falls_through_to_ok: bind 'patch.object(scanner, \"_run\", side_effect=FileNotFoundError) as mock_run' and make 'assert mock_run.called' the FIRST assertion, before 'assert result.status == \"ok\"'.",
       "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "8e2f6f6d443b0b178e753a2f0aa6c179de3d3b69f6e42aae54493169cacbe400",
+      "source_digest": "84d11fc517cd677031f6c1a71ed1769aa379de52394860ad2bd58b36dfc80d35",
       "unit": "TestICloudSync.test_icloud_defaults_error_falls_through_to_ok"
     },
     {
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-80a1edf7d471d4c3",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_ollama_models.py",
       "fingerprint": "85dd9735653c3a10427032e6",
@@ -2134,6 +3020,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-80f4e8f770d25c5c",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_google_chat.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2150,6 +3038,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-822562980d09acf2",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_teams.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2166,6 +3056,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-85800248c93f3c2f",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_feishu.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2182,6 +3074,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-866614c0fedf7e06",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/agents/test_native_openhands.py",
       "fingerprint": "c9b005f25d7b9799ff8cf755",
@@ -2198,6 +3092,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-8d167ebd39bcdc03",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser_axtree.py::TestBrowserAXTreeTool.test_playwright_not_installed"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser_axtree.py",
       "fingerprint": "c736aa0c81103fc4ff1d34a4",
@@ -2214,6 +3112,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-90371ece5c7e56f8",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_chat_cmd.py::TestReadInput.test_read_input_eof"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_chat_cmd.py",
       "fingerprint": "d9ac5666bb9ee362c6d1c693",
@@ -2230,6 +3132,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-91d18f2f044aef1d",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_channel_cmd.py::TestChannelList.test_list_connection_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_channel_cmd.py",
       "fingerprint": "735a6b5a82a0d24d7f0f42ea",
@@ -2246,6 +3152,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-939ba920bb30a4a3",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/agents/test_channel_agent.py::TestChannelAgent.test_agent_error_sends_friendly_message"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/agents/test_channel_agent.py",
       "fingerprint": "86fefec7d916e743d39646f7",
@@ -2255,13 +3165,15 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R9",
-      "source_digest": "eb608f40978f69953676a078560820d4f328ec3c5e8c7c1bfa6310f0677b4afa",
+      "source_digest": "a86a5fdfd3b5a9d1262975c748ef104719536fe44607c420f37a0b4de294a749",
       "unit": "TestChannelAgent.test_agent_error_sends_friendly_message"
     },
     {
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-95db4e5fa2c5ae0b",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_discord_channel.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2278,6 +3190,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-96cab0fca7ce144a",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_tool_cmd.py",
       "fingerprint": "f2f32d55ae44a7b39a9a5c36",
@@ -2294,22 +3208,28 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-991e76ac4586e2ab",
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "mark_and_fix",
       "file": "tests/agents/test_channel_agent.py",
       "fingerprint": "86fefec7d916e743d39646f7",
       "lineno": 302,
       "occurrence": 0,
-      "reason": "The final assertion \"'Sorry' in sent['content']\" is satisfiable only by the except-branch message 'Sorry, I ran into an error...' (channel_agent.py:110-112), produced only when the injected RuntimeError propagates out of agent.run. Un-injected, the success path sends the MagicMock result content whose __contains__ is False, so the field-mapping assertions cannot pass vacuously via the success path without the test failing on the 'Sorry' check.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "Falsified by the r9_injection_load_bearing probe during the B0f migration: the asserted outcome was producible without the injection firing; the first assertion now pins the injection to the run.",
+      "repair_note": "B0f finding: the execution probe showed the test stayed green with the injection neutralised, so the B0e exclusion was unsubstantiated. Repaired like the B0e marks: the injected mock's observation is now the first assertion, and the function is declared under the R9 effect evidence convention.",
+      "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "eb608f40978f69953676a078560820d4f328ec3c5e8c7c1bfa6310f0677b4afa",
+      "source_digest": "a86a5fdfd3b5a9d1262975c748ef104719536fe44607c420f37a0b4de294a749",
       "unit": "TestChannelAgent.test_error_path_also_uses_conversation_id_as_destination"
     },
     {
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-9af91e529ac3d44a",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/mcp/test_loader.py::TestLoaderFailureIsolation.test_one_server_failure_doesnt_abort_others"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/mcp/test_loader.py",
       "fingerprint": "80cd3506e29d08f32819d602",
@@ -2326,6 +3246,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-9b4087ceeb15703c",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser.py::TestBrowserScreenshotTool.test_execute_screenshot_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser.py",
       "fingerprint": "858f323b5d5777e6728dd39d",
@@ -2342,6 +3266,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-9c65ae6d41339b6f",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/agents/test_config_defaults.py",
       "fingerprint": "2f7a4f41ff842199dc2fe716",
@@ -2351,13 +3277,15 @@
       "repair_note": "tests/agents/test_config_defaults.py::TestBaseAgentConfigResolution.test_config_load_failure_uses_hardcoded_fallback: bind the patch ('with patch(..., side_effect=Exception(\"boom\")) as mock_cfg:') and make 'assert mock_cfg.called' the FIRST assertion, before the temperature/max_tokens equality checks.",
       "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "ad2b00d538805045f56c52c82c06e2936222a8fb0c0c03551d6aa9cf5a843ec9",
+      "source_digest": "5b12cc342dff49b3d7db183d9774ab28bbd119bfe210d68cb29982ee95e10615",
       "unit": "TestBaseAgentConfigResolution.test_config_load_failure_uses_hardcoded_fallback"
     },
     {
       "ast_class": "Call",
       "candidate_class": "tolerant_removal_unverified",
       "candidate_id": "r9-9d3491f179137eff",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0d_checks.py",
       "fingerprint": "c09e758dfb090a3ca2a2d3b5",
@@ -2374,6 +3302,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-9da0a0e79db67cc7",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_tier1_gmail.py",
       "fingerprint": "1f98333a8deeb08760ae63b4",
@@ -2390,6 +3320,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-a289b81508185991",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/mining/test_collector.py::test_collector_handles_gateway_errors_gracefully"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/mining/test_collector.py",
       "fingerprint": "7a6980093a349d95d84fb252",
@@ -2406,6 +3340,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-a3401c56cff9b22e",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_pdf_tool.py::TestPDFExtractTool.test_pdf_extraction_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_pdf_tool.py",
       "fingerprint": "8344661230adeaf55b97bcbd",
@@ -2422,6 +3360,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-a346c4ee02dcc4e5",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_webhook.py",
       "fingerprint": "f4c3b35450fb979be92fb2bf",
@@ -2438,6 +3378,8 @@
       "ast_class": "Call",
       "candidate_class": "masking_patch",
       "candidate_id": "r9-a5c9e625ad2516b8",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_structured_output.py",
       "fingerprint": "92e1793d1d51ad7863519dc4",
@@ -2454,6 +3396,8 @@
       "ast_class": "Call",
       "candidate_class": "tolerant_removal_unverified",
       "candidate_id": "r9-a69cdb70f351664d",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0c_checks.py",
       "fingerprint": "4241c6449c9a5380a980aaf2",
@@ -2470,6 +3414,8 @@
       "ast_class": "Call",
       "candidate_class": "guarded_perturbation",
       "candidate_id": "r9-acbdf6dd53ba5174",
+      "category": "r9_after_state_observed",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tests/tooling/guard/test_manipulation_matrix.py",
       "fingerprint": "7efa83b0ceab58c1d0b52ac5",
@@ -2486,6 +3432,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-af9f7f6408744542",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_web_search.py::TestWebSearchTool.test_execute_duckduckgo_fallback_format"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_web_search.py",
       "fingerprint": "6f3cd443fff98aa767c31bca",
@@ -2502,6 +3452,8 @@
       "ast_class": "Call",
       "candidate_class": "swallowed_perturbation",
       "candidate_id": "r9-b0e1e4b06abcdd7b",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runner.py",
       "fingerprint": "139f4098975d5eb337d3ff7e",
@@ -2518,6 +3470,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-b2bb0dc61a9ee35e",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_mattermost.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2534,6 +3488,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-b2dd3c0b985b67f7",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_whatsapp.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2550,6 +3506,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-b5151bb35138a945",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser.py::TestBrowserExtractTool.test_execute_extract_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser.py",
       "fingerprint": "40b88a465c4dd7bce0f7ca0f",
@@ -2566,6 +3526,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-ba7bbb5f6a224de0",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/agents/test_executor.py::TestExecutorBasic.test_execute_tick_gives_up_after_max_retries"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/agents/test_executor.py",
       "fingerprint": "e943f5bbc1c47c08027ad5c9",
@@ -2582,6 +3546,11 @@
       "ast_class": "Call",
       "candidate_class": "masking_patch",
       "candidate_id": "r9-bb70da69fc9d580a",
+      "category": "r9_conditional_import_target",
+      "category_proof": {
+        "attribute": "Harness",
+        "module": "src/openjarvis/evals/backends/terminalbench_native.py"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/evals/test_terminalbench_native_backend.py",
       "fingerprint": "901261c64eedd855d1c6ff41",
@@ -2598,6 +3567,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-c55689bb3374a6f6",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/server/test_channel_bridge.py",
       "fingerprint": "665d374baa7fbf2d7d044cf2",
@@ -2614,6 +3585,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-c77813c72f7cbce9",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/server/test_speech_routes.py::test_transcribe_endpoint_surfaces_backend_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/server/test_speech_routes.py",
       "fingerprint": "696d0b922359e0eb3440c0a2",
@@ -2630,6 +3605,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-c7d800ebc517c098",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_shell_exec.py::TestShellExecTool.test_rust_exception_sets_failure"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_shell_exec.py",
       "fingerprint": "7e8ca80741f7cf441339878f",
@@ -2646,6 +3625,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-cabb81b8e3354d73",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_gemma_cpp.py",
       "fingerprint": "b48f2d147e9b817daaa82d7d",
@@ -2662,6 +3643,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-cc0d529085ec3ea0",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_lmstudio.py",
       "fingerprint": "551e92517444771bc09f8c81",
@@ -2678,6 +3661,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-ccdb6c56354c7f8a",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_openai_compat.py",
       "fingerprint": "d2330a3513a3d2c315868c56",
@@ -2694,6 +3679,8 @@
       "ast_class": "Call",
       "candidate_class": "swallowed_perturbation",
       "candidate_id": "r9-cee278c746f6c5c5",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tools/gates/paths.py",
       "fingerprint": "1dd1abf99077939761217b2a",
@@ -2710,6 +3697,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-cfacc6ac5248d124",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/cli/test_model_pull.py::TestPullCliMultiEngine.test_pull_llamacpp_huggingface_cli_not_found"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/cli/test_model_pull.py",
       "fingerprint": "a871628df4ee06bfff9d642e",
@@ -2726,6 +3717,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-d042bc6a84e7c0fc",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_config_set.py",
       "fingerprint": "b311a33b10983a0aa19b186a",
@@ -2742,6 +3735,11 @@
       "ast_class": "Call",
       "candidate_class": "masking_patch",
       "candidate_id": "r9-d07ba0e11591ffed",
+      "category": "r9_conditional_import_target",
+      "category_proof": {
+        "attribute": "Harness",
+        "module": "src/openjarvis/evals/backends/terminalbench_native.py"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/evals/test_terminalbench_native_backend.py",
       "fingerprint": "4ba2ae9d88ec559d410e641b",
@@ -2758,6 +3756,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-d2d9c913d9ce825d",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/telemetry/test_energy_nvidia.py",
       "fingerprint": "2d69bc989ed2571fc4b06005",
@@ -2767,13 +3767,15 @@
       "repair_note": "tests/telemetry/test_energy_nvidia.py, TestEnergyMethod.test_returns_polling_when_no_hw_counter (line 170): after constructing the monitor, make assert fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.called the first assertion, then assert monitor.energy_method() == \"polling\".",
       "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "98909b7eeb65bcad310b299c392c4a1b7b58ac635e826b7f8f95fe7547a6d64b",
+      "source_digest": "d6b53967a57bac5e5d55e5948134901aa98b635aed12f64646f27095e713a525",
       "unit": "TestEnergyMethod.test_returns_polling_when_no_hw_counter"
     },
     {
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-d6fb4dc9a34df1e7",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_signal_channel.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2790,6 +3792,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-daac6760bbc16295",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_twilio_sms.py",
       "fingerprint": "854610872069c91c96b79829",
@@ -2806,6 +3810,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-df1c31284660463d",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_twitter_channel.py",
       "fingerprint": "b4d9a1b20e2907a8d2dfbcb6",
@@ -2822,6 +3828,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-df26141cee33ad96",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser.py::TestBrowserClickTool.test_execute_click_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser.py",
       "fingerprint": "ab38679e2ba4e52d08582145",
@@ -2838,6 +3848,8 @@
       "ast_class": "Call",
       "candidate_class": "tolerant_removal_unverified",
       "candidate_id": "r9-e274f3161c3aabfd",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0d_checks.py",
       "fingerprint": "c09e758dfb090a3ca2a2d3b5",
@@ -2854,6 +3866,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-e2b9cb4cea2bbe1e",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_engine_model_matrix.py",
       "fingerprint": "f6f08d194303d50112d0d958",
@@ -2870,6 +3884,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-e2c374b4affe978b",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/server/test_mcp_tools_cache.py",
       "fingerprint": "5c17cede5b1399adb554c367",
@@ -2886,6 +3902,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-e3533b073f7fca2d",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/server/test_connectors_router.py",
       "fingerprint": "b6770498d9906ad5bb2ef473",
@@ -2902,6 +3920,10 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-e6cbf1f5b3ac7cab",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/agents/test_executor.py::TestExecutorBasic.test_execute_tick_handles_fatal_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/agents/test_executor.py",
       "fingerprint": "0d3decc489f7d96c989aeab8",
@@ -2918,6 +3940,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-e7ec5f830f40d2a9",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/cli/test_init_host.py",
       "fingerprint": "b311a33b10983a0aa19b186a",
@@ -2934,6 +3958,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-eb9c551476688a39",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_web_search.py::TestWebSearchTool.test_execute_tavily_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_web_search.py",
       "fingerprint": "040da60bd3d3ccb26ba66bd0",
@@ -2950,6 +3978,10 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-f576e9ecf8f6621c",
+      "category": "r9_injection_load_bearing",
+      "category_proof": {
+        "test": "tests/tools/test_browser.py::TestBrowserTypeTool.test_execute_type_error"
+      },
       "disposition": "exclude_with_reason",
       "file": "tests/tools/test_browser.py",
       "fingerprint": "c690b417ba09f6b73352c598",
@@ -2966,6 +3998,14 @@
       "ast_class": "Call",
       "candidate_class": "swallowed_perturbation",
       "candidate_id": "r9-f667e5b811691fa8",
+      "category": "r9_property_established_at_creation",
+      "category_proof": {
+        "site": {
+          "file": "tools/guardops/collect.py",
+          "unit": "command_collect"
+        },
+        "via": "root_gate"
+      },
       "disposition": "exclude_with_reason",
       "file": "tools/guardops/collect.py",
       "fingerprint": "c896a12e5808f1a0c7092d95",
@@ -2982,6 +4022,8 @@
       "ast_class": "Call",
       "candidate_class": "tolerant_removal_unverified",
       "candidate_id": "r9-f7300bf7da9c8fee",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0c_checks.py",
       "fingerprint": "4241c6449c9a5380a980aaf2",
@@ -2998,6 +4040,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-f766d7c48cad2330",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/channels/test_twitter_bot_e2e.py",
       "fingerprint": "88078f50ec1b49e3739d5ba1",
@@ -3014,6 +4058,8 @@
       "ast_class": "Call",
       "candidate_class": "tolerant_removal_unverified",
       "candidate_id": "r9-f9145c3d32a0fe28",
+      "category": "r9_post_judgment_position",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runners/b0d_checks.py",
       "fingerprint": "c09e758dfb090a3ca2a2d3b5",
@@ -3030,6 +4076,8 @@
       "ast_class": "Assign",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-faf66ac75139b2c2",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/engine/test_litellm.py",
       "fingerprint": "4bf10971d55e1517c3b6ec63",
@@ -3046,6 +4094,8 @@
       "ast_class": "Call",
       "candidate_class": "guarded_perturbation",
       "candidate_id": "r9-fbd546011afe0d57",
+      "category": "r9_loud_guarded_removal",
+      "category_proof": {},
       "disposition": "exclude_with_reason",
       "file": "tools/gates/runner.py",
       "fingerprint": "b83a30f3d62cbee20d3ad53e",
@@ -3062,6 +4112,8 @@
       "ast_class": "Call",
       "candidate_class": "unobserved_error_injection",
       "candidate_id": "r9-fc5731099cb8d090",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/agents/test_config_defaults.py",
       "fingerprint": "2f7a4f41ff842199dc2fe716",
@@ -3071,13 +4123,15 @@
       "repair_note": "tests/agents/test_config_defaults.py::TestToolUsingAgentConfigResolution.test_config_load_failure_max_turns_fallback: bind the patch as mock_cfg and make 'assert mock_cfg.called' the FIRST assertion, before 'assert agent._max_turns == 10'.",
       "resolved_by_removal": true,
       "rule": "R9",
-      "source_digest": "ad2b00d538805045f56c52c82c06e2936222a8fb0c0c03551d6aa9cf5a843ec9",
+      "source_digest": "5b12cc342dff49b3d7db183d9774ab28bbd119bfe210d68cb29982ee95e10615",
       "unit": "TestToolUsingAgentConfigResolution.test_config_load_failure_max_turns_fallback"
     },
     {
       "ast_class": "Call",
       "candidate_class": "silent_substitution",
       "candidate_id": "r9-fc94608ea3c90ae7",
+      "category": "",
+      "category_proof": {},
       "disposition": "mark_and_fix",
       "file": "tests/tooling/guard/test_bootstrap.py",
       "fingerprint": "42a96a3faae3114326b1ca74",
@@ -3125,5 +4179,5 @@
       "statement": "A test or validator whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence, before its actual expectation, that the effect really occurred. The sweep anchors candidates where the perturbation's intended after-state is not guaranteed by the operation itself; the normative decision is the disposition, never the detector."
     }
   },
-  "schema_version": 1
+  "schema_version": 2
 }

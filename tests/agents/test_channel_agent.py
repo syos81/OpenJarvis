@@ -311,6 +311,10 @@ class TestChannelAgent:
         channel.simulate_message(msg)
         ca.shutdown()
 
+        # Rule R9 (B0f finding): the injection must be observed before the
+        # expectation — the neuter probe showed this test stayed green
+        # without it.
+        agent.run.assert_called()
         assert len(channel._sent) == 1
         sent = channel._sent[0]
         assert sent["channel"] == "987654321098765432"

@@ -253,6 +253,10 @@ class TestSamplePolling:
             mod.pynvml = fake_pynvml
             try:
                 monitor = mod.NvidiaEnergyMonitor(poll_interval_ms=10)
+                # Rule R9 (B0f finding): the probe injection must be
+                # observed before the expectation — the neuter probe showed
+                # this test stayed green without it.
+                fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.assert_called()
                 assert monitor.energy_method() == "polling"
 
                 with monitor.sample() as result:

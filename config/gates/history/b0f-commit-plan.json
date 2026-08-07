@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "kind": "commit_plan",
+  "block_id": "b0f-dispo-hardening",
+  "start_commit": "4b443e1b5a2552c09c50ab21f5f013ca37dbdbdd",
+  "planned_commits": [
+    {
+      "position": 1,
+      "purpose": "purely normative: the closed exclusion vocabulary with its validators and probes, the schema-2 register with every exclusion categorised, the four falsified exclusions repaired, the pre-declared sample plan, the blind machinery, the unit-locality classification, the Slack isolation proof, the block manifest, lineage, bindings and all tests",
+      "message": "feat(gates): carry every exclusion on a falsifiable category and pre-declare the blind sample"
+    },
+    {
+      "position": 2,
+      "purpose": "purely determinative: the drawn sample record, the validated blind dataset, the stored independent evaluations, the unblinding comparison, the correction notes against the B0e control values, gate evidence, acceptance record and handoff — together with the R4 bindings for exactly these record files, following the B0d precedent that record bindings land with their records",
+      "message": "test(gates): finalize b0f sample, blind review, evidence and handoff"
+    }
+  ],
+  "max_commits": 2,
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "automatic push",
+    "sudo",
+    "guard activation",
+    "real external network access in tests"
+  ],
+  "push_status": "not_performed_owner_action",
+  "split_justification": {
+    "declared_in_advance": true,
+    "decided_by": "owner instruction for block B0f",
+    "separation": "normative and determinative stay in separate commits; position 1 is normative, position 2 is determinative",
+    "reason": "The vocabulary, validators, migration, sample method and proofs form one testable whole. The drawn sample and its independent evaluations are evidence about the fixed normative commit and may not alter the selection method they were drawn under; they land after the acceptance run, and a review finding that demands normative repair would insert a new normative position with a machine readable justification and a complete fresh run instead of amending.",
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates, with the declared exception that determinative record files carry their own R4 bindings in position 2",
+      "the full tooling test suite passes",
+      "the configuration loader binding check passes",
+      "every phase declared for the changed subject has run against the new scope (R5)",
+      "a commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified."
+  },
+  "guard_package_affected": {
+    "value": false,
+    "reason": "B0f changes no file under tools/guard, tools/guardpkg or tools/guardops; the installed guard, its package and its digest stay untouched and no owner activation exists in this block.",
+    "owner_activation_required": false
+  }
+}

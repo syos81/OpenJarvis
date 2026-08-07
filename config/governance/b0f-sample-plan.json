@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "kind": "b0f_sample_plan",
+  "block_id": "b0f-dispo-hardening",
+  "plan_version": "b0f-sample-v1",
+  "population": {
+    "definition": "every entry of config/governance/ast-dispositions.json whose disposition is exclude_with_reason, at the normative commit the acceptance run names",
+    "size_derivation": "counted mechanically from the register; never a quoted number",
+    "empty_population": "blocked"
+  },
+  "strata": {
+    "by": "rule",
+    "values": ["R9", "R10"],
+    "justification": "The two rules have disjoint semantics and disjoint category vocabularies; a simple random draw could leave one rule unexamined, which no property of the population justifies. Proportional stratification is deterministic and adds no free parameter."
+  },
+  "size_rule": {
+    "formula": "ceil(stratum_size / 5) per stratum",
+    "rounding": "ceil",
+    "empty_stratum": "skipped with derived-emptiness proof: the register, an independent source, declares no exclusions under that rule (the narrow R10 exception); only an empty total population is blocked",
+    "note": "The sample size is a function of the derived stratum sizes only; no target count and no expected confirmation quota exists."
+  },
+  "ordering": "candidate_id, lexicographic",
+  "selection": {
+    "method": "keyed_hash_order",
+    "key": "sha256(seed + ':' + candidate_id), hexadecimal",
+    "take": "the first ceil(stratum_size/5) candidates of the stratum in ascending key order",
+    "note": "A pure function of seed and candidate ids: no random state, no clock, no process id, no system entropy, no manual reselection, no exchange of drawn elements."
+  },
+  "seed_rule": {
+    "formula": "sha256(plan_version + ':' + commit_oid + ':' + register_blob_oid)",
+    "commit_oid": "the full normative commit id the acceptance run names",
+    "register_blob_oid": "git rev-parse <commit>:config/governance/ast-dispositions.json",
+    "binding": "a manipulated population changes the register blob and therefore the seed and the draw; rule R6 derives both inputs from the commit object"
+  },
+  "blind_allowlist": [
+    "review_id",
+    "rule",
+    "candidate_class",
+    "anchor",
+    "unit_source",
+    "module_source",
+    "auxiliary_sources",
+    "task"
+  ],
+  "review_protocol": {
+    "verdicts": ["confirm_exclusion", "reject_exclusion", "insufficient_evidence"],
+    "one_evaluation_per_review_id": true,
+    "blindness": "the dataset handed to the reviewing instance is exactly the validated blind dataset; it contains neither the original exclusion reason nor any category, prior verdict, author information or expected quota",
+    "order": "all evaluations are stored, their digest is bound in the unblinding comparison record, and only then are they compared with the register; a changed evaluation after unblinding fails via the digest",
+    "consequences": {
+      "reject_exclusion": "the affected candidate's category is marked re-examination-required as a whole; every candidate of that category is re-examined, re-confirmed, re-categorised or repaired; afterwards the sample is redrawn against the new normative state",
+      "insufficient_evidence": "the cause is established; the blind dataset may be extended only without disclosing original reasons or categories; the review is then performed afresh, never silently upgraded to a confirmation"
+    },
+    "zero_findings": "count as a result only when drawn > 0, evaluated == drawn, every review id evaluated exactly once and the blindness checks passed (the narrow R10 exception)"
+  }
+}

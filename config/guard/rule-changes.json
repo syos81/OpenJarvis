@@ -284,6 +284,16 @@
       "sharpening_test": "tests/tooling/gates/test_ast_dispositions.py::TestTheComparison",
       "counter_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-026",
+      "block_id": "b0f-dispo-hardening",
+      "rule_id": "closed_exclusion_vocabulary_and_blind_sample",
+      "kind": "sharpening",
+      "summary": "Block B0f. An exclusion in the disposition register is carried by a category of a closed, machine-falsifiable vocabulary, never by free text: the schema-2 reader refuses missing or unknown categories, and every category's criterion is re-checked mechanically against the current candidate on every dispositions run (structural facts, neuter execution probes, key-deletion rejection probes). The exclusion population is additionally subject to a pre-declared, commit-bound, reproducible blind sample whose independent evaluations are digest-bound before unblinding; a rejected exclusion forces the re-examination of its whole category, never a single-case fix. Found live during the migration: four B0e exclusions were falsified by the execution probe (the tests stayed green with their injection neutralised) and were repaired like the B0e marks.",
+      "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestRegisterDiscipline",
+      "counter_test": "tests/tooling/gates/test_b0f_sampling.py::TestReviewConsumption",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [

@@ -396,9 +396,13 @@ class TestDNS:
         scanner = PrivacyScanner()
         with (
             patch("sys.platform", "darwin"),
-            patch("subprocess.run", side_effect=FileNotFoundError),
+            patch("subprocess.run", side_effect=FileNotFoundError) as mock_run,
         ):
             result = scanner.check_dns()
+        # Rule R9 (B0f finding): the injection must be observed before the
+        # expectation — the neuter probe showed this test stayed green
+        # without it.
+        assert mock_run.called
         assert result.status == "skip"
 
 

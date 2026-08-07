@@ -50,7 +50,7 @@ def register_skeleton():
             "class_boundaries": {"stated_boundary": boundary},
         }
     return {
-        "schema_version": 1,
+        "schema_version": astscan.REGISTER_SCHEMA_VERSION,
         "kind": "ast_disposition_register",
         "block_id": "fixture-block",
         "corpus_note": "derived by tools.gates.astcorpus over the fixture worktree",
@@ -60,7 +60,7 @@ def register_skeleton():
 
 
 def entry_for(root, candidate, disposition, *, reason=LONG_REASON, repair_note="",
-              resolved_by_removal=False):
+              resolved_by_removal=False, category=None, category_proof=None):
     digest = hashlib.sha256((Path(root) / candidate.file).read_bytes()).hexdigest()
     entry = dict(candidate.as_dict())
     entry["disposition"] = disposition
@@ -68,6 +68,17 @@ def entry_for(root, candidate, disposition, *, reason=LONG_REASON, repair_note="
     entry["repair_note"] = repair_note
     entry["resolved_by_removal"] = resolved_by_removal
     entry["source_digest"] = digest
+    if disposition == "exclude_with_reason":
+        # Schema 2: an exclusion is carried by a category, never by text.
+        # The fixture candidate's write is followed by an assert that reads
+        # the target, which the after-state category confirms structurally.
+        entry["category"] = (
+            "r9_after_state_observed" if category is None else category
+        )
+        entry["category_proof"] = {} if category_proof is None else category_proof
+    else:
+        entry["category"] = ""
+        entry["category_proof"] = {}
     return entry
 
 
@@ -168,7 +179,11 @@ class TestTheComparison(RegisterFixture):
         failures, _diagnostics = self.validate()
         self.assertEqual(
             sorted(code for _id, code in failures),
-            ["candidate_undisposed", "disposition_orphaned"],
+            [
+                "candidate_undisposed",
+                "category_unconfirmed:anchor_not_found",
+                "disposition_orphaned",
+            ],
         )
 
     def test_a_resolved_candidate_that_reappears_fails(self):

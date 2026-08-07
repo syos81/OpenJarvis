@@ -10,6 +10,35 @@
       "reason": "The R9/R10 disposition register is read exclusively by the scan validator, which rejects unknown fields, unknown candidate classes, lazy reasons and contradictory resolutions before any comparison runs."
     },
     {
+      "binding_id": "b0f-sample-plan",
+      "call_style": "root_relative",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.b0fsample:load_plan",
+      "pattern": "config/governance/b0f-sample-plan.json",
+      "reason": "The pre-declared sampling plan is read exclusively by the sampling module, which pins the plan version, the field set and the blind allowlist before any draw."
+    },
+    {
+      "binding_id": "b0f-unit-locality",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/governance/b0f-unit-locality.json",
+      "reason": "The unit-locality method finding: classification with its proofs; consumed by the b0f method gate.",
+      "required_fields": [
+        "schema_version",
+        "kind",
+        "block_id",
+        "classification",
+        "unit_definition",
+        "analysis_boundaries",
+        "connecting_paths",
+        "other_checks_examined",
+        "minimal_case",
+        "consequence"
+      ]
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",
