@@ -1,0 +1,186 @@
+{
+  "acceptance_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. platform-live is declared not applicable by the manifest with a derived, substantive reason; no other phase was declared, no result was interpreted and no manual run replaced a gate.",
+  "block_id": "b0e-test-hardening",
+  "block_scope": {
+    "covers": "The mechanically derived executable corpus, the R9 and R10 syntax tree sweeps, the disposition register with every candidate decided, the repairs of marked tests and checkers, and the standing gates that keep both defect classes from re-entering.",
+    "derived_corpus_counts": {
+      "ast_nodes": 697072,
+      "files": 731,
+      "test_units": 8417,
+      "units": 10750,
+      "validator_units": 623
+    },
+    "derived_corpus_sources": {
+      "entry_script": 6,
+      "import_closure": 359,
+      "manifest_runner": 347,
+      "pytest_testpaths": 663,
+      "unittest_discovery": 280,
+      "unittest_module": 40
+    },
+    "disposition_counts": {
+      "r10_exclude_with_reason": 60,
+      "r10_repair": 13,
+      "r9_exclude_with_reason": 63,
+      "r9_mark_and_fix": 57
+    },
+    "guard_paths_diff_since_block_start": []
+  },
+  "committed_artifacts": [
+    {
+      "blob_sha256": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+      "path": "config/gates/blocks/b0e-test-hardening.json"
+    },
+    {
+      "blob_sha256": "3bc5ac2d1cb07214359f897f55c07ca587aeb9ee2903ddb8631b44bc18cf69b0",
+      "path": "config/gates/features/b0e-test-hardening.lineage.json"
+    },
+    {
+      "blob_sha256": "d8aed473cac6b89448ffc8dc6e9a21821d683bd1de82f72372f7cd101c0db930",
+      "path": "config/gates/history/b0e-commit-plan.json"
+    },
+    {
+      "blob_sha256": "0e59caab0ae5914b549b4647e5564a9ad38702cab73adaa65349dcc42ff5fca9",
+      "path": "config/governance/ast-dispositions.json"
+    },
+    {
+      "blob_sha256": "b90012b299820d298023c8434d46a7737aa786f42e2c29e65b5b0c17d99c895e",
+      "path": "config/governance/effect-evidence.json"
+    },
+    {
+      "blob_sha256": "6c0e88051a61a1f851c635e1466dc1f2cee4861438ac1158ba060fd77edfa865",
+      "path": "config/governance/config-loaders.json"
+    },
+    {
+      "blob_sha256": "66396eb4665eb68efdc384f8e38d6280fbd0e88ee440841a8c7a1236c632d27c",
+      "path": "config/guard/rule-changes.json"
+    },
+    {
+      "blob_sha256": "39e21a5aa1f2ee2451ef94330f433b760c711a4a8558266279b23d7fec0c7e41",
+      "path": "tools/gates/astcorpus.py"
+    },
+    {
+      "blob_sha256": "537bbd7c8d5f634c8a33507ed29485599a516256d84a182952e4b02e4a48d4f2",
+      "path": "tools/gates/astscan.py"
+    },
+    {
+      "blob_sha256": "b0d3b4861670be8dd221f3faa21f572b6e92bebe5706f909079a17220b87f45c",
+      "path": "tools/gates/runners/b0e_checks.py"
+    },
+    {
+      "blob_sha256": "225925b5fe096040b6333791675f32728531ee3e1eac9b95a8351cd5fd5ad41c",
+      "path": "tests/tooling/gates/test_ast_corpus.py"
+    },
+    {
+      "blob_sha256": "4347ca480a122189d2d41548ebb984567d9898565f19435f72b242cf41603362",
+      "path": "tests/tooling/gates/test_ast_scan.py"
+    },
+    {
+      "blob_sha256": "17a2114f47f727a756f9d34b30790781cf4905998039b4268bccd0b3e3650931",
+      "path": "tests/tooling/gates/test_ast_dispositions.py"
+    },
+    {
+      "blob_sha256": "3fbe3569f97fe86e02e7473afce186406fb5d93ec8a3c8240ec360a103321347",
+      "path": "tests/tooling/gates/test_r10_repairs.py"
+    }
+  ],
+  "documented_limitations": [
+    "The sweeps are intra-unit: a perturbation observed only in a helper the test calls, and an empty-default value consumed only by a caller, are outside structural reach; the class boundaries in the register state this.",
+    "The corpus covers Python check paths; shell entry wrappers are derivation sources and stay covered by of-shell-syntax, not by the syntax tree sweeps."
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.11",
+    "system": "Darwin"
+  },
+  "evidence_binding_note": "The five snapshots below are byte copies of the sanitised runtime evidence of the acceptance run, bound by sha256; raw logs stay in the gitignored runtime area.",
+  "external_inputs": [],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "guard_activation": {
+    "reason": "No file under tools/guard, tools/guardpkg or tools/guardops changed in this block (see block_scope), so no new guard candidate exists and the active 1.3.0 installation is untouched.",
+    "required": false
+  },
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+    "block_start_commit": "3e90d675a3dce38348cc0fcf1556f8a68dd14031",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "3e90d675a3dce38348cc0fcf1556f8a68dd14031"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 20,
+  "own_feature_prefix": "B0E-",
+  "phase_results": {
+    "module-final": "pass",
+    "offline-final": "pass",
+    "platform-live": "not_applicable",
+    "preflight": "pass",
+    "targeted": "pass"
+  },
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b0e-test-hardening/preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "8431e2d6c731be985232dc80bfdc60635c003ed9863703759b94611761f362be"
+    },
+    {
+      "path": "config/gates/evidence/b0e-test-hardening/targeted.json",
+      "phase": "targeted",
+      "recorded_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "d2cd1608455bf42cb8a295fee8474be545805e0669da8fd29608a8ffad60d5f4"
+    },
+    {
+      "path": "config/gates/evidence/b0e-test-hardening/offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "2e381bf48604765ca6349c07b3f3c63e3ee5e79d3fec0e658f5a3bf06f478eca"
+    },
+    {
+      "path": "config/gates/evidence/b0e-test-hardening/platform-live.json",
+      "phase": "platform-live",
+      "recorded_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "not_applicable",
+      "scope": "committed_snapshot",
+      "sha256": "b8cb8d1d857059c97705ad4bc241f9bb6f93952c3e0f3c83beed2ed667327ccc"
+    },
+    {
+      "path": "config/gates/evidence/b0e-test-hardening/module-final.json",
+      "phase": "module-final",
+      "recorded_commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "8a47f470ccebe3d351d14e067882069444fa407f230645a8dbf2b0e1472fdfd7"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B0e test hardening: the derived executable corpus, the R9 and R10 syntax tree sweeps and the disposition register"
+}

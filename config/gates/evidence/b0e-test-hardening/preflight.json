@@ -1,0 +1,47 @@
+{
+  "baseline_commit": null,
+  "block": "b0e-test-hardening",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "pf-baseline-commit",
+    "pf-claude-config",
+    "pf-config-loaders",
+    "pf-corpus",
+    "pf-guard-base",
+    "pf-manifest",
+    "pf-owner-expectations",
+    "pf-platform",
+    "pf-tools",
+    "pf-trust-model",
+    "pf-worktree",
+    "pf-worktree-state"
+  ],
+  "commit": "f812b24828e17eef34c4e729012c1a753f9246a9",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-07T16:05:15Z",
+  "manifest_digest": "8b1bf04055786a962397d949613a10045a6b8ccbed8c0251a66d3f0ea3b4fd8a",
+  "phase": "preflight",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "00c51f332ff82039e7e40ca19489097252e0887868d429841b59da65e8c95b49",
+    "029f3d57635d21994e53758746d81660ad4d871ece794f3bd3bd1c3617f7e230",
+    "052f543ba518ad9afd4fd0a7e6f901a2c1427af1c02b90f838bb063a59c05c01",
+    "0c048a11c90b4a333b291ca00e2ac0ddabac62f54e2e23ab2d9a1b22143bb00c",
+    "1c2048e5c0d6d14eea054dfb61b76aaf9585aa239da492d51a74c6000e0a31f9",
+    "289448b0795ebed8f872df2a7c548043f77b7cbc73b1d65c8aa1a51eeda17678",
+    "2b8cb330929ab62c7f0667ea25cd77c02823441199ae41d46990f6783f666ea2",
+    "5fec334f582d76d74c028f5ce1aedad7434b217e7e8d7496ecb905ac5ac3295b",
+    "6c05e7fffc1a9dedc4b202d25dd8ed3b48ea3c15c2488c83c689344c48bcdc1a",
+    "a6d8e00f068107ee1b7a22e51e7935777185bccf5061fa9783e94095a2cb1383",
+    "b09d3082498dbb2b039beccd7dd28966ed71a01b665d7ac2e4bfd5ffd278daae",
+    "bf7d3967d057cd701130c0ede678be50978bbb6e2605c9163c1efb50cf5ad3bc"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "df6071443078bc3a5db85c459aee3da3",
+  "schema_version": 1,
+  "started_at": "2026-08-07T16:05:02Z",
+  "status": "pass"
+}
