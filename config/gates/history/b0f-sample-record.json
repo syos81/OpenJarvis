@@ -1,0 +1,43 @@
+{
+  "block_id": "b0f-dispo-hardening",
+  "commit": "1d0e5898cff199a5b94e36e7a53ef14338a8b2b5",
+  "drawn": {
+    "R10": [
+      "r10-cd098eee1ed80417",
+      "r10-612355d11ca58bde",
+      "r10-b4fd3790611b06c7",
+      "r10-294344f3793f5f02",
+      "r10-ce53f65dd06bef0c",
+      "r10-8491f7cd1127db34",
+      "r10-f42d64591b635c69",
+      "r10-3087f128b3f2c464",
+      "r10-08b6ce48bd51a8a1",
+      "r10-df2aeb044ec5c2be",
+      "r10-a6856a89616218b8",
+      "r10-e37e5f711abeca26",
+      "r10-8fb5b0da8400535d",
+      "r10-ad4d2544e6148868"
+    ],
+    "R9": [
+      "r9-bb70da69fc9d580a",
+      "r9-91d18f2f044aef1d",
+      "r9-50cbdf067c807543",
+      "r9-1aff7a15e19d3033",
+      "r9-eb9c551476688a39",
+      "r9-90371ece5c7e56f8",
+      "r9-585c75efd7258b30",
+      "r9-cfacc6ac5248d124",
+      "r9-a289b81508185991",
+      "r9-1192093690255842",
+      "r9-068732cb7ff253bc",
+      "r9-c7d800ebc517c098"
+    ]
+  },
+  "kind": "b0f_sample_record",
+  "population": {
+    "definition": "register entries with disposition exclude_with_reason at the named commit",
+    "size": 127
+  },
+  "schema_version": 1,
+  "seed": "1cc2b3febc2543be32b209ddfa1b0d08853c51ca1c62fb7cdd1ab445f3848892"
+}

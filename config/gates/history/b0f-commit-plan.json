@@ -11,11 +11,20 @@
     },
     {
       "position": 2,
-      "purpose": "purely determinative: the drawn sample record, the validated blind dataset, the stored independent evaluations, the unblinding comparison, the correction notes against the B0e control values, gate evidence, acceptance record and handoff — together with the R4 bindings for exactly these record files, following the B0d precedent that record bindings land with their records",
+      "purpose": "purely normative correction, found during the determinative draw: for candidates living inside the vocabulary tooling the blind dataset's module context necessarily named categories; the builder now falls back deterministically to the unit excerpt for exactly those records, so the information barrier holds by construction",
+      "message": "fix(gates): keep the vocabulary module's own candidates blind by unit-level context",
+      "correction": {
+        "found_during": "determinative draw against position 1 (validate_blind: blind_category_leaked on three self-application records)",
+        "rule": "a normative error found during determination gets a new normative commit, a machine readable justification and a complete fresh run; no amend"
+      }
+    },
+    {
+      "position": 3,
+      "purpose": "purely determinative: the drawn sample record, the validated blind dataset, the stored independent evaluations, the unblinding comparison, the correction notes against the B0e control values, gate evidence, acceptance record and handoff \u2014 together with the R4 bindings for exactly these record files, following the B0d precedent that record bindings land with their records",
       "message": "test(gates): finalize b0f sample, blind review, evidence and handoff"
     }
   ],
-  "max_commits": 2,
+  "max_commits": 3,
   "forbidden_operations": [
     "commit --amend",
     "rebase",

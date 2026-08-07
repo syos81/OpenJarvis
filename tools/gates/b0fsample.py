@@ -194,13 +194,46 @@ _TASK = (
 )
 
 
-def build_blind(root, commit, seed, drawn):
-    """The blind dataset, derived from the commit's blobs only."""
+def _leaks(payload_text, reasons, category_ids):
+    for category in category_ids:
+        if category in payload_text:
+            return "blind_category_leaked"
+    for reason in reasons:
+        fragment = reason[:60]
+        if len(fragment) >= 40 and fragment in payload_text:
+            return "blind_reason_leaked"
+    return ""
+
+
+def _screen_inputs(register):
+    reasons = [
+        str(entry["reason"])
+        for entry in register["dispositions"]
+        if entry["disposition"] == "exclude_with_reason"
+    ]
+    return reasons, sorted(astcat.CATEGORIES)
+
+
+def build_blind(root, commit, seed, drawn, register=None):
+    """The blind dataset, derived from the commit's blobs only.
+
+    A candidate that lives inside the vocabulary tooling itself has a module
+    source that necessarily names categories; for such a record the context
+    falls back deterministically to the unit excerpt, so the information
+    barrier holds by construction instead of by exception."""
+    if register is None:
+        from . import astscan
+
+        register = astscan.load_register(root)
+    reasons, category_ids = _screen_inputs(register)
     records = []
     for rule in sorted(drawn):
         for entry in drawn[rule]:
             module_source = _module_source(root, commit, entry["file"])
             unit_source, unit_start = _unit_excerpt(module_source, entry["unit"])
+            context = module_source
+            if _leaks(module_source, reasons, category_ids):
+                context = unit_source
             records.append(
                 {
                     "review_id": review_id(seed, entry["candidate_id"]),
@@ -211,7 +244,7 @@ def build_blind(root, commit, seed, drawn):
                         "excerpt_line": entry["lineno"] - unit_start + 1,
                     },
                     "unit_source": unit_source,
-                    "module_source": module_source,
+                    "module_source": context,
                     "auxiliary_sources": [],
                     "task": _TASK,
                 }
@@ -227,12 +260,7 @@ def validate_blind(root, records, register=None):
     failures = []
     if not isinstance(records, list) or not records:
         return [("blind", "blind_dataset_empty")]
-    reasons = [
-        str(entry["reason"])
-        for entry in register["dispositions"]
-        if entry["disposition"] == "exclude_with_reason"
-    ]
-    category_ids = sorted(astcat.CATEGORIES)
+    reasons, category_ids = _screen_inputs(register)
     seen = set()
     for record in records:
         identifier = str(record.get("review_id", "?"))
@@ -244,16 +272,9 @@ def validate_blind(root, records, register=None):
         if identifier in seen:
             failures.append((identifier, "blind_review_id_duplicated"))
         seen.add(identifier)
-        payload = json.dumps(record, sort_keys=True)
-        for category in category_ids:
-            if category in payload:
-                failures.append((identifier, "blind_category_leaked"))
-                break
-        for reason in reasons:
-            fragment = reason[:60]
-            if len(fragment) >= 40 and fragment in payload:
-                failures.append((identifier, "blind_reason_leaked"))
-                break
+        code = _leaks(json.dumps(record, sort_keys=True), reasons, category_ids)
+        if code:
+            failures.append((identifier, code))
     return failures
 
 
