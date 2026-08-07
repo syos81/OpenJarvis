@@ -116,6 +116,62 @@
       "verdict": "exempt_descriptive",
       "evidence": "The binding that carries the lineage is predecessor_feature_list_sha256, which is recomputed and compared.",
       "reason": "An identifying label on the feature list. The integrity of the lineage rests on the digest, not on this name, so it makes no reliability claim of its own. Deliberately kept and deliberately unbound."
+    },
+    {
+      "field": "schema",
+      "subject": "the reports of tools/guardops/collect.py",
+      "carries_reliability_claim": true,
+      "verdict": "bound",
+      "evidence": "of-collect-tool compares the emitted reports against REPORT_KEYS, the declared top level key set per subcommand, and against REPORT_SCHEMA itself. A key added or dropped without a schema change fails with report_format_drift.",
+      "reason": "Same class as config_version. A report format identifier that nothing compares would feign a stability the format does not have."
+    },
+    {
+      "field": "wrote_anything",
+      "subject": "the reports of tools/guardops/collect.py",
+      "carries_reliability_claim": true,
+      "verdict": "checked",
+      "evidence": "of-collect-tool digests the pending and collected areas before and after every read only subcommand and fails on any difference, independently of what the report claims.",
+      "reason": "A field that states 'nothing was written' is worthless unless something establishes it from outside the code that writes it."
+    },
+    {
+      "field": "effect_probe",
+      "subject": "config/guard/exception-manipulation-matrix.json",
+      "carries_reliability_claim": true,
+      "verdict": "bound",
+      "evidence": "The applier evaluates the declared probe against the object before and after the manipulation and returns the verdict with the row; of-manipulation-matrix fails the row with manipulation_had_no_effect when it does not hold.",
+      "reason": "Rule R9. The probe is what makes a row a test rather than a description."
+    },
+    {
+      "field": "effect_assertion",
+      "subject": "config/governance/effect-evidence.json",
+      "carries_reliability_claim": true,
+      "verdict": "checked",
+      "evidence": "of-effect-evidence parses each declared file and compares the first assertion of the declared function with the declared value; a mismatch names both.",
+      "reason": "Declaring which assertion protects a test proves nothing until the declaration is compared with the test."
+    },
+    {
+      "field": "object_sha256",
+      "subject": "config/gates/history/b0d-historical-exception-objects.json",
+      "carries_reliability_claim": true,
+      "verdict": "bound",
+      "evidence": "The value is the digest of the object it names. scripts/guard-collect.sh verify --path re-derives it from the object in the owner's evidence area and reports a mismatch as a finding.",
+      "reason": "A digest is a binding by construction. No gate depends on the live area, because a machine specific path in a committed artifact is not checkable."
+    },
+    {
+      "field": "expected_classification_by_version",
+      "subject": "config/gates/history/b0d-historical-exception-objects.json",
+      "carries_reliability_claim": true,
+      "verdict": "checked",
+      "evidence": "of-historical-objects re-derives the classification with the guard's own classify() for every listed guard version and fails on any difference, and separately fails if any version ever yields a candidate.",
+      "reason": "The invariant of the whole block is that neither object can reach a decision. Stating it is not the same as computing it."
+    },
+    {
+      "field": "note",
+      "subject": "config/gates/history/b0d-historical-exception-objects.json",
+      "carries_reliability_claim": false,
+      "verdict": "exempt_descriptive",
+      "evidence": "Prose beside the recorded fields. Nothing reads it and nothing rests on it.",
+      "reason": "Stated as exempt so its absence from the checked set is never later read as an omission."
     }
   ],
   "open_findings": []

@@ -1,0 +1,290 @@
+{
+  "schema_version": 1,
+  "kind": "exception_manipulation_matrix",
+  "block_id": "b0d-guard-hardening",
+  "description": "Finite matrix over one well formed owner exception object. Every entry names a structural manipulation, the mechanical evidence that the manipulation took effect (rule R9), and the outcome the guard and the owner collection tool must reach. No entry substitutes a literal that merely happens to be in the object today. Every object is built and manipulated inside the declared throwaway fixture root; no real exception object and no historical evidence object is ever written, moved or renamed.",
+  "fixtures": {
+    "root": ".gate-runtime/fixtures/exceptions",
+    "properties": [
+      "every pending, spent, collected and observed area used here is a throwaway directory below the declared root",
+      "the root lies inside the gitignored runtime area and is never tracked",
+      "the base object is built by the guard's own build() and sealed by the guard's own integrity_digest()",
+      "no entry runs the owner helper, no entry runs the installer, no entry needs root",
+      "the historical evidence objects are never copied into a pending area and never re-sealed"
+    ],
+    "read_only_areas": [
+      "the owner controlled installation root and every area below it",
+      "the owner's historical exception evidence area, which is read by digest only"
+    ],
+    "abuse_test": "tests/tooling/guard/test_manipulation_matrix.py::TestFixtureDiscipline::test_no_entry_writes_outside_the_declared_fixture_root"
+  },
+  "entries": [
+    {
+      "entry_id": "control-untouched",
+      "manipulation": {"operation": "none"},
+      "effect_probe": "unchanged",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "candidate",
+      "expected_decision_effect": true,
+      "expected_collection": "left_in_place",
+      "rationale": "The control. Without it every other row could pass because the base object was already unusable. It is the only row with a decision effect, and the only row the collection tool must leave alone for that reason."
+    },
+    {
+      "entry_id": "expired-by-age",
+      "manipulation": {"operation": "set_fields", "reseal": true, "fields": [{"field": "created_at", "relative_to": "now", "offset_seconds": -601}, {"field": "expires_at", "relative_to": "now", "offset_seconds": -1}]},
+      "effect_probe": "fields_differ",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "expired",
+      "expected_decision_effect": false,
+      "expected_collection": "collected",
+      "rationale": "Resealed, so the object is beyond reproach structurally and fails on nothing but its age. Validity is 0 <= now - created_at < 600, so second 601 is expired."
+    },
+    {
+      "entry_id": "not-yet-valid",
+      "manipulation": {"operation": "set_fields", "reseal": true, "fields": [{"field": "created_at", "relative_to": "now", "offset_seconds": 60}, {"field": "expires_at", "relative_to": "now", "offset_seconds": 660}]},
+      "effect_probe": "fields_differ",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "not_yet_valid",
+      "expected_decision_effect": false,
+      "expected_collection": "collected",
+      "rationale": "An object dated in the future is not ours to interpret. The former sixty second tolerance is gone, so a minute ahead is already not yet valid."
+    },
+    {
+      "entry_id": "version-foreign-guard-version",
+      "manipulation": {"operation": "set_field", "field": "guard_version", "value": "0.9.0", "reseal": true},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "version_mismatch",
+      "expected_decision_effect": false,
+      "expected_collection": "collected",
+      "rationale": "Another guard's object. Older, newer and unknown are all foreign and nothing is migrated. This is the shape of the two objects that caused the production finding."
+    },
+    {
+      "entry_id": "version-foreign-schema",
+      "manipulation": {"operation": "set_field", "field": "schema", "value": "guard-exception-2", "reseal": true},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "version_mismatch",
+      "expected_decision_effect": false,
+      "expected_collection": "collected",
+      "rationale": "Both version bindings are checked, not just the one named guard_version. A schema the structural layer never looks at would otherwise pass unnoticed."
+    },
+    {
+      "entry_id": "version-foreign-and-expired",
+      "manipulation": {"operation": "set_fields", "reseal": true, "fields": [{"field": "guard_version", "value": "1.0.0"}, {"field": "created_at", "relative_to": "now", "offset_seconds": -80000}, {"field": "expires_at", "relative_to": "now", "offset_seconds": -79400}]},
+      "effect_probe": "fields_differ",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "version_mismatch",
+      "expected_decision_effect": false,
+      "expected_collection": "collected",
+      "rationale": "Precedence, on the real case: the historical objects are both version foreign and long expired. Version wins, because the temporal fields of an object that does not belong to this guard version are not ours to read."
+    },
+    {
+      "entry_id": "corrupt-not-json",
+      "manipulation": {"operation": "append_bytes", "bytes": "x"},
+      "effect_probe": "bytes_differ",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "not_json",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "Appending a byte cannot be a no-op, unlike substituting a literal. An unreadable object leaves the exception state unknown, so it still blocks."
+    },
+    {
+      "entry_id": "corrupt-truncated",
+      "manipulation": {"operation": "truncate_bytes", "count": 1},
+      "effect_probe": "bytes_differ",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "not_json",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The other direction of the same defect. A partially written object is the realistic form of it."
+    },
+    {
+      "entry_id": "corrupt-not-object",
+      "manipulation": {"operation": "replace_document", "document": "[]"},
+      "effect_probe": "bytes_differ",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "not_object",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "Valid JSON that is not an exception object at all."
+    },
+    {
+      "entry_id": "corrupt-field-removed",
+      "manipulation": {"operation": "delete_field", "field": "reason"},
+      "effect_probe": "field_absent",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "field_set",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The field set is exact in both directions. A missing field is not a defaulted field."
+    },
+    {
+      "entry_id": "corrupt-field-added",
+      "manipulation": {"operation": "add_field", "field": "override", "value": true},
+      "effect_probe": "field_present",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "field_set",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The interesting direction: a field that claims a power the format does not have is rejected rather than ignored."
+    },
+    {
+      "entry_id": "corrupt-nonce-not-hex",
+      "manipulation": {"operation": "set_field", "field": "nonce", "value": "NOT-A-NONCE"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "nonce",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The nonce names the single use marker. A nonce that is not a digest could name a path element instead."
+    },
+    {
+      "entry_id": "corrupt-command-digest-malformed",
+      "manipulation": {"operation": "set_field", "field": "command_sha256", "value": "zz"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "command_sha256",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The shape of the digest is checked before its value, so a malformed digest never reaches a comparison."
+    },
+    {
+      "entry_id": "corrupt-worktree-id-malformed",
+      "manipulation": {"operation": "set_field", "field": "worktree_id", "value": "everywhere"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "worktree_id",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The worktree binding is what keeps an exception from being valid everywhere at once."
+    },
+    {
+      "entry_id": "corrupt-command-empty",
+      "manipulation": {"operation": "set_field", "field": "command_canonical", "value": "   "},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "command_empty",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "An exception for nothing is not an exception for everything."
+    },
+    {
+      "entry_id": "corrupt-wildcard-command",
+      "manipulation": {"operation": "set_field", "field": "command_canonical", "value": "rm -r /private/tmp/anything*"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "wildcard_command",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "A pattern would turn a single use release into a class of releases. Rejected at the structural layer, before anything else is considered."
+    },
+    {
+      "entry_id": "corrupt-command-digest-mismatch",
+      "manipulation": {"operation": "set_field", "field": "command_canonical", "value": "git commit --amend"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "command_digest_mismatch",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The command text is swapped for a genuinely dangerous one while the digest still names the old one. The object is rejected, not silently re-read."
+    },
+    {
+      "entry_id": "corrupt-reason-too-short",
+      "manipulation": {"operation": "set_field", "field": "reason", "value": "x"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "reason_missing",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "An exception without a stated reason is not created and not accepted."
+    },
+    {
+      "entry_id": "corrupt-timestamp-not-an-integer",
+      "manipulation": {"operation": "set_field", "field": "created_at", "value": "yesterday"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "timestamps",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "A timestamp that cannot be read as a number would make every temporal bound undefined."
+    },
+    {
+      "entry_id": "corrupt-expiry-not-after-creation",
+      "manipulation": {"operation": "set_field", "field": "expires_at", "relative_to": "created_at", "offset_seconds": 0},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "expiry_not_after_creation",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "An object that expires when it is created has no validity window at all, which is a malformed object rather than an expired one."
+    },
+    {
+      "entry_id": "corrupt-ttl-too-long",
+      "manipulation": {"operation": "set_field", "field": "expires_at", "relative_to": "created_at", "offset_seconds": 601},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "ttl_too_long",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The ten minute hard limit is enforced by the reader, not only by the owner helper that writes the object."
+    },
+    {
+      "entry_id": "corrupt-unsealed-edit",
+      "manipulation": {"operation": "set_field", "field": "reason", "value": "edited after the owner sealed it"},
+      "effect_probe": "field_differs",
+      "expected_structure": "structurally_corrupt",
+      "expected_corruption_code": "integrity_digest",
+      "expected_classification": "",
+      "expected_decision_effect": false,
+      "expected_collection": "left_in_place",
+      "rationale": "The last structural check, and the one that catches every edit the earlier ones let through. The reason is changed to something a reader would find plausible, and the seal still refuses it."
+    },
+    {
+      "entry_id": "renamed-file",
+      "manipulation": {"operation": "rename_file", "stem": "00000000000000000000000000000000"},
+      "effect_probe": "filename_differs",
+      "expected_structure": "structurally_sound",
+      "expected_corruption_code": "",
+      "expected_classification": "candidate",
+      "expected_decision_effect": true,
+      "expected_collection": "left_in_place",
+      "rationale": "Stated deliberately, because the honest answer is uncomfortable: the file name carries no authority. The object is sealed over its own nonce, so renaming the file changes nothing about the decision. The collection tool reports the divergence as a finding; it does not pretend the guard saw one."
+    }
+  ],
+  "codes_not_reachable_by_manipulation": [
+    {
+      "code": "nonce_too_short",
+      "reason": "The nonce pattern already requires at least 32 hex characters and the shipped policy requires exactly 32, so no value can satisfy the pattern and still be too short. The check remains meaningful for a policy that raises the length, and is therefore not removed."
+    },
+    {
+      "code": "unreadable",
+      "reason": "Raised when the file cannot be read at all. Reproducing it means removing the read permission of a root owned file, which is an owner action and not a manipulation of the object."
+    },
+    {
+      "code": "pending_unreadable",
+      "reason": "A property of the directory, not of an object. Same reason: reaching it needs an owner action on the protected area."
+    }
+  ]
+}

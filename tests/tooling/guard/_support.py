@@ -80,7 +80,12 @@ def install(root, *, digest=None, source_commit=None, interpreter=None):
     (root / "active.json").write_text(
         json.dumps(manifest, sort_keys=True, indent=2), encoding="utf-8"
     )
-    for relative in ("var/exceptions/pending", "var/exceptions/spent"):
+    for relative in (
+        "var/exceptions/pending",
+        "var/exceptions/spent",
+        "var/exceptions/collected",
+        "var/observed",
+    ):
         (root / relative).mkdir(parents=True, exist_ok=True)
     (root / "var" / "guard.log").write_text("", encoding="utf-8")
     return manifest

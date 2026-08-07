@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "kind": "effect_evidence_review",
+  "rule": "R9",
+  "statement": "A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence, before its actual expectation, that the effect really occurred. If the effect fails to occur the test fails, not its subject. Ordinary preparation steps are not meant: the rule applies where the induced effect is what the expectation is about.",
+  "method": "For every declared function, the first assertion in its body must be the declared effect assertion. That is checked over the syntax tree, not over the text: an assertion that moved below the expectation, or disappeared, fails here even though the test still passes.",
+  "scope": {
+    "block_id": "b0d-guard-hardening",
+    "covers": "The tests this block introduced or repaired, and nothing else.",
+    "deferred": "A review of the whole existing test corpus for tests of the same construction is deliberately not part of this block. It is a separate test hardening step after B0d, so that this block does not keep growing. Until it has run, this declaration is a statement about the listed functions and about no others.",
+    "not_claimed": "No statement is made here about tests that are not listed."
+  },
+  "examined": [
+    {
+      "file": "tests/tooling/guard/test_owner_exception.py",
+      "function": "test_an_exception_cannot_repair_a_broken_installation",
+      "induced_effect": "The installed package is broken by appending a byte to rules.json.",
+      "effect_assertion": "assertNotEqual",
+      "verdict": "evidenced",
+      "evidence": "The first assertion compares the file's bytes against the bytes read before the write and fails with 'mutation had no effect' when they are equal.",
+      "reason": "This is the finding that produced the rule. The previous version substituted the literal '1.0.0'; once config_version moved to 1.1.0 the substitution became a no-op, the package stayed intact, and the test asserted a deny that the guard would have produced anyway. It passed for years of commits while testing nothing."
+    },
+    {
+      "file": "tests/tooling/guard/test_manipulation_matrix.py",
+      "function": "_run_row",
+      "induced_effect": "Each matrix row applies a declared structural manipulation to a well formed exception object.",
+      "effect_assertion": "assert_effect",
+      "verdict": "evidenced",
+      "evidence": "The first assertion of the row is assert_effect, which fails with the row identifier, the probe and the probed field when the manipulation produced no change.",
+      "reason": "The matrix is the block's central evidence. Without the probe every row could silently degrade into an assertion about the untouched base object — the exact defect above, multiplied by the number of rows."
+    },
+    {
+      "file": "tests/tooling/guard/test_manipulation_matrix.py",
+      "function": "test_pending_area_partitions_exactly_as_declared",
+      "induced_effect": "Every row is manipulated and placed into one shared pending area.",
+      "effect_assertion": "assert_effect",
+      "verdict": "evidenced",
+      "evidence": "assert_effect runs per row before any object is written, so a row that changed nothing cannot contribute to the partition.",
+      "reason": "The partition is only meaningful if the objects really differ from one another."
+    },
+    {
+      "file": "tests/tooling/guard/test_collect_tool.py",
+      "function": "test_verify_rederives_the_seal_and_catches_an_edit",
+      "induced_effect": "A sealed object is edited after the fact.",
+      "effect_assertion": "assertNotEqual",
+      "verdict": "evidenced",
+      "evidence": "The first assertion compares the reason field against its value before the write and fails with 'the edit did not take effect'.",
+      "reason": "If the edit did not land, verify would report no finding and the test would read as proof that verify is sound."
+    },
+    {
+      "file": "tests/tooling/guard/test_collect_tool.py",
+      "function": "test_verify_reports_a_missing_area_rather_than_passing",
+      "induced_effect": "The collection area is removed.",
+      "effect_assertion": "assertFalse",
+      "verdict": "evidenced",
+      "evidence": "The first assertion states that the directory is gone and fails with 'the area was not removed'.",
+      "reason": "Withdrawal is the third form of induced effect, next to mutation and corruption, and it fails just as silently: an area that still exists would produce a passing verify."
+    },
+    {
+      "file": "tests/tooling/guard/test_collect_tool.py",
+      "function": "test_a_guard_without_the_qualification_layer_is_refused",
+      "induced_effect": "The qualification function is removed from an installed package.",
+      "effect_assertion": "assertNotIn",
+      "verdict": "evidenced",
+      "evidence": "The first assertion states that the function is no longer defined and fails with 'the qualification function was not removed'.",
+      "reason": "The refusal would also appear for an unrelated import failure, so the removal has to be established rather than assumed."
+    },
+    {
+      "file": "tests/tooling/guard/test_manipulation_matrix.py",
+      "function": "test_a_manipulation_that_does_nothing_is_caught_by_its_probe",
+      "induced_effect": "A manipulation that writes a field's own value back — deliberately no effect at all.",
+      "effect_assertion": "assertFalse",
+      "verdict": "evidenced",
+      "evidence": "The counter test: it requires the probe to report the absence of an effect. Without it the probe could always return true and the whole rule would be decorative.",
+      "reason": "A rule enforced by a mechanism nobody tests is a rule enforced by nothing."
+    }
+  ],
+  "open_findings": []
+}

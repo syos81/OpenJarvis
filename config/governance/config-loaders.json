@@ -239,6 +239,15 @@
       ]
     },
     {
+      "binding_id": "governance-effect-evidence",
+      "call_style": "root_relative",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.effectevidence:load",
+      "pattern": "config/governance/effect-evidence.json",
+      "reason": "Rule R9 has a real reader that validates the scope statement, every examined entry and the requirement that a declared effect assertion really is an assertion. A structural binding would accept an entry that names something which cannot fail a test."
+    },
+    {
       "binding_id": "governance-field-binding",
       "expectation": "accepted",
       "kind": "structural",
@@ -287,12 +296,14 @@
         "applies_to",
         "canonical",
         "claim_lint",
+        "collection_tool_limit",
         "description",
         "evidence_use_limit",
         "fail_closed_operating_property",
         "log_integrity_limit",
         "model_id",
         "not_protected_against",
+        "observation_area_limit",
         "owner_authentication_boundary",
         "permitted_claims",
         "prohibited_claims",
@@ -358,6 +369,15 @@
         "source_ref",
         "target_ref"
       ]
+    },
+    {
+      "binding_id": "guard-exception-manipulation-matrix",
+      "call_style": "root_relative",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.guardops.matrix:load_matrix",
+      "pattern": "config/guard/exception-manipulation-matrix.json",
+      "reason": "The matrix has a real reader that validates the operation vocabulary, the effect probes, the outcome fields and the completeness claim over the corruption codes. A structural binding would accept a row whose operation does not exist."
     },
     {
       "binding_id": "guard-history-matrix",
@@ -445,6 +465,25 @@
         "runtime_evidence",
         "schema_version",
         "title"
+      ]
+    },
+    {
+      "binding_id": "history-b0d-exception-objects",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/b0d-historical-exception-objects.json",
+      "reason": "The non reconstructible record of the two exception objects that produced the production finding; the declared field set is its accepting reader.",
+      "required_fields": [
+        "block_id",
+        "checked_against_guard_versions",
+        "invariant",
+        "kind",
+        "objects",
+        "provenance",
+        "recorded_fields",
+        "schema_version",
+        "statement"
       ]
     },
     {

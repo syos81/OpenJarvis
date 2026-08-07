@@ -1,10 +1,5 @@
 {
-  "schema_version": 1,
-  "model_id": "guard-trust-model-1",
-  "canonical": true,
-  "description": "The one normative place that states what the guard is and what it is not. Documentation, handoffs, gate reports and CLAUDE.md use this semantics; a gate rejects any stronger protection claim.",
   "applies_to": {
-    "guard_version_min": "1.0.0",
     "components": [
       "policy hook registration",
       "bootstrap wrapper",
@@ -13,19 +8,103 @@
       "active version and hash binding",
       "rule configuration",
       "owner exception check and consumption",
-      "protected protocol"
+      "protected protocol",
+      "observation area",
+      "owner collection tool"
+    ],
+    "guard_version_min": "1.0.0"
+  },
+  "canonical": true,
+  "claim_lint": {
+    "declared_exclusions": [
+      {
+        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_excluded_path_is_not_a_blanket_exemption",
+        "path": "config/governance/guard-trust-model.json",
+        "reason": "This file defines the prohibited claims and must therefore contain them verbatim."
+      },
+      {
+        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation",
+        "path": "tools/gates/runners/guard_checks.py",
+        "reason": "The lint implementation loads the prohibited claims and reports them."
+      },
+      {
+        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation",
+        "path": "tests/tooling/gates/test_guard_claims.py",
+        "reason": "The test fixtures for the lint necessarily contain a prohibited claim."
+      }
+    ],
+    "scanned_paths": [
+      "docs/governance",
+      "docs/tooling",
+      "CLAUDE.md",
+      "config/governance",
+      "config/gates",
+      "tools/guard",
+      "tools/guardpkg",
+      "tools/gates"
     ]
   },
-  "purpose": "A discipline mechanism. It keeps ordinary tool use inside the agreed workflow and makes a forbidden operation fail before it runs.",
-  "protected_against": [
-    "mistakes and slips during ordinary tool use",
-    "forbidden commands issued through the normal tool path",
-    "process drift away from the agreed workflow",
-    "unintended history rewriting, in particular commit --amend",
-    "unintended destructive operations",
-    "bypassing agreed workflows through ordinary tool usage",
-    "silent modification of the active rule set from inside the guarded session"
-  ],
+  "collection_tool_limit": {
+    "collection_requires_root": true,
+    "collects_candidates": false,
+    "collects_corrupt_objects": false,
+    "corrupt_objects_are_left_in_place": "A corrupt object still blocks every decision. Collecting it would repair a block nobody has looked at, so it is reported and left where it is.",
+    "deletes_objects": false,
+    "edits_objects": false,
+    "session_can_collect": false,
+    "session_can_plan": true,
+    "session_can_read": true,
+    "statement": "The owner collection tool reports on the protected exception areas and prepares the owner's command. It never collects from the guarded session: the single writing function refuses before its first write unless the effective user is root, and the owner facing wrapper refuses independently of it.",
+    "what_it_does_not_prove": "That the session cannot reach the protected areas by other means. The refusal rests on the file ownership and the access control lists of the installation, and on the same boundary as everything else here \u2014 an additional interactive owner action. A session that obtains that action is outside this model."
+  },
+  "description": "The one normative place that states what the guard is and what it is not. Documentation, handoffs, gate reports and CLAUDE.md use this semantics; a gate rejects any stronger protection claim.",
+  "evidence_use_limit": {
+    "forward_appended_entries_may_override_history": false,
+    "protocol_is_sole_proof": false,
+    "required_additional_support": [
+      "reproducible active tests",
+      "package hash binding",
+      "file ownership and mode checks",
+      "independent evidence"
+    ],
+    "single_entry_proves_origin": false,
+    "statement": "The protocol is a supporting signal. A security or gate statement must additionally rest on reproducible active tests, hash binding, file permissions and independent evidence. A forward appended entry never overrides or weakens a historical acceptance.",
+    "supporting_signal_only": true
+  },
+  "fail_closed_operating_property": {
+    "is_a_defect": false,
+    "mitigation": {
+      "does_not_remove_the_property": true,
+      "enforced_by": "config/governance/config-loaders.json",
+      "engine": "tools/gates/configload.py",
+      "note": "R4 removes the most likely cause. It does not remove the property itself: any unusable configuration still blocks, and that is intended.",
+      "rule": "R4",
+      "statement": "When a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit. No configuration file may carry a field its declared loader does not yet accept."
+    },
+    "observed": {
+      "block_id": "b0c-governance",
+      "classification": "finding",
+      "date_utc": "2026-08-06",
+      "not_classified_as": "incident",
+      "reason_code": "GUARD_BOOTSTRAP_FAILED",
+      "recovery": "owner action: restore the configuration file from the committed state",
+      "recovery_is_owner_only": true,
+      "trigger": "A new field was written into the rule configuration before its loader accepted the field. The loader rejects unknown fields, so the repository side guard could not build a decision."
+    },
+    "reason_not_a_defect": "Blocking on an unusable rule set is the intended reading of fail closed. The alternative \u2014 deciding while the rule set is unknown \u2014 would be the defect. This property is documented for the same reason as requires_interactive_owner_authentication: it is stated plainly rather than softened.",
+    "statement": "The guard is fail closed without exception. A guard configuration its own loader cannot accept therefore does not degrade into a weaker decision, it produces no decision at all, and every tool call of the guarded session is blocked \u2014 including reads. The session cannot repair this, because repairing it would require the very tools that are blocked. Only the owner restores it.",
+    "value": "invalid_configuration_locks_the_session_out_entirely"
+  },
+  "log_integrity_limit": {
+    "appendable_by_session": true,
+    "cryptographic_provenance": false,
+    "deletable_by_session": false,
+    "forgeable_forward": true,
+    "rationale": "The guard runs with the privileges of the guarded session. Any key the guard can read, the session can read too, so a signature would not establish provenance.",
+    "statement": "The protected protocol cannot be shortened or deleted by the normal session, but it can be enriched with further entries and is therefore forgeable in the forward direction.",
+    "truncatable_by_session": false
+  },
+  "model_id": "guard-trust-model-1",
   "not_protected_against": [
     "a hostile actor who already holds the owner's user rights",
     "an actor who can obtain interactive owner authentication",
@@ -34,58 +113,35 @@
     "an actor with physical access to an unlocked machine",
     "forged entries appended to the protected protocol"
   ],
-  "trust_roots": [
-    {
-      "root": "claude_code_application",
-      "location_class": "user writable application bundle",
-      "closable": false,
-      "note": "The application reads the policy configuration. Whoever can replace the application can ignore every hook. No component of this guard can close this."
-    },
-    {
-      "root": "root_owned_installation",
-      "location_class": "root owned system path with a fully root owned ancestor chain",
-      "closable": true,
-      "note": "Verified mechanically on every guard start: owner, mode, symlink freedom, version and package hash."
-    },
-    {
-      "root": "root_owned_interpreter",
-      "location_class": "root owned interpreter with a fully root owned ancestor chain",
-      "closable": true,
-      "note": "Both the declared and the actually running interpreter are checked, including stub and wrapper resolution."
-    }
-  ],
+  "observation_area_limit": {
+    "appendable_by_session": true,
+    "cryptographic_provenance": false,
+    "deletable_by_session": false,
+    "forgeable_forward": true,
+    "rationale": "The guard runs with the privileges of the guarded session, so the session must be able to create a record for the guard to be able to write one at all.",
+    "records_carry_decision_weight": false,
+    "statement": "The observation area holds what the guard decided to ignore. It has exactly the integrity properties of the protected protocol: the session can add a record and cannot remove or rewrite one, so the area is forgeable in the forward direction and is never a provenance proof.",
+    "truncatable_by_session": false,
+    "why_it_is_still_worth_having": "A guard that removed the objects it decided to ignore would destroy the traces its own decision later has to be understood from. The record is a diagnosis, and a diagnosis that cannot be written changes no decision."
+  },
   "owner_authentication_boundary": {
-    "value": "requires_interactive_owner_authentication",
+    "mechanism": "Every protected component is root owned; the session runs unprivileged and sudo requires a password.",
     "rejected_value": "technically_impossible",
     "statement": "The active guard chain cannot be changed by the normal running Claude Code session without an additional interactive owner action.",
-    "mechanism": "Every protected component is root owned; the session runs unprivileged and sudo requires a password."
+    "value": "requires_interactive_owner_authentication"
   },
-  "log_integrity_limit": {
-    "truncatable_by_session": false,
-    "deletable_by_session": false,
-    "appendable_by_session": true,
-    "forgeable_forward": true,
-    "cryptographic_provenance": false,
-    "statement": "The protected protocol cannot be shortened or deleted by the normal session, but it can be enriched with further entries and is therefore forgeable in the forward direction.",
-    "rationale": "The guard runs with the privileges of the guarded session. Any key the guard can read, the session can read too, so a signature would not establish provenance."
-  },
-  "evidence_use_limit": {
-    "protocol_is_sole_proof": false,
-    "single_entry_proves_origin": false,
-    "supporting_signal_only": true,
-    "required_additional_support": [
-      "reproducible active tests",
-      "package hash binding",
-      "file ownership and mode checks",
-      "independent evidence"
-    ],
-    "forward_appended_entries_may_override_history": false,
-    "statement": "The protocol is a supporting signal. A security or gate statement must additionally rest on reproducible active tests, hash binding, file permissions and independent evidence. A forward appended entry never overrides or weakens a historical acceptance."
-  },
+  "permitted_claims": [
+    "Die aktive Guard-Kette kann von der normalen laufenden Claude-Code-Sitzung nicht ohne eine zus\u00e4tzliche interaktive Eigent\u00fcmerhandlung ver\u00e4ndert werden.",
+    "The active guard chain cannot be changed by the normal running Claude Code session without an additional interactive owner action.",
+    "Der Guard ist ein Disziplinmechanismus, keine vollst\u00e4ndige Sicherheitsgrenze gegen einen feindlichen Akteur mit Benutzerrechten.",
+    "The guard is a discipline mechanism, not a complete security boundary against a hostile actor holding user rights.",
+    "Das gesch\u00fctzte Protokoll ist nicht k\u00fcrzbar und nicht l\u00f6schbar, aber nach vorn anh\u00e4ngbar und damit f\u00e4lschbar.",
+    "The protected protocol cannot be truncated or deleted by the session, but it can be appended to and is therefore forgeable forward."
+  ],
   "prohibited_claims": [
-    "technisch unmöglich zu umgehen",
+    "technisch unm\u00f6glich zu umgehen",
     "gegen einen feindlichen lokalen Benutzer abgesichert",
-    "vollständig manipulationssicher",
+    "vollst\u00e4ndig manipulationssicher",
     "unangreifbare Sicherheitsgrenze",
     "kann unter Benutzerrechten nicht deaktiviert werden",
     "technically impossible to bypass",
@@ -97,65 +153,35 @@
     "append-only and therefore authentic",
     "append only and therefore authentic"
   ],
-  "permitted_claims": [
-    "Die aktive Guard-Kette kann von der normalen laufenden Claude-Code-Sitzung nicht ohne eine zusätzliche interaktive Eigentümerhandlung verändert werden.",
-    "The active guard chain cannot be changed by the normal running Claude Code session without an additional interactive owner action.",
-    "Der Guard ist ein Disziplinmechanismus, keine vollständige Sicherheitsgrenze gegen einen feindlichen Akteur mit Benutzerrechten.",
-    "The guard is a discipline mechanism, not a complete security boundary against a hostile actor holding user rights.",
-    "Das geschützte Protokoll ist nicht kürzbar und nicht löschbar, aber nach vorn anhängbar und damit fälschbar.",
-    "The protected protocol cannot be truncated or deleted by the session, but it can be appended to and is therefore forgeable forward."
+  "protected_against": [
+    "mistakes and slips during ordinary tool use",
+    "forbidden commands issued through the normal tool path",
+    "process drift away from the agreed workflow",
+    "unintended history rewriting, in particular commit --amend",
+    "unintended destructive operations",
+    "bypassing agreed workflows through ordinary tool usage",
+    "silent modification of the active rule set from inside the guarded session"
   ],
-  "claim_lint": {
-    "scanned_paths": [
-      "docs/governance",
-      "docs/tooling",
-      "CLAUDE.md",
-      "config/governance",
-      "config/gates",
-      "tools/guard",
-      "tools/guardpkg",
-      "tools/gates"
-    ],
-    "declared_exclusions": [
-      {
-        "path": "config/governance/guard-trust-model.json",
-        "reason": "This file defines the prohibited claims and must therefore contain them verbatim.",
-        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_excluded_path_is_not_a_blanket_exemption"
-      },
-      {
-        "path": "tools/gates/runners/guard_checks.py",
-        "reason": "The lint implementation loads the prohibited claims and reports them.",
-        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation"
-      },
-      {
-        "path": "tests/tooling/gates/test_guard_claims.py",
-        "reason": "The test fixtures for the lint necessarily contain a prohibited claim.",
-        "abuse_test": "tests/tooling/gates/test_guard_claims.py::TestClaimLint::test_same_content_is_detected_outside_the_implementation"
-      }
-    ]
-  },
-  "fail_closed_operating_property": {
-    "value": "invalid_configuration_locks_the_session_out_entirely",
-    "statement": "The guard is fail closed without exception. A guard configuration its own loader cannot accept therefore does not degrade into a weaker decision, it produces no decision at all, and every tool call of the guarded session is blocked — including reads. The session cannot repair this, because repairing it would require the very tools that are blocked. Only the owner restores it.",
-    "is_a_defect": false,
-    "reason_not_a_defect": "Blocking on an unusable rule set is the intended reading of fail closed. The alternative — deciding while the rule set is unknown — would be the defect. This property is documented for the same reason as requires_interactive_owner_authentication: it is stated plainly rather than softened.",
-    "observed": {
-      "block_id": "b0c-governance",
-      "date_utc": "2026-08-06",
-      "trigger": "A new field was written into the rule configuration before its loader accepted the field. The loader rejects unknown fields, so the repository side guard could not build a decision.",
-      "reason_code": "GUARD_BOOTSTRAP_FAILED",
-      "classification": "finding",
-      "not_classified_as": "incident",
-      "recovery": "owner action: restore the configuration file from the committed state",
-      "recovery_is_owner_only": true
+  "purpose": "A discipline mechanism. It keeps ordinary tool use inside the agreed workflow and makes a forbidden operation fail before it runs.",
+  "schema_version": 1,
+  "trust_roots": [
+    {
+      "closable": false,
+      "location_class": "user writable application bundle",
+      "note": "The application reads the policy configuration. Whoever can replace the application can ignore every hook. No component of this guard can close this.",
+      "root": "claude_code_application"
     },
-    "mitigation": {
-      "rule": "R4",
-      "statement": "When a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit. No configuration file may carry a field its declared loader does not yet accept.",
-      "enforced_by": "config/governance/config-loaders.json",
-      "engine": "tools/gates/configload.py",
-      "does_not_remove_the_property": true,
-      "note": "R4 removes the most likely cause. It does not remove the property itself: any unusable configuration still blocks, and that is intended."
+    {
+      "closable": true,
+      "location_class": "root owned system path with a fully root owned ancestor chain",
+      "note": "Verified mechanically on every guard start: owner, mode, symlink freedom, version and package hash.",
+      "root": "root_owned_installation"
+    },
+    {
+      "closable": true,
+      "location_class": "root owned interpreter with a fully root owned ancestor chain",
+      "note": "Both the declared and the actually running interpreter are checked, including stub and wrapper resolution.",
+      "root": "root_owned_interpreter"
     }
-  }
+  ]
 }

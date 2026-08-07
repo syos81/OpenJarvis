@@ -224,6 +224,36 @@
       "sharpening_test": "tests/tooling/gates/test_manifest.py::TestManifestValidation",
       "counter_test": "tests/tooling/gates/test_field_binding.py::TestR7Sweep::test_every_examined_field_has_a_verdict",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-020",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "ignored_exception_collection",
+      "kind": "sharpening",
+      "summary": "An exception object the guard decided to ignore is no longer only ignored. It is recorded, and an owner tool moves it out of the protected pending area. The tool reads and plans from the guarded session and collects only as root; a candidate and a corrupt object are never collected.",
+      "sharpening_test": "tests/tooling/guard/test_collect_tool.py::TestCollectRefusesForTheSession",
+      "counter_test": "tests/tooling/guard/test_collect_tool.py::TestMoveIsNeverDestructive",
+      "violation_set_effect": "unchanged"
+    },
+    {
+      "change_id": "RC-021",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "observation_recording_wired",
+      "kind": "sharpening",
+      "summary": "The recording of ignored objects reaches the installed guard. decide() built the observations and entry.run() accepted a directory, but the process entry did not take one and the bootstrap named none, so the whole path was dead code in production. The process entry now accepts it, the bootstrap names it and the installer creates the area with the same append only rights as the protected protocol.",
+      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestObservationRecords",
+      "counter_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance",
+      "violation_set_effect": "unchanged"
+    },
+    {
+      "change_id": "RC-022",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "induced_effect_must_be_evidenced",
+      "kind": "sharpening",
+      "summary": "Rule R9. A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence the effect before its expectation; if the effect fails to occur the test fails, not its subject. Enforced over the syntax tree: the first assertion of a declared function must be the declared effect assertion, so an assertion that moved below the expectation fails even while the test still passes. The declaration covers the tests this block introduced or repaired and states, on every run, that the review of the whole existing corpus is deferred to a separate step.",
+      "sharpening_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
+      "counter_test": "tests/tooling/guard/test_manipulation_matrix.py::TestRuleR9",
+      "violation_set_effect": "unchanged"
     }
   ],
   "declared_relaxations": [
@@ -285,6 +315,16 @@
       "path": "tests/tooling/guard/test_exception_qualification.py",
       "purpose": "Declared fixtures for the exception qualification. Every pending area is a throwaway directory below the gitignored runtime fixture root; the historical objects are hashed read only and copied byte identically, never linked and never re-activated.",
       "abuse_test": "tests/tooling/guard/test_exception_qualification.py::TestHistoricalObjects::test_no_test_writes_into_the_historical_area"
+    },
+    {
+      "path": "config/guard/exception-manipulation-matrix.json",
+      "purpose": "The declared fixture and manipulation matrix. Every object is built by the guard's own build() inside a throwaway directory below the declared runtime fixture root; the historical evidence objects are never copied into a pending area and never re-sealed.",
+      "abuse_test": "tests/tooling/guard/test_manipulation_matrix.py::TestFixtureDiscipline::test_every_write_of_a_full_run_stayed_inside_the_fixture_area"
+    },
+    {
+      "path": "tests/tooling/guard/test_collect_tool.py",
+      "purpose": "Declared fixtures for the owner collection tool. Every installation is a throwaway directory built from the repository copy; no test touches the owner installed guard and no test runs as root.",
+      "abuse_test": "tests/tooling/guard/test_collect_tool.py::TestCollectRefusesForTheSession::test_collect_refuses_without_root_and_writes_nothing"
     }
   ]
 }

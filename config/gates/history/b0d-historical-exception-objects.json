@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "kind": "historical_exception_objects",
+  "block_id": "b0d-guard-hardening",
+  "statement": "The two owner exception objects that produced the production finding in B0c, recorded so a gate can check them without depending on any machine's file system. They are the objects whose presence replaced the reason of an entirely unrelated deny with GUARD_EXCEPTION_CORRUPT.",
+  "provenance": {
+    "created_by": "scripts/guard-exception.sh, during the B0a-4 live proof",
+    "moved_by": "the owner, out of the protected pending area, before B0c closed",
+    "kept": "as evidence, not deleted",
+    "location": "an owner controlled evidence area outside every worktree; the path is deliberately not recorded here, because a machine specific path in a committed artifact is neither checkable nor portable"
+  },
+  "recorded_fields": {
+    "included": [
+      "nonce",
+      "object_sha256",
+      "schema",
+      "guard_version",
+      "command_sha256",
+      "created_at",
+      "expires_at"
+    ],
+    "excluded": [
+      "command_canonical",
+      "reason",
+      "integrity_sha256",
+      "worktree_id"
+    ],
+    "why_excluded": "The excluded fields are what would make this record a usable exception object again, or what carries content rather than structure. Without the reason and the command text the seal cannot be recomputed, so nothing here can be assembled into an object the guard would read. The worktree identifier is left out for the same reason the guard's own observation record leaves it out."
+  },
+  "objects": [
+    {
+      "nonce": "246cd5eca893b37131b4fca3ec9097a4",
+      "object_sha256": "3708c74d45d4a10fcb2c603d7b2ae71eba9780348e20c4853224d48e624a9a3b",
+      "schema": "guard-exception-1",
+      "guard_version": "1.0.0",
+      "command_sha256": "b3a6ff01de668ded61bfafb14dc92542c0d5c58ce84c25da9392ae6ab53b40db",
+      "created_at": 1786017248,
+      "expires_at": 1786017308,
+      "expected_decision_effect": false,
+      "note": "The short lived object of the pair. It was created to demonstrate expiry, and it expired sixty seconds after it was written.",
+      "expected_classification_by_version": {
+        "1.0.0": "expired",
+        "1.1.0": "version_mismatch",
+        "1.2.0": "version_mismatch",
+        "1.3.0": "version_mismatch"
+      }
+    },
+    {
+      "nonce": "80cb3d39505f6926291e111441acc479",
+      "object_sha256": "687a3aa7132a4cf45efd0e1d2066f5160fee2e336f38f4158ae0a7d3990ed1a9",
+      "schema": "guard-exception-1",
+      "guard_version": "1.0.0",
+      "command_sha256": "d9367f2985cf615c2698a771e3fbeb6519dad9d31a646eeedf9d5ef8e832c901",
+      "created_at": 1786017243,
+      "expires_at": 1786017843,
+      "expected_decision_effect": false,
+      "note": "The single use object of the pair, with the full ten minute validity. It too was long past its expiry when it produced the finding.",
+      "expected_classification_by_version": {
+        "1.0.0": "expired",
+        "1.1.0": "version_mismatch",
+        "1.2.0": "version_mismatch",
+        "1.3.0": "version_mismatch"
+      }
+    }
+  ],
+  "checked_against_guard_versions": [
+    "1.0.0",
+    "1.1.0",
+    "1.2.0",
+    "1.3.0"
+  ],
+  "invariant": "Neither object is a candidate under any supported guard version, and neither has a decision effect under any of them. Under 1.0.0 the schema and the guard version match, so the classification there is expired and rests on the time bounds alone; under every later version the version binding decides first and the classification is version_mismatch. Both readings are checked, and both end in no decision effect."
+}

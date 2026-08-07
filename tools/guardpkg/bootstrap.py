@@ -336,6 +336,11 @@ def main(argv=None, *, stdin=None, stdout=None, expect_uid=0):
             pending_dir=os.path.join(var, "exceptions", "pending"),
             spent_dir=os.path.join(var, "exceptions", "spent"),
             log_path=os.path.join(var, "guard.log"),
+            # Without this the recording of ignored objects is dead code in
+            # the installed guard: decide() builds the observations and
+            # entry.run() accepts a directory, but nothing ever named one. A
+            # missing directory still disables recording and nothing else.
+            observed_dir=os.path.join(var, "observed"),
             stdin=stdin,
             stdout=stream_out,
             guard_version=manifest["guard_version"],

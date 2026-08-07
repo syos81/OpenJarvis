@@ -136,13 +136,19 @@ def main(
     pending_dir=None,
     spent_dir=None,
     log_path=None,
+    observed_dir=None,
     stdin=None,
     stdout=None,
     now=None,
     guard_version=GUARD_VERSION,
     exceptions_enabled=True,
 ):
-    """Read stdin, decide, write the response. Always returns ``0``."""
+    """Read stdin, decide, write the response. Always returns ``0``.
+
+    ``observed_dir`` is threaded through to :func:`run` because a parameter
+    that only the library entry point accepts is a parameter the installed
+    guard never uses: the process entry is what the bootstrap calls.
+    """
     stream_in = stdin if stdin is not None else sys.stdin
     stream_out = stdout if stdout is not None else sys.stdout
     try:
@@ -164,6 +170,7 @@ def main(
         pending_dir=pending_dir,
         spent_dir=spent_dir,
         log_path=log_path,
+        observed_dir=observed_dir,
         now=now,
         guard_version=guard_version,
         exceptions_enabled=exceptions_enabled,

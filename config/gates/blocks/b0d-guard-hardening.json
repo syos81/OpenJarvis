@@ -1,0 +1,1434 @@
+{
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cache_enabled": false,
+    "cause_signature_version": "cs-1",
+    "config_digest_paths": [
+      "config/governance/config-loaders.json",
+      "config/governance/effect-evidence.json",
+      "config/governance/guard-trust-model.json",
+      "config/governance/owner-expectations.json",
+      "config/guard/exception-manipulation-matrix.json",
+      "config/guard/rule-changes.json"
+    ],
+    "dependency_lock_paths": [],
+    "owner_marker": "openjarvis-gate-baseline"
+  },
+  "block_id": "b0d-guard-hardening",
+  "checks": [
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-baseline-commit",
+      "description": "The declared baseline commit is present.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "baseline",
+          "--commit",
+          "7986bee"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-claude-config",
+      "description": "The project rules file is present.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "claude-config",
+          "--require-file",
+          "CLAUDE.md"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-config-loaders",
+      "description": "Rule R4: every configuration file is bound to exactly one declared reader, before any check reads one.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-guard-base",
+      "description": "The guard base is derivable from the git history.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-guard-candidate",
+      "description": "The candidate package is describable and the owner side tooling is not part of it.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "guard-candidate"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-manifest",
+      "description": "This manifest itself is structurally valid.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b0d-guard-hardening"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-owner-expectations",
+      "description": "Rule R6: every declared owner expectation value is re-derived from the commit it names.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-platform",
+      "description": "The platform matches the declared requirement.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "platform",
+          "--systems",
+          "Darwin",
+          "--architectures",
+          "x86_64"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-tools",
+      "description": "The required tools and the minimum interpreter are available.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "tools",
+          "--require-tool",
+          "git",
+          "--min-python",
+          "3.10"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-trust-model",
+      "description": "The guard trust model is present, well formed and consistent with the claims made about it.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "trust-model"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree",
+      "description": "The block runs in the declared worktree and on the declared branch.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "spike/calendar-foundation-intel-2026-08-04"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree-state",
+      "description": "The runtime area is ignored, no raw log is tracked, no canary marker is in a tracked artifact.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b0d-guard-hardening"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-claim-lint",
+      "description": "No artifact claims a stronger protection than the trust model allows.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "claim-lint"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-collect-tool",
+      "description": "The owner collection tool reports and plans, and cannot collect from this session.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "collect-tool"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-config-loaders",
+      "description": "Rule R4, run again during the work: the new configuration files are bound.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-effect-evidence",
+      "description": "Rule R9: every declared test evidences its induced effect before its expectation.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "effect-evidence"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-guard-tests",
+      "description": "The guard and gate tests this block introduced or changed.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.guard.test_manipulation_matrix",
+          "tests.tooling.guard.test_collect_tool",
+          "tests.tooling.guard.test_owner_exception",
+          "tests.tooling.guard.test_exception_qualification",
+          "tests.tooling.gates.test_effect_evidence",
+          "tests.tooling.gates.test_config_loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-historical-objects",
+      "description": "The two objects of the production finding are re-derived from their committed record.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "historical-objects"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-manipulation-matrix",
+      "description": "Every declared manipulation is applied, evidenced and judged by the guard itself.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "manipulation-matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-observed-wiring",
+      "description": "The recording of ignored objects is wired into the installed guard, not only into the library.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "observed-wiring"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-owner-expectations",
+      "description": "Rule R6, run again during the work.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-rule-changes",
+      "description": "Every guard rule change carries its sharpening test and its counter test.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "rule-changes"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-claim-lint",
+      "description": "No stronger protection claim than the trust model allows.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "claim-lint"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-classification-schemes",
+      "description": "Every classification scheme stays declared and disjoint.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "classification-schemes"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-collect-tool",
+      "description": "The owner collection tool, in full.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "collect-tool"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-config-loaders",
+      "description": "Rule R4 over the whole configuration tree.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-effect-evidence",
+      "description": "Rule R9 over the declared set, with the deferral of the corpus sweep reported.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "effect-evidence"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-errata",
+      "description": "The frozen document errata resolve, or nothing does.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "errata"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-exception-policy",
+      "description": "The owner exception stays narrow, single use and time bound.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "exception-policy"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-fail-closed-paths",
+      "description": "Every guard failure path ends in a deny.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "fail-closed-paths"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-feature-lineage",
+      "description": "Every mandatory predecessor feature is mapped and evidenced.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0d-guard-hardening"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-fixture-rule",
+      "description": "The target bound release fires only where it may.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "fixture-rule"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-guard-base",
+      "description": "The guard base derivation, in full.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-guard-candidate",
+      "description": "The candidate package and its relation to the active installation.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "guard-candidate"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-historical-integrity",
+      "description": "The bound historical acceptance evidence is complete.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "historical-integrity"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-historical-objects",
+      "description": "The two historical objects, under every supported guard version.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "historical-objects"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-history-matrix",
+      "description": "The history rewrite matrix stays complete.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "history-matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-hygiene",
+      "description": "The versioned project rules carry no credentials and no machine dependent path.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/claude_hygiene.py"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-manifest-validation",
+      "description": "The manifest validates, and the declared fixtures are accepted and rejected as declared.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b0d-guard-hardening",
+          "--with-fixtures"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-manipulation-matrix",
+      "description": "The complete manipulation matrix.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "manipulation-matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-no-worktree-fallback",
+      "description": "The guard never falls back to a worktree copy of its own rules.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "no-worktree-fallback"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-not-applicable-review",
+      "description": "Every not_applicable rests on a declarative manifest rule.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "not-applicable-review"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-observed-wiring",
+      "description": "The recording path, end to end.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "observed-wiring"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-owner-activation",
+      "description": "The activation path is an owner action and cannot be taken from the session.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "owner-activation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-owner-expectations",
+      "description": "Rule R6 over every declared expectation value.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-package-determinism",
+      "description": "The runtime package builds reproducibly from the same source.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "package-determinism"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-preservation",
+      "description": "The preserved lines stay preserved.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-repo-guard",
+      "description": "The complete range from the line origin is classified against the product guard.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0d-guard-hardening"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-rule-changes",
+      "description": "Every guard rule change carries its mandatory pair of tests.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "rule-changes"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-shell-syntax",
+      "description": "Every shell script in scripts parses.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py",
+          "--directory",
+          "scripts"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-static-scan",
+      "description": "The static scan over the tooling, the guard, the owner side tooling and the hooks.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/static_scan.py",
+          "--path",
+          "tools/gates",
+          "--path",
+          "tools/guard",
+          "--path",
+          "tools/guardpkg",
+          "--path",
+          "tools/guardops",
+          "--path",
+          "scripts/gate.sh",
+          "--path",
+          ".claude/hooks"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-tooling-tests",
+      "description": "The complete tooling test tree.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling",
+          "-t",
+          "."
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 3600
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-trust-model",
+      "description": "The trust model, in full.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "trust-model"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-violation-corpus",
+      "description": "Every previously detected violation is still detected.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "violation-corpus"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-active-guard",
+      "description": "The owner installed guard is active, root owned and registered.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "active-guard"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-guard-candidate",
+      "description": "The relation between the candidate package and the active installation, reported without requiring a particular version.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "guard-candidate"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-live-current",
+      "description": "The live regression of the current rule set against the active installation.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "live-current"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-live-plain",
+      "description": "The live regression of the plain deny set against the active installation.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "live-plain"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-tamper",
+      "description": "A tampered installation is detected by the active bootstrap.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "tamper"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-evidence",
+      "description": "The sanitised evidence of the block is complete and allowlist based.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_evidence",
+        "type": "internal"
+      },
+      "timeout_seconds": 300
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-feature-lineage",
+      "description": "The feature completeness against the immediate predecessor.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0d-guard-hardening"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-phase-results",
+      "description": "Aggregates the results of every required phase.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_phase_results",
+        "type": "internal"
+      },
+      "timeout_seconds": 300
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-preservation",
+      "description": "The preserved lines, checked once more at the close of the block.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    }
+  ],
+  "engine_min_version": "1.0.0",
+  "evidence_policy": {
+    "raw_log_area": "runtime_only",
+    "sanitized_evidence": true
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0d-guard-hardening.lineage.json",
+    "own_expected": 43,
+    "own_prefix": "B0D-",
+    "predecessor_file": "config/gates/features/b0c-governance.lineage.json"
+  },
+  "phase_definitions": {
+    "module-final": {
+      "applicable": true,
+      "reason": "Aggregates the phase results, the sanitised evidence and the feature completeness against the immediate predecessor B0c.",
+      "required": true
+    },
+    "offline-final": {
+      "applicable": true,
+      "reason": "Evaluates everything the block asserts without a network, without a provider and without a present owner. Only the manipulation matrix and the collection tool write, and only into throwaway directories below the declared fixture root inside the gitignored runtime area.",
+      "required": true
+    },
+    "platform-live": {
+      "applicable": true,
+      "reason": "The live regression of the active owner installed guard, plus the determination of the activation state. It reports the relation between the candidate package and the active installation and requires no particular version: activation is the consequence of acceptance, not its condition.",
+      "required": true
+    },
+    "preflight": {
+      "applicable": true,
+      "reason": "Checks the prerequisites: worktree and branch, baseline commit, tools, platform, this manifest, the guard base, the trust model, the candidate package, and \u2014 before anything reads a configuration \u2014 that every configuration is loaded by its declared reader and every owner expectation value is derived from the commit it names.",
+      "required": true
+    },
+    "targeted": {
+      "applicable": true,
+      "reason": "The block has an incremental change set of its own: the collection tool, the manipulation matrix, rule R9, the recording path and the historical object record each have a check that can run on its own during the work.",
+      "required": true
+    }
+  },
+  "platform_requirements": {
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.10",
+    "systems": [
+      "Darwin"
+    ]
+  },
+  "product_guard": {
+    "allowed_paths": [
+      "*"
+    ],
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "forbidden_paths": []
+  },
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "schema_version": 1,
+  "targeted_selection": {
+    "always": [
+      "tg-claim-lint",
+      "tg-collect-tool",
+      "tg-config-loaders",
+      "tg-effect-evidence",
+      "tg-guard-tests",
+      "tg-historical-objects",
+      "tg-manipulation-matrix",
+      "tg-observed-wiring",
+      "tg-owner-expectations",
+      "tg-rule-changes"
+    ],
+    "base_ref": "f3dd0f48b2896acc6df789f4ae775021a924cda8",
+    "rules": [
+      {
+        "checks": [
+          "tg-manipulation-matrix",
+          "tg-observed-wiring",
+          "tg-guard-tests",
+          "tg-rule-changes"
+        ],
+        "paths": [
+          "tools/guard/*",
+          "tools/guardpkg/*"
+        ],
+        "rule_id": "r-guard-runtime"
+      },
+      {
+        "checks": [
+          "tg-collect-tool",
+          "tg-observed-wiring"
+        ],
+        "paths": [
+          "tools/guardops/*",
+          "scripts/guard-collect.sh",
+          "scripts/guard-install.sh"
+        ],
+        "rule_id": "r-owner-tooling"
+      },
+      {
+        "checks": [
+          "tg-config-loaders",
+          "tg-historical-objects",
+          "tg-owner-expectations"
+        ],
+        "paths": [
+          "config/*"
+        ],
+        "rule_id": "r-configuration"
+      },
+      {
+        "checks": [
+          "tg-effect-evidence",
+          "tg-guard-tests"
+        ],
+        "paths": [
+          "tests/*"
+        ],
+        "rule_id": "r-tests"
+      }
+    ]
+  },
+  "title": "B0d guard hardening: exception qualification, the owner collection tool, the manipulation matrix and rule R9"
+}

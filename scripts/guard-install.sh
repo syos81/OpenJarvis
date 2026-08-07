@@ -208,12 +208,27 @@ find "${TARGET}/active" -type f -exec chmod 0444 {} +
 
 # 6. protected runtime area
 mkdir -p "${TARGET}/var/exceptions/pending" "${TARGET}/var/exceptions/spent"
+# observed: where the guard writes down the objects it decided to ignore. The
+# guard runs as the session user, so the session must be able to add a file
+# here — and must not be able to remove or rewrite one, exactly as for the
+# spent markers. collected: where the owner tool moves those objects
+# afterwards. Only root writes there, so a collected object cannot be put
+# back into circulation from inside the session.
+mkdir -p "${TARGET}/var/observed" "${TARGET}/var/exceptions/collected"
 touch "${TARGET}/var/guard.log"
 chown -R root:wheel "${TARGET}/var"
 chmod 0755 "${TARGET}/var" "${TARGET}/var/exceptions"
 chmod 0755 "${TARGET}/var/exceptions/pending"
+chmod 0755 "${TARGET}/var/exceptions/collected"
 chmod 01733 "${TARGET}/var/exceptions/spent"
+chmod 01733 "${TARGET}/var/observed"
 chmod 0644 "${TARGET}/var/guard.log"
+
+chmod -N "${TARGET}/var/observed" 2>/dev/null || true
+chmod +a "user:${SESSION_USER} deny delete_child,delete,writesecurity,chown" \
+  "${TARGET}/var/observed"
+chmod +a "user:${SESSION_USER} allow add_file,search,readattr" \
+  "${TARGET}/var/observed"
 
 chmod -N "${TARGET}/var/exceptions/spent" 2>/dev/null || true
 chmod -N "${TARGET}/var/guard.log" 2>/dev/null || true
@@ -287,6 +302,21 @@ if sudo -u "${SESSION_USER}" /bin/bash -c \
   die "session user can remove an exception marker — ACL not effective"
 fi
 /bin/rm -f -- "${TARGET}/var/exceptions/spent/acl-probe"
+sudo -u "${SESSION_USER}" /bin/bash -c \
+  'touch "$1/acl-probe"' _ "${TARGET}/var/observed" \
+  || { rollback; die "session user cannot record an observation"; }
+if sudo -u "${SESSION_USER}" /bin/bash -c \
+  'unlink "$1/acl-probe"' _ "${TARGET}/var/observed" 2>/dev/null; then
+  rollback
+  die "session user can remove an observation — ACL not effective"
+fi
+/bin/rm -f -- "${TARGET}/var/observed/acl-probe"
+if sudo -u "${SESSION_USER}" /bin/bash -c \
+  'touch "$1/probe"' _ "${TARGET}/var/exceptions/collected" 2>/dev/null; then
+  /bin/rm -f -- "${TARGET}/var/exceptions/collected/probe"
+  rollback
+  die "session user can write into the collection area"
+fi
 if sudo -u "${SESSION_USER}" /bin/bash -c \
   'printf "x" > "$1/probe"' _ "${TARGET}" 2>/dev/null; then
   /bin/rm -f -- "${TARGET}/probe"
