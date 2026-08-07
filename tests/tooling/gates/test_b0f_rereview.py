@@ -124,5 +124,57 @@ class TestScopeReaderValidatesEntries(unittest.TestCase):
         self.assertEqual(document["declared_identifiers"][0]["paths"], [])
 
 
+class TestAnchorDeclarationIsNotOptional(unittest.TestCase):
+    """RC-031: the check_anchors repair the B0e register prescribed but no
+    commit implemented — found by the B0f blind review chain. An absent
+    gate anchoring declaration is a problem, never an empty walk."""
+
+    def _check(self, definition):
+        import tempfile
+
+        from tools.gates.runners import history_checks
+
+        with tempfile.TemporaryDirectory(prefix="b0f-anchors-") as tmp:
+            return history_checks.check_anchors(Path(tmp), definition)
+
+    def test_an_absent_declaration_is_a_problem(self):
+        problems = self._check({"other": 1})
+        self.assertEqual(
+            problems, [("gate_anchoring", "gate_anchoring_undeclared")]
+        )
+        problems = self._check({"gate_anchoring": {"note": "no anchors key"}})
+        self.assertEqual(
+            problems, [("gate_anchoring", "gate_anchoring_undeclared")]
+        )
+
+    def test_an_undeclared_empty_anchor_set_is_a_problem(self):
+        problems = self._check({"gate_anchoring": {"anchors": []}})
+        self.assertEqual(
+            problems, [("gate_anchoring", "anchor_set_empty_without_reason")]
+        )
+
+    def test_a_declared_empty_anchor_set_stays_legitimate(self):
+        problems = self._check(
+            {
+                "gate_anchoring": {
+                    "anchors": [],
+                    "declared_empty_reason": "no gate rests on a dangling reference in this definition",
+                }
+            }
+        )
+        self.assertEqual(problems, [])
+
+    def test_the_real_definition_still_passes(self):
+        import json
+
+        definition = json.loads(
+            (REPO_ROOT / "config" / "gates" / "k1" / "calendar-k1-definition.json").read_text()
+        )
+        from tools.gates.runners import history_checks
+
+        problems = history_checks.check_anchors(REPO_ROOT, definition)
+        self.assertEqual(problems, [])
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

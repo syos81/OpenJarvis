@@ -334,6 +334,16 @@
       "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_a_use_free_consumer_citation_is_refuted",
       "counter_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_excusal_only_flow_confirms_and_refutes",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-031",
+      "block_id": "b0f-dispo-hardening",
+      "rule_id": "anchor_declaration_is_not_optional",
+      "kind": "sharpening",
+      "summary": "Rule R10, found by the B0f blind review chain: the register's B0e repair entry for check_anchors prescribed that an absent gate-anchoring declaration must fail, but no commit implemented it \u2014 a K1 definition whose open gates were justified by re-anchoring would silently pass mode_gate_anchoring with the declaration deleted, and no test covered the gap. check_anchors now returns gate_anchoring_undeclared on an absent declaration or anchors key and anchor_set_empty_without_reason on an undeclared-empty set; a declared-empty set with a reason stays legitimate.",
+      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestAnchorDeclarationIsNotOptional::test_an_absent_declaration_is_a_problem",
+      "counter_test": "tests/tooling/gates/test_b0f_rereview.py::TestAnchorDeclarationIsNotOptional::test_the_real_definition_still_passes",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [

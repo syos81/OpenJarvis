@@ -524,12 +524,24 @@ def mode_not_applicable_review(args):
 
 
 def check_anchors(root, definition):
-    """Return ``(gate_id, code)`` for every anchor that does not resolve."""
+    """Return ``(gate_id, code)`` for every anchor that does not resolve.
+
+    Rule R10 — prescribed by the register in block B0e and found
+    unimplemented by the B0f blind review chain: an absent declaration must
+    never read as an empty anchor set, because a definition whose open
+    gates were justified by re-anchoring would silently pass with the
+    declaration deleted. Emptiness is legitimate only when declared with a
+    reason."""
     problems = []
     anchoring = definition.get("gate_anchoring")
     if not anchoring:
-        return problems
-    for anchor in anchoring.get("anchors", []):
+        return [("gate_anchoring", "gate_anchoring_undeclared")]
+    anchors = anchoring.get("anchors")
+    if anchors is None:
+        return [("gate_anchoring", "gate_anchoring_undeclared")]
+    if not anchors and not str(anchoring.get("declared_empty_reason", "")).strip():
+        return [("gate_anchoring", "anchor_set_empty_without_reason")]
+    for anchor in anchors:
         gate_id = anchor.get("gate_id", "<unnamed>")
         resolution = anchor.get("resolution")
         if resolution not in ("re_anchored", "removed_from_k1"):

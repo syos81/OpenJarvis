@@ -29,11 +29,20 @@
     },
     {
       "position": 4,
+      "purpose": "purely normative consequence of blind round 2: the check_anchors repair the register prescribed in B0e but no commit implemented (RC-031, found via the mode_k1_status rejection and the diagnostics category re-examination), with the register entry now recording the implementation",
+      "message": "fix(gates): implement the anchor-declaration guard the register prescribed",
+      "correction": {
+        "found_during": "blind review round 2 and the diagnostics category re-examination against position 3",
+        "rule": "a normative error found during determination gets a new normative commit, a machine readable justification and a complete fresh run; the sample is redrawn against the new normative state; no amend"
+      }
+    },
+    {
+      "position": 5,
       "purpose": "purely determinative: the drawn sample record, the validated blind dataset, the stored independent evaluations, the unblinding comparison, the correction notes against the B0e control values, gate evidence, acceptance record and handoff \u2014 together with the R4 bindings for exactly these record files, following the B0d precedent that record bindings land with their records",
       "message": "test(gates): finalize b0f sample, blind review, evidence and handoff"
     }
   ],
-  "max_commits": 4,
+  "max_commits": 5,
   "forbidden_operations": [
     "commit --amend",
     "rebase",

@@ -381,7 +381,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "check_anchors"
     },
     {
@@ -399,7 +399,7 @@
       "repair_note": "tools/gates/runners/history_checks.py, mode_historical_integrity: before the runtime_evidence loop, add 'if \"runtime_evidence\" not in document: failures.append(_fail(block, \"runtime_evidence_declaration_missing\"))' (and treat an explicitly empty list as absent unless the reexecution_policy declares a rule for it), so key absence is distinguished from files-absent and becomes a failure.",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "mode_historical_integrity"
     },
     {
@@ -615,7 +615,7 @@
       "repair_note": "tools/gates/runners/history_checks.py, mode_preservation: before the loop add 'if not document.get(\"invariants\"): failures.append(_fail(\"preservation\", \"invariant_set_missing_or_empty\"))' as the first invariant-related check; optionally also compare len(invariants) against an expected_invariants count declared in the manifest.",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "mode_preservation"
     },
     {
@@ -1009,7 +1009,7 @@
       "repair_note": "tools/gates/runners/history_checks.py, mode_not_applicable_review: inside the per-manifest loop, add as first evidence check 'if not document.get(\"runtime_evidence\"): failures.append(_fail(path.name, \"runtime_evidence_undeclared\"))' so a manifest cannot pass the R3 review with zero declared evidence entries.",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "mode_not_applicable_review"
     },
     {
@@ -1216,7 +1216,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "mode_k1_status"
     },
     {
@@ -1399,7 +1399,7 @@
       "repair_note": "tools/gates/runners/history_checks.py, mode_historical_integrity: as the first check per manifest after the kind check, add 'if not document.get(\"committed_artifacts\"): failures.append(_fail(block, \"manifest_without_committed_artifacts\")); continue' so an absent or empty artifact binding is a failure, never a vacuous pass.",
       "resolved_by_removal": true,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "mode_historical_integrity"
     },
     {
@@ -1694,10 +1694,10 @@
       "lineno": 516,
       "occurrence": 0,
       "reason": "check_anchors returns [] both when definition.get('gate_anchoring') is falsy (early return, line 513-515) and when anchoring.get('anchors', []) is empty at line 516, so mode_gate_anchoring emits PASSED with diagnostics anchors=0 although the gate's claim is 'no K1 gate may rest on a reference that does not exist'. The real definition declares 1 anchor; dropping or misspelling the key converts that declared resolution obligation into a vacuous pass. No validating reader guards the K1 definition and no independent count pins the anchor set (mode_k1_status reuses the same getter).",
-      "repair_note": "tools/gates/runners/history_checks.py, check_anchors/mode_gate_anchoring: distinguish absence from a declared-empty set - if 'gate_anchoring' is absent or 'anchors' is absent, return a problem ('gate_anchoring_undeclared') as the first result instead of []; permit emptiness only via an explicit declared field such as gate_anchoring.anchors == [] together with a declared reason, or pin len(anchors) against an expected count in the definition.",
-      "resolved_by_removal": false,
+      "repair_note": "Prescribed in B0e but found unimplemented by the B0f blind review chain; implemented as RC-031: absence of the gate anchoring declaration or its anchors key fails with gate_anchoring_undeclared, an undeclared-empty set fails with anchor_set_empty_without_reason, a declared-empty set with a reason stays legitimate.",
+      "resolved_by_removal": true,
       "rule": "R10",
-      "source_digest": "b4ef2a2df5015498a750f7672d67b42a8d5a6d763c98afbbc18dcc18edb1e292",
+      "source_digest": "42b785eb11245ecfb310f3f26ebe9034521d1eae4cc031f91a6a76937e219fce",
       "unit": "check_anchors"
     },
     {
