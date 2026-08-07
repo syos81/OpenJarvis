@@ -104,13 +104,19 @@ def mode_id_freeze(root):
     declared_ids = set()
     if migration_path.is_file():
         migration = governance.load_json(migration_path)
-        for entry in migration.get("mappings", []):
-            declared_ids.add(entry["new_id"])
-            for key in ("old_path", "new_path"):
-                if entry.get(key):
-                    allowed_decision_paths.add(entry[key])
-        allowed_decision_paths.add(governance.REGISTER_PATH)
-        diagnostics.append(f"declared_renumberings={len(migration.get('mappings', []))}")
+        # Rule R10: the file's existence alone must never excuse register
+        # changes. Only a non-empty mapping set declares anything; a missing
+        # or empty set is a defect, not an allowance.
+        if not migration.get("mappings"):
+            failures.append(_fail(str(ID_MIGRATION), "migration_without_mappings"))
+        else:
+            for entry in migration["mappings"]:
+                declared_ids.add(entry["new_id"])
+                for key in ("old_path", "new_path"):
+                    if entry.get(key):
+                        allowed_decision_paths.add(entry[key])
+            allowed_decision_paths.add(governance.REGISTER_PATH)
+        diagnostics.append(f"declared_renumberings={len(declared_ids)}")
 
     touched = set()
     for args in (

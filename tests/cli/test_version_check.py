@@ -163,8 +163,12 @@ class TestFetchLatestStable:
             assert _fetch_latest_stable() == "1.1.0"
 
     def test_network_error_returns_none(self):
-        with patch("urllib.request.urlopen", side_effect=OSError("offline")):
-            assert _fetch_latest_stable() is None
+        with patch(
+            "urllib.request.urlopen", side_effect=OSError("offline")
+        ) as mock_urlopen:
+            result = _fetch_latest_stable()
+        assert mock_urlopen.called
+        assert result is None
 
     def test_filters_prereleases(self):
         body = _pypi_response(

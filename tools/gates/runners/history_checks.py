@@ -137,7 +137,13 @@ def mode_historical_integrity(args):
         if code != 0:
             failures.append(_fail(block, "acceptance_commit_missing"))
             continue
-        for artifact in document.get("committed_artifacts", []):
+        # Rule R10: an acceptance manifest without artifact bindings would
+        # walk zero times and read as verified. Absence is a failure, never
+        # an empty proof set.
+        if not document.get("committed_artifacts"):
+            failures.append(_fail(block, "manifest_without_committed_artifacts"))
+            continue
+        for artifact in document["committed_artifacts"]:
             relative = artifact["path"]
             code, blob = _git(["cat-file", "blob", f"{commit}:{relative}"])
             if code != 0:
@@ -257,6 +263,11 @@ def mode_preservation(args):
                     _fail(feature["feature_id"], "feature_location_missing")
                 )
 
+    # Rule R10: the invariant class must not vanish silently. A preservation
+    # document without invariants would pass on the feature counts alone
+    # while checking none of the declared invariants.
+    if not document.get("invariants"):
+        failures.append(_fail("preservation", "invariant_set_missing_or_empty"))
     for invariant in document.get("invariants", []):
         identifier = invariant["invariant_id"]
         try:
@@ -493,6 +504,11 @@ def mode_not_applicable_review(args):
         policy = document.get("reexecution_policy", {})
         if policy.get("runtime_evidence_absent") != "fail":
             failures.append(_fail(path.name, "guaranteed_artifact_defaults_na"))
+        # Rule R10: a manifest must not escape the R3 review by declaring no
+        # evidence at all — undeclared is the silent-absence pattern this
+        # mode exists to forbid.
+        if not document.get("runtime_evidence"):
+            failures.append(_fail(path.name, "runtime_evidence_undeclared"))
         for entry in document.get("runtime_evidence", []):
             if entry.get("scope") != "committed_snapshot":
                 failures.append(_fail(path.name, "evidence_not_a_snapshot"))

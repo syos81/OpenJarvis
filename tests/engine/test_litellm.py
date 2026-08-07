@@ -153,6 +153,7 @@ class TestLiteLLMEngineGenerate:
                 [Message(role=Role.USER, content="Hi")], model="unknown/model"
             )
 
+        fake_litellm.completion_cost.assert_called_once()
         assert result["cost_usd"] == 0.0
 
 

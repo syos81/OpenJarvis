@@ -98,10 +98,12 @@ class TestLemonadeHealth:
 
     def test_health_false(self, engine: LemonadeEngine) -> None:
         with respx.mock:
-            respx.get("http://testhost:13305/v1/models").mock(
+            route = respx.get("http://testhost:13305/v1/models").mock(
                 side_effect=httpx.ConnectError("refused")
             )
-            assert engine.health() is False
+            result = engine.health()
+            assert route.called
+            assert result is False
 
 
 class TestLemonadeListModels:

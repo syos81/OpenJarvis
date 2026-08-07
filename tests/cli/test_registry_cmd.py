@@ -124,10 +124,14 @@ class TestRegistryCmd:
         from unittest.mock import patch
 
         # Make one of the registry classes raise an error during keys()
-        with patch.object(ToolRegistry, "keys", side_effect=Exception("Import error")):
+        with patch.object(
+            ToolRegistry, "keys", side_effect=Exception("Import error")
+        ) as mock_keys:
             result = CliRunner().invoke(cli, ["registry", "list"])
+            assert mock_keys.called
             assert result.exit_code == 0
             # Should still complete and show other registries
+            assert "Error" in result.output
 
     def test_registry_show_handles_error_during_import(self) -> None:
         """Test that registry show handles exceptions during import."""

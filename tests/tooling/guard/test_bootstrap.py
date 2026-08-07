@@ -273,6 +273,14 @@ class TestWrapper(_support.TempInstallationMixin):
     def test_wrapper_blocks_on_a_missing_interpreter(self):
         script = self.root / "bootstrap.sh"
         source = script.read_text(encoding="utf-8")
+        # Rule R9: the substitution below is a silent no-op if the installer
+        # stopped embedding exactly this interpreter path. Establish the
+        # needle before perturbing, so the broken-interpreter state is real.
+        self.assertIn(
+            os.path.realpath(sys.executable),
+            source,
+            "interpreter path not embedded in bootstrap.sh",
+        )
         script.write_text(
             source.replace(
                 os.path.realpath(sys.executable), "/nonexistent/python3"

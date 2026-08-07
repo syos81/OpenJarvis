@@ -488,8 +488,13 @@ class TestOperativeAgent:
         with patch(
             "openjarvis.agents._stubs.load_config",
             side_effect=Exception("no config"),
-        ):
+        ) as load_cfg:
             agent = OperativeAgent(engine, "test-model")
+        # The injected config failure must actually have fired; otherwise the
+        # defaults below could come from a successful real load_config. (It
+        # fires twice: BaseAgent's temperature/max_tokens resolution and
+        # ToolUsingAgent's max_turns resolution each call load_config.)
+        load_cfg.assert_called()
         assert agent.agent_id == "operative"
         assert agent._temperature == 0.3
         assert agent._max_tokens == 2048

@@ -1,6 +1,15 @@
 {
   "bindings": [
     {
+      "binding_id": "ast-dispositions",
+      "call_style": "root_relative",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.astscan:load_register",
+      "pattern": "config/governance/ast-dispositions.json",
+      "reason": "The R9/R10 disposition register is read exclusively by the scan validator, which rejects unknown fields, unknown candidate classes, lazy reasons and contradictory resolutions before any comparison runs."
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",

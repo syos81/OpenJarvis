@@ -261,12 +261,14 @@ class TestEngineHealth:
     def test_health_false(self, respx_mock, engine_key: str, host: str) -> None:
         engine = _create_engine(engine_key, host)
         if engine_key == "ollama":
-            respx_mock.get(f"{host}/api/tags").mock(
+            route = respx_mock.get(f"{host}/api/tags").mock(
                 side_effect=httpx.ConnectError("refused")
             )
         else:  # All OpenAI-compatible engines
             prefix = _api_prefix(engine_key)
-            respx_mock.get(f"{host}{prefix}/models").mock(
+            route = respx_mock.get(f"{host}{prefix}/models").mock(
                 side_effect=httpx.ConnectError("refused")
             )
-        assert engine.health() is False
+        result = engine.health()
+        assert route.called
+        assert result is False

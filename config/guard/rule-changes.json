@@ -147,7 +147,7 @@
         "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_a_missing_declaration_is_a_failure_not_a_pass"
       ],
       "violation_set_effect": "grows",
-      "finding_origin": "Derived from a real finding: a guard package hash was derived once from an uncommitted worktree state, then published twice for two different commits without being derived again from either. The owner's dry run refused it. Reproduced mechanically — replacing one superseded function in the committed tree reproduces the published value exactly."
+      "finding_origin": "Derived from a real finding: a guard package hash was derived once from an uncommitted worktree state, then published twice for two different commits without being derived again from either. The owner's dry run refused it. Reproduced mechanically \u2014 replacing one superseded function in the committed tree reproduces the published value exactly."
     },
     {
       "change_id": "RC-014",
@@ -181,7 +181,7 @@
       "counter_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_blocks_without_a_guard",
       "violation_set_effect": "unchanged",
       "behaviour_change": "Only an error path moved. Which commands count as violations is unchanged, and with no authoritative guard present the layer still denies on an unusable configuration.",
-      "owner_decision": "Owner instruction of 2026-08-07: a deference that only takes effect after loading what it renounces is not a deference; correct it or model it honestly, and prove which carries. Correction was proven to carry — it abstains despite a broken configuration and still fails closed without a guard.",
+      "owner_decision": "Owner instruction of 2026-08-07: a deference that only takes effect after loading what it renounces is not a deference; correct it or model it honestly, and prove which carries. Correction was proven to carry \u2014 it abstains despite a broken configuration and still fails closed without a guard.",
       "finding_origin": "Reported by the agent against its own earlier claim. _rules() ran at module import through three module level assignments, so the abstention at main() was never reached."
     },
     {
@@ -263,6 +263,26 @@
       "summary": "Rule R10. A check that aggregates over an empty set never reports pass, unless the emptiness itself is the checked property and was derived independently of the walk. The non evidence state is blocked with the reason aggregation_set_empty, which the precedence can never absorb into a green result. Found live: mf-evidence verified zero raw logs for a phase whose stored result was withdrawn and still reported evidence_complete, because the walk over a missing result iterates zero times and an empty issue list reads as clean. mf-phase-results was checked with the same withdrawal probe and already failed correctly; it now also blocks on an empty required phase set and reports its counts.",
       "sharpening_test": "tests/tooling/gates/test_empty_aggregation.py::TestSharpening",
       "counter_test": "tests/tooling/gates/test_empty_aggregation.py::TestCounter",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-024",
+      "block_id": "b0e-test-hardening",
+      "rule_id": "absence_guards_in_gate_checkers",
+      "kind": "sharpening",
+      "summary": "Rule R10 applied to the checkers themselves. Eleven gate checker walks normalised a missing declaration key into an empty iterable and reported success after walking nothing: rule-change fixtures, the violation corpus, committed acceptance artifacts, runtime evidence in the R3 review and in historical integrity, preservation invariants, id-migration mappings, historical resolution records, inherited merge blocks, generality process activation globs and provider term variants. Each site now fails or raises on absence; a present-but-empty declaration stays a legitimate, visible statement where the mode's contract allows it.",
+      "sharpening_test": "tests/tooling/gates/test_r10_repairs.py::TestSharpening",
+      "counter_test": "tests/tooling/gates/test_r10_repairs.py::TestCounter",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-025",
+      "block_id": "b0e-test-hardening",
+      "rule_id": "ast_sweep_disposition_coverage",
+      "kind": "sharpening",
+      "summary": "Rules R9 and R10 as a standing sweep. The executable check corpus is derived mechanically (pytest testpaths, manifest wiring, entry scripts, import closure), both syntax tree sweeps run over it, and every candidate must carry exactly one committed disposition: detected candidates equal disposed candidates, an undisposed candidate fails, an orphaned disposition fails, an edited anchor breaks its binding loudly, a withdrawn scan input blocks instead of reading as an empty clean sweep, and every R9 mark_and_fix in a test file must be declared under the effect evidence convention.",
+      "sharpening_test": "tests/tooling/gates/test_ast_dispositions.py::TestTheComparison",
+      "counter_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
       "violation_set_effect": "grows"
     }
   ],

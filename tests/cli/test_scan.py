@@ -304,8 +304,11 @@ class TestICloudSync:
 
     def test_icloud_defaults_error_falls_through_to_ok(self) -> None:
         scanner = PrivacyScanner()
-        with patch.object(scanner, "_run", side_effect=FileNotFoundError):
+        with patch.object(
+            scanner, "_run", side_effect=FileNotFoundError
+        ) as mock_run:
             result = scanner.check_icloud_sync()
+        assert mock_run.called
         assert result.status == "ok"
 
 

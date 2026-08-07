@@ -112,7 +112,13 @@ def test_sync_yields_markdown_files(vault: Path) -> None:
 def test_sync_skips_hidden_dirs(vault: Path) -> None:
     """Files inside .obsidian (and other hidden dirs) are not yielded."""
     docs = _sync_all(vault)
-    rel_paths = [d.url or "" for d in docs]
+    # Non-vacuity: the vault fixture holds exactly note1.md, note2.md and
+    # subdir/deep.md, so the quantified walk below must see 3 documents.
+    assert len(docs) == 3
+    # Every document must carry a real URL — an unset url must fail here
+    # instead of being masked into "" below.
+    assert all(d.url for d in docs)
+    rel_paths = [d.url for d in docs]
     assert not any(".obsidian" in p for p in rel_paths)
     # config.json should never appear in doc titles either
     assert not any(d.title == "config" for d in docs)

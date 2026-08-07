@@ -170,10 +170,12 @@ class TestOllamaModelDiscovery:
 
     def test_list_models_connection_error(self, respx_mock) -> None:
         engine = _make_engine()
-        respx_mock.get(f"{OLLAMA_HOST}/api/tags").mock(
+        route = respx_mock.get(f"{OLLAMA_HOST}/api/tags").mock(
             side_effect=httpx.ConnectError("refused")
         )
-        assert engine.list_models() == []
+        models = engine.list_models()
+        assert route.called
+        assert models == []
 
     def test_health_healthy(self, respx_mock) -> None:
         engine = _make_engine()
@@ -185,10 +187,12 @@ class TestOllamaModelDiscovery:
     def test_health_unhealthy(self) -> None:
         engine = _make_engine()
         with respx.mock:
-            respx.get(f"{OLLAMA_HOST}/api/tags").mock(
+            route = respx.get(f"{OLLAMA_HOST}/api/tags").mock(
                 side_effect=httpx.ConnectError("refused")
             )
-            assert engine.health() is False
+            result = engine.health()
+            assert route.called
+            assert result is False
 
 
 # ---------------------------------------------------------------------------

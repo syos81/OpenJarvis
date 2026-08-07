@@ -247,7 +247,13 @@ def mode_single_normative_source(root):
     declared = collisions.get("normative_source", {})
     if declared.get("document") != document or str(declared.get("section")) != section:
         failures.append(_fail("projection", "projection_points_elsewhere"))
-    # The machine projection must agree with the normative text.
+    # The machine projection must agree with the normative text. Rule R10:
+    # a resolved registry without resolution records would compare zero
+    # mappings and still pass — absence is an inconsistency, not agreement.
+    if not collisions.get("historical_resolution"):
+        failures.append(
+            _fail("projection", "resolved_registry_without_resolution_records")
+        )
     for entry in collisions.get("historical_resolution", []):
         if entry["new_id"] not in text or entry["old_id"] not in text:
             failures.append(_fail(entry["new_id"], "mapping_not_in_normative_text"))

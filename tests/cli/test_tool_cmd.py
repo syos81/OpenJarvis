@@ -142,10 +142,12 @@ class TestToolCmd:
         # Mock ToolRegistry.contains to raise an exception
         with patch.object(
             ToolRegistry, "contains", side_effect=Exception("Registry error")
-        ):
+        ) as mock_contains:
             result = CliRunner().invoke(cli, ["tool", "inspect", "mock_tool"])
+            assert mock_contains.called
             assert result.exit_code == 0
             # Should catch exception and display error message
+            assert "Registry error" in result.output
             assert "error" in result.output.lower()
 
     def test_tool_list_shows_tool_spec(self) -> None:

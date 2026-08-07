@@ -101,6 +101,11 @@ def mode_rule_changes(args):
                     "relaxation_without_owner_decision",
                 )
             )
+    # Rule R10: the fixture binding must not vanish silently. A dropped or
+    # misspelled key would skip every fixture and abuse-test proof while the
+    # mode still passes on the changes alone.
+    if "fixtures" not in data:
+        failures.append(_fail("rule_changes.fixtures", "fixture_declaration_missing"))
     for fixture in data.get("fixtures", []):
         path = fixture.get("path", "")
         if not path or not (root / path).exists():
@@ -121,6 +126,11 @@ def mode_violation_corpus(args):
     rules = guard_rules.load_rules(root / "tools" / "guard" / "rules.json")
     detected = 0
     previously = 0
+    # Rule R10: this mode's whole claim rests on the walk. An absent or
+    # empty entry set would report a vacuous pass for "the violation set
+    # never shrinks", which is exactly the class of defect it guards.
+    if not corpus.get("entries"):
+        failures.append(_fail("corpus.empty", "no_corpus_entries"))
     for entry in corpus.get("entries", []):
         identifier = entry.get("entry_id", "<unnamed>")
         command = entry.get("command", "")

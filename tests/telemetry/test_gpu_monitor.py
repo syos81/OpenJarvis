@@ -350,7 +350,9 @@ class TestAvailable:
             mod._PYNVML_AVAILABLE = True
             mod.pynvml = fake_pynvml
             try:
-                assert mod.GpuMonitor.available() is False
+                result = mod.GpuMonitor.available()
+                fake_pynvml.nvmlInit.assert_called()
+                assert result is False
             finally:
                 mod._PYNVML_AVAILABLE = orig
 

@@ -100,6 +100,7 @@ class TestSend:
         mock_sock.connect.side_effect = ConnectionError("refused")
         with patch("socket.socket", return_value=mock_sock):
             result = ch.send("#channel", "Hello!")
+            mock_sock.connect.assert_called_once()
             assert result is False
 
     def test_send_no_config(self):

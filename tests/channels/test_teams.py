@@ -91,8 +91,9 @@ class TestSend:
     def test_send_exception(self):
         ch = TeamsChannel(app_id="test-id", app_password="test-pass")
 
-        with patch("httpx.post", side_effect=ConnectionError("refused")):
+        with patch("httpx.post", side_effect=ConnectionError("refused")) as mock_post:
             result = ch.send("general", "Hello!")
+            mock_post.assert_called_once()
             assert result is False
 
     def test_send_no_config(self):

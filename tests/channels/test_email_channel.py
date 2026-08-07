@@ -126,8 +126,9 @@ class TestSend:
             password="pass123",
         )
 
-        with patch("smtplib.SMTP", side_effect=ConnectionError("refused")):
+        with patch("smtplib.SMTP", side_effect=ConnectionError("refused")) as mock_smtp:
             result = ch.send("recipient@example.com", "Hello!")
+            mock_smtp.assert_called_once()
             assert result is False
 
     def test_send_publishes_event(self):

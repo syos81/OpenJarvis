@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import os
 import platform
+import stat
 from pathlib import Path
 
 RUNTIME_DIR_NAME = ".gate-runtime"
@@ -86,8 +87,13 @@ def platform_class() -> str:
 def ensure_private_dir(path) -> Path:
     target = Path(path)
     target.mkdir(parents=True, exist_ok=True)
-    try:
-        os.chmod(str(target), 0o700)
-    except OSError:  # pragma: no cover - platform without permission support
-        pass
+    # Rule R9: the chmod is the only enforcement of the private-dir contract
+    # (mkdir keeps a pre-existing directory's mode). Its effect is verified
+    # rather than assumed; only a genuinely permissionless platform is
+    # excused, and there the verification is skipped openly, not silently.
+    os.chmod(str(target), 0o700)
+    if os.name == "posix":
+        mode = stat.S_IMODE(os.stat(str(target)).st_mode)
+        if mode != 0o700:
+            raise OSError(f"private directory mode is {oct(mode)}, not 0o700")
     return target

@@ -1,79 +1,601 @@
 {
-  "schema_version": 1,
-  "kind": "effect_evidence_review",
-  "rule": "R9",
-  "statement": "A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence, before its actual expectation, that the effect really occurred. If the effect fails to occur the test fails, not its subject. Ordinary preparation steps are not meant: the rule applies where the induced effect is what the expectation is about.",
-  "method": "For every declared function, the first assertion in its body must be the declared effect assertion. That is checked over the syntax tree, not over the text: an assertion that moved below the expectation, or disappeared, fails here even though the test still passes.",
-  "scope": {
-    "block_id": "b0d-guard-hardening",
-    "covers": "The tests this block introduced or repaired, and nothing else.",
-    "deferred": "A review of the whole existing test corpus for tests of the same construction is deliberately not part of this block. It is a separate test hardening step after B0d, so that this block does not keep growing. Until it has run, this declaration is a statement about the listed functions and about no others.",
-    "not_claimed": "No statement is made here about tests that are not listed."
-  },
   "examined": [
     {
-      "file": "tests/tooling/guard/test_owner_exception.py",
-      "function": "test_an_exception_cannot_repair_a_broken_installation",
-      "induced_effect": "The installed package is broken by appending a byte to rules.json.",
-      "effect_assertion": "assertNotEqual",
-      "verdict": "evidenced",
-      "evidence": "The first assertion compares the file's bytes against the bytes read before the write and fails with 'mutation had no effect' when they are equal.",
-      "reason": "This is the finding that produced the rule. The previous version substituted the literal '1.0.0'; once config_version moved to 1.1.0 the substitution became a no-op, the package stayed intact, and the test asserted a deny that the guard would have produced anyway. It passed for years of commits while testing nothing."
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/agents/test_config_defaults.py",
+      "function": "test_config_load_failure_max_turns_fallback",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
     },
     {
-      "file": "tests/tooling/guard/test_manipulation_matrix.py",
-      "function": "_run_row",
-      "induced_effect": "Each matrix row applies a declared structural manipulation to a well formed exception object.",
-      "effect_assertion": "assert_effect",
-      "verdict": "evidenced",
-      "evidence": "The first assertion of the row is assert_effect, which fails with the row identifier, the probe and the probed field when the manipulation produced no change.",
-      "reason": "The matrix is the block's central evidence. Without the probe every row could silently degrade into an assertion about the untouched base object — the exact defect above, multiplied by the number of rows."
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/agents/test_config_defaults.py",
+      "function": "test_config_load_failure_uses_hardcoded_fallback",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
     },
     {
-      "file": "tests/tooling/guard/test_manipulation_matrix.py",
-      "function": "test_pending_area_partitions_exactly_as_declared",
-      "induced_effect": "Every row is manipulated and placed into one shared pending area.",
-      "effect_assertion": "assert_effect",
-      "verdict": "evidenced",
-      "evidence": "assert_effect runs per row before any object is written, so a row that changed nothing cannot contribute to the partition.",
-      "reason": "The partition is only meaningful if the objects really differ from one another."
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/agents/test_native_openhands.py",
+      "function": "test_url_expansion_failure_returns_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
     },
     {
-      "file": "tests/tooling/guard/test_collect_tool.py",
-      "function": "test_verify_rederives_the_seal_and_catches_an_edit",
-      "induced_effect": "A sealed object is edited after the fact.",
-      "effect_assertion": "assertNotEqual",
-      "verdict": "evidenced",
-      "evidence": "The first assertion compares the reason field against its value before the write and fails with 'the edit did not take effect'.",
-      "reason": "If the edit did not land, verify would report no finding and the test would read as proof that verify is sound."
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_bluebubbles.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
     },
     {
-      "file": "tests/tooling/guard/test_collect_tool.py",
-      "function": "test_verify_reports_a_missing_area_rather_than_passing",
-      "induced_effect": "The collection area is removed.",
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_discord_channel.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_email_channel.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_feishu.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_google_chat.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_irc_channel.py",
+      "function": "test_send_failure_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_matrix_channel.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_mattermost.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_sendblue.py",
+      "function": "test_send_network_error_returns_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_signal_channel.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_slack.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_teams.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_telegram.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_tier1_gmail.py",
+      "function": "test_gmail_send_exception_returns_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_twilio_sms.py",
+      "function": "test_send_failure",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_twitter_bot_e2e.py",
+      "function": "test_defaults_to_question_on_llm_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_twitter_bot_e2e.py",
+      "function": "test_detector_exception_defaults_to_safe",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_twitter_bot_e2e.py",
+      "function": "test_llm_exception_returns_none",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_twitter_channel.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_webhook.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/channels/test_whatsapp.py",
+      "function": "test_send_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_config_set.py",
+      "function": "test_set_engine_host_probes_unreachable",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_init_host.py",
+      "function": "test_init_host_probes_and_reports",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_install_detect.py",
+      "function": "test_missing_openjarvis_file_falls_back_to_pypi",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_registry_cmd.py",
+      "function": "test_registry_list_handles_registry_error",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_scan.py",
+      "function": "test_icloud_defaults_error_falls_through_to_ok",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_tool_cmd.py",
+      "function": "test_tool_inspect_catches_registry_exception",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/cli/test_version_check.py",
+      "function": "test_network_error_returns_none",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_engine_model_matrix.py",
+      "function": "test_health_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_gemma_cpp.py",
+      "function": "test_health_false_when_pygemma_missing",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_lemonade.py",
+      "function": "test_health_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_litellm.py",
+      "function": "test_generate_cost_error_fallback",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_llamacpp_models.py",
+      "function": "test_health_unhealthy",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_lmstudio.py",
+      "function": "test_health_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_mlx.py",
+      "function": "test_health_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_ollama.py",
+      "function": "test_health_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_ollama_models.py",
+      "function": "test_health_unhealthy",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_ollama_models.py",
+      "function": "test_list_models_connection_error",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_openai_compat.py",
+      "function": "test_health_false",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the tolerant patch construct was removed, so the patch API itself verifies its target",
+      "file": "tests/engine/test_structured_output.py",
+      "function": "test_json_mode_sets_mime_type",
+      "induced_effect": "a patch that would succeed even against a vanished target",
+      "reason": "B0e corpus sweep: create=True masked target renames; the loud form observes the target's existence",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/engine/test_vllm_models.py",
+      "function": "test_health_check_unhealthy",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/mining/test_discovery.py",
+      "function": "test_check_pearld_reachable_false_on_connection_error",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/operators/test_operators.py",
+      "function": "test_init_defaults",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/server/test_channel_bridge.py",
+      "function": "test_error_returns_friendly_message",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/server/test_connectors_router.py",
+      "function": "test_connect_granola_invalid_key_returns_400_keeps_existing",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called_once",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/server/test_mcp_tools_cache.py",
+      "function": "test_handles_config_load_failure",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/telemetry/test_energy_nvidia.py",
+      "function": "test_probe_fails_on_pre_volta",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/telemetry/test_energy_nvidia.py",
+      "function": "test_returns_polling_when_no_hw_counter",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/telemetry/test_gpu_monitor.py",
+      "function": "test_available_false_when_init_fails",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
+    },
+    {
       "effect_assertion": "assertFalse",
-      "verdict": "evidenced",
-      "evidence": "The first assertion states that the directory is gone and fails with 'the area was not removed'.",
-      "reason": "Withdrawal is the third form of induced effect, next to mutation and corruption, and it fails just as silently: an area that still exists would produce a passing verify."
+      "evidence": "the absence of the withdrawn input is asserted before the derivation is consulted",
+      "file": "tests/tooling/gates/test_ast_corpus.py",
+      "function": "test_a_withdrawn_discovery_input_blocks_instead_of_reporting_empty",
+      "induced_effect": "withdrawal of a discovery input of the corpus derivation",
+      "reason": "Self-application of rule R9 to the B0e scanner's own tests: the statement rests on the withdrawal having taken effect",
+      "verdict": "evidenced"
     },
     {
+      "effect_assertion": "assertFalse",
+      "evidence": "the absence of the withdrawn input is asserted before the derivation is consulted",
+      "file": "tests/tooling/gates/test_ast_corpus.py",
+      "function": "test_a_withdrawn_test_tree_blocks_instead_of_reporting_empty",
+      "induced_effect": "withdrawal of a discovery input of the corpus derivation",
+      "reason": "Self-application of rule R9 to the B0e scanner's own tests: the statement rests on the withdrawal having taken effect",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertFalse",
+      "evidence": "the absence of the withdrawn input is asserted before the derivation is consulted",
+      "file": "tests/tooling/gates/test_ast_dispositions.py",
+      "function": "test_a_withdrawn_scan_input_is_blocked_not_an_empty_success",
+      "induced_effect": "withdrawal of a discovery input of the corpus derivation",
+      "reason": "Self-application of rule R9 to the B0e scanner's own tests: the statement rests on the withdrawal having taken effect",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertNotEqual",
+      "evidence": "the presence of the substitution needle or the difference of the written bytes is asserted before the expectation",
+      "file": "tests/tooling/gates/test_ast_dispositions.py",
+      "function": "test_an_edited_candidate_breaks_its_binding_in_both_directions",
+      "induced_effect": "a textual substitution written back to an artifact of the subject",
+      "reason": "B0e corpus sweep: a vanished needle turns the substitution into a silent no-op; the first assertion makes that impossible",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertIn",
+      "evidence": "the presence of the substitution needle or the difference of the written bytes is asserted before the expectation",
+      "file": "tests/tooling/guard/test_bootstrap.py",
+      "function": "test_wrapper_blocks_on_a_missing_interpreter",
+      "induced_effect": "a textual substitution written back to an artifact of the subject",
+      "reason": "B0e corpus sweep: a vanished needle turns the substitution into a silent no-op; the first assertion makes that impossible",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertNotIn",
+      "evidence": "The first assertion states that the function is no longer defined and fails with 'the qualification function was not removed'.",
       "file": "tests/tooling/guard/test_collect_tool.py",
       "function": "test_a_guard_without_the_qualification_layer_is_refused",
       "induced_effect": "The qualification function is removed from an installed package.",
-      "effect_assertion": "assertNotIn",
-      "verdict": "evidenced",
-      "evidence": "The first assertion states that the function is no longer defined and fails with 'the qualification function was not removed'.",
-      "reason": "The refusal would also appear for an unrelated import failure, so the removal has to be established rather than assumed."
+      "reason": "The refusal would also appear for an unrelated import failure, so the removal has to be established rather than assumed.",
+      "verdict": "evidenced"
     },
     {
+      "effect_assertion": "assertNotEqual",
+      "evidence": "The first assertion compares the reason field against its value before the write and fails with 'the edit did not take effect'.",
+      "file": "tests/tooling/guard/test_collect_tool.py",
+      "function": "test_verify_rederives_the_seal_and_catches_an_edit",
+      "induced_effect": "A sealed object is edited after the fact.",
+      "reason": "If the edit did not land, verify would report no finding and the test would read as proof that verify is sound.",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertFalse",
+      "evidence": "The first assertion states that the directory is gone and fails with 'the area was not removed'.",
+      "file": "tests/tooling/guard/test_collect_tool.py",
+      "function": "test_verify_reports_a_missing_area_rather_than_passing",
+      "induced_effect": "The collection area is removed.",
+      "reason": "Withdrawal is the third form of induced effect, next to mutation and corruption, and it fails just as silently: an area that still exists would produce a passing verify.",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_effect",
+      "evidence": "The first assertion of the row is assert_effect, which fails with the row identifier, the probe and the probed field when the manipulation produced no change.",
+      "file": "tests/tooling/guard/test_manipulation_matrix.py",
+      "function": "_run_row",
+      "induced_effect": "Each matrix row applies a declared structural manipulation to a well formed exception object.",
+      "reason": "The matrix is the block's central evidence. Without the probe every row could silently degrade into an assertion about the untouched base object \u2014 the exact defect above, multiplied by the number of rows.",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertFalse",
+      "evidence": "The counter test: it requires the probe to report the absence of an effect. Without it the probe could always return true and the whole rule would be decorative.",
       "file": "tests/tooling/guard/test_manipulation_matrix.py",
       "function": "test_a_manipulation_that_does_nothing_is_caught_by_its_probe",
-      "induced_effect": "A manipulation that writes a field's own value back — deliberately no effect at all.",
-      "effect_assertion": "assertFalse",
-      "verdict": "evidenced",
-      "evidence": "The counter test: it requires the probe to report the absence of an effect. Without it the probe could always return true and the whole rule would be decorative.",
-      "reason": "A rule enforced by a mechanism nobody tests is a rule enforced by nothing."
+      "induced_effect": "A manipulation that writes a field's own value back \u2014 deliberately no effect at all.",
+      "reason": "A rule enforced by a mechanism nobody tests is a rule enforced by nothing.",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_effect",
+      "evidence": "assert_effect runs per row before any object is written, so a row that changed nothing cannot contribute to the partition.",
+      "file": "tests/tooling/guard/test_manipulation_matrix.py",
+      "function": "test_pending_area_partitions_exactly_as_declared",
+      "induced_effect": "Every row is manipulated and placed into one shared pending area.",
+      "reason": "The partition is only meaningful if the objects really differ from one another.",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assertNotEqual",
+      "evidence": "The first assertion compares the file's bytes against the bytes read before the write and fails with 'mutation had no effect' when they are equal.",
+      "file": "tests/tooling/guard/test_owner_exception.py",
+      "function": "test_an_exception_cannot_repair_a_broken_installation",
+      "induced_effect": "The installed package is broken by appending a byte to rules.json.",
+      "reason": "This is the finding that produced the rule. The previous version substituted the literal '1.0.0'; once config_version moved to 1.1.0 the substitution became a no-op, the package stayed intact, and the test asserted a deny that the guard would have produced anyway. It passed for years of commits while testing nothing.",
+      "verdict": "evidenced"
+    },
+    {
+      "effect_assertion": "assert_called",
+      "evidence": "the observation of the injected mock is the first assertion of the test, so an injection that never fires fails the test before its expectation",
+      "file": "tests/tools/test_web_search.py",
+      "function": "test_execute_url_fetch_failure",
+      "induced_effect": "an exception injected as side_effect into the dependency the test exercises",
+      "reason": "B0e corpus sweep: the asserted outcome was also producible without the injection firing; the first assertion pins the injection to the run",
+      "verdict": "evidenced"
     }
   ],
-  "open_findings": []
+  "kind": "effect_evidence_review",
+  "method": "For every declared function, the first assertion in its body must be the declared effect assertion. That is checked over the syntax tree, not over the text: an assertion that moved below the expectation, or disappeared, fails here even though the test still passes.",
+  "open_findings": [],
+  "rule": "R9",
+  "schema_version": 1,
+  "scope": {
+    "block_id": "b0e-test-hardening",
+    "covers": "The perturbation tests B0d introduced or repaired, every test the B0e corpus sweep marked and repaired, and the B0e scanner's own withdrawal tests.",
+    "deferred": "Nothing. The corpus-wide review deferred by B0d has run: block B0e derived the executable corpus mechanically and swept it; the standing coverage lives in config/governance/ast-dispositions.json and its validator.",
+    "not_claimed": "No statement is made here about perturbation shapes outside the declared candidate classes and their stated class boundaries in the disposition register."
+  },
+  "statement": "A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence, before its actual expectation, that the effect really occurred. If the effect fails to occur the test fails, not its subject. Ordinary preparation steps are not meant: the rule applies where the induced effect is what the expectation is about."
 }

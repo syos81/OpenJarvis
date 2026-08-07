@@ -175,10 +175,12 @@ class TestVLLMModelDiscovery:
 
     def test_health_check_unhealthy(self, respx_mock) -> None:
         engine = _make_engine()
-        respx_mock.get(f"{VLLM_HOST}/v1/models").mock(
+        route = respx_mock.get(f"{VLLM_HOST}/v1/models").mock(
             side_effect=httpx.ConnectError("refused")
         )
-        assert engine.health() is False
+        result = engine.health()
+        assert route.called
+        assert result is False
 
 
 # ---------------------------------------------------------------------------

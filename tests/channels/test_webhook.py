@@ -133,8 +133,9 @@ class TestSend:
     def test_send_exception(self):
         ch = WebhookChannel(url="https://example.com/hook")
 
-        with patch("httpx.request", side_effect=ConnectionError("refused")):
+        with patch("httpx.request", side_effect=ConnectionError("refused")) as mock_req:
             result = ch.send("target", "Hello!")
+            mock_req.assert_called_once()
             assert result is False
 
     def test_send_no_url(self):

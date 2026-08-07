@@ -103,9 +103,10 @@ class TestConfigSet:
                 cli,
                 ["config", "set", "engine.ollama.host", "http://myserver:11434"],
             )
+        assert mock_httpx.get.called
         assert result.exit_code == 0
         output_lower = result.output.lower()
-        assert "unreachable" in output_lower or "warning" in output_lower
+        assert "unreachable" in output_lower
         content = config_file.read_text()
         assert "http://myserver:11434" in content
 

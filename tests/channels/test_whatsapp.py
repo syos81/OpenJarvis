@@ -98,8 +98,9 @@ class TestSend:
     def test_send_exception(self):
         ch = WhatsAppChannel(access_token="test-token", phone_number_id="12345")
 
-        with patch("httpx.post", side_effect=ConnectionError("refused")):
+        with patch("httpx.post", side_effect=ConnectionError("refused")) as mock_post:
             result = ch.send("+1234567890", "Hello!")
+            mock_post.assert_called_once()
             assert result is False
 
     def test_send_no_token(self):

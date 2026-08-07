@@ -68,7 +68,7 @@ class TestDeclaration(unittest.TestCase):
     def test_the_deferral_is_reported_on_every_run(self):
         """The scope is limited, and the report says so rather than implying coverage."""
         _failures, diagnostics = effectevidence.check(REPO_ROOT)
-        self.assertIn("corpus_sweep=deferred_to_a_separate_step", diagnostics)
+        self.assertIn("corpus_sweep=ast_disposition_register", diagnostics)
 
     def test_the_scope_states_what_is_not_claimed(self):
         scope = effectevidence.load(REPO_ROOT)["scope"]

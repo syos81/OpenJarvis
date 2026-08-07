@@ -264,8 +264,10 @@ class TestGemmaCppHealth:
         with patch(
             "openjarvis.engine.gemma_cpp._import_pygemma",
             side_effect=ImportError("no pygemma"),
-        ):
-            assert engine.health() is False
+        ) as mock_imp:
+            result = engine.health()
+            assert mock_imp.called
+            assert result is False
 
 
 class TestGemmaCppListModels:

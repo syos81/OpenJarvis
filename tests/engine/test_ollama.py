@@ -93,10 +93,12 @@ class TestOllamaHealth:
 
     def test_health_false(self, engine: OllamaEngine) -> None:
         with respx.mock:
-            respx.get("http://testhost:11434/api/tags").mock(
+            route = respx.get("http://testhost:11434/api/tags").mock(
                 side_effect=httpx.ConnectError("refused")
             )
-            assert engine.health() is False
+            result = engine.health()
+            assert route.called
+            assert result is False
 
 
 class TestControlTokenFilter:

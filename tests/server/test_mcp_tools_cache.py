@@ -150,5 +150,8 @@ def test_handles_config_load_failure(mock_load_config: MagicMock):
     app_state = _FakeAppState()
     tools, adapters = _get_mcp_tools(app_state)
 
+    # The injected config failure must actually have fired; the empty result
+    # is also produced by a successful load with MCP unconfigured.
+    mock_load_config.assert_called_once()
     assert tools == []
     assert adapters == {}

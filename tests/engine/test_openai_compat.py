@@ -132,10 +132,12 @@ class TestOpenAICompatHealth:
 
     def test_health_false(self, engine: VLLMEngine) -> None:
         with respx.mock:
-            respx.get("http://testhost:8000/v1/models").mock(
+            route = respx.get("http://testhost:8000/v1/models").mock(
                 side_effect=httpx.ConnectError("refused")
             )
-            assert engine.health() is False
+            result = engine.health()
+            assert route.called
+            assert result is False
 
 
 @requires_respx

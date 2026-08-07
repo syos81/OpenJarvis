@@ -87,7 +87,9 @@ class TestModelClassifierParse:
     def test_llm_exception_returns_none(self):
         j = MagicMock()
         j.ask.side_effect = RuntimeError("ollama down")
-        assert twitter_bot._classify_mention_llm("unused", j) is None
+        result = twitter_bot._classify_mention_llm("unused", j)
+        j.ask.assert_called_once()
+        assert result is None
 
 
 class TestClassifyMentionDispatch:
@@ -122,7 +124,9 @@ class TestClassifyMentionDispatch:
         QUESTION so the reply goes through retrieval + deferral."""
         j = MagicMock()
         j.ask.side_effect = RuntimeError("model unavailable")
-        assert _classify_mention("this is broken", jarvis=j) == "QUESTION"
+        result = _classify_mention("this is broken", jarvis=j)
+        j.ask.assert_called_once()
+        assert result == "QUESTION"
 
     def test_defaults_to_question_on_invalid_label(self):
         j = MagicMock()
@@ -183,7 +187,9 @@ class TestInjectionDetector:
         detector defaults to SAFE and the normal flow continues."""
         j = MagicMock()
         j.ask.side_effect = RuntimeError("ollama down")
-        assert twitter_bot._detect_injection("unused", j) == "SAFE"
+        result = twitter_bot._detect_injection("unused", j)
+        j.ask.assert_called_once()
+        assert result == "SAFE"
 
 
 class TestSinceIdPersistence:

@@ -97,8 +97,9 @@ class TestSend:
     def test_send_exception(self):
         ch = SignalChannel(api_url="http://localhost:8080", phone_number="+1234567890")
 
-        with patch("httpx.post", side_effect=ConnectionError("refused")):
+        with patch("httpx.post", side_effect=ConnectionError("refused")) as mock_post:
             result = ch.send("+0987654321", "Hello!")
+            mock_post.assert_called_once()
             assert result is False
 
     def test_send_no_config(self):

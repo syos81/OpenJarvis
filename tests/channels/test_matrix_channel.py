@@ -109,8 +109,9 @@ class TestSend:
             access_token="test-token",
         )
 
-        with patch("httpx.put", side_effect=ConnectionError("refused")):
+        with patch("httpx.put", side_effect=ConnectionError("refused")) as mock_put:
             result = ch.send("!room123:example.com", "Hello!")
+            mock_put.assert_called_once()
             assert result is False
 
     def test_send_no_token(self):

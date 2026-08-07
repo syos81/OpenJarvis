@@ -565,14 +565,12 @@ class TestUrlExpansion:
     def test_url_expansion_failure_returns_false(self, monkeypatch):
         import httpx
 
-        monkeypatch.setattr(
-            httpx,
-            "get",
-            MagicMock(side_effect=Exception("Connection error")),
-        )
+        mock_get = MagicMock(side_effect=Exception("Connection error"))
+        monkeypatch.setattr(httpx, "get", mock_get)
         text, expanded = NativeOpenHandsAgent._expand_urls(
             "Read https://example.com/broken"
         )
+        assert mock_get.called
         assert expanded is False
 
     def test_url_expanded_uses_direct_path(self, monkeypatch):

@@ -127,6 +127,7 @@ class TestHwCounterProbe:
             mod.pynvml = fake_pynvml
             try:
                 monitor = mod.NvidiaEnergyMonitor(poll_interval_ms=50)
+                assert fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.called
                 assert monitor._hw_counter_available is False
             finally:
                 mod._PYNVML_AVAILABLE = orig
@@ -167,6 +168,7 @@ class TestEnergyMethod:
             mod.pynvml = fake_pynvml
             try:
                 monitor = mod.NvidiaEnergyMonitor(poll_interval_ms=50)
+                assert fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.called
                 assert monitor.energy_method() == "polling"
             finally:
                 mod._PYNVML_AVAILABLE = orig

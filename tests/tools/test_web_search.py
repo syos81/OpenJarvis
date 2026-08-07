@@ -493,13 +493,13 @@ class TestExecuteWithUrl:
         import httpx
 
         self._mock_ssrf(monkeypatch)
-        monkeypatch.setattr(
-            httpx,
-            "get",
-            MagicMock(side_effect=httpx.HTTPError("Connection failed")),
-        )
+        mock_get = MagicMock(side_effect=httpx.HTTPError("Connection failed"))
+        monkeypatch.setattr(httpx, "get", mock_get)
 
         tool = WebSearchTool(api_key="test-key")
         result = tool.execute(query="https://example.com/broken")
+        # The injected fetch must actually have been reached; the generic
+        # "Failed to fetch URL" wrapper could otherwise fire without it.
+        mock_get.assert_called()
         assert result.success is False
         assert "Failed to fetch URL" in result.content

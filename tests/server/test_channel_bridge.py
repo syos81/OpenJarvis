@@ -166,6 +166,9 @@ class TestChatRouting:
     def test_error_returns_friendly_message(self, bridge, mock_system):
         mock_system.ask.side_effect = RuntimeError("engine down")
         reply = bridge.handle_incoming("user1", "hello", "fake")
+        # With side_effect set, a recorded call necessarily raised — the
+        # friendly reply below must stem from the injected failure.
+        mock_system.ask.assert_called_once()
         assert "sorry" in reply.lower() or "couldn't" in reply.lower()
 
 

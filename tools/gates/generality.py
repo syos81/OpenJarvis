@@ -275,8 +275,29 @@ def find_literal_comparisons(source, sensitive, filename="<core>",
 # --------------------------------------------------------------------------
 # Activation of the positive configuration test
 # --------------------------------------------------------------------------
+class ActivationError(ValueError):
+    """Raised when the activation declaration is structurally unusable."""
+
+    def __init__(self, code, detail=""):
+        self.code = code
+        self.detail = detail
+        super().__init__(f"{code}: {detail}" if detail else code)
+
+
 def process_paths_present(root, activation):
-    """Return the sorted product paths that activate the positive test."""
+    """Return the sorted product paths that activate the positive test.
+
+    Rule R10: a missing glob key must not read as an empty pattern list —
+    that would silently report ``inactive`` and waive the mandatory positive
+    product test. A present-but-empty list stays a legitimate declaration.
+    """
+    missing = [
+        key
+        for key in ("schema_globs", "route_globs", "core_globs")
+        if key not in activation
+    ]
+    if missing:
+        raise ActivationError("process_activation_key_missing", ",".join(missing))
     found = []
     for key in ("schema_globs", "route_globs", "core_globs"):
         for pattern in activation.get(key, []):

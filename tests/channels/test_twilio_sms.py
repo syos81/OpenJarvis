@@ -82,6 +82,7 @@ class TestSend:
         ch._client = mock_client
 
         result = ch.send("+15559999999", "Hello!")
+        mock_client.messages.create.assert_called_once()
         assert result is False
 
     def test_send_publishes_event(self):

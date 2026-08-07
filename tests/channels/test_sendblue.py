@@ -141,8 +141,9 @@ class TestSend:
     def test_send_network_error_returns_false(self):
         ch = _make_channel()
         ch.connect()
-        with patch("httpx.post", side_effect=Exception("Network error")):
+        with patch("httpx.post", side_effect=Exception("Network error")) as mock_post:
             result = ch.send("+19998887777", "Hello!")
+        mock_post.assert_called_once()
         assert result is False
 
     def test_send_no_credentials_returns_false(self):

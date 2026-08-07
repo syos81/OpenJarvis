@@ -240,28 +240,18 @@ class TestGoogleStructuredOutput:
         engine, fake_client = self._make_engine(monkeypatch)
         rf = ResponseFormat()
 
-        # Patch the genai_types import used inside _generate_google
-        fake_config_cls = mock.MagicMock()
-        config_instance = mock.MagicMock()
-        fake_config_cls.return_value = config_instance
-        fake_genai_types = mock.MagicMock()
-        fake_genai_types.GenerateContentConfig = fake_config_cls
-
         with mock.patch.dict(
             "sys.modules",
             {"google": mock.MagicMock(), "google.genai": mock.MagicMock()},
         ):
-            with mock.patch(
-                "openjarvis.engine.cloud.genai_types", fake_genai_types, create=True
-            ):
-                # We need to actually test the config mutation. The simplest
-                # approach is to observe the config object passed to
-                # generate_content.
-                engine.generate(
-                    [Message(role=Role.USER, content="Give me JSON")],
-                    model="gemini-2.5-pro",
-                    response_format=rf,
-                )
+            # We need to actually test the config mutation. The simplest
+            # approach is to observe the config object passed to
+            # generate_content.
+            engine.generate(
+                [Message(role=Role.USER, content="Give me JSON")],
+                model="gemini-2.5-pro",
+                response_format=rf,
+            )
 
         call_kwargs = fake_client.models.generate_content.call_args
         config_arg = call_kwargs[1]["config"]

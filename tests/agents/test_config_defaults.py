@@ -82,8 +82,9 @@ class TestBaseAgentConfigResolution:
         with patch(
             "openjarvis.agents._stubs.load_config",
             side_effect=Exception("boom"),
-        ):
+        ) as mock_cfg:
             agent = _TestAgent(engine, "m")
+        assert mock_cfg.called
         assert agent._temperature == 0.7
         assert agent._max_tokens == 1024
 
@@ -124,8 +125,9 @@ class TestToolUsingAgentConfigResolution:
         with patch(
             "openjarvis.agents._stubs.load_config",
             side_effect=Exception("boom"),
-        ):
+        ) as mock_cfg:
             agent = _TestToolAgent(engine, "m")
+        assert mock_cfg.called
         assert agent._max_turns == 10
 
 

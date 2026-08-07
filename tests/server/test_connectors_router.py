@@ -143,16 +143,30 @@ def test_connect_granola_invalid_key_returns_400_keeps_existing(
     creds.write_text(json.dumps({"token": "grl_real_existing_key"}))
     _instances["granola"] = GranolaConnector(credentials_path=str(creds))
     try:
+        # Prime the registry BEFORE installing the patch: the autouse
+        # _clean_registries fixture empties ConnectorRegistry, and the route's
+        # _ensure_connectors_registered() then importlib.reload()s the granola
+        # module — rebinding _granola_api_validate_key to the real function and
+        # silently discarding a patch installed earlier. Registering first
+        # means the POST below performs no reload and the patch stays active.
+        from openjarvis.server.connectors_router import (
+            _ensure_connectors_registered,
+        )
+
+        _ensure_connectors_registered()
         with patch(
             "openjarvis.connectors.granola._granola_api_validate_key",
             side_effect=GranolaKeyError(
                 "Invalid API key. Check your key in Granola Settings → API."
             ),
-        ):
+        ) as validate:
             resp = app.post(
                 "/v1/connectors/granola/connect",
                 json={"code": "fake-key-12345"},
             )
+        # The injected validator must actually have been hit with the fake key;
+        # otherwise the 400/'Invalid API key' could come from a live probe.
+        validate.assert_called_once_with("fake-key-12345")
         assert resp.status_code == 400
         assert "Invalid API key" in resp.json()["detail"]
         # The previously-working credential must be untouched.

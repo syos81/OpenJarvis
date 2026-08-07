@@ -219,7 +219,11 @@ def test_check_pearld_reachable_false_on_connection_error():
     with patch("openjarvis.mining._discovery.httpx.post") as post:
         post.side_effect = httpx.ConnectError("connection refused")
         ok, info = check_pearld_reachable("http://localhost:44107", "user", "pass")
+        # With side_effect set, a recorded call necessarily raised ConnectError.
+        post.assert_called_once()
         assert ok is False
+        # Pin the ConnectError handling branch, not some other failure path.
+        assert info.startswith("connection refused")
 
 
 def test_check_wallet_address_format_valid():

@@ -83,8 +83,9 @@ class TestSend:
     def test_send_exception(self):
         ch = TelegramChannel(bot_token="123:ABC")
 
-        with patch("httpx.post", side_effect=ConnectionError("refused")):
+        with patch("httpx.post", side_effect=ConnectionError("refused")) as mock_post:
             result = ch.send("12345678", "Hello!")
+            mock_post.assert_called_once()
             assert result is False
 
     def test_send_no_token(self):

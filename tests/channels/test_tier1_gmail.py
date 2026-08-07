@@ -108,6 +108,7 @@ class TestSend:
         ch._status = ChannelStatus.CONNECTED
 
         result = ch.send("recipient@example.com", "Hello!")
+        mock_service.users().messages().send().execute.assert_called()
         assert result is False
 
 

@@ -106,8 +106,9 @@ class TestSend:
             webhook_url="https://chat.googleapis.com/v1/spaces/xxx/messages?key=yyy"
         )
 
-        with patch("httpx.post", side_effect=ConnectionError("refused")):
+        with patch("httpx.post", side_effect=ConnectionError("refused")) as mock_post:
             result = ch.send("space", "Hello!")
+            mock_post.assert_called_once()
             assert result is False
 
     def test_send_no_url(self):

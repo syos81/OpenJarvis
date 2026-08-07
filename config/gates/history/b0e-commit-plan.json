@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "kind": "commit_plan",
+  "block_id": "b0e-test-hardening",
+  "start_commit": "3e90d675a3dce38348cc0fcf1556f8a68dd14031",
+  "planned_commits": [
+    {
+      "position": 1,
+      "purpose": "purely normative: the corpus derivation, the shared syntax tree scaffold with the R9 and R10 rules, the disposition register with every decision, all R9 and R10 repairs with their test pairs, the effect evidence extension, the loader binding, the block manifest and lineage",
+      "message": "feat(gates): derive the executable corpus, sweep r9/r10 and dispose every candidate"
+    },
+    {
+      "position": 2,
+      "purpose": "purely determinative: gate runs against the fixed normative commit, sanitised evidence snapshots, acceptance record and handoff",
+      "message": "test(gates): finalize b0e evidence, acceptance and handoff"
+    }
+  ],
+  "max_commits": 2,
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "automatic push",
+    "sudo",
+    "guard activation"
+  ],
+  "push_status": "not_performed_owner_action",
+  "split_justification": {
+    "declared_in_advance": true,
+    "decided_by": "owner instruction for block B0e",
+    "separation": "normative and determinative stay in separate commits; position 1 is normative, position 2 is determinative",
+    "reason": "One normative commit suffices: the scanner, the register, the repairs and the block contract form one testable whole, and no part changes runtime behaviour another part must already rest on. The determinative position exists so evidence describes a fixed commit instead of a moving worktree.",
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates",
+      "the full tooling test suite passes",
+      "the configuration loader binding check passes",
+      "every phase declared for the changed subject has run against the new scope (R5)",
+      "a commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified."
+  },
+  "guard_package_affected": {
+    "value": false,
+    "reason": "B0e changes no file under tools/guard, tools/guardpkg or tools/guardops; the manifest's product guard forbids those paths, so the installed guard, its package and its digest stay untouched and no owner activation exists in this block.",
+    "owner_activation_required": false
+  }
+}

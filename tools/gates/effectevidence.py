@@ -186,7 +186,8 @@ def check(root, path=DECLARATION):
             diagnostics.append(f"{identifier}=evidenced")
     diagnostics.append(f"examined={len(document['examined'])}")
     diagnostics.append(f"scope={document['scope']['block_id']}")
-    # The deferral is reported every run, so the limited scope of this
-    # declaration is never mistaken for a corpus wide statement.
-    diagnostics.append("corpus_sweep=deferred_to_a_separate_step")
+    # The corpus wide sweep deferred by B0d has run in block B0e; the
+    # standing coverage is the disposition register and its validator, and
+    # the report names that source so the division of labour stays visible.
+    diagnostics.append("corpus_sweep=ast_disposition_register")
     return sorted(failures), sorted(diagnostics)

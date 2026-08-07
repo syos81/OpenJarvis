@@ -144,6 +144,11 @@ def mode_blocks(root):
 
 def _inherited_blocks(root, policy, failures, diagnostics):
     """Inherited blocks are proved by content, not by foreign runtime results."""
+    # Rule R10: a dropped or misspelled key would skip the inherited half of
+    # the proof obligation while the mode still passes. Absence is a failure.
+    if "inherited_blocks" not in policy:
+        failures.append(_fail("policy", "inherited_blocks_undeclared"))
+        return
     for entry in policy.get("inherited_blocks", []):
         block_id = entry["block_id"]
         manifest_path = manifest_module.manifest_path_for(root, block_id)

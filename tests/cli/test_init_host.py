@@ -70,9 +70,10 @@ class TestInitHost:
                 cli,
                 ["init", "--engine", "ollama", "--host", "http://bad:11434", _NO_DL],
             )
+        assert mock_httpx.get.called
         assert result.exit_code == 0
         output_lower = result.output.lower()
-        assert "unreachable" in output_lower or "warning" in output_lower
+        assert "unreachable" in output_lower
 
     def test_init_without_host_still_works(self, tmp_path: Path) -> None:
         """jarvis init without --host still produces valid config."""

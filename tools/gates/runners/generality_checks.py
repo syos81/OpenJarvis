@@ -123,6 +123,16 @@ def mode_literal_comparisons(root):
     for term in scope["provider_terms"]:
         provider_values.extend(term.get("variants") or [])
     failures = []
+    # Rule R10: provider terms whose variants vanished would silently turn
+    # the provider half of this check off with a green outcome.
+    if scope["provider_terms"] and not provider_values:
+        failures.append(
+            _fail(
+                "provider_terms",
+                "provider_term_without_variants",
+                "literal_comparison",
+            )
+        )
     inspected = 0
     for pattern in scope["core_paths"]:
         if not pattern.endswith(".py"):
@@ -164,7 +174,13 @@ def mode_configuration_test(root):
                 _fail(fixture, "configuration_fixture_missing", "configuration")
             )
 
-    state, paths = generality.activation_state(root, scope["process_activation"])
+    try:
+        state, paths = generality.activation_state(root, scope["process_activation"])
+    except generality.ActivationError as error:
+        failures.append(
+            _fail("process_activation", error.code, "configuration")
+        )
+        return failures, diagnostics
     diagnostics.append(f"process_activation={state}")
     diagnostics.append(f"process_paths={len(paths)}")
     if state == "active":
