@@ -489,6 +489,30 @@
       ]
     },
     {
+      "binding_id": "history-b0d-close-record",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/b0d-close-record.json",
+      "reason": "The record of the executed two stage close, standing beside the acceptance record; the declared field set is its accepting reader.",
+      "required_fields": [
+        "activation",
+        "block_id",
+        "close_plan",
+        "explicit_checks_after_activation",
+        "kind",
+        "owner_finding_correction",
+        "position_4_commit",
+        "push_status",
+        "runtime_evidence",
+        "schema_version",
+        "stage_1",
+        "stage_2",
+        "statement",
+        "termination"
+      ]
+    },
+    {
       "binding_id": "history-b0d-corrections",
       "expectation": "accepted",
       "kind": "structural",

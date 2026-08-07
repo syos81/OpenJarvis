@@ -199,3 +199,64 @@ Pushstatus: **`not_performed_owner_action`**.
 4. **Mechanische Architekturklassifikation der fünf offenen K1-Gates**
    (`K1-O01`, `K1-O02`, `K1-O03`, `K1-O05`, `K1-O06`). In B0c nicht erstellt, in
    B0d ebenfalls nicht, und hier nicht vorweggenommen.
+
+## §10 Nachtrag: Regel R10 und der zweistufige Abschluss
+
+Kein Satz der Abschnitte §1 bis §9 ist geändert. Dieser Nachtrag steht daneben.
+
+**Der Eigentümerbefund und seine Korrektur.** Der Block wurde nach §2 offen
+gehalten: beide Abschlussprüfungen hätten im Abnahmelauf über eine leere Menge
+aggregiert und seien dennoch in den Gesamt-`pass` eingegangen. Die mechanische
+Nachprüfung — Entzug einer Phasenergebnisdatei — hat den Befund zur Hälfte
+bestätigt und zur Hälfte widerlegt: `mf-phase-results` fiel auf den Entzug mit
+`fail`/`phase_result_missing`, konsumiert die vier Phasen also wirklich; das
+`[]` in seinem Detail war die Problemliste, nicht die aggregierte Menge — auch
+die Lesart in §8 Nr. 7 dieses Handoffs war insoweit falsch. `mf-evidence`
+dagegen verifizierte für die entzogene Phase null Rohlogs und meldete weiter
+`evidence_complete`. Der Eigentümer hat seinen Befund entsprechend korrigiert
+und die Korrektur ausdrücklich festhalten lassen: ein korrigierter Befund ist
+mehr wert als ein bestätigter.
+
+**Regel R10.** Eine Prüfung, die über eine leere Menge aggregiert, meldet nie
+`pass` — außer die Leere ist selbst die geprüfte, unabhängig vom Durchlauf
+hergeleitete Soll-Eigenschaft (`derived_empty_set`). Andernfalls entsteht der
+Nicht-Nachweis-Zustand `blocked`/`aggregation_set_empty`, den die
+Aggregationsrangfolge nie in ein grünes Ergebnis aufnehmen kann. Umgesetzt in
+`tools/gates/emptyset.py`, angewandt auf beide Abschlussprüfungen, beide melden
+seither ihre Zählwerte; festgehalten als `RC-023` mit Schärfungs- und
+Gegentest (`tests/tooling/gates/test_empty_aggregation.py`). Der Testtreiber
+ruft dieselbe Funktion wie die Engine (`evidence.phase_evidence_counts`).
+
+**Zweistufiger Abschluss**, nach `config/gates/history/b0d-close-plan.json`:
+
+| Stufe | Lauf | Ergebnis |
+|---|---|---|
+| 1 | `preflight` 12, `targeted` 10, `offline-final` 32 gegen `8c1e567` | alle `pass` |
+| Eigentümerhandlung | Aktivierung 1.3.0 aus `5fe885a`, Erwartungswert `EXP-002` | `verified`, `activated_at 2026-08-07T11:49:47Z` |
+| 2 | `platform-live` 5, `module-final` 4 gegen den aktiven 1.3.0 | alle `pass` |
+
+`mf-evidence` aggregierte belegt nicht-leer: 4 Phasen, 59 von 59 Rohlogs
+verifiziert. `mf-phase-results`: 4 von 4 Phasen. `pl-guard-candidate` meldet
+`candidate_active`.
+
+**Ausdrücklich geprüft statt angenommen:** Das Sammelwerkzeug antwortet gegen
+den aktiven 1.3.0 (`guard_source active`, Exit 0) statt zu verweigern — §8
+Nr. 5 ist damit aufgelöst. `verify` über den Evidenzbereich des Eigentümers,
+gesprochen vom aktiven Guard: beide historischen Objekte strukturell intakt,
+`version_mismatch` (Ablauf trifft zusätzlich zu), Digests neu abgeleitet, keine
+Befunde. §8 Nr. 6 ist ebenfalls aufgelöst: der Beobachtungsbereich existiert.
+
+**Terminierung.** Die Kette endet mit dem feststellenden Commit dieses
+Nachtrags, und zwar als Konstruktionseigenschaft: er fügt nur Datensätze hinzu,
+ändert kein Verhalten und zertifiziert nichts über sich selbst; gegen ihn wird
+keine Phase nachgefahren. Ein späterer Leser verifiziert den Abschluss durch
+Nachfahren gegen `8c1e567`. Das Argument steht vollständig im Abschlussplan.
+
+**Neuer offener Befund, ausdrücklich nicht für B0d:** Der `mf-evidence`-Defekt
+ist eine Redewendung, kein Einzelfall — `.get(x) or {}` verwandelt „fehlt“
+stillschweigend in „ist leer“. Die Durchsicht des Bestands nach dieser und
+verwandten Redewendungen gehört in denselben Testhärtungsschritt nach B0d wie
+die R9-Durchsicht (§9 Nr. 1). B0d wächst nicht weiter.
+
+Pushstatus der Commits `8c1e567` und des Commits dieses Nachtrags:
+**`not_performed_owner_action`**.

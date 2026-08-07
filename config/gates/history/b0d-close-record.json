@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "kind": "close_record",
+  "block_id": "b0d-guard-hardening",
+  "close_plan": "config/gates/history/b0d-close-plan.json",
+  "position_4_commit": "8c1e567afbc7344e0d29f21112c98eef2bfa4c65",
+  "statement": "The two stage close declared in the close plan, executed and recorded. The acceptance record of the block is not rewritten; this record stands beside it.",
+  "owner_finding_correction": {
+    "original_finding": "Both closing checks aggregated over an empty set during the acceptance run and still entered the overall pass.",
+    "correction": "Confirmed for mf-evidence, refuted for mf-phase-results. The withdrawal probe made mf-phase-results fail with phase_result_missing, so it really consumes the four phase results; its empty detail list was the issue list, not the aggregated set. mf-evidence verified zero raw logs for the phase with the withdrawn result and still reported evidence_complete — that is the defect rule R10 was written for.",
+    "corrected_by": "owner, after the mechanical re-examination",
+    "note": "Recorded at the owner's instruction: a corrected finding is worth more than a confirmed one."
+  },
+  "stage_1": {
+    "ran_at_commit": "position 4",
+    "phases": {
+      "preflight": {
+        "status": "pass",
+        "checks": 12,
+        "run_id": "ca6eb5c99b50be656957b2f1cfe0c2bb"
+      },
+      "targeted": {
+        "status": "pass",
+        "checks": 10,
+        "run_id": "dc8c10d609acb6b189ff45485788f30c"
+      },
+      "offline-final": {
+        "status": "pass",
+        "checks": 32,
+        "run_id": "33981918f20ec992e718c79a03496b5b"
+      }
+    }
+  },
+  "activation": {
+    "performed_by": "owner",
+    "activated_at": "2026-08-07T11:49:47Z",
+    "guard_version": "1.3.0",
+    "source_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+    "package_sha256": "a775a30f4f0ce88b7ad2aff939222b650d5260b3d920f423755630e9cf212db4",
+    "expectation": "EXP-002-guard-package-b0d-acceptance",
+    "expectation_discipline": "The value handed to the owner was derived from the acceptance commit, twice independently, and the package was proven unchanged between the acceptance commit and the position 4 commit: no diff over tools/guard and tools/guardpkg, and the derivation yields the same digest at both commits. The hash that had been derived at the earlier normative commit was not passed on.",
+    "verified_after": "The installed package digest was re-derived from the installation and equals the expectation value; active.json names the acceptance commit."
+  },
+  "stage_2": {
+    "ran_against": "the active guard 1.3.0",
+    "phases": {
+      "platform-live": {
+        "status": "pass",
+        "checks": 5,
+        "run_id": "55bc5f9ac24b1875da5db445eeee0da3"
+      },
+      "module-final": {
+        "status": "pass",
+        "checks": 4,
+        "run_id": "eb0003be6551c0eabd988242845bf11b"
+      }
+    },
+    "non_vacuous_aggregation": {
+      "mf_evidence": {
+        "phases_examined": 4,
+        "raw_logs_declared": 59,
+        "raw_logs_verified": 59
+      },
+      "mf_phase_results": {
+        "phases_examined": 4,
+        "phases_required": 4
+      }
+    },
+    "activation_state_reported": "candidate_active, active_version 1.3.0"
+  },
+  "explicit_checks_after_activation": [
+    "scripts/guard-collect.sh status answers with guard_source active and guard_version 1.3.0 instead of refusing; exit 0; wrote_anything false.",
+    "scripts/guard-collect.sh verify over the owner evidence area, spoken by the active guard: both historical objects structurally sound, classification version_mismatch with expired also applying, integrity and command digests re-derived, no findings.",
+    "The gate mode collect-tool passed in both stages."
+  ],
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/close/preflight.json",
+      "phase": "preflight",
+      "sha256": "317366273e07494b4f15a31f1fe0965e221d5d6df376a92c9bb587647b154969",
+      "recorded_status": "pass",
+      "recorded_commit": "8c1e567afbc7344e0d29f21112c98eef2bfa4c65",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/close/targeted.json",
+      "phase": "targeted",
+      "sha256": "2045c264458a6652f88efa8c886f10568f4b89ab5702403b6afa433cd4730769",
+      "recorded_status": "pass",
+      "recorded_commit": "8c1e567afbc7344e0d29f21112c98eef2bfa4c65",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/close/offline-final.json",
+      "phase": "offline-final",
+      "sha256": "1ea00bb73c7f1ade01d498b3b8e81b611f10692aa49ac040c8e1a47f8c17a500",
+      "recorded_status": "pass",
+      "recorded_commit": "8c1e567afbc7344e0d29f21112c98eef2bfa4c65",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/close/platform-live.json",
+      "phase": "platform-live",
+      "sha256": "988a1462e202d73020fa5d84507f22e02d787bddc6ed468ae50954baf4e1b764",
+      "recorded_status": "pass",
+      "recorded_commit": "8c1e567afbc7344e0d29f21112c98eef2bfa4c65",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/close/module-final.json",
+      "phase": "module-final",
+      "sha256": "6c2180b4b4fa23b6ec06a8b6cb394a6b454ce1110acb6b78d3088d8748c35b40",
+      "recorded_status": "pass",
+      "recorded_commit": "8c1e567afbc7344e0d29f21112c98eef2bfa4c65",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "scope": "committed_snapshot"
+    }
+  ],
+  "termination": "As declared in the close plan: this commit adds records only, changes no behaviour, and certifies nothing about itself. No phase is re-run against it. A later reader verifies the close by re-running against the position 4 commit.",
+  "push_status": "not_performed_owner_action"
+}
