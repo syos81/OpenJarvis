@@ -254,6 +254,16 @@
       "sharpening_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
       "counter_test": "tests/tooling/guard/test_manipulation_matrix.py::TestRuleR9",
       "violation_set_effect": "unchanged"
+    },
+    {
+      "change_id": "RC-023",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "empty_aggregation_never_passes",
+      "kind": "sharpening",
+      "summary": "Rule R10. A check that aggregates over an empty set never reports pass, unless the emptiness itself is the checked property and was derived independently of the walk. The non evidence state is blocked with the reason aggregation_set_empty, which the precedence can never absorb into a green result. Found live: mf-evidence verified zero raw logs for a phase whose stored result was withdrawn and still reported evidence_complete, because the walk over a missing result iterates zero times and an empty issue list reads as clean. mf-phase-results was checked with the same withdrawal probe and already failed correctly; it now also blocks on an empty required phase set and reports its counts.",
+      "sharpening_test": "tests/tooling/gates/test_empty_aggregation.py::TestSharpening",
+      "counter_test": "tests/tooling/gates/test_empty_aggregation.py::TestCounter",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [

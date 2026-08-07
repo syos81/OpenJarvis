@@ -24,6 +24,7 @@ from . import ENGINE_VERSION
 from . import RESULT_SCHEMA_VERSION
 from . import baseline as baseline_module
 from . import cache as cache_module
+from . import emptyset
 from . import evidence as evidence_module
 from . import features as features_module
 from . import gitutil
@@ -245,6 +246,17 @@ class GateEngine:
         details = []
         status = statuses.PASS
         reason = "phase_results_consistent"
+        # Rule R10. A closing phase with nothing to aggregate establishes
+        # nothing; there is no reading under which that emptiness is the
+        # result. The required set is derived from the manifest, so this is a
+        # configuration defect and blocks rather than passing silently.
+        empty_status, empty_reason = emptyset.require_non_empty(len(required))
+        if empty_status != statuses.PASS:
+            return empty_status, empty_reason, {
+                "phases": [],
+                "phases_examined": 0,
+                "phases_required": 0,
+            }
         for phase in required:
             result = stored.get(phase)
             if result is None:
@@ -277,7 +289,15 @@ class GateEngine:
                 details.append({"phase": phase, "issue": "phase_status_invalid"})
                 status = statuses.FAIL
                 reason = "phase_result_invalid"
-        return status, reason, {"phases": details}
+        # The counts are reported alongside the issue list, because an empty
+        # issue list is what a vacuous run and a clean run have in common. A
+        # reader — human or machine — must be able to tell them apart without
+        # knowing which of the two lists this is.
+        return status, reason, {
+            "phases": details,
+            "phases_examined": len(required),
+            "phases_required": len(required),
+        }
 
     def _internal_evidence(self):
         stored = self._stored_results()
@@ -290,29 +310,74 @@ class GateEngine:
             and self.manifest.phase_definition(phase)["required"]
         ]
         issues = []
+        #: A defect that was found, as opposed to a walk that found nothing.
+        #: The two must not be merged: a failure outranks a non evidence
+        #: state, and a non evidence state outranks a pass.
+        hard_issue = False
+        status = statuses.PASS
+        empty_status, empty_reason = emptyset.require_non_empty(len(required))
+        if empty_status != statuses.PASS:
+            return empty_status, empty_reason, {
+                "evidence": [],
+                "phases_examined": 0,
+                "raw_logs_declared": 0,
+                "raw_logs_verified": 0,
+            }
+
+        examined = 0
+        declared_total = 0
+        verified_total = 0
         for phase in required:
             target = evidence_directory / f"{self.manifest.block_id}.{phase}.json"
             if not target.is_file():
                 issues.append({"phase": phase, "issue": "evidence_missing"})
+                hard_issue = True
                 continue
             try:
                 record = json.loads(target.read_text(encoding="utf-8"))
                 evidence_module.validate_evidence(record)
             except (ValueError, evidence_module.EvidenceSchemaError):
                 issues.append({"phase": phase, "issue": "evidence_invalid"})
+                hard_issue = True
                 continue
-            result = stored.get(phase) or {}
-            for entry in result.get("checks", []):
-                name = entry.get("raw_log_name")
-                digest = entry.get("raw_log_sha256")
-                if not name:
-                    continue
-                ok, reason = evidence_module.verify_raw_log(raw_dir / name, digest)
-                if not ok:
-                    issues.append({"phase": phase, "issue": reason})
-        if issues:
-            return statuses.FAIL, "evidence_incomplete", {"evidence": issues}
-        return statuses.PASS, "evidence_complete", {"evidence": []}
+            examined += 1
+            # Rule R10. The expectation is derived from the evidence record
+            # itself — it lists the raw log digests of its own run — and not
+            # from the collection that is walked. Before this, a phase whose
+            # stored result had gone missing verified zero raw logs and
+            # contributed no issue, so the check reported evidence_complete
+            # while establishing nothing about that phase. The walk lives in
+            # evidence.phase_evidence_counts so the tests exercise this code
+            # and not a second copy of it.
+            counts = evidence_module.phase_evidence_counts(
+                phase, record=record, result=stored.get(phase), raw_dir=raw_dir
+            )
+            declared_total += counts.declared
+            verified_total += counts.verified
+            for reason in counts.issues:
+                issues.append({"phase": phase, "issue": reason})
+                hard_issue = True
+            phase_status, phase_reason = emptyset.verdict(
+                counts.verified, counts.declared
+            )
+            if phase_status != statuses.PASS:
+                # Not an issue in the sense of "something was found wrong" —
+                # nothing was found at all, and that is the point.
+                issues.append({"phase": phase, "issue": phase_reason})
+                status = emptyset.worse(status, phase_status)
+
+        detail = {
+            "evidence": issues,
+            "phases_examined": examined,
+            "raw_logs_declared": declared_total,
+            "raw_logs_verified": verified_total,
+        }
+        if hard_issue:
+            # A found defect outranks a non evidence state, always.
+            return statuses.FAIL, "evidence_incomplete", detail
+        if status != statuses.PASS:
+            return status, emptyset.AGGREGATION_SET_EMPTY, detail
+        return statuses.PASS, "evidence_complete", detail
 
     def _run_check(self, check, phase):
         """Execute one check and return its result entry."""

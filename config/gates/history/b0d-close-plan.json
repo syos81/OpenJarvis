@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "close_plan",
+  "block_id": "b0d-guard-hardening",
+  "decided_by": "owner",
+  "occasion": "The owner reviewed the B0d handoff and held the block open: mf-evidence and mf-phase-results had aggregated over an empty set during the acceptance run and still entered the overall pass. The re-examination confirmed half of that finding and sharpened it — mf-phase-results really consumes the four phase results and fails on a withdrawn one, its empty detail list was the issue list rather than the aggregated set; mf-evidence however verified zero raw logs for a phase whose stored result was gone and still reported evidence_complete. Rule R10 was decided for exactly this class.",
+  "extends_commit_plan": "config/gates/history/b0d-commit-plan.json",
+  "extension_note": "The original plan declared three commits and is neither rewritten nor reinterpreted. This extension is a new owner decision after the owner reviewed the closed plan's outcome; it stands beside the original as positions 4 and 5.",
+  "planned_commits": [
+    {
+      "position": 4,
+      "purpose": "purely normative: rule R10, its module, its application to both closing checks, the mandatory pair of tests, and this plan",
+      "message": "fix(gates): never let an empty aggregation pass, and count what was actually established"
+    },
+    {
+      "position": 5,
+      "purpose": "purely determinative: the close-out evidence of the two stage acceptance, the updated acceptance record, the handoff appendix",
+      "message": "test(gates): close b0d with non-vacuous aggregation and the active 1.3.0"
+    }
+  ],
+  "two_stage_close": {
+    "stage_1": "preflight, targeted and offline-final run in full against the position 4 commit. The committed evidence of the acceptance run exists there, so both closing checks aggregate over a non empty set.",
+    "stage_2": "The owner activates candidate 1.3.0 with the expectation value derived from the acceptance commit (EXP-002). platform-live and module-final then run against the active 1.3.0, so the live acceptance examines exactly the guard that ships.",
+    "activation_is_consequence": "The activation stays a consequence of the offline acceptance: stage 1 completes before it, and nothing in stage 1 requires it.",
+    "explicit_check_after_activation": "The collection tool limitation — refusal against 1.2.0 for want of the qualification layer — is checked against the active 1.3.0 rather than assumed resolved: scripts/guard-collect.sh status with the default guard source must answer instead of refusing, and the gate mode collect-tool keeps passing."
+  },
+  "termination": {
+    "statement": "The verification chain ends with the position 5 commit, and that end is a property of the design, not an abort.",
+    "argument": [
+      "The close-out run happens at the position 4 commit. Its results and evidence live in the gitignored runtime area, where mf-evidence and mf-phase-results aggregate over them; both therefore examine the non empty set of the very run they belong to, at the commit they run against.",
+      "The position 5 commit adds records only: the sanitised evidence snapshot, the acceptance appendix, the handoff appendix. Records change no behaviour, so no check result depends on them and nothing about the recorded run is invalidated by recording it.",
+      "No phase is re-run against position 5 to certify position 5. The recorded claim binds the run to the position 4 commit by digest; a later reader verifies it by re-running against that commit, not by demanding a further commit. The re-execution policy of the acceptance record states exactly that.",
+      "What would restart the chain is a behaviour change after position 4. That is the ordinary case of new work, not a defect of this close: it would open a new block with its own acceptance."
+    ],
+    "invariant": "Every commit whose behaviour matters has a full acceptance run at that commit; every commit that only records is behind the run it records, and certifies nothing about itself."
+  },
+  "push_status": "not_performed_owner_action"
+}

@@ -216,3 +216,41 @@ def dump_evidence(evidence) -> str:
     return json.dumps(
         validate_evidence(evidence), sort_keys=True, indent=2, ensure_ascii=True
     )
+
+
+class PhaseEvidence:
+    """What one phase's evidence establishes, and how much of it.
+
+    ``declared`` comes from the evidence record — the run wrote down which raw
+    logs it produced. ``verified`` comes from walking the stored result and
+    re-hashing each log. The two are deliberately read from different files:
+    rule R10 needs an expectation that does not come from the collection being
+    walked, or it cannot tell an empty walk from a clean one.
+    """
+
+    __slots__ = ("phase", "declared", "verified", "issues")
+
+    def __init__(self, phase, declared, verified, issues):
+        self.phase = phase
+        self.declared = declared
+        self.verified = verified
+        #: Defects that were found, as opposed to a walk that found nothing.
+        self.issues = list(issues)
+
+
+def phase_evidence_counts(phase, *, record, result, raw_dir):
+    """Count what one phase declared and what could actually be verified."""
+    declared = [digest for digest in (record or {}).get("raw_log_sha256", []) if digest]
+    issues = []
+    verified = 0
+    for entry in (result or {}).get("checks", []):
+        name = entry.get("raw_log_name")
+        digest = entry.get("raw_log_sha256")
+        if not name:
+            continue
+        ok, reason = verify_raw_log(Path(raw_dir) / name, digest)
+        if not ok:
+            issues.append(reason)
+            continue
+        verified += 1
+    return PhaseEvidence(phase, len(declared), verified, issues)

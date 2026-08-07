@@ -468,6 +468,27 @@
       ]
     },
     {
+      "binding_id": "history-b0d-close-plan",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/b0d-close-plan.json",
+      "reason": "The owner decided extension of the B0d commit plan with the two stage close and the termination argument; the declared field set is its accepting reader.",
+      "required_fields": [
+        "block_id",
+        "decided_by",
+        "extends_commit_plan",
+        "extension_note",
+        "kind",
+        "occasion",
+        "planned_commits",
+        "push_status",
+        "schema_version",
+        "termination",
+        "two_stage_close"
+      ]
+    },
+    {
       "binding_id": "history-b0d-corrections",
       "expectation": "accepted",
       "kind": "structural",
