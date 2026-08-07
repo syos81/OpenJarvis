@@ -11,11 +11,20 @@
     },
     {
       "position": 2,
+      "purpose": "purely normative correction, found during the determination run: the sharpening test for provider_term_without_variants read the steering scope through GATE_ENGINE_ROOT and therefore examined the real engine's configuration instead of its own fixture under a gate run; the test now detaches the redirect for its fixture root",
+      "message": "fix(gates): let the variants sharpening test examine its own fixture under a gate run",
+      "correction": {
+        "found_during": "offline-final acceptance run against position 1 (of-tooling-tests, single failure)",
+        "rule": "a normative error found during determination gets a new normative commit, a machine readable justification and a complete fresh run; no amend"
+      }
+    },
+    {
+      "position": 3,
       "purpose": "purely determinative: gate runs against the fixed normative commit, sanitised evidence snapshots, acceptance record and handoff",
       "message": "test(gates): finalize b0e evidence, acceptance and handoff"
     }
   ],
-  "max_commits": 2,
+  "max_commits": 3,
   "forbidden_operations": [
     "commit --amend",
     "rebase",

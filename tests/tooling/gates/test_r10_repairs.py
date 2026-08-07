@@ -221,7 +221,15 @@ class TestSharpening(FixtureWorktree):
         for term in scope["provider_terms"]:
             term["variants"] = []
         self.write(scope_path, scope)
-        failures, _diagnostics = generality_checks.mode_literal_comparisons(self.root)
+        with mock.patch.dict(os.environ):
+            # Under a gate run GATE_ENGINE_ROOT points the steering
+            # configuration at the real engine; this fixture *is* the
+            # steering configuration under test, so the redirect must not
+            # apply here.
+            os.environ.pop("GATE_ENGINE_ROOT", None)
+            failures, _diagnostics = generality_checks.mode_literal_comparisons(
+                self.root
+            )
         self.assertIn(
             "provider_term_without_variants",
             [failure["code"] for failure in failures],
