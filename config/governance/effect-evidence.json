@@ -633,5 +633,5 @@
     "deferred": "Nothing. The corpus-wide review deferred by B0d has run: block B0e derived the executable corpus mechanically and swept it; the standing coverage lives in config/governance/ast-dispositions.json and its validator.",
     "not_claimed": "No statement is made here about perturbation shapes outside the declared candidate classes and their stated class boundaries in the disposition register."
   },
-  "statement": "A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence, before its actual expectation, that the effect really occurred. If the effect fails to occur the test fails, not its subject. Ordinary preparation steps are not meant: the rule applies where the induced effect is what the expectation is about."
+  "statement": "Normative Quelle: DEC-064 \u2014 Einwirkung belegt (docs/governance/decisions/DEC-064-einwirkung-belegt.md). Dieses Register fuehrt die deklarierten Einwirkungstests; die Durchsetzung prueft je Funktion, dass die erste Zusicherung die deklarierte Wirkungszusicherung ist."
 }

@@ -1,178 +1,178 @@
 {
-  "schema_version": 1,
-  "kind": "field_binding_review",
-  "rule": "R7",
-  "statement": "Every normative, decision, version or integrity relevant field must be mechanically bound to its subject or checked against it. A field that is neither is removed rather than maintained: a statement that checks nothing and is checked by nothing is worse than none, because it feigns reliability. Purely descriptive metadata that carries no reliability claim is exempt, and the exemption is stated here so it is never later read as an omission.",
-  "method": "For every candidate field, look for a place where its value is really compared to or checked against the subject it describes. Presence checks and plain reads do not count.",
   "examined": [
     {
-      "field": "config_version",
-      "subject": "tools/guard/rules.json",
       "carries_reliability_claim": true,
-      "verdict": "bound",
       "evidence": "tools/guard/rules.py binds it to a signature over the loader's own field sets; a format change without a version change raises rules_format_signature_drift or rules_config_version_mismatch.",
-      "reason": "Named the configuration format and was compared to nothing. Binding carries over removal: applied to this repository's history it fails exactly at the commit where fixture_targets entered the format while the version stayed at 1.0.0, whereas removal would have detected nothing."
-    },
-    {
-      "field": "engine_min_version",
-      "subject": "config/gates/blocks/*.json",
-      "carries_reliability_claim": true,
-      "verdict": "bound",
-      "evidence": "tools/gates/manifest.py compares it against ENGINE_VERSION; a manifest demanding a newer engine now fails with engine_too_old.",
-      "reason": "Claimed a minimum the engine had to meet and was only type checked, so a manifest could demand an engine newer than the one running it and the run proceeded anyway."
-    },
-    {
-      "field": "source_commit",
-      "subject": "/usr/local/jarvis-guard/active.json",
-      "carries_reliability_claim": true,
-      "verdict": "bound",
-      "evidence": "The B0d check pl-source-commit rebuilds the package from the claimed commit object and compares it against the installed package_sha256.",
-      "reason": "Asserted the provenance of the installed package and nothing verified it. R6 checked declared expectations, not the installed manifest's own claim."
-    },
-    {
-      "field": "config_schema",
+      "field": "config_version",
+      "reason": "Named the configuration format and was compared to nothing. Binding carries over removal: applied to this repository's history it fails exactly at the commit where fixture_targets entered the format while the version stayed at 1.0.0, whereas removal would have detected nothing.",
       "subject": "tools/guard/rules.json",
+      "verdict": "bound"
+    },
+    {
       "carries_reliability_claim": true,
-      "verdict": "checked",
+      "evidence": "tools/gates/manifest.py compares it against ENGINE_VERSION; a manifest demanding a newer engine now fails with engine_too_old.",
+      "field": "engine_min_version",
+      "reason": "Claimed a minimum the engine had to meet and was only type checked, so a manifest could demand an engine newer than the one running it and the run proceeded anyway.",
+      "subject": "config/gates/blocks/*.json",
+      "verdict": "bound"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "The B0d check pl-source-commit rebuilds the package from the claimed commit object and compares it against the installed package_sha256.",
+      "field": "source_commit",
+      "reason": "Asserted the provenance of the installed package and nothing verified it. R6 checked declared expectations, not the installed manifest's own claim.",
+      "subject": "/usr/local/jarvis-guard/active.json",
+      "verdict": "bound"
+    },
+    {
+      "carries_reliability_claim": true,
       "evidence": "tools/guard/rules.py compares it against CONFIG_SCHEMA; tools/guardpkg/bootstrap.py compares the active manifest's copy against the package constant.",
-      "reason": ""
+      "field": "config_schema",
+      "reason": "",
+      "subject": "tools/guard/rules.json",
+      "verdict": "checked"
     },
     {
-      "field": "guard_version",
-      "subject": "/usr/local/jarvis-guard/active.json",
       "carries_reliability_claim": true,
-      "verdict": "checked",
       "evidence": "tools/guardpkg/bootstrap.py rejects an unsupported value and compares it against the package constant.",
-      "reason": ""
-    },
-    {
-      "field": "package_sha256",
-      "subject": "/usr/local/jarvis-guard/active.json",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "tools/guardpkg/bootstrap.py recomputes the digest of the installed files and compares.",
-      "reason": ""
-    },
-    {
-      "field": "install_target",
-      "subject": "/usr/local/jarvis-guard/active.json",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "tools/guardpkg/bootstrap.py compares its real path against the root it was launched from.",
-      "reason": ""
-    },
-    {
-      "field": "interpreter",
-      "subject": "/usr/local/jarvis-guard/active.json",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "tools/guardpkg/bootstrap.py checks ownership over the whole ancestor chain of the declared and of the running interpreter.",
-      "reason": ""
-    },
-    {
-      "field": "schema",
-      "subject": "exception object",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "tools/guard/owner_exception.py version_bindings compares it; a mismatch classifies the object instead of releasing it.",
-      "reason": ""
-    },
-    {
       "field": "guard_version",
-      "subject": "exception object",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "tools/guard/owner_exception.py version_bindings compares it.",
-      "reason": ""
-    },
-    {
-      "field": "predecessor_feature_list_sha256",
-      "subject": "config/gates/features/*.lineage.json",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "tools/gates/features.py recomputes the predecessor digest and compares.",
-      "reason": ""
-    },
-    {
-      "field": "schema_version",
-      "subject": "governance and gate configurations",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "The responsible readers compare it, for example tools/decreg/model.py and tools/gates/errata.py; config/governance/config-loaders.json binds every configuration to such a reader.",
-      "reason": ""
-    },
-    {
-      "field": "activated_at",
+      "reason": "",
       "subject": "/usr/local/jarvis-guard/active.json",
-      "carries_reliability_claim": false,
-      "verdict": "exempt_descriptive",
-      "evidence": "No decision, version or integrity conclusion is drawn from it anywhere.",
-      "reason": "A timestamp recording when the owner activated. It describes an event and asserts nothing that could be true or false about the installation, so there is no subject to bind it to. Deliberately kept and deliberately unbound."
+      "verdict": "checked"
     },
     {
-      "field": "artifact_version",
-      "subject": "config/gates/features/*.lineage.json",
-      "carries_reliability_claim": false,
-      "verdict": "exempt_descriptive",
-      "evidence": "The binding that carries the lineage is predecessor_feature_list_sha256, which is recomputed and compared.",
-      "reason": "An identifying label on the feature list. The integrity of the lineage rests on the digest, not on this name, so it makes no reliability claim of its own. Deliberately kept and deliberately unbound."
+      "carries_reliability_claim": true,
+      "evidence": "tools/guardpkg/bootstrap.py recomputes the digest of the installed files and compares.",
+      "field": "package_sha256",
+      "reason": "",
+      "subject": "/usr/local/jarvis-guard/active.json",
+      "verdict": "checked"
     },
     {
+      "carries_reliability_claim": true,
+      "evidence": "tools/guardpkg/bootstrap.py compares its real path against the root it was launched from.",
+      "field": "install_target",
+      "reason": "",
+      "subject": "/usr/local/jarvis-guard/active.json",
+      "verdict": "checked"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "tools/guardpkg/bootstrap.py checks ownership over the whole ancestor chain of the declared and of the running interpreter.",
+      "field": "interpreter",
+      "reason": "",
+      "subject": "/usr/local/jarvis-guard/active.json",
+      "verdict": "checked"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "tools/guard/owner_exception.py version_bindings compares it; a mismatch classifies the object instead of releasing it.",
       "field": "schema",
-      "subject": "the reports of tools/guardops/collect.py",
-      "carries_reliability_claim": true,
-      "verdict": "bound",
-      "evidence": "of-collect-tool compares the emitted reports against REPORT_KEYS, the declared top level key set per subcommand, and against REPORT_SCHEMA itself. A key added or dropped without a schema change fails with report_format_drift.",
-      "reason": "Same class as config_version. A report format identifier that nothing compares would feign a stability the format does not have."
+      "reason": "",
+      "subject": "exception object",
+      "verdict": "checked"
     },
     {
-      "field": "wrote_anything",
-      "subject": "the reports of tools/guardops/collect.py",
       "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "of-collect-tool digests the pending and collected areas before and after every read only subcommand and fails on any difference, independently of what the report claims.",
-      "reason": "A field that states 'nothing was written' is worthless unless something establishes it from outside the code that writes it."
+      "evidence": "tools/guard/owner_exception.py version_bindings compares it.",
+      "field": "guard_version",
+      "reason": "",
+      "subject": "exception object",
+      "verdict": "checked"
     },
     {
-      "field": "effect_probe",
-      "subject": "config/guard/exception-manipulation-matrix.json",
       "carries_reliability_claim": true,
-      "verdict": "bound",
-      "evidence": "The applier evaluates the declared probe against the object before and after the manipulation and returns the verdict with the row; of-manipulation-matrix fails the row with manipulation_had_no_effect when it does not hold.",
-      "reason": "Rule R9. The probe is what makes a row a test rather than a description."
+      "evidence": "tools/gates/features.py recomputes the predecessor digest and compares.",
+      "field": "predecessor_feature_list_sha256",
+      "reason": "",
+      "subject": "config/gates/features/*.lineage.json",
+      "verdict": "checked"
     },
     {
-      "field": "effect_assertion",
-      "subject": "config/governance/effect-evidence.json",
       "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "of-effect-evidence parses each declared file and compares the first assertion of the declared function with the declared value; a mismatch names both.",
-      "reason": "Declaring which assertion protects a test proves nothing until the declaration is compared with the test."
+      "evidence": "The responsible readers compare it, for example tools/decreg/model.py and tools/gates/errata.py; config/governance/config-loaders.json binds every configuration to such a reader.",
+      "field": "schema_version",
+      "reason": "",
+      "subject": "governance and gate configurations",
+      "verdict": "checked"
     },
     {
-      "field": "object_sha256",
-      "subject": "config/gates/history/b0d-historical-exception-objects.json",
-      "carries_reliability_claim": true,
-      "verdict": "bound",
-      "evidence": "The value is the digest of the object it names. scripts/guard-collect.sh verify --path re-derives it from the object in the owner's evidence area and reports a mismatch as a finding.",
-      "reason": "A digest is a binding by construction. No gate depends on the live area, because a machine specific path in a committed artifact is not checkable."
-    },
-    {
-      "field": "expected_classification_by_version",
-      "subject": "config/gates/history/b0d-historical-exception-objects.json",
-      "carries_reliability_claim": true,
-      "verdict": "checked",
-      "evidence": "of-historical-objects re-derives the classification with the guard's own classify() for every listed guard version and fails on any difference, and separately fails if any version ever yields a candidate.",
-      "reason": "The invariant of the whole block is that neither object can reach a decision. Stating it is not the same as computing it."
-    },
-    {
-      "field": "note",
-      "subject": "config/gates/history/b0d-historical-exception-objects.json",
       "carries_reliability_claim": false,
-      "verdict": "exempt_descriptive",
+      "evidence": "No decision, version or integrity conclusion is drawn from it anywhere.",
+      "field": "activated_at",
+      "reason": "A timestamp recording when the owner activated. It describes an event and asserts nothing that could be true or false about the installation, so there is no subject to bind it to. Deliberately kept and deliberately unbound.",
+      "subject": "/usr/local/jarvis-guard/active.json",
+      "verdict": "exempt_descriptive"
+    },
+    {
+      "carries_reliability_claim": false,
+      "evidence": "The binding that carries the lineage is predecessor_feature_list_sha256, which is recomputed and compared.",
+      "field": "artifact_version",
+      "reason": "An identifying label on the feature list. The integrity of the lineage rests on the digest, not on this name, so it makes no reliability claim of its own. Deliberately kept and deliberately unbound.",
+      "subject": "config/gates/features/*.lineage.json",
+      "verdict": "exempt_descriptive"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "of-collect-tool compares the emitted reports against REPORT_KEYS, the declared top level key set per subcommand, and against REPORT_SCHEMA itself. A key added or dropped without a schema change fails with report_format_drift.",
+      "field": "schema",
+      "reason": "Same class as config_version. A report format identifier that nothing compares would feign a stability the format does not have.",
+      "subject": "the reports of tools/guardops/collect.py",
+      "verdict": "bound"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "of-collect-tool digests the pending and collected areas before and after every read only subcommand and fails on any difference, independently of what the report claims.",
+      "field": "wrote_anything",
+      "reason": "A field that states 'nothing was written' is worthless unless something establishes it from outside the code that writes it.",
+      "subject": "the reports of tools/guardops/collect.py",
+      "verdict": "checked"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "The applier evaluates the declared probe against the object before and after the manipulation and returns the verdict with the row; of-manipulation-matrix fails the row with manipulation_had_no_effect when it does not hold.",
+      "field": "effect_probe",
+      "reason": "Rule R9. The probe is what makes a row a test rather than a description.",
+      "subject": "config/guard/exception-manipulation-matrix.json",
+      "verdict": "bound"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "of-effect-evidence parses each declared file and compares the first assertion of the declared function with the declared value; a mismatch names both.",
+      "field": "effect_assertion",
+      "reason": "Declaring which assertion protects a test proves nothing until the declaration is compared with the test.",
+      "subject": "config/governance/effect-evidence.json",
+      "verdict": "checked"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "The value is the digest of the object it names. scripts/guard-collect.sh verify --path re-derives it from the object in the owner's evidence area and reports a mismatch as a finding.",
+      "field": "object_sha256",
+      "reason": "A digest is a binding by construction. No gate depends on the live area, because a machine specific path in a committed artifact is not checkable.",
+      "subject": "config/gates/history/b0d-historical-exception-objects.json",
+      "verdict": "bound"
+    },
+    {
+      "carries_reliability_claim": true,
+      "evidence": "of-historical-objects re-derives the classification with the guard's own classify() for every listed guard version and fails on any difference, and separately fails if any version ever yields a candidate.",
+      "field": "expected_classification_by_version",
+      "reason": "The invariant of the whole block is that neither object can reach a decision. Stating it is not the same as computing it.",
+      "subject": "config/gates/history/b0d-historical-exception-objects.json",
+      "verdict": "checked"
+    },
+    {
+      "carries_reliability_claim": false,
       "evidence": "Prose beside the recorded fields. Nothing reads it and nothing rests on it.",
-      "reason": "Stated as exempt so its absence from the checked set is never later read as an omission."
+      "field": "note",
+      "reason": "Stated as exempt so its absence from the checked set is never later read as an omission.",
+      "subject": "config/gates/history/b0d-historical-exception-objects.json",
+      "verdict": "exempt_descriptive"
     }
   ],
-  "open_findings": []
+  "kind": "field_binding_review",
+  "method": "For every candidate field, look for a place where its value is really compared to or checked against the subject it describes. Presence checks and plain reads do not count.",
+  "open_findings": [],
+  "rule": "R7",
+  "schema_version": 1,
+  "statement": "Normative Quelle: DEC-062 \u2014 Feldbindung (docs/governance/decisions/DEC-062-feldbindung.md). Dieses Review-Register fuehrt die gepruefte Feldbestandsaufnahme mit ihren Urteilen und deklarierten Ausnahmen."
 }

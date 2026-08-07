@@ -1,37 +1,34 @@
 {
-  "schema_version": 1,
-  "registry_id": "b0a-3-normative-sources",
   "collision_and_mapping": {
-    "normative": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md#6",
-    "machine_projection": "config/governance/decision-collisions.json"
+    "machine_projection": "config/governance/decision-collisions.json",
+    "normative": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md#6"
   },
   "historical_non_normative": [
     {
-      "path": "docs/governance/b0a-2-decision-collisions.md",
-      "reason": "Vorgaengerbindung: das unveraenderte B0a-2-Blockmanifest verlangt diese Datei als Konfigurationsnachweis.",
-      "marker": "Status: historisch – nicht normativ",
       "excluded_from": [
         "citations",
         "id_freeze",
         "collision_detection"
-      ]
+      ],
+      "marker": "Status: historisch \u2013 nicht normativ",
+      "path": "docs/governance/b0a-2-decision-collisions.md",
+      "reason": "Vorgaengerbindung: das unveraenderte B0a-2-Blockmanifest verlangt diese Datei als Konfigurationsnachweis."
     }
   ],
-  "rule": "Genau eine normative Stelle je Sachverhalt. Historische Dateien werden mechanisch von normativen Auswertungen ausgeschlossen und tragen eine unuebersehbare Kennzeichnung. Historische Auflösungsnachweise duerfen Alt-IDs fuehren, sind aber als solche deklariert und zaehlen nie als aktuelle Doppelvergabe.",
   "historical_resolution_records": [
     {
+      "marker": "historischer Aufl\u00f6sungsnachweis",
       "path": "docs/personal-jarvis/calendar-implementation-baseline-2026-08-04.md",
-      "marker": "historischer Auflösungsnachweis",
       "reason": "Paragraph 6.2 und 6.3 halten Befund und Alt-ID-zu-Neu-ID-Zuordnung fest. Alt-IDs erscheinen dort als Nachweis, nicht als aktuelle Belegung."
     },
     {
-      "path": "config/governance/decision-collisions.json",
       "marker": "historical_resolution_record",
+      "path": "config/governance/decision-collisions.json",
       "reason": "Maschinenlesbare Projektion desselben Nachweises."
     },
     {
-      "path": "config/governance/b0a-3-id-migration.json",
       "marker": "owner_determination",
+      "path": "config/governance/b0a-3-id-migration.json",
       "reason": "Die feste Umnummerierungsdeklaration selbst. Sie fuehrt Alt- und Neu-ID paarweise als Nachweis."
     }
   ],
@@ -44,5 +41,8 @@
       "path": "tools/gates/generality.py",
       "reason": "Implementierung des Namensscans."
     }
-  ]
+  ],
+  "registry_id": "b0a-3-normative-sources",
+  "rule": "Normative Quelle: DEC-056 \u2014 Eine normative Stelle (docs/governance/decisions/DEC-056-eine-normative-stelle.md). Dieses Register ist das Durchsetzungsartefakt: es deklariert je Sachverhalt die eine normative Stelle, kennzeichnet historische Dateien mechanisch als nicht normativ und fuehrt historische Aufloesungsnachweise, die nie als aktuelle Doppelvergabe zaehlen.",
+  "schema_version": 1
 }

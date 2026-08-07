@@ -1,0 +1,1288 @@
+{
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cache_enabled": false,
+    "cause_signature_version": "cs-1",
+    "config_digest_paths": [
+      "config/governance/ast-dispositions.json",
+      "config/governance/b0f-sample-plan.json",
+      "config/governance/b0f-unit-locality.json",
+      "config/governance/config-loaders.json",
+      "config/governance/effect-evidence.json",
+      "config/governance/guard-trust-model.json",
+      "config/governance/owner-expectations.json",
+      "config/guard/rule-changes.json"
+    ],
+    "dependency_lock_paths": [],
+    "owner_marker": "openjarvis-gate-baseline"
+  },
+  "block_id": "b0g-rule-codification",
+  "checks": [
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-b0f-baseline",
+      "description": "The B0e inventory is reconstructed: a non-empty, fully categorised exclusion population and a uniquely resolved Slack handoff reference.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0f_checks.py",
+          "--mode",
+          "baseline"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-baseline-commit",
+      "description": "The declared baseline commit is present.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "baseline",
+          "--commit",
+          "7986bee"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-claude-config",
+      "description": "The versioned project rules are present and hygienic.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "claude-config",
+          "--require-file",
+          "CLAUDE.md"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-config-loaders",
+      "description": "Rule R4: every configuration file, including the disposition register, is bound to exactly one accepting reader.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-corpus",
+      "description": "The executable check corpus is derivable and non-empty: files, units and syntax tree nodes are all above zero.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0e_checks.py",
+          "--mode",
+          "corpus"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-guard-base",
+      "description": "The guard base derivation holds for the active guard.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-manifest",
+      "description": "This manifest validates against the engine's schema.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b0g-rule-codification"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-owner-expectations",
+      "description": "Rule R6: every owner expectation value derives from the commit it names.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-platform",
+      "description": "The declared platform matches the running system.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "platform",
+          "--systems",
+          "Darwin",
+          "--architectures",
+          "x86_64"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-tools",
+      "description": "Git and a Python able to read pyproject.toml (3.11+) are available.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "tools",
+          "--require-tool",
+          "git",
+          "--min-python",
+          "3.11"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-trust-model",
+      "description": "The guard trust model is present and internally consistent.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "trust-model"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree",
+      "description": "The mechanically determined worktree is on the expected branch.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "spike/calendar-foundation-intel-2026-08-04"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree-state",
+      "description": "The worktree state is recorded for the product guard.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b0g-rule-codification"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b0f-baseline",
+      "description": "Exclusion identity against the current change: categorised == excluded, per rule.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0f_checks.py",
+          "--mode",
+          "baseline"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b0f-method",
+      "description": "The unit-locality classification with its proofs, and the Slack isolation proof without any real network.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0f_checks.py",
+          "--mode",
+          "method"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b0g-authority",
+      "description": "Exactly one authoritative place per codified decision, marked carriers, and the fragment screen proving no operative full text survives outside the DEC documents.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "authority"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b0g-register-local",
+      "description": "The canonical governance ref parses through the register model: contiguous import-marked genesis, declared stage for every codified DEC id, and the commit binding an assigned stage demands.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "register-local"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b0g-tests",
+      "description": "The codification unit tests: genesis import contract, authority fixtures, loader refusals and the register tool against the real lines.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.governance.test_b0g_codification",
+          "tests.tooling.governance.test_decision_authority",
+          "tests.tooling.governance.test_register_tool"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-claim-lint",
+      "description": "No artifact claims more protection than the trust model allows.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "claim-lint"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-config-loaders",
+      "description": "Rule R4 against the current change.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-corpus",
+      "description": "The corpus derivation still succeeds and is non-empty.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0e_checks.py",
+          "--mode",
+          "corpus"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-dispositions",
+      "description": "Both sweeps against the committed register: detected candidates equal disposed candidates. Every exclusion's category criterion is re-confirmed mechanically.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0e_checks.py",
+          "--mode",
+          "dispositions"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-effect-evidence",
+      "description": "Rule R9: every declared perturbation test evidences its effect first (B0d regression).",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "effect-evidence"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-rule-changes",
+      "description": "Every rule change carries its sharpening and counter test.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "rule-changes"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-scan-tests",
+      "description": "The scanner's own test suite: detectors, boundaries, binding, corpus and register comparison.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "-v",
+          "tests.tooling.gates.test_ast_corpus",
+          "tests.tooling.gates.test_ast_scan",
+          "tests.tooling.gates.test_ast_dispositions",
+          "tests.tooling.gates.test_effect_evidence",
+          "tests.tooling.gates.test_empty_aggregation",
+          "tests.tooling.gates.test_b0f_categories",
+          "tests.tooling.gates.test_b0f_sampling",
+          "tests.tooling.gates.test_b0f_method"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-violation-corpus",
+      "description": "The violation set has not shrunk.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "violation-corpus"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b0f-baseline",
+      "description": "The B0e inventory reconstruction over the full register.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0f_checks.py",
+          "--mode",
+          "baseline"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b0f-method",
+      "description": "Unit locality and the Slack finding, verified without any real network.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0f_checks.py",
+          "--mode",
+          "method"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b0g-authority",
+      "description": "Exactly one authoritative place per codified decision, marked carriers, and the fragment screen proving no operative full text survives outside the DEC documents.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "authority"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b0g-register-local",
+      "description": "The canonical governance ref parses through the register model: contiguous import-marked genesis, declared stage for every codified DEC id, and the commit binding an assigned stage demands.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "register-local"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-claim-lint",
+      "description": "No artifact claims more protection than the trust model allows.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "claim-lint"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-config-loaders",
+      "description": "Rule R4 over the complete configuration tree.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-corpus",
+      "description": "The full corpus derivation with its counts: files, units and syntax tree nodes.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0e_checks.py",
+          "--mode",
+          "corpus"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-dispositions",
+      "description": "The complete sweep against the committed register; zero candidates may pass only on evidenced non-empty corpus counts. Every exclusion's category criterion is re-confirmed mechanically.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0e_checks.py",
+          "--mode",
+          "dispositions"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-effect-evidence",
+      "description": "Rule R9 over the full declaration, including every B0e mark_and_fix.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0d_checks.py",
+          "--mode",
+          "effect-evidence"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-errata",
+      "description": "References against frozen documents resolve.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "errata"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-feature-lineage",
+      "description": "Feature completeness against the immediate predecessor B0d.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0g-rule-codification"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-hygiene",
+      "description": "Gitignore convention and hygiene of the versioned project rules.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/claude_hygiene.py"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-manifest-validation",
+      "description": "This manifest and every manifest fixture validate as declared.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b0g-rule-codification",
+          "--with-fixtures"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-not-applicable-review",
+      "description": "Rule R3: no guaranteed artifact defaults to not_applicable.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "not-applicable-review"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-owner-expectations",
+      "description": "Rule R6 over the full expectation register.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "owner-expectations"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-preservation",
+      "description": "The preserved feature lines stay preserved.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-repo-guard",
+      "description": "The block's changes stay inside its allowed paths and outside every guard runtime path.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "final",
+          "--block",
+          "b0g-rule-codification"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-rule-changes",
+      "description": "Every rule change carries its sharpening and counter test.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "rule-changes"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-shell-syntax",
+      "description": "Every entry script parses.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py",
+          "--directory",
+          "scripts"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-static-scan",
+      "description": "No forbidden construct in the check tooling.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/static_scan.py",
+          "--path",
+          "tools/gates",
+          "--path",
+          "tools/guard",
+          "--path",
+          "tools/guardpkg",
+          "--path",
+          "tools/guardops",
+          "--path",
+          "scripts/gate.sh",
+          "--path",
+          ".claude/hooks"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-tooling-tests",
+      "description": "The complete tooling test suite, including the durable full-corpus sweep.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling",
+          "-t",
+          "."
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 3600
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-violation-corpus",
+      "description": "The violation set has not shrunk.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/guard_checks.py",
+          "--mode",
+          "violation-corpus"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b0g-authority",
+      "description": "Exactly one authoritative place per codified decision, marked carriers, and the fragment screen proving no operative full text survives outside the DEC documents.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "authority"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b0g-register-local",
+      "description": "The canonical governance ref parses through the register model: contiguous import-marked genesis, declared stage for every codified DEC id, and the commit binding an assigned stage demands.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "register-local"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b0g-register-remote",
+      "description": "The remote governance ref read fresh from origin must equal both the local ref and the recorded expectation. Real network state.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0g_checks.py",
+          "--mode",
+          "register-remote"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-evidence",
+      "description": "Evidence completeness over all stored phases, under rule R10.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_evidence",
+        "type": "internal"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-feature-lineage",
+      "description": "Feature completeness against the immediate predecessor B0d.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b0g-rule-codification"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-phase-results",
+      "description": "Stored phase results are consistent and complete, under rule R10.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_phase_results",
+        "type": "internal"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-preservation",
+      "description": "The preserved feature lines stay preserved.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    }
+  ],
+  "engine_min_version": "1.0.0",
+  "evidence_policy": {
+    "raw_log_area": "runtime_only",
+    "sanitized_evidence": true
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b0g-rule-codification.lineage.json",
+    "own_expected": 16,
+    "own_prefix": "B0G-",
+    "predecessor_file": "config/gates/features/b0f-dispo-hardening.lineage.json"
+  },
+  "phase_definitions": {
+    "module-final": {
+      "applicable": true,
+      "reason": "Closing aggregation over stored phase results, evidence completeness, feature lineage and preservation.",
+      "required": true
+    },
+    "offline-final": {
+      "applicable": true,
+      "reason": "The full reproducible acceptance: corpus derivation, both sweeps against the committed register, the complete tooling test suite and every governance check, without any owner action.",
+      "required": true
+    },
+    "platform-live": {
+      "applicable": true,
+      "reason": "Derived from the block's own obligations: the subject of B0g is the real remote governance state of refs/governance/dec-reservations. The phase reads the remote ref fresh and compares it against the local chain and the recorded expectation; an unreachable remote is blocked, never passed.",
+      "required": true
+    },
+    "preflight": {
+      "applicable": true,
+      "reason": "Worktree, branch, platform, tools, the R4 loader bindings, the trust model, the guard base and the non-empty derived corpus are prerequisites of every later phase.",
+      "required": true
+    },
+    "targeted": {
+      "applicable": true,
+      "reason": "During the work the sweeps, the disposition coverage, the effect evidence regression and the rule change discipline are checked against the current change.",
+      "required": true
+    }
+  },
+  "platform_requirements": {
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.11",
+    "systems": [
+      "Darwin"
+    ]
+  },
+  "product_guard": {
+    "allowed_paths": [
+      "*"
+    ],
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "forbidden_paths": []
+  },
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "schema_version": 1,
+  "targeted_selection": {
+    "always": [
+      "tg-b0f-baseline",
+      "tg-b0f-method",
+      "tg-b0g-authority",
+      "tg-b0g-register-local",
+      "tg-b0g-tests",
+      "tg-claim-lint",
+      "tg-config-loaders",
+      "tg-corpus",
+      "tg-dispositions",
+      "tg-effect-evidence",
+      "tg-rule-changes",
+      "tg-scan-tests",
+      "tg-violation-corpus"
+    ],
+    "base_ref": "537f9c2b0dbc0fefcda071deaa3de0df2f59655c",
+    "rules": [
+      {
+        "checks": [
+          "tg-b0f-baseline",
+          "tg-corpus",
+          "tg-dispositions",
+          "tg-scan-tests"
+        ],
+        "paths": [
+          "tools/gates/*"
+        ],
+        "rule_id": "r-scanner"
+      },
+      {
+        "checks": [
+          "tg-b0f-baseline",
+          "tg-dispositions",
+          "tg-effect-evidence",
+          "tg-scan-tests"
+        ],
+        "paths": [
+          "tests/*"
+        ],
+        "rule_id": "r-tests"
+      },
+      {
+        "checks": [
+          "tg-b0f-baseline",
+          "tg-config-loaders",
+          "tg-dispositions",
+          "tg-rule-changes"
+        ],
+        "paths": [
+          "config/*"
+        ],
+        "rule_id": "r-configuration"
+      },
+      {
+        "checks": [
+          "tg-b0g-authority",
+          "tg-b0g-tests",
+          "tg-claim-lint"
+        ],
+        "paths": [
+          "docs/governance/*",
+          "docs/personal-jarvis/*",
+          "CLAUDE.md",
+          ".claude/skills/*"
+        ],
+        "rule_id": "r-governance-docs"
+      }
+    ]
+  },
+  "title": "B0g rule codification: the thirteen standing decisions on register-reserved DEC ids, the authority binding model and the real remote governance ref"
+}

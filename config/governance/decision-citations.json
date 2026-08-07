@@ -1,279 +1,280 @@
 {
-  "schema_version": 1,
-  "registry_id": "b0a-2-decision-citations",
+  "allocation_discipline": "Normative Quelle: DEC-057 — ID-Vergabe nur über das Register (docs/governance/decisions/DEC-057-id-vergabe-nur-ueber-register.md): eine Nummer gilt nur mit gültigem assigned-Zustand auf refs/governance/dec-reservations als vergeben.",
   "citation_format": "<ID> (<line_label>, „<title>\")",
-  "placeholder": "{{DEC_ID_AMBIENT_INTERACTION_V1}}",
-  "lines": {
-    "canonical": {
-      "ref": "jarvis/rebuild-v1",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
-      "label": "jarvis/rebuild-v1@c222601"
-    },
-    "contacts_calendar": {
-      "ref": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
-      "label": "spike/calendar-foundation-intel-2026-08-04",
-      "note": "Nach der B0a-3-Integration liegt diese Linie in diesem Baum; ihre Primaerquellen werden aus dem Arbeitsbaum gelesen."
-    }
-  },
   "citations": [
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "h1": "ADR-0019: Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung",
       "id": "ADR-0019",
       "kind": "ADR",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/adr/ADR-0019-module-sequence-and-total-completion.md",
-      "title": "Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung",
-      "h1": "ADR-0019: Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung"
+      "title": "Verbindliche Modulreihenfolge und 100-Prozent-Modulvollendung"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "h1": "ADR-0020: Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion",
       "id": "ADR-0020",
       "kind": "ADR",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/adr/ADR-0020-openjarvis-reuse-and-projection.md",
-      "title": "Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion",
-      "h1": "ADR-0020: Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion"
+      "title": "Übernahme der OpenJarvis-Reuse-Entscheidungen und kontrollierte Suchprojektion"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "h1": "ADR-0021: Autonomie- und Hintergrundaktionsmodell",
       "id": "ADR-0021",
       "kind": "ADR",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/adr/ADR-0021-autonomy-and-background-actions.md",
-      "title": "Autonomie- und Hintergrundaktionsmodell",
-      "h1": "ADR-0021: Autonomie- und Hintergrundaktionsmodell"
+      "title": "Autonomie- und Hintergrundaktionsmodell"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "h1": "ADR-0022: KI-Arbeitsaufträge, Internet-, Browser- und App-Steuerung (verbindliches Zielbild)",
       "id": "ADR-0022",
       "kind": "ADR",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/adr/ADR-0022-ai-work-internet-and-computer-control.md",
-      "title": "KI-Arbeitsaufträge, Internet-, Browser- und App-Steuerung (verbindliches Zielbild)",
-      "h1": "ADR-0022: KI-Arbeitsaufträge, Internet-, Browser- und App-Steuerung (verbindliches Zielbild)"
+      "title": "KI-Arbeitsaufträge, Internet-, Browser- und App-Steuerung (verbindliches Zielbild)"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "h1": "ADR-0023: Hausverwaltungs-Systemgrenzen, Immoware24 und Workspace-Sicherheitskontexte",
       "id": "ADR-0023",
       "kind": "ADR",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/adr/ADR-0023-property-management-boundaries.md",
-      "title": "Hausverwaltungs-Systemgrenzen, Immoware24 und Workspace-Sicherheitskontexte",
-      "h1": "ADR-0023: Hausverwaltungs-Systemgrenzen, Immoware24 und Workspace-Sicherheitskontexte"
+      "title": "Hausverwaltungs-Systemgrenzen, Immoware24 und Workspace-Sicherheitskontexte"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "h1": "ADR-0024: Gestufte Trading-Architektur (T1–T4) und Modul 3 „Trading Intelligence\"",
       "id": "ADR-0024",
       "kind": "ADR",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/adr/ADR-0024-trading-architecture-tiers.md",
-      "title": "Gestufte Trading-Architektur (T1–T4) und Modul 3 „Trading Intelligence\"",
-      "h1": "ADR-0024: Gestufte Trading-Architektur (T1–T4) und Modul 3 „Trading Intelligence\""
+      "title": "Gestufte Trading-Architektur (T1–T4) und Modul 3 „Trading Intelligence\""
     },
     {
+      "commit": null,
+      "h1": "ADR-0025: Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
       "id": "ADR-0025",
       "kind": "ADR",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/adr/ADR-0025-provider-mutation-architecture.md",
-      "title": "Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)",
-      "h1": "ADR-0025: Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)"
+      "title": "Architektur der Apple-Contacts-Provider-Mutationen (Create/Update/Delete)"
     },
     {
+      "commit": null,
+      "h1": "ADR-0026: Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
       "id": "ADR-0026",
       "kind": "ADR",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/adr/ADR-0026-app-process-mutation-channel.md",
-      "title": "Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)",
-      "h1": "ADR-0026: Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)"
+      "title": "Der App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri → Contacts.framework → Settle)"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-002",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Providerneutrale Capability-Verträge je Fachbereich; keine Mega-Schnittstelle; MCP nur möglicher Adapter"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-011",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Workspaces/Rollen/Tags/Organisationen/Beziehungen als konfigurierbares Modell; nie hart codiert"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-018",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Vertikale Modulentwicklung, Materialisierungsregel, Definition of Done"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-030",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Erstes Fachmodul: Kontakte"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-039",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Initiale Workspaces: Privat, Arbeit, Hausverwaltung — konfigurierbare Werte, keine hartcodierte Fachlogik; umbenennbar, ergänzbar, später archivierbar (löst DEC-D15)"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-044",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Übernahme des OpenJarvis-Reuse-Audit-Kanons"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-045",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Verbindliche Modulreihenfolge bis Modul 3"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-046",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Autonomie- und Hintergrundaktionsmodell"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-047",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "KI-Arbeit, Internet, Browser- und App-Steuerung als verbindliches Zielbild"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-048",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Hausverwaltungs-Systemgrenzen und Workspace-Sicherheitskontexte"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-049",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Gestufte Trading-Architektur T1–T4"
     },
     {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
       "id": "DEC-050",
       "kind": "DEC",
       "line": "canonical",
-      "line_ref": "jarvis/rebuild-v1",
       "line_label": "jarvis/rebuild-v1@c222601",
-      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "line_ref": "jarvis/rebuild-v1",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Acht blockierende Kontakte-Gates"
     },
     {
+      "commit": null,
       "id": "DEC-051",
       "kind": "DEC",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Architektur der Apple-Contacts-Provider-Mutationen eingefroren"
     },
     {
+      "commit": null,
       "id": "DEC-052",
       "kind": "DEC",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "App-Prozess-Mutationskanal eingefroren"
     },
     {
+      "commit": null,
       "id": "DEC-053",
       "kind": "DEC",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "DEC-D06 entschieden: keine native R2-Zweitbestätigung"
     },
     {
+      "commit": null,
       "id": "DEC-054",
       "kind": "DEC",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Intel-Zweig des Kontaktmoduls eingefroren"
     },
     {
+      "commit": null,
       "id": "DEC-055",
       "kind": "DEC",
       "line": "contacts_calendar",
-      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "line_label": "spike/calendar-foundation-intel-2026-08-04",
-      "commit": null,
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Kalender-Fundament-Spike (Intel) freigegeben und begrenzt"
     }
-  ]
+  ],
+  "lines": {
+    "canonical": {
+      "commit": "c22260175db4a2b2fe4e606fa8ae6cfd298cee94",
+      "label": "jarvis/rebuild-v1@c222601",
+      "ref": "jarvis/rebuild-v1"
+    },
+    "contacts_calendar": {
+      "commit": null,
+      "label": "spike/calendar-foundation-intel-2026-08-04",
+      "note": "Nach der B0a-3-Integration liegt diese Linie in diesem Baum; ihre Primaerquellen werden aus dem Arbeitsbaum gelesen.",
+      "ref": "spike/calendar-foundation-intel-2026-08-04"
+    }
+  },
+  "placeholder": "{{DEC_ID_AMBIENT_INTERACTION_V1}}",
+  "registry_id": "b0a-2-decision-citations",
+  "schema_version": 1
 }

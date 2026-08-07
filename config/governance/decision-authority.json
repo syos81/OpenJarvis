@@ -1,0 +1,326 @@
+{
+  "decisions": [
+    {
+      "alias": "R1",
+      "authoritative_path": "docs/governance/decisions/DEC-056-eine-normative-stelle.md",
+      "carriers": [
+        {
+          "path": "config/governance/normative-sources.json",
+          "role": "derived_enforcement",
+          "validation": "registry drives of-single-normative-source; loader governance mode consistency rejects undeclared duplicates"
+        },
+        {
+          "path": "CLAUDE.md",
+          "role": "reference_only",
+          "validation": ""
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-056",
+      "forbidden_fragments": [
+        "Jeder andere Träger ist eine deklarierte Projektion"
+      ]
+    },
+    {
+      "alias": "R2",
+      "authoritative_path": "docs/governance/decisions/DEC-057-id-vergabe-nur-ueber-register.md",
+      "carriers": [
+        {
+          "path": "config/governance/decision-citations.json",
+          "role": "derived_enforcement",
+          "validation": "citation register read by governance mode citations; DEC-057 marker binds the allocation discipline"
+        },
+        {
+          "path": "CLAUDE.md",
+          "role": "reference_only",
+          "validation": ""
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-057",
+      "forbidden_fragments": [
+        "gilt ausschließlich dann als vergeben"
+      ]
+    },
+    {
+      "alias": "R3",
+      "authoritative_path": "docs/governance/decisions/DEC-058-kein-stilles-not-applicable.md",
+      "carriers": [
+        {
+          "path": "config/gates/history/r3-not-applicable-review.json",
+          "role": "derived_enforcement",
+          "validation": "review register read by history mode not-applicable-review over all acceptance records"
+        },
+        {
+          "path": "CLAUDE.md",
+          "role": "reference_only",
+          "validation": ""
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-058",
+      "forbidden_fragments": [
+        "niemals als Vorgabe für ein Artefakt, das garantiert existiert"
+      ]
+    },
+    {
+      "alias": "R4",
+      "authoritative_path": "docs/governance/decisions/DEC-059-schema-vor-daten.md",
+      "carriers": [
+        {
+          "path": "config/governance/config-loaders.json",
+          "role": "derived_enforcement",
+          "validation": "binding file read by b0c mode config-loaders; binds every file under the coverage roots to exactly one accepting reader, including itself"
+        },
+        {
+          "path": "config/governance/guard-trust-model.json",
+          "role": "reference_only",
+          "validation": ""
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-059",
+      "forbidden_fragments": [
+        "Keine Konfigurationsdatei darf ein Feld tragen, das ihr deklarierter Leser noch nicht akzeptiert",
+        "R4 kennt keine Ausnahme für sich"
+      ]
+    },
+    {
+      "alias": "R5",
+      "authoritative_path": "docs/governance/decisions/DEC-060-phasen-gegen-neuen-umfang.md",
+      "carriers": [
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-060",
+      "forbidden_fragments": [
+        "jede Phase, die das zuständige Blockmanifest deklariert, gegen den neuen Prüfumfang gelaufen ist"
+      ]
+    },
+    {
+      "alias": "R6",
+      "authoritative_path": "docs/governance/decisions/DEC-061-erwartungswerte-aus-dem-commit.md",
+      "carriers": [
+        {
+          "path": "config/governance/owner-expectations.json",
+          "role": "derived_enforcement",
+          "validation": "expectation register read by b0c mode owner-expectations; every declared value re-derived from the named commit object"
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-061",
+      "forbidden_fragments": [
+        "bloß aus einer früheren Ableitung wiederholter Wert"
+      ]
+    },
+    {
+      "alias": "R7",
+      "authoritative_path": "docs/governance/decisions/DEC-062-feldbindung.md",
+      "carriers": [
+        {
+          "path": "config/governance/field-binding.json",
+          "role": "derived_enforcement",
+          "validation": "field inventory read by b0d field-binding mode with judgements and declared exemptions"
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-062",
+      "forbidden_fragments": [
+        "weil sie Verlässlichkeit vortäuscht"
+      ]
+    },
+    {
+      "alias": "R8",
+      "authoritative_path": "docs/governance/decisions/DEC-063-weiten-migrieren-verengen.md",
+      "carriers": [
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-063",
+      "forbidden_fragments": [
+        "die akzeptierte Versionsmenge wird geweitet, die Daten werden migriert, danach wird die Menge verengt"
+      ]
+    },
+    {
+      "alias": "R9",
+      "authoritative_path": "docs/governance/decisions/DEC-064-einwirkung-belegt.md",
+      "carriers": [
+        {
+          "path": "config/governance/effect-evidence.json",
+          "role": "derived_enforcement",
+          "validation": "effect register read by b0d mode effect-evidence; first assertion per declared function must be the effect assertion"
+        },
+        {
+          "path": "config/governance/ast-dispositions.json",
+          "role": "derived_enforcement",
+          "validation": "R9 sieve rule statement cites the DEC; dispositions validated by astscan load_register"
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-064",
+      "forbidden_fragments": [
+        "belegt mechanisch vor seiner eigentlichen Erwartung, dass die Einwirkung tatsächlich stattgefunden hat"
+      ]
+    },
+    {
+      "alias": "R10",
+      "authoritative_path": "docs/governance/decisions/DEC-065-leere-aggregation-besteht-nie.md",
+      "carriers": [
+        {
+          "path": "config/governance/ast-dispositions.json",
+          "role": "derived_enforcement",
+          "validation": "R10 sieve rule statement cites the DEC; runtime half enforced by tools/gates/emptyset.py"
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-065",
+      "forbidden_fragments": [
+        "den die Aggregationsrangfolge nie in ein grünes Ergebnis aufnehmen kann"
+      ]
+    },
+    {
+      "alias": "Zwei-Test-Regel",
+      "authoritative_path": "docs/governance/decisions/DEC-066-zwei-test-regel.md",
+      "carriers": [
+        {
+          "path": "config/guard/rule-changes.json",
+          "role": "derived_enforcement",
+          "validation": "change log read by guard mode rule-changes; missing pair, unresolvable references and undeclared shrinking fail"
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-066",
+      "forbidden_fragments": [
+        "ohne deklariertes Testpaar angenommen"
+      ]
+    },
+    {
+      "alias": "Bericht-als-Folge",
+      "authoritative_path": "docs/governance/decisions/DEC-067-bericht-als-folge.md",
+      "carriers": [
+        {
+          "path": ".claude/skills/handoff-report/SKILL.md",
+          "role": "derived_enforcement",
+          "validation": "the skill is the operative source-discipline artifact; feature lineage enforced by of-/mf-feature-lineage"
+        },
+        {
+          "path": "CLAUDE.md",
+          "role": "reference_only",
+          "validation": ""
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-067",
+      "forbidden_fragments": [
+        "nie als unabhängig verfasste Paralleldarstellung"
+      ]
+    },
+    {
+      "alias": "Eigentümergrenzen",
+      "authoritative_path": "docs/governance/decisions/DEC-068-eigentuemergrenzen.md",
+      "carriers": [
+        {
+          "path": "config/governance/guard-trust-model.json",
+          "role": "derived_enforcement",
+          "validation": "machine-readable boundary semantics; claim-lint rejects stronger protection claims"
+        },
+        {
+          "path": "CLAUDE.md",
+          "role": "reference_only",
+          "validation": ""
+        },
+        {
+          "path": "docs/personal-jarvis/decisions-register.md",
+          "role": "reference_only",
+          "validation": ""
+        }
+      ],
+      "dec_id": "DEC-068",
+      "forbidden_fragments": [
+        "ruft keinen Freigabepfad dafür auf"
+      ]
+    }
+  ],
+  "fragment_scan": {
+    "exempt_paths": [],
+    "exempt_with_reason": [
+      {
+        "path": "config/gates/history",
+        "reason": "append-only historical records (commit plans, corrections, reviews, acceptance); correction happens beside them, their frozen wording is never rewritten"
+      },
+      {
+        "path": "config/gates/evidence",
+        "reason": "frozen sanitized gate evidence snapshots; historical by construction"
+      },
+      {
+        "path": "config/guard/rule-changes.json",
+        "reason": "append-only rule change log whose summaries quote historical rule texts; the file itself is a derived_enforcement carrier and cites DEC-066"
+      },
+      {
+        "path": "config/governance/decision-authority.json",
+        "reason": "this model lists the forbidden fragments themselves; scanning it would find every fragment by construction"
+      }
+    ],
+    "roots": [
+      "CLAUDE.md",
+      "config",
+      ".claude/skills"
+    ]
+  },
+  "kind": "decision_authority_model",
+  "register_ref": "refs/governance/dec-reservations",
+  "register_row_file": "docs/personal-jarvis/decisions-register.md",
+  "roles": [
+    "authoritative",
+    "derived_enforcement",
+    "reference_only"
+  ],
+  "schema_version": 1,
+  "statement": "Normative Quelle: DEC-056 — Eine normative Stelle (docs/governance/decisions/DEC-056-eine-normative-stelle.md). Dieses Modell ist das Durchsetzungsartefakt fuer die kodifizierten Entscheidungen: je Entscheidung genau eine autoritative Stelle, jeder weitere Traeger als derived_enforcement oder reference_only mit DEC-Marker; der Fragmentschirm beweist, dass die operativen Volltexte nur in den DEC-Dokumenten stehen."
+}

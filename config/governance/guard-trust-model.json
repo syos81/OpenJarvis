@@ -57,7 +57,7 @@
     "statement": "The owner collection tool reports on the protected exception areas and prepares the owner's command. It never collects from the guarded session: the single writing function refuses before its first write unless the effective user is root, and the owner facing wrapper refuses independently of it.",
     "what_it_does_not_prove": "That the session cannot reach the protected areas by other means. The refusal rests on the file ownership and the access control lists of the installation, and on the same boundary as everything else here \u2014 an additional interactive owner action. A session that obtains that action is outside this model."
   },
-  "description": "The one normative place that states what the guard is and what it is not. Documentation, handoffs, gate reports and CLAUDE.md use this semantics; a gate rejects any stronger protection claim.",
+  "description": "Durchsetzungsartefakt zu DEC-068 \u2014 Eigentuemergrenzen (docs/governance/decisions/DEC-068-eigentuemergrenzen.md): die eine maschinenlesbare Stelle fuer die Schutz- und Grenzaussagen des Guards. Dokumentation, Handoffs, Gateberichte und CLAUDE.md verwenden diese Semantik; das Gate claim-lint weist staerkere Schutzbehauptungen zurueck.",
   "evidence_use_limit": {
     "forward_appended_entries_may_override_history": false,
     "protocol_is_sole_proof": false,
@@ -79,7 +79,7 @@
       "engine": "tools/gates/configload.py",
       "note": "R4 removes the most likely cause. It does not remove the property itself: any unusable configuration still blocks, and that is intended.",
       "rule": "R4",
-      "statement": "When a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit. No configuration file may carry a field its declared loader does not yet accept."
+      "statement": "Normative Quelle: DEC-059 \u2014 Schema vor Daten (docs/governance/decisions/DEC-059-schema-vor-daten.md); vollstaendige Bindungsregel dort. Durchsetzung ueber config/governance/config-loaders.json."
     },
     "observed": {
       "block_id": "b0c-governance",

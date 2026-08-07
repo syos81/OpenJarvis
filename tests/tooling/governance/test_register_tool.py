@@ -210,7 +210,13 @@ class TestTheToolNeverPushes(RegisterFixture):
 class TestScanAgainstTheRealLines(unittest.TestCase):
     """The corrected method, run against both lines of this repository."""
 
-    REFS = ("HEAD", "refs/remotes/origin/jarvis/rebuild-v1")
+    # The historical facts are pinned to the immutable B0g start commit,
+    # not to the moving HEAD: pinned first-unused claims against HEAD go
+    # stale the moment the register legitimately grows (B0g correction).
+    REFS = (
+        "537f9c2b0dbc0fefcda071deaa3de0df2f59655c",
+        "refs/remotes/origin/jarvis/rebuild-v1",
+    )
 
     def run_tool(self, *arguments):
         completed = subprocess.run(  # noqa: S603 - fixed argv, no shell
@@ -233,6 +239,18 @@ class TestScanAgainstTheRealLines(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(payload["gaps"], [])
         self.assertEqual(payload["first_unused"], "DEC-056")
+
+    def test_head_stays_contiguous_and_first_unused_follows_the_maximum(self):
+        code, payload = self.run_tool(
+            "scan", "--ref", "HEAD",
+            "--ref", "refs/remotes/origin/jarvis/rebuild-v1",
+            "--prefix", "DEC-", "--width", "3",
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["gaps"], [])
+        highest = max(payload["used"])
+        self.assertGreaterEqual(highest, 55)
+        self.assertEqual(payload["first_unused"], f"DEC-{highest + 1:03d}")
 
     def test_the_d_series_is_contiguous_and_dec_d18_is_free(self):
         code, payload = self._scan("DEC-D", 2)

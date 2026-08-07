@@ -53,15 +53,14 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
   (`targeted`), am Blockende die vollständigen relevanten Gates fahren.
 - Verbindliche Ergebnisse: `pass`, `pass_with_baseline`, `fail`, `blocked`,
   `not_applicable`. Autoritativ ist immer das Enum im maschinellen Bericht.
-- Maschinelle Ergebnisse werden wörtlich respektiert. Keine Umdeutung, keine
-  Abschwächung, kein grüner Abschluss bei `fail` oder `blocked`, kein manueller
-  Testlauf als Ersatz für ein fehlendes Gate-Ergebnis.
+- Wörtlichkeit maschineller Ergebnisse: normativ DEC-067 — Der Bericht ist
+  Folge der Definition, nie ihre Schwester
+  (`docs/governance/decisions/DEC-067-bericht-als-folge.md`).
 - `pass_with_baseline` entsteht ausschließlich aus der Baseline-Engine gegen
   den Commit `7986bee` mit identischer struktureller Ursachensignatur – nie aus
   Textähnlichkeit, Exitcode oder einer Behauptung.
-- `not_applicable` nur aus einer deklarativen Manifestregel, nie weil eine
-  Prüfung unbequem oder unfertig ist. Eine fehlende Voraussetzung ist
-  `blocked`.
+- `not_applicable`: normativ DEC-058 — Kein stilles not_applicable
+  (`docs/governance/decisions/DEC-058-kein-stilles-not-applicable.md`).
 
 ## Evidenz und Datenschutz
 
@@ -90,7 +89,9 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
   Implementierungen. Keine spekulative Plattform vorab.
 - Fachbegriffe eines echten kanonischen Bestands bleiben zulässig;
   Allgemeinheit bedeutet nicht Fachbegriffslosigkeit.
-- Verbindlich ist genau eine kanonische Liefer- und Fachmodulreihenfolge in
+- Genau eine normative Stelle je Sachverhalt: normativ DEC-056 — Eine
+  normative Stelle (`docs/governance/decisions/DEC-056-eine-normative-stelle.md`).
+  Die kanonische Liefer- und Fachmodulreihenfolge steht in
   `config/governance/delivery-order.json` mit
   `docs/governance/b0a-2-delivery-order.md` als Darstellung. Lieferposition und
   Fachmodulnummer sind getrennte Größen und werden nie verwechselt.
@@ -105,7 +106,10 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
   Fließtext unzulässig.
 - Entscheidungstitel werden wörtlich aus Register oder Primärtext übernommen,
   nie aus einer Beschreibung erraten.
-- Keine eigenmächtige Vergabe neuer DEC- oder ADR-Nummern.
+- Vergabe neuer DEC- und ADR-Nummern: normativ DEC-057 — ID-Vergabe nur über
+  das Register (`docs/governance/decisions/DEC-057-id-vergabe-nur-ueber-register.md`);
+  kanonisch ist `refs/governance/dec-reservations`, bedient ausschließlich über
+  `scripts/dec-reservations.sh`.
 - Bekannte Doppelvergaben werden dokumentiert, nicht bereinigt: keine
   Umnummerierung, kein stilles Löschen einer Seite, keine Erklärung einer Linie
   zur allein gültigen Belegung.
@@ -128,60 +132,37 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
 
 ## Abschluss und Handoff
 
-- Ein Handoff-Bericht entsteht nur über den Projektskill `handoff-report` und
-  nur aus überprüfbaren Quellen: maschinelle Gate-Ergebnisse, sanitierte
-  Evidenz, Git-Status und -Diff, Commit- und Branchdaten, deklarative
-  Manifeste.
-- Vor jedem Abschluss läuft die Merkmalsvollständigkeitsprüfung gegen die
-  Merkmalsliste des unmittelbaren Vorgängers. Ein fehlendes Pflichtmerkmal ist
-  `fail`; der Block gilt dann nicht als abgeschlossen.
-- Jede konsolidierte Fassung eines Prompts, Plans, Registers, Handoffs oder
-  anderen normativen Artefakts durchläuft diesen Merkmalsvergleich gegen den
-  unmittelbaren Vorgänger. Ein bloßer Gesamttext- oder Längenvergleich genügt
-  nicht.
+- Normativ: DEC-067 — Der Bericht ist Folge der Definition, nie ihre
+  Schwester (`docs/governance/decisions/DEC-067-bericht-als-folge.md`).
+  Handoffs entstehen über den Projektskill `handoff-report`; vor jedem
+  Abschluss läuft der Merkmalsvergleich gegen den unmittelbaren Vorgänger
+  über `of-`/`mf-feature-lineage`.
 - Abschlussberichte sind kurz und deltaorientiert: was sich geändert hat,
   welche Phasen mit welchem Ergebnis liefen, welche echten Blocker bleiben.
 
 ## Commit und Push
 
-- Jeder Arbeitsblock endet für Claude und andere Agenten nach dem erfolgreichen
-  lokalen Commit. Pushes sind ausschließlich Eigentümerhandlungen außerhalb des
-  Blocks. Ein Agent darf keinen Push ausführen, dafür keinen `ask`- oder
-  Freigabepfad aufrufen und die Push-Sperre weder verändern noch über einen
-  alternativen Prozess, Client, Hook, Alias, Unterprozess oder sonstigen Umweg
-  umgehen. Als Pushanweisung darf ausschließlich ein einzelner, exakter
-  manueller Befehl für den aktuellen Zielbranch ausgegeben werden. Das
-  Ausbleiben des Eigentümer-Pushes macht einen ansonsten vollständig
-  bestandenen lokalen Block nicht zu `fail` oder `blocked`.
+- Normativ: DEC-068 — Eigentümergrenzen
+  (`docs/governance/decisions/DEC-068-eigentuemergrenzen.md`). Jeder Push,
+  jede Fortschreibung von `refs/governance/dec-reservations`, jede
+  DEC-Freigabe, jede Guard-Aktivierung und die weiteren dort gebundenen
+  Klassen sind ausschließlich Eigentümerhandlungen; ein Agent gibt höchstens
+  einen einzelnen exakten manuellen Befehl aus. Jeder Arbeitsblock endet für
+  Agenten nach dem erfolgreichen lokalen Commit.
 - Der Pushstatus eines lokal abgeschlossenen Blocks lautet
   `not_performed_owner_action`.
-- Kein Force-Push, kein Push auf einen Produktbranch, kein Merge, kein Rebase,
-  kein Cherry-pick, kein Tag und kein Release durch einen Agenten.
 
 ## Guard-Vertrauensmodell
 
-Verbindlich und maschinenlesbar in `config/governance/guard-trust-model.json`.
+Verbindlich und maschinenlesbar in `config/governance/guard-trust-model.json`;
+die Eigentümergrenze ist normativ in DEC-068 — Eigentümergrenzen
+(`docs/governance/decisions/DEC-068-eigentuemergrenzen.md`) gebunden.
 Dokumentation, Handoffs, Gateberichte und diese Datei verwenden dieselbe
 Semantik; das Gate `claim-lint` weist stärkere Schutzbehauptungen zurück.
-
-- Der Guard ist ein **Disziplinmechanismus** gegen Versehen, unerlaubte
-  Befehle, Prozessdrift, unbeabsichtigte Historienumschreibung und
-  unbeabsichtigte destruktive Operationen.
-- Er ist **keine** vollständige Sicherheitsgrenze gegen einen feindlichen
-  Akteur, der bereits mit Lukas' Benutzerrechten arbeitet oder interaktive
-  Eigentümerauthentisierung erlangen kann.
-- Die Claude-Code-Anwendung selbst ist benutzerschreibbar und bleibt eine
-  nicht vollständig schließbare Vertrauenswurzel.
-- Die Grenze lautet `requires_interactive_owner_authentication`, nicht
-  `technically_impossible`. Zulässige Aussage: die aktive Guard-Kette kann
-  von der normalen laufenden Claude-Code-Sitzung nicht ohne eine zusätzliche
-  interaktive Eigentümerhandlung verändert werden.
-- Das geschützte Protokoll ist von der Sitzung weder kürzbar noch löschbar,
-  aber nach vorn anhängbar und damit fälschbar. Es ist kein
-  kryptografischer Herkunftsnachweis und nie alleiniger Beweis; Sicherheits-
-  und Gateaussagen stützen sich zusätzlich auf reproduzierbare aktive Tests,
-  Hashbindung, Dateirechte und unabhängige Evidenz. Vorwärts angehängte
-  Einträge entkräften keine historische Abnahme.
+Kurzform als Verweis: der Guard ist ein Disziplinmechanismus, keine
+vollständige Sicherheitsgrenze; die Grenze lautet
+`requires_interactive_owner_authentication`, nicht `technically_impossible`;
+das geschützte Protokoll ist nach vorn anhängbar und nie alleiniger Beweis.
 
 ## Agenten-Philosophie
 
@@ -203,8 +184,7 @@ dupliziert.
 - Neue Fähigkeiten entstehen als neue Skill- oder Agenten-Dateien unter
   `.claude/`, nicht als zweite parallele Implementierung.
 - Neue Berechtigungen werden explizit in `.claude/settings.json` eingetragen.
-  Die harten Deny-Regeln (`git push`, `git reset --hard`, `git rebase`,
-  `git clean`, `git stash drop`, `rm -rf`, Lesen von `.env`-Dateien) bleiben
-  bestehen und werden nicht dauerhaft gelockert.
+  Die harten Deny-Regeln dort bleiben bestehen und werden nicht dauerhaft
+  gelockert; die Eigentümerklassen dahinter sind in DEC-068 gebunden.
 - Alle Änderungen an diesen Grundregeln erfordern Lukas' ausdrückliche
   Zustimmung.

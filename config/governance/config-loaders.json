@@ -39,6 +39,15 @@
       ]
     },
     {
+      "binding_id": "b0g-assignment",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.decauthority:load_assignment",
+      "pattern": "config/gates/history/b0g-assignment.json",
+      "reason": "The register stage record is read exclusively by the assignment loader, which enforces the closed stage set and the commit binding an assigned stage demands."
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",
@@ -71,6 +80,15 @@
         "schema_version",
         "statement"
       ]
+    },
+    {
+      "binding_id": "decision-authority",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.decauthority:load_model",
+      "pattern": "config/governance/decision-authority.json",
+      "reason": "The authority binding model is read exclusively by its validator, which rejects unknown fields, open role sets and structurally incomplete decisions before any authority check runs."
     },
     {
       "binding_id": "feature-lineage",
@@ -225,7 +243,9 @@
       "binding_id": "governance-decision-citations",
       "expectation": "accepted",
       "kind": "structural",
-      "optional_fields": [],
+      "optional_fields": [
+        "allocation_discipline"
+      ],
       "pattern": "config/governance/decision-citations.json",
       "reason": "Governance configuration with its own shape; the declared field set is its accepting reader.",
       "required_fields": [
@@ -845,5 +865,5 @@
   "kind": "configuration_loader_binding",
   "rule": "R4",
   "schema_version": 1,
-  "statement": "Schema before data. When a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit. No configuration file may carry a field its declared loader does not yet accept. Every configuration file below a coverage root is bound to exactly one reader, and every gate loads it with that reader; a failure fails the block."
+  "statement": "Normative Quelle: DEC-059 \u2014 Schema vor Daten (docs/governance/decisions/DEC-059-schema-vor-daten.md). Dieses Dokument ist das Durchsetzungsartefakt: es bindet jede Datei unter den coverage_roots an genau einen akzeptierenden Leser; ein Bindungsfehler faellt den Block."
 }

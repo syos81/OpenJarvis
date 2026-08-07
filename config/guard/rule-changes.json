@@ -1,365 +1,365 @@
 {
-  "schema_version": 1,
-  "description": "Every change to an existing guard check rule, with the mandatory pair of tests. A sharpening test covers the newly recognised or newly permitted edge case and fails before the change; a counter test proves the originally repelled violation is still detected and blocked.",
   "block_id": "b0a-4-guard",
   "changes": [
     {
       "change_id": "RC-001",
-      "rule_id": "hard_deny_command_set",
-      "kind": "sharpening",
-      "summary": "The hard deny set gains commit --amend and the comparable local history rewrite operations; detection moves from raw text to parsed arguments.",
-      "sharpening_test": "tests/tooling/gates/test_hook.py::TestHardDenies::test_commit_amend_is_a_hard_deny",
       "counter_test": "tests/tooling/gates/test_hook.py::TestHardDenies::test_guard_rules_and_settings_deny_list_stay_in_sync",
+      "kind": "sharpening",
+      "rule_id": "hard_deny_command_set",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestHardDenies::test_commit_amend_is_a_hard_deny",
+      "summary": "The hard deny set gains commit --amend and the comparable local history rewrite operations; detection moves from raw text to parsed arguments.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-002",
-      "rule_id": "worktree_undetermined",
-      "kind": "sharpening",
-      "summary": "A mutating request in an undeterminable repository state blocks instead of escalating to ask.",
-      "sharpening_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_undetermined_worktree_blocks",
       "counter_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_undetermined_worktree_is_still_detected",
+      "kind": "sharpening",
+      "rule_id": "worktree_undetermined",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_undetermined_worktree_blocks",
+      "summary": "A mutating request in an undeterminable repository state blocks instead of escalating to ask.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-003",
-      "rule_id": "no_opinion_signal",
-      "kind": "sharpening",
-      "summary": "Abstention is stated positively so a crashed guard can no longer be mistaken for a guard without an opinion; the wrapper blocks on anything else.",
-      "sharpening_test": "tests/tooling/gates/test_hook.py::TestAskLogging::test_hook_entry_point_states_that_it_has_no_opinion",
       "counter_test": "tests/tooling/gates/test_hook.py::TestAskLogging::test_no_opinion_carries_no_permission_decision",
+      "kind": "sharpening",
+      "rule_id": "no_opinion_signal",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestAskLogging::test_hook_entry_point_states_that_it_has_no_opinion",
+      "summary": "Abstention is stated positively so a crashed guard can no longer be mistaken for a guard without an opinion; the wrapper blocks on anything else.",
       "violation_set_effect": "unchanged"
     },
     {
       "change_id": "RC-004",
-      "rule_id": "bash_target_extraction",
-      "kind": "sharpening",
-      "summary": "Targets are extracted per command segment after environment prefixes and wrappers are stripped, so a wrapped or chained mutation no longer hides its target.",
-      "sharpening_test": "tests/tooling/guard/test_parser.py::TestTargets::test_wrapped_mutation_still_exposes_its_target",
       "counter_test": "tests/tooling/gates/test_hook.py::TestWorktreeProtection::test_mutating_bash_into_a_foreign_worktree_asks",
+      "kind": "sharpening",
+      "rule_id": "bash_target_extraction",
+      "sharpening_test": "tests/tooling/guard/test_parser.py::TestTargets::test_wrapped_mutation_still_exposes_its_target",
+      "summary": "Targets are extracted per command segment after environment prefixes and wrappers are stripped, so a wrapped or chained mutation no longer hides its target.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-005",
-      "rule_id": "hook_error_handling",
-      "kind": "sharpening",
-      "summary": "Every hook error path blocks; the previous silent exit 0 on missing project directory, missing tooling or missing interpreter is removed.",
-      "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_every_failure_path_blocks",
       "counter_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_intact_installation_still_decides",
+      "kind": "sharpening",
+      "rule_id": "hook_error_handling",
+      "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_every_failure_path_blocks",
+      "summary": "Every hook error path blocks; the previous silent exit 0 on missing project directory, missing tooling or missing interpreter is removed.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-006",
-      "rule_id": "interpreter_trust",
-      "kind": "sharpening",
-      "summary": "The interpreter check moves from a path comparison to an ownership check over the whole ancestor chain of the declared and of the actually running interpreter, and the installation root gets the same ancestor check.",
-      "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_interpreter_below_a_writable_ancestor_blocks",
       "counter_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_missing_interpreter_blocks",
+      "kind": "sharpening",
+      "rule_id": "interpreter_trust",
+      "sharpening_test": "tests/tooling/guard/test_bootstrap.py::TestFailClosed::test_interpreter_below_a_writable_ancestor_blocks",
+      "summary": "The interpreter check moves from a path comparison to an ownership check over the whole ancestor chain of the declared and of the actually running interpreter, and the installation root gets the same ancestor check.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-007",
-      "rule_id": "repository_layer_authority",
-      "kind": "sharpening",
-      "summary": "When the owner installed guard is both installed and registered on root owned files, the repository side layer abstains instead of deciding. It applies the same rules but cannot see the owner exceptions, so deciding would let a session writable layer veto an owner decision. Without an active authoritative guard the repository layer keeps deciding unchanged.",
-      "sharpening_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_deference_requires_root_ownership",
       "counter_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_repository_layer_still_blocks_without_an_active_guard",
+      "kind": "sharpening",
+      "rule_id": "repository_layer_authority",
+      "sharpening_test": "tests/tooling/gates/test_hook.py::TestAuthoritativeGuardDeference::test_deference_requires_root_ownership",
+      "summary": "When the owner installed guard is both installed and registered on root owned files, the repository side layer abstains instead of deciding. It applies the same rules but cannot see the owner exceptions, so deciding would let a session writable layer veto an owner decision. Without an active authoritative guard the repository layer keeps deciding unchanged.",
       "violation_set_effect": "unchanged"
     },
     {
       "change_id": "RC-008",
-      "rule_id": "pii_detection_and_redaction_parity",
-      "kind": "sharpening",
-      "summary": "Detection and redaction now derive from one shared variant source. A flattened user path was previously detected as personal and still written out verbatim; every spelling the detection knows is now redacted by the evidence scrubber and by the guard protocol, or the outgoing evidence is rejected.",
-      "sharpening_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_flattened_path_is_redacted",
       "counter_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_slash_path_is_redacted",
+      "kind": "sharpening",
+      "rule_id": "pii_detection_and_redaction_parity",
+      "sharpening_test": "tests/tooling/gates/test_pii_variants.py::TestPositiveRedaction::test_flattened_path_is_redacted",
+      "summary": "Detection and redaction now derive from one shared variant source. A flattened user path was previously detected as personal and still written out verbatim; every spelling the detection knows is now redacted by the evidence scrubber and by the guard protocol, or the outgoing evidence is rejected.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-009",
-      "rule_id": "historical_evidence_binding",
-      "kind": "sharpening",
-      "summary": "Rule R3. Historical acceptance evidence is bound to a committed, PII checked snapshot instead of the gitignored runtime area, and a missing document is a failure instead of a declared not_applicable. A guaranteed to exist artifact must never default to not_applicable, and a hash binding to a volatile, re-runnable file is not durable.",
-      "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_no_acceptance_manifest_defaults_to_not_applicable",
       "counter_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_changed_evidence_is_still_detected",
+      "kind": "sharpening",
+      "rule_id": "historical_evidence_binding",
+      "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_no_acceptance_manifest_defaults_to_not_applicable",
+      "summary": "Rule R3. Historical acceptance evidence is bound to a committed, PII checked snapshot instead of the gitignored runtime area, and a missing document is a failure instead of a declared not_applicable. A guaranteed to exist artifact must never default to not_applicable, and a hash binding to a volatile, re-runnable file is not durable.",
       "violation_set_effect": "grows"
     },
     {
       "change_id": "RC-010",
-      "rule_id": "gate_anchoring",
-      "kind": "sharpening",
-      "summary": "A gate whose acceptance criterion points at a document that does not exist is undefined, not open. It is either re-anchored to a really existing normative source, with the finding proven, or removed from the stage with a reason. A substitute source is never invented.",
-      "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_every_anchor_resolves",
       "counter_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_a_dangling_anchor_is_still_detected",
+      "kind": "sharpening",
+      "rule_id": "gate_anchoring",
+      "sharpening_test": "tests/tooling/gates/test_k1_definition.py::TestGateAnchoring::test_every_anchor_resolves",
+      "summary": "A gate whose acceptance criterion points at a document that does not exist is undefined, not open. It is either re-anchored to a really existing normative source, with the finding proven, or removed from the stage with a reason. A substitute source is never invented.",
       "violation_set_effect": "grows"
     },
     {
-      "change_id": "RC-011",
+      "activation_note": "The active installation stays at guard 1.1.0. This change is effective for the guarded session only after the owner reinstalls; no gate depends on that activation.",
+      "activation_status": "candidate_not_active",
       "block_id": "b0c-governance",
-      "rule_id": "target_bound_fixture_release",
-      "kind": "relaxation",
-      "summary": "push and update-ref gain a target bound release. It fires only when the target fully resolves into a throwaway bare repository below a strictly canonicalised, declared fixture root. The real origin, every protected ref, a remote alias resolving onto a protected remote, a symlink that redirects and a parent reference all stay blocked. Unlike an owner exception the release needs no present owner, which is what makes a gate that depends on it reproducible.",
-      "sharpening_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureRelease::test_push_into_a_declared_fixture_is_released",
+      "change_id": "RC-011",
       "counter_test": "tests/tooling/guard/test_fixture_rule.py::TestCounterControl::test_push_to_the_real_origin_is_still_blocked",
+      "kind": "relaxation",
       "negative_controls": [
         "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_symlink_escape_out_of_the_fixture_root_is_blocked",
         "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_a_parent_reference_path_is_blocked",
         "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_a_fixture_path_pointing_at_the_real_repository_is_blocked",
         "tests/tooling/guard/test_fixture_rule.py::TestNegativeControls::test_a_remote_alias_resolving_onto_origin_is_blocked"
       ],
-      "violation_set_effect": "shrinks",
-      "violation_set_effect_scope": "inside the declared fixture root only; at layer 1 the recognised violation set is unchanged, and every corpus entry stays blocked",
       "owner_decision": "Owner decision of 2026-08-06: no guard exception but a target bound rule. An exception needs sudo and expires after 600 seconds; a gate whose run presupposes a present person is not a reproducible gate, and offline-final has to run without the owner.",
-      "activation_status": "candidate_not_active",
-      "activation_note": "The active installation stays at guard 1.1.0. This change is effective for the guarded session only after the owner reinstalls; no gate depends on that activation."
+      "rule_id": "target_bound_fixture_release",
+      "sharpening_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureRelease::test_push_into_a_declared_fixture_is_released",
+      "summary": "push and update-ref gain a target bound release. It fires only when the target fully resolves into a throwaway bare repository below a strictly canonicalised, declared fixture root. The real origin, every protected ref, a remote alias resolving onto a protected remote, a symlink that redirects and a parent reference all stay blocked. Unlike an owner exception the release needs no present owner, which is what makes a gate that depends on it reproducible.",
+      "violation_set_effect": "shrinks",
+      "violation_set_effect_scope": "inside the declared fixture root only; at layer 1 the recognised violation set is unchanged, and every corpus entry stays blocked"
     },
     {
-      "change_id": "RC-012",
       "block_id": "b0c-governance",
-      "rule_id": "rules_unknown_fields",
-      "kind": "relaxation",
-      "summary": "Rule R4, schema before data. The rule loader gains a declared set of optional fields, so a configuration format can be extended only after its accepting reader knows the field. An undeclared field is still rejected. Enforced generally by a binding of every configuration file to its authoritative reader; a file no reader accepts fails the block.",
-      "sharpening_test": "tests/tooling/gates/test_config_loaders.py::TestLoaderAcceptsWhatIsDeclared::test_a_declared_optional_field_is_accepted",
+      "change_id": "RC-012",
       "counter_test": "tests/tooling/gates/test_config_loaders.py::TestLoaderAcceptsWhatIsDeclared::test_an_undeclared_field_is_still_rejected",
+      "finding_origin": "Derived from a real finding, not from a hypothesis: adding fixture_targets to rules.json before rules.py knew the field made the repository side guard unable to decide and blocked every tool call. Fail closed worked as designed; the defect was the order.",
+      "kind": "relaxation",
       "negative_controls": [
         "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_field_the_declared_reader_does_not_accept_fails",
         "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_configuration_file_without_a_binding_fails",
         "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_binding_that_matches_nothing_fails",
         "tests/tooling/gates/test_config_loaders.py::TestTheCheckHasTeeth::test_a_real_loader_rejection_fails_the_check"
       ],
-      "violation_set_effect": "shrinks",
-      "violation_set_effect_scope": "exactly the fields a declared reader accepts; every other unknown field is still rejected",
       "owner_decision": "Owner decision of 2026-08-06 establishing rule R4 after the reversed edit order locked the session out: when a configuration format is extended, the accepting reader or validator is effective first, at the latest in the same commit.",
-      "finding_origin": "Derived from a real finding, not from a hypothesis: adding fixture_targets to rules.json before rules.py knew the field made the repository side guard unable to decide and blocked every tool call. Fail closed worked as designed; the defect was the order."
+      "rule_id": "rules_unknown_fields",
+      "sharpening_test": "tests/tooling/gates/test_config_loaders.py::TestLoaderAcceptsWhatIsDeclared::test_a_declared_optional_field_is_accepted",
+      "summary": "Rule R4, schema before data. The rule loader gains a declared set of optional fields, so a configuration format can be extended only after its accepting reader knows the field. An undeclared field is still rejected. Enforced generally by a binding of every configuration file to its authoritative reader; a file no reader accepts fails the block.",
+      "violation_set_effect": "shrinks",
+      "violation_set_effect_scope": "exactly the fields a declared reader accepts; every other unknown field is still rejected"
     },
     {
-      "change_id": "RC-013",
       "block_id": "b0c-governance",
-      "rule_id": "owner_expectation_derivation",
-      "kind": "sharpening",
-      "summary": "Rule R6. An expectation value handed to the owner for an owner action must be reproducibly derivable from exactly the commit and the artifact the action refers to, and that derivation belongs to the acceptance evidence. A value carried forward from an earlier derivation is not an expectation value; --expect-hash exists so the owner checks against an independently derived value, not against whatever the installer builds at that moment.",
-      "sharpening_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_value_from_another_commit_is_rejected",
+      "change_id": "RC-013",
       "counter_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_correctly_derived_value_still_passes",
+      "finding_origin": "Derived from a real finding: a guard package hash was derived once from an uncommitted worktree state, then published twice for two different commits without being derived again from either. The owner's dry run refused it. Reproduced mechanically \u2014 replacing one superseded function in the committed tree reproduces the published value exactly.",
+      "kind": "sharpening",
       "negative_controls": [
         "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_an_unknown_artifact_kind_is_rejected_not_skipped",
         "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_a_commit_that_does_not_exist_is_rejected",
         "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_an_abbreviated_commit_is_rejected",
         "tests/tooling/gates/test_expectations.py::TestNegativeControls::test_a_missing_declaration_is_a_failure_not_a_pass"
       ],
-      "violation_set_effect": "grows",
-      "finding_origin": "Derived from a real finding: a guard package hash was derived once from an uncommitted worktree state, then published twice for two different commits without being derived again from either. The owner's dry run refused it. Reproduced mechanically \u2014 replacing one superseded function in the committed tree reproduces the published value exactly."
+      "rule_id": "owner_expectation_derivation",
+      "sharpening_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_a_value_from_another_commit_is_rejected",
+      "summary": "Rule R6. An expectation value handed to the owner for an owner action must be reproducibly derivable from exactly the commit and the artifact the action refers to, and that derivation belongs to the acceptance evidence. A value carried forward from an earlier derivation is not an expectation value; --expect-hash exists so the owner checks against an independently derived value, not against whatever the installer builds at that moment.",
+      "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0d-guard-hardening",
       "change_id": "RC-014",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "config_version_binding",
-      "kind": "sharpening",
-      "summary": "Rule R7. config_version is bound to a signature over the loader's own field sets instead of being carried along. A format change without a version change makes the loader refuse to run.",
-      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestConfigVersionIsBound::test_a_version_that_does_not_name_the_format_is_rejected",
       "counter_test": "tests/tooling/gates/test_field_binding.py::TestConfigVersionIsBound::test_the_declared_version_is_the_format_version",
-      "violation_set_effect": "grows",
-      "finding_origin": "The field named the configuration format and was compared to nothing. Binding carries over removal, proven against history: the signature differs between 06b7d7e and 6feb7ce while the declared version is identical in both, so the binding would have failed exactly at the commit where the real miss happened."
+      "finding_origin": "The field named the configuration format and was compared to nothing. Binding carries over removal, proven against history: the signature differs between 06b7d7e and 6feb7ce while the declared version is identical in both, so the binding would have failed exactly at the commit where the real miss happened.",
+      "kind": "sharpening",
+      "rule_id": "config_version_binding",
+      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestConfigVersionIsBound::test_a_version_that_does_not_name_the_format_is_rejected",
+      "summary": "Rule R7. config_version is bound to a signature over the loader's own field sets instead of being carried along. A format change without a version change makes the loader refuse to run.",
+      "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0d-guard-hardening",
       "change_id": "RC-015",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "configuration_migration",
-      "kind": "sharpening",
-      "summary": "Rule R8, widen migrate narrow. A format change to a configuration the active guard loads happens in three steps, and every intermediate state is valid whichever file is written first. The accepted version set is a membership test that is widened for the migration and narrowed afterwards.",
-      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestR8Migration::test_a_widened_reader_accepts_both_forms",
       "counter_test": "tests/tooling/gates/test_field_binding.py::TestR8Migration::test_a_narrowed_reader_rejects_the_outgoing_form",
-      "violation_set_effect": "unchanged",
-      "finding_origin": "Applying R7 in the R4 order still produced an invalid state between the two writes, and the repository side hook blocked the session in that window. R4 requires the reader first; it does not secure the window between reader and data. R8 does."
+      "finding_origin": "Applying R7 in the R4 order still produced an invalid state between the two writes, and the repository side hook blocked the session in that window. R4 requires the reader first; it does not secure the window between reader and data. R8 does.",
+      "kind": "sharpening",
+      "rule_id": "configuration_migration",
+      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestR8Migration::test_a_widened_reader_accepts_both_forms",
+      "summary": "Rule R8, widen migrate narrow. A format change to a configuration the active guard loads happens in three steps, and every intermediate state is valid whichever file is written first. The accepted version set is a membership test that is widened for the migration and narrowed afterwards.",
+      "violation_set_effect": "unchanged"
     },
     {
-      "change_id": "RC-016",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "repository_layer_deference",
-      "kind": "sharpening",
-      "summary": "The repository side layer abstains before reading its own rule configuration instead of after. It declares itself non authoritative, so an unusable configuration must not let it block every request while an authoritative guard is active.",
-      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_abstains",
-      "counter_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_blocks_without_a_guard",
-      "violation_set_effect": "unchanged",
       "behaviour_change": "Only an error path moved. Which commands count as violations is unchanged, and with no authoritative guard present the layer still denies on an unusable configuration.",
+      "block_id": "b0d-guard-hardening",
+      "change_id": "RC-016",
+      "counter_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_blocks_without_a_guard",
+      "finding_origin": "Reported by the agent against its own earlier claim. _rules() ran at module import through three module level assignments, so the abstention at main() was never reached.",
+      "kind": "sharpening",
       "owner_decision": "Owner instruction of 2026-08-07: a deference that only takes effect after loading what it renounces is not a deference; correct it or model it honestly, and prove which carries. Correction was proven to carry \u2014 it abstains despite a broken configuration and still fails closed without a guard.",
-      "finding_origin": "Reported by the agent against its own earlier claim. _rules() ran at module import through three module level assignments, so the abstention at main() was never reached."
+      "rule_id": "repository_layer_deference",
+      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_abstains",
+      "summary": "The repository side layer abstains before reading its own rule configuration instead of after. It declares itself non authoritative, so an unusable configuration must not let it block every request while an authoritative guard is active.",
+      "violation_set_effect": "unchanged"
     },
     {
-      "change_id": "RC-017",
       "block_id": "b0d-guard-hardening",
-      "rule_id": "exception_override_layering",
-      "kind": "sharpening",
-      "summary": "The layer 1 decision is built and held before any exception object is read. An exception object may replace it with an allow or leave it alone and may never alter it. Structural validation, version bindings and expiry are three separate questions; only structural failure is corruption and still blocks.",
-      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_version_foreign_object_changes_nothing",
+      "change_id": "RC-017",
       "counter_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_structurally_corrupt_object_still_blocks",
+      "finding_origin": "Observed in production: two version foreign objects in the pending area replaced the reason of an unrelated deny with GUARD_EXCEPTION_CORRUPT, because consume() parsed every candidate before comparing worktree and command and parse() raised on the version binding.",
+      "kind": "sharpening",
       "negative_controls": [
         "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_an_expired_object_changes_nothing",
         "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_many_invalid_objects_change_nothing_in_any_file_order",
         "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_valid_exception_survives_a_version_foreign_neighbour",
         "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_an_unwritable_diagnosis_area_changes_nothing"
       ],
-      "violation_set_effect": "unchanged",
-      "finding_origin": "Observed in production: two version foreign objects in the pending area replaced the reason of an unrelated deny with GUARD_EXCEPTION_CORRUPT, because consume() parsed every candidate before comparing worktree and command and parse() raised on the version binding."
+      "rule_id": "exception_override_layering",
+      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_version_foreign_object_changes_nothing",
+      "summary": "The layer 1 decision is built and held before any exception object is read. An exception object may replace it with an allow or leave it alone and may never alter it. Structural validation, version bindings and expiry are three separate questions; only structural failure is corruption and still blocks.",
+      "violation_set_effect": "unchanged"
     },
     {
-      "change_id": "RC-018",
       "block_id": "b0d-guard-hardening",
-      "rule_id": "exception_validity_window",
-      "kind": "sharpening",
-      "summary": "Temporal validity is the conjunction of three bounds: not in the future at all, not past the object's own expiry, and an age below the policy maximum. With the maximum at 600 seconds this is exactly 0 <= now - created_at < 600. The previous 60 second tolerance for objects dated in the future is removed.",
-      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_age_exactly_600_is_expired",
+      "change_id": "RC-018",
       "counter_test": "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_age_599_is_still_a_candidate",
+      "kind": "sharpening",
       "negative_controls": [
         "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_a_future_object_is_not_yet_valid",
         "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_a_non_numeric_timestamp_is_corrupt_not_expired"
       ],
+      "rule_id": "exception_validity_window",
+      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_age_exactly_600_is_expired",
+      "summary": "Temporal validity is the conjunction of three bounds: not in the future at all, not past the object's own expiry, and an age below the policy maximum. With the maximum at 600 seconds this is exactly 0 <= now - created_at < 600. The previous 60 second tolerance for objects dated in the future is removed.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0d-guard-hardening",
       "change_id": "RC-019",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "engine_min_version_binding",
-      "kind": "sharpening",
-      "summary": "Rule R7. engine_min_version is compared against the engine that is actually running. A manifest demanding a newer engine now fails instead of proceeding.",
-      "sharpening_test": "tests/tooling/gates/test_manifest.py::TestManifestValidation",
       "counter_test": "tests/tooling/gates/test_field_binding.py::TestR7Sweep::test_every_examined_field_has_a_verdict",
+      "kind": "sharpening",
+      "rule_id": "engine_min_version_binding",
+      "sharpening_test": "tests/tooling/gates/test_manifest.py::TestManifestValidation",
+      "summary": "Rule R7. engine_min_version is compared against the engine that is actually running. A manifest demanding a newer engine now fails instead of proceeding.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0d-guard-hardening",
       "change_id": "RC-020",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "ignored_exception_collection",
-      "kind": "sharpening",
-      "summary": "An exception object the guard decided to ignore is no longer only ignored. It is recorded, and an owner tool moves it out of the protected pending area. The tool reads and plans from the guarded session and collects only as root; a candidate and a corrupt object are never collected.",
-      "sharpening_test": "tests/tooling/guard/test_collect_tool.py::TestCollectRefusesForTheSession",
       "counter_test": "tests/tooling/guard/test_collect_tool.py::TestMoveIsNeverDestructive",
+      "kind": "sharpening",
+      "rule_id": "ignored_exception_collection",
+      "sharpening_test": "tests/tooling/guard/test_collect_tool.py::TestCollectRefusesForTheSession",
+      "summary": "An exception object the guard decided to ignore is no longer only ignored. It is recorded, and an owner tool moves it out of the protected pending area. The tool reads and plans from the guarded session and collects only as root; a candidate and a corrupt object are never collected.",
       "violation_set_effect": "unchanged"
     },
     {
+      "block_id": "b0d-guard-hardening",
       "change_id": "RC-021",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "observation_recording_wired",
-      "kind": "sharpening",
-      "summary": "The recording of ignored objects reaches the installed guard. decide() built the observations and entry.run() accepted a directory, but the process entry did not take one and the bootstrap named none, so the whole path was dead code in production. The process entry now accepts it, the bootstrap names it and the installer creates the area with the same append only rights as the protected protocol.",
-      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestObservationRecords",
       "counter_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance",
+      "kind": "sharpening",
+      "rule_id": "observation_recording_wired",
+      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestObservationRecords",
+      "summary": "The recording of ignored objects reaches the installed guard. decide() built the observations and entry.run() accepted a directory, but the process entry did not take one and the bootstrap named none, so the whole path was dead code in production. The process entry now accepts it, the bootstrap names it and the installer creates the area with the same append only rights as the protected protocol.",
       "violation_set_effect": "unchanged"
     },
     {
+      "block_id": "b0d-guard-hardening",
       "change_id": "RC-022",
-      "block_id": "b0d-guard-hardening",
-      "rule_id": "induced_effect_must_be_evidenced",
-      "kind": "sharpening",
-      "summary": "Rule R9. A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence the effect before its expectation; if the effect fails to occur the test fails, not its subject. Enforced over the syntax tree: the first assertion of a declared function must be the declared effect assertion, so an assertion that moved below the expectation fails even while the test still passes. The declaration covers the tests this block introduced or repaired and states, on every run, that the review of the whole existing corpus is deferred to a separate step.",
-      "sharpening_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
       "counter_test": "tests/tooling/guard/test_manipulation_matrix.py::TestRuleR9",
+      "kind": "sharpening",
+      "rule_id": "induced_effect_must_be_evidenced",
+      "sharpening_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
+      "summary": "Rule R9. A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence the effect before its expectation; if the effect fails to occur the test fails, not its subject. Enforced over the syntax tree: the first assertion of a declared function must be the declared effect assertion, so an assertion that moved below the expectation fails even while the test still passes. The declaration covers the tests this block introduced or repaired and states, on every run, that the review of the whole existing corpus is deferred to a separate step.",
       "violation_set_effect": "unchanged"
     },
     {
-      "change_id": "RC-023",
       "block_id": "b0d-guard-hardening",
-      "rule_id": "empty_aggregation_never_passes",
-      "kind": "sharpening",
-      "summary": "Rule R10. A check that aggregates over an empty set never reports pass, unless the emptiness itself is the checked property and was derived independently of the walk. The non evidence state is blocked with the reason aggregation_set_empty, which the precedence can never absorb into a green result. Found live: mf-evidence verified zero raw logs for a phase whose stored result was withdrawn and still reported evidence_complete, because the walk over a missing result iterates zero times and an empty issue list reads as clean. mf-phase-results was checked with the same withdrawal probe and already failed correctly; it now also blocks on an empty required phase set and reports its counts.",
-      "sharpening_test": "tests/tooling/gates/test_empty_aggregation.py::TestSharpening",
+      "change_id": "RC-023",
       "counter_test": "tests/tooling/gates/test_empty_aggregation.py::TestCounter",
+      "kind": "sharpening",
+      "rule_id": "empty_aggregation_never_passes",
+      "sharpening_test": "tests/tooling/gates/test_empty_aggregation.py::TestSharpening",
+      "summary": "Rule R10. A check that aggregates over an empty set never reports pass, unless the emptiness itself is the checked property and was derived independently of the walk. The non evidence state is blocked with the reason aggregation_set_empty, which the precedence can never absorb into a green result. Found live: mf-evidence verified zero raw logs for a phase whose stored result was withdrawn and still reported evidence_complete, because the walk over a missing result iterates zero times and an empty issue list reads as clean. mf-phase-results was checked with the same withdrawal probe and already failed correctly; it now also blocks on an empty required phase set and reports its counts.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0e-test-hardening",
       "change_id": "RC-024",
-      "block_id": "b0e-test-hardening",
-      "rule_id": "absence_guards_in_gate_checkers",
-      "kind": "sharpening",
-      "summary": "Rule R10 applied to the checkers themselves. Eleven gate checker walks normalised a missing declaration key into an empty iterable and reported success after walking nothing: rule-change fixtures, the violation corpus, committed acceptance artifacts, runtime evidence in the R3 review and in historical integrity, preservation invariants, id-migration mappings, historical resolution records, inherited merge blocks, generality process activation globs and provider term variants. Each site now fails or raises on absence; a present-but-empty declaration stays a legitimate, visible statement where the mode's contract allows it.",
-      "sharpening_test": "tests/tooling/gates/test_r10_repairs.py::TestSharpening",
       "counter_test": "tests/tooling/gates/test_r10_repairs.py::TestCounter",
+      "kind": "sharpening",
+      "rule_id": "absence_guards_in_gate_checkers",
+      "sharpening_test": "tests/tooling/gates/test_r10_repairs.py::TestSharpening",
+      "summary": "Rule R10 applied to the checkers themselves. Eleven gate checker walks normalised a missing declaration key into an empty iterable and reported success after walking nothing: rule-change fixtures, the violation corpus, committed acceptance artifacts, runtime evidence in the R3 review and in historical integrity, preservation invariants, id-migration mappings, historical resolution records, inherited merge blocks, generality process activation globs and provider term variants. Each site now fails or raises on absence; a present-but-empty declaration stays a legitimate, visible statement where the mode's contract allows it.",
       "violation_set_effect": "grows"
     },
     {
-      "change_id": "RC-025",
       "block_id": "b0e-test-hardening",
-      "rule_id": "ast_sweep_disposition_coverage",
-      "kind": "sharpening",
-      "summary": "Rules R9 and R10 as a standing sweep. The executable check corpus is derived mechanically (pytest testpaths, manifest wiring, entry scripts, import closure), both syntax tree sweeps run over it, and every candidate must carry exactly one committed disposition: detected candidates equal disposed candidates, an undisposed candidate fails, an orphaned disposition fails, an edited anchor breaks its binding loudly, a withdrawn scan input blocks instead of reading as an empty clean sweep, and every R9 mark_and_fix in a test file must be declared under the effect evidence convention.",
-      "sharpening_test": "tests/tooling/gates/test_ast_dispositions.py::TestTheComparison",
+      "change_id": "RC-025",
       "counter_test": "tests/tooling/gates/test_effect_evidence.py::TestTheCheckHasTeeth",
+      "kind": "sharpening",
+      "rule_id": "ast_sweep_disposition_coverage",
+      "sharpening_test": "tests/tooling/gates/test_ast_dispositions.py::TestTheComparison",
+      "summary": "Rules R9 and R10 as a standing sweep. The executable check corpus is derived mechanically (pytest testpaths, manifest wiring, entry scripts, import closure), both syntax tree sweeps run over it, and every candidate must carry exactly one committed disposition: detected candidates equal disposed candidates, an undisposed candidate fails, an orphaned disposition fails, an edited anchor breaks its binding loudly, a withdrawn scan input blocks instead of reading as an empty clean sweep, and every R9 mark_and_fix in a test file must be declared under the effect evidence convention.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0f-dispo-hardening",
       "change_id": "RC-026",
-      "block_id": "b0f-dispo-hardening",
-      "rule_id": "closed_exclusion_vocabulary_and_blind_sample",
-      "kind": "sharpening",
-      "summary": "Block B0f. An exclusion in the disposition register is carried by a category of a closed, machine-falsifiable vocabulary, never by free text: the schema-2 reader refuses missing or unknown categories, and every category's criterion is re-checked mechanically against the current candidate on every dispositions run (structural facts, neuter execution probes, key-deletion rejection probes). The exclusion population is additionally subject to a pre-declared, commit-bound, reproducible blind sample whose independent evaluations are digest-bound before unblinding; a rejected exclusion forces the re-examination of its whole category, never a single-case fix. Found live during the migration: four B0e exclusions were falsified by the execution probe (the tests stayed green with their injection neutralised) and were repaired like the B0e marks.",
-      "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestRegisterDiscipline",
       "counter_test": "tests/tooling/gates/test_b0f_sampling.py::TestReviewConsumption",
+      "kind": "sharpening",
+      "rule_id": "closed_exclusion_vocabulary_and_blind_sample",
+      "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestRegisterDiscipline",
+      "summary": "Block B0f. An exclusion in the disposition register is carried by a category of a closed, machine-falsifiable vocabulary, never by free text: the schema-2 reader refuses missing or unknown categories, and every category's criterion is re-checked mechanically against the current candidate on every dispositions run (structural facts, neuter execution probes, key-deletion rejection probes). The exclusion population is additionally subject to a pre-declared, commit-bound, reproducible blind sample whose independent evaluations are digest-bound before unblinding; a rejected exclusion forces the re-examination of its whole category, never a single-case fix. Found live during the migration: four B0e exclusions were falsified by the execution probe (the tests stayed green with their injection neutralised) and were repaired like the B0e marks.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0f-dispo-hardening",
       "change_id": "RC-027",
-      "block_id": "b0f-dispo-hardening",
-      "rule_id": "unreadable_primary_source_is_not_empty",
-      "kind": "sharpening",
-      "summary": "Rule R10, found by the B0f blind review (reject_exclusion on the adr_entries walk): a per-file read failure of an ADR primary source was normalised to an empty document, so two unreadable sides compared equal and could mask a real title collision symmetrically. adr_entries now returns None \u2014 the module's existing non-evidence protocol \u2014 when any listed source cannot be read; every consumer already turns None into a visible failure (adr_directory_unreadable, collision_primary_source_unreadable, citation_source_missing).",
-      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestUnreadableIsNotEmpty::test_an_unreadable_primary_source_yields_no_listing",
       "counter_test": "tests/tooling/gates/test_b0f_rereview.py::TestUnreadableIsNotEmpty::test_readable_sources_parse_exactly_as_before",
+      "kind": "sharpening",
+      "rule_id": "unreadable_primary_source_is_not_empty",
+      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestUnreadableIsNotEmpty::test_an_unreadable_primary_source_yields_no_listing",
+      "summary": "Rule R10, found by the B0f blind review (reject_exclusion on the adr_entries walk): a per-file read failure of an ADR primary source was normalised to an empty document, so two unreadable sides compared equal and could mask a real title collision symmetrically. adr_entries now returns None \u2014 the module's existing non-evidence protocol \u2014 when any listed source cannot be read; every consumer already turns None into a visible failure (adr_directory_unreadable, collision_primary_source_unreadable, citation_source_missing).",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0f-dispo-hardening",
       "change_id": "RC-028",
-      "block_id": "b0f-dispo-hardening",
-      "rule_id": "scope_reader_validates_declaration_entries",
-      "kind": "sharpening",
-      "summary": "Rule R4, found by the B0f category re-examination: the r10_required_key_prevalidated proof for the declared-identifier staleness walk held against the wrong key \u2014 the structural reader validated top-level fields only, while the walk consumes the per-entry paths key. The generality scope binding is now a callable reader (tools.gates.generality:load_scope_document) that validates the closed top-level field set and the per-entry shape of declared_identifiers, so a declaration cannot silently lose its paths key; a present-but-empty list stays a legitimate declaration.",
-      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestScopeReaderValidatesEntries::test_a_declaration_without_paths_is_rejected",
       "counter_test": "tests/tooling/gates/test_b0f_rereview.py::TestScopeReaderValidatesEntries::test_the_real_scope_document_is_accepted_unchanged",
+      "kind": "sharpening",
+      "rule_id": "scope_reader_validates_declaration_entries",
+      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestScopeReaderValidatesEntries::test_a_declaration_without_paths_is_rejected",
+      "summary": "Rule R4, found by the B0f category re-examination: the r10_required_key_prevalidated proof for the declared-identifier staleness walk held against the wrong key \u2014 the structural reader validated top-level fields only, while the walk consumes the per-entry paths key. The generality scope binding is now a callable reader (tools.gates.generality:load_scope_document) that validates the closed top-level field set and the per-entry shape of declared_identifiers, so a declaration cannot silently lose its paths key; a present-but-empty list stays a legitimate declaration.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0f-dispo-hardening",
       "change_id": "RC-029",
-      "block_id": "b0f-dispo-hardening",
-      "rule_id": "rereview_duty_derived_from_rejections",
-      "kind": "sharpening",
-      "summary": "Rule R10, found by the B0f category re-examination of its own gate: the category-wide re-review duty compared coverage against the record's self-declared affected categories, so a record naming an unknown or unpopulated category with an empty candidate list discharged the duty vacuously. The affected set is now derived from the rejected candidates themselves, unknown categories fail, a still-excluded rejected candidate's category must be covered, and an affected set whose expected coverage is empty fails as vacuous.",
-      "sharpening_test": "tests/tooling/gates/test_b0f_sampling.py::TestTheBlindGate::test_a_bogus_category_set_cannot_discharge_the_duty",
       "counter_test": "tests/tooling/gates/test_b0f_sampling.py::TestTheBlindGate::test_a_complete_category_rereview_satisfies_the_consequence",
+      "kind": "sharpening",
+      "rule_id": "rereview_duty_derived_from_rejections",
+      "sharpening_test": "tests/tooling/gates/test_b0f_sampling.py::TestTheBlindGate::test_a_bogus_category_set_cannot_discharge_the_duty",
+      "summary": "Rule R10, found by the B0f category re-examination of its own gate: the category-wide re-review duty compared coverage against the record's self-declared affected categories, so a record naming an unknown or unpopulated category with an empty candidate list discharged the duty vacuously. The affected set is now derived from the rejected candidates themselves, unknown categories fail, a still-excluded rejected candidate's category must be covered, and an affected set whose expected coverage is empty fails as vacuous.",
       "violation_set_effect": "grows"
     },
     {
+      "block_id": "b0f-dispo-hardening",
       "change_id": "RC-030",
-      "block_id": "b0f-dispo-hardening",
-      "rule_id": "excusal_validator_scans_all_uses",
-      "kind": "sharpening",
-      "summary": "Rule R10, found by the B0f category re-examination of its own validator: a cited consumer without any use of the excusal names was vetted vacuously, and a comprehension whose element expression mutates a judgment sink was normalised to an empty body and read as excusal. The validator now refuses use-free consumer citations and scans comprehension element expressions and ifs for sink mutators.",
-      "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_a_use_free_consumer_citation_is_refuted",
       "counter_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_excusal_only_flow_confirms_and_refutes",
+      "kind": "sharpening",
+      "rule_id": "excusal_validator_scans_all_uses",
+      "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_a_use_free_consumer_citation_is_refuted",
+      "summary": "Rule R10, found by the B0f category re-examination of its own validator: a cited consumer without any use of the excusal names was vetted vacuously, and a comprehension whose element expression mutates a judgment sink was normalised to an empty body and read as excusal. The validator now refuses use-free consumer citations and scans comprehension element expressions and ifs for sink mutators.",
       "violation_set_effect": "grows"
     },
     {
-      "change_id": "RC-031",
       "block_id": "b0f-dispo-hardening",
-      "rule_id": "anchor_declaration_is_not_optional",
-      "kind": "sharpening",
-      "summary": "Rule R10, found by the B0f blind review chain: the register's B0e repair entry for check_anchors prescribed that an absent gate-anchoring declaration must fail, but no commit implemented it \u2014 a K1 definition whose open gates were justified by re-anchoring would silently pass mode_gate_anchoring with the declaration deleted, and no test covered the gap. check_anchors now returns gate_anchoring_undeclared on an absent declaration or anchors key and anchor_set_empty_without_reason on an undeclared-empty set; a declared-empty set with a reason stays legitimate.",
-      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestAnchorDeclarationIsNotOptional::test_an_absent_declaration_is_a_problem",
+      "change_id": "RC-031",
       "counter_test": "tests/tooling/gates/test_b0f_rereview.py::TestAnchorDeclarationIsNotOptional::test_the_real_definition_still_passes",
+      "kind": "sharpening",
+      "rule_id": "anchor_declaration_is_not_optional",
+      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestAnchorDeclarationIsNotOptional::test_an_absent_declaration_is_a_problem",
+      "summary": "Rule R10, found by the B0f blind review chain: the register's B0e repair entry for check_anchors prescribed that an absent gate-anchoring declaration must fail, but no commit implemented it \u2014 a K1 definition whose open gates were justified by re-anchoring would silently pass mode_gate_anchoring with the declaration deleted, and no test covered the gap. check_anchors now returns gate_anchoring_undeclared on an absent declaration or anchors key and anchor_set_empty_without_reason on an undeclared-empty set; a declared-empty set with a reason stays legitimate.",
       "violation_set_effect": "grows"
     },
     {
-      "change_id": "RC-032",
       "block_id": "b0g-rule-codification",
-      "rule_id": "genesis_import_contract_is_writable",
-      "kind": "sharpening",
-      "summary": "Block B0g. The register model has always carried and validated the genesis import fields (import_note, original_file) and rejected them on normal events, but the CLI could not emit what its own reader demands, so a genesis import could not mark unprovable historical metadata as the import contract requires. The assign subcommand now accepts --import-note and --original-file with --genesis, and refuses them loudly on a normal event instead of silently dropping the caller's statement.",
-      "sharpening_test": "tests/tooling/governance/test_b0g_codification.py::TestGenesisImportContract::test_a_genesis_assign_carries_the_import_marking",
+      "change_id": "RC-032",
       "counter_test": "tests/tooling/governance/test_b0g_codification.py::TestGenesisImportContract::test_a_normal_event_cannot_smuggle_the_import_fields",
+      "kind": "sharpening",
+      "rule_id": "genesis_import_contract_is_writable",
+      "sharpening_test": "tests/tooling/governance/test_b0g_codification.py::TestGenesisImportContract::test_a_genesis_assign_carries_the_import_marking",
+      "summary": "Block B0g. The register model has always carried and validated the genesis import fields (import_note, original_file) and rejected them on normal events, but the CLI could not emit what its own reader demands, so a genesis import could not mark unprovable historical metadata as the import contract requires. The assign subcommand now accepts --import-note and --original-file with --genesis, and refuses them loudly on a normal event instead of silently dropping the caller's statement.",
       "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [
     {
-      "relaxation_id": "REL-001",
+      "abuse_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureDiscipline::test_no_repository_is_ever_created_inside_the_protected_repository",
       "change_id": "RC-011",
+      "owner_decision": "Owner decision of 2026-08-06. The two test rule forbids shrinking the violation set only outside declared fixtures; this relaxation lies inside one and is covered by that rule.",
+      "relaxation_id": "REL-001",
       "scope": "The declared fixture root .gate-runtime/fixtures/git of the current worktree, and only a throwaway bare repository below it.",
       "still_blocked": [
         "the real origin, by name and through any remote alias that resolves onto it",
@@ -370,61 +370,61 @@
         "a target that is not a bare repository",
         "a target that is, contains or lies inside the protected repository",
         "any command that is not a single unelevated segment without options"
-      ],
-      "owner_decision": "Owner decision of 2026-08-06. The two test rule forbids shrinking the violation set only outside declared fixtures; this relaxation lies inside one and is covered by that rule.",
-      "abuse_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureDiscipline::test_no_repository_is_ever_created_inside_the_protected_repository"
+      ]
     }
   ],
+  "description": "Normative Quelle: DEC-066 \u2014 Zwei-Test-Regel (docs/governance/decisions/DEC-066-zwei-test-regel.md). Dieses Aenderungsprotokoll fuehrt jede Regelaenderung mit ihrem Pflichtpaar und ihrer Verstossmengenwirkung; die Eintraege sind historische Aenderungsrecords (Korrektur statt Eingriff).",
   "fixtures": [
     {
+      "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_corpus_entries_are_never_executed",
       "path": "config/guard/violation-corpus.json",
-      "purpose": "Declared corpus for the violation set comparison. Every entry is a synthetic command string; none of them is ever executed.",
-      "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_corpus_entries_are_never_executed"
+      "purpose": "Declared corpus for the violation set comparison. Every entry is a synthetic command string; none of them is ever executed."
     },
     {
+      "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_tests_do_not_shadow_the_active_installation",
       "path": "tests/tooling/guard",
-      "purpose": "Guard tests. They run in throwaway temporary installations and never touch the active guard.",
-      "abuse_test": "tests/tooling/guard/test_rule_metagates.py::TestCorpus::test_tests_do_not_shadow_the_active_installation"
+      "purpose": "Guard tests. They run in throwaway temporary installations and never touch the active guard."
     },
     {
+      "abuse_test": "tests/tooling/gates/test_pii_variants.py::TestFixtureDiscipline::test_synthetic_values_only",
       "path": "tests/tooling/gates/test_pii_variants.py",
-      "purpose": "Declared PII fixtures. Every value is invented; the real account name is asserted absent at runtime and never written into the file.",
-      "abuse_test": "tests/tooling/gates/test_pii_variants.py::TestFixtureDiscipline::test_synthetic_values_only"
+      "purpose": "Declared PII fixtures. Every value is invented; the real account name is asserted absent at runtime and never written into the file."
     },
     {
+      "abuse_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_evidence_is_bound_to_a_committed_snapshot",
       "path": "config/gates/evidence",
-      "purpose": "Committed, PII checked snapshots of the historical gate evidence. They are data, never re-executed, and bound by hash.",
-      "abuse_test": "tests/tooling/gates/test_k1_definition.py::TestRuleR3::test_evidence_is_bound_to_a_committed_snapshot"
+      "purpose": "Committed, PII checked snapshots of the historical gate evidence. They are data, never re-executed, and bound by hash."
     },
     {
+      "abuse_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureDiscipline::test_no_repository_is_ever_created_inside_the_protected_repository",
       "path": "tests/tooling/guard/test_fixture_rule.py",
-      "purpose": "Declared fixture for the target bound release. Every repository lives below a fresh temporary directory; none is ever created inside the protected repository, and the declared root stays relative and below the gitignored runtime area.",
-      "abuse_test": "tests/tooling/guard/test_fixture_rule.py::TestFixtureDiscipline::test_no_repository_is_ever_created_inside_the_protected_repository"
+      "purpose": "Declared fixture for the target bound release. Every repository lives below a fresh temporary directory; none is ever created inside the protected repository, and the declared root stays relative and below the gitignored runtime area."
     },
     {
+      "abuse_test": "tests/tooling/gates/test_config_loaders.py::TestBindingsHoldForTheWorktree::test_the_binding_document_binds_itself",
       "path": "config/governance/config-loaders.json",
-      "purpose": "Declared binding of every configuration file to its authoritative reader. It binds itself too; rule R4 has no exception for its own declaration.",
-      "abuse_test": "tests/tooling/gates/test_config_loaders.py::TestBindingsHoldForTheWorktree::test_the_binding_document_binds_itself"
+      "purpose": "Declared binding of every configuration file to its authoritative reader. It binds itself too; rule R4 has no exception for its own declaration."
     },
     {
+      "abuse_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_the_two_commits_really_differ",
       "path": "tests/tooling/gates/test_expectations.py",
-      "purpose": "Declared fixture for rule R6. Every repository is a fresh temporary one built from copies of the guard sources; the protected repository is never committed to, and the two synthetic commits are asserted to really differ so the sharpening test cannot pass on a tie.",
-      "abuse_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_the_two_commits_really_differ"
+      "purpose": "Declared fixture for rule R6. Every repository is a fresh temporary one built from copies of the guard sources; the protected repository is never committed to, and the two synthetic commits are asserted to really differ so the sharpening test cannot pass on a tie."
     },
     {
+      "abuse_test": "tests/tooling/guard/test_exception_qualification.py::TestHistoricalObjects::test_no_test_writes_into_the_historical_area",
       "path": "tests/tooling/guard/test_exception_qualification.py",
-      "purpose": "Declared fixtures for the exception qualification. Every pending area is a throwaway directory below the gitignored runtime fixture root; the historical objects are hashed read only and copied byte identically, never linked and never re-activated.",
-      "abuse_test": "tests/tooling/guard/test_exception_qualification.py::TestHistoricalObjects::test_no_test_writes_into_the_historical_area"
+      "purpose": "Declared fixtures for the exception qualification. Every pending area is a throwaway directory below the gitignored runtime fixture root; the historical objects are hashed read only and copied byte identically, never linked and never re-activated."
     },
     {
+      "abuse_test": "tests/tooling/guard/test_manipulation_matrix.py::TestFixtureDiscipline::test_every_write_of_a_full_run_stayed_inside_the_fixture_area",
       "path": "config/guard/exception-manipulation-matrix.json",
-      "purpose": "The declared fixture and manipulation matrix. Every object is built by the guard's own build() inside a throwaway directory below the declared runtime fixture root; the historical evidence objects are never copied into a pending area and never re-sealed.",
-      "abuse_test": "tests/tooling/guard/test_manipulation_matrix.py::TestFixtureDiscipline::test_every_write_of_a_full_run_stayed_inside_the_fixture_area"
+      "purpose": "The declared fixture and manipulation matrix. Every object is built by the guard's own build() inside a throwaway directory below the declared runtime fixture root; the historical evidence objects are never copied into a pending area and never re-sealed."
     },
     {
+      "abuse_test": "tests/tooling/guard/test_collect_tool.py::TestCollectRefusesForTheSession::test_collect_refuses_without_root_and_writes_nothing",
       "path": "tests/tooling/guard/test_collect_tool.py",
-      "purpose": "Declared fixtures for the owner collection tool. Every installation is a throwaway directory built from the repository copy; no test touches the owner installed guard and no test runs as root.",
-      "abuse_test": "tests/tooling/guard/test_collect_tool.py::TestCollectRefusesForTheSession::test_collect_refuses_without_root_and_writes_nothing"
+      "purpose": "Declared fixtures for the owner collection tool. Every installation is a throwaway directory built from the repository copy; no test touches the owner installed guard and no test runs as root."
     }
-  ]
+  ],
+  "schema_version": 1
 }

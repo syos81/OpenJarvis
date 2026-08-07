@@ -88,3 +88,10 @@ verbleibende echte Blocker — ohne Spekulation
 
 Der Bericht ist kurz, konkret und deltaorientiert. Jede Aussage lässt sich auf
 eine der zulässigen Quellen zurückführen.
+
+## Normative Quelle
+
+Normativ: DEC-067 — Der Bericht ist Folge der Definition, nie ihre Schwester
+(`docs/governance/decisions/DEC-067-bericht-als-folge.md`). Dieser Skill ist
+das Durchsetzungsartefakt der Quellendisziplin; die Entscheidung selbst steht
+ausschließlich im DEC-Dokument.
