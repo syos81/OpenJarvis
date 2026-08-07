@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "kind": "correction_notes",
+  "block_id": "b0d-guard-hardening",
+  "recorded_at_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+  "principle": "A correction stands beside the statement it corrects. No earlier statement, commit message, handoff or evidence file is rewritten.",
+  "notes": [
+    {
+      "note_id": "B0D-N1",
+      "concerns": "A test that had stopped testing anything, and the rule that came out of it.",
+      "observed": "tests/tooling/guard/test_owner_exception.py broke an installed guard package by substituting the literal \"1.0.0\" in rules.json and then asserted that the guard denied the request with GUARD_PACKAGE_HASH_MISMATCH. When config_version moved to 1.1.0 the literal was no longer in the file. The substitution became a no-op, the package stayed intact, and the guard denied for an entirely different and entirely correct reason. The test kept passing.",
+      "why_nothing_noticed": "A passing test looks the same whether it tested something or not. No coverage measure, no lint and no review step distinguishes the two, because the defect is not in what the test asserts but in what it failed to do before asserting.",
+      "what_changed": "The mutation is now structural — a byte is appended — and the first assertion of the test compares the file's bytes against the bytes read before the write. The repair itself was made in the first position of this block; this note records what it was a case of.",
+      "rule": "R9",
+      "rule_statement": "A test whose statement rests on a deliberate mutation, disturbance, corruption or withdrawal must mechanically evidence, before its actual expectation, that the effect really occurred. If the effect fails to occur the test fails, not its subject. Ordinary preparation steps are not meant.",
+      "enforcement": "config/governance/effect-evidence.json, enforced by of-effect-evidence over the syntax tree: the first assertion of a declared function must be the declared effect assertion, so an assertion that moved below the expectation fails even while the test still passes.",
+      "scope_limit": "The declaration covers the seven functions this block introduced or repaired. A review of the whole existing test corpus for tests of the same construction is deliberately not part of this block and is a separate test hardening step after it. The check reports that deferral on every run, so the limited scope is never mistaken for a corpus wide statement.",
+      "not_claimed": "It is not claimed that the corpus is free of tests of this construction. Nothing has been examined beyond the listed functions."
+    },
+    {
+      "note_id": "B0D-N2",
+      "concerns": "The recording of ignored exception objects, as described in the first position of this block.",
+      "observed": "The first position stated that an expired or version foreign object 'is recorded instead'. In the library that was true: decide() built the observations and entry.run() accepted an observation directory. In the installed guard it was not. The process entry, which is what the bootstrap actually calls, took no such parameter, and the bootstrap named no directory. Every observation was therefore built and discarded, and the area was never created by the installer either.",
+      "why_nothing_noticed": "The tests exercised entry.run() directly and passed a directory themselves, so the parameter was covered everywhere except at the one joint where it was missing. A parameter only the library entry point accepts is a parameter the running guard never uses.",
+      "what_changed": "The process entry accepts the directory and threads it through, the bootstrap names var/observed, and the installer creates that area with the same append only rights as the protected protocol. of-observed-wiring checks both joints and the no-op behaviour of a missing directory.",
+      "correction_to": "The statement in the first position's commit message that ignored objects are recorded. It was true of the library and not of the installed guard until this position.",
+      "not_a_decision_defect": "No decision was ever wrong because of this. The recording carries no decision weight by construction, so its absence changed nothing about what the guard allowed or denied — it only meant the traces were not kept.",
+      "effective_when": "Recording begins when the owner activates the candidate. Until then the area does not exist and recording stays a no-op, which is the documented behaviour and not a failure."
+    },
+    {
+      "note_id": "B0D-N3",
+      "concerns": "The expectation value published for the guard activation of this block.",
+      "observed": "A package hash derived at commit d3f9337 was in circulation for this block's activation. The runtime package changed after that commit, because the process entry gained the observation directory, so that value no longer belongs to the package being activated.",
+      "what_changed": "The value was derived again from the actual acceptance commit 5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a, twice and independently — once along the installer's own path and once through the R6 engine — and only the newly derived value was published. The earlier value was not carried forward.",
+      "rule": "R6",
+      "why_it_matters_here": "This is the second block in which a value derived at one commit was available to be published for another. The first time it was published and the owner's dry run refused it. Re-deriving is not a formality: the two values genuinely differ, so passing the old one on would have produced exactly the same refusal again.",
+      "recorded_expectation": "EXP-002-guard-package-b0d-acceptance in config/governance/owner-expectations.json, re-derived from the commit object by of-owner-expectations on every run."
+    }
+  ]
+}

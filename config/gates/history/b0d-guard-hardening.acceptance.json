@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "kind": "historical_acceptance",
+  "block_id": "b0d-guard-hardening",
+  "title": "B0d guard hardening: exception qualification, the owner collection tool, the manipulation matrix and rule R9",
+  "acceptance_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+  "immutable_refs": {
+    "block_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+    "block_start_commit": "f3dd0f48b2896acc6df789f4ae775021a924cda8",
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "2c571423e900b38a7a3f550a79af719ab8b57dd9"
+  },
+  "gate_engine_version": "1.0.0",
+  "manifest_schema_version": 1,
+  "feature_schema_version": 1,
+  "own_feature_prefix": "B0D-",
+  "own_feature_count": 43,
+  "external_inputs": [],
+  "environment": {
+    "system": "Darwin",
+    "architecture": "x86_64",
+    "min_python": "3.10"
+  },
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. No phase was declared not_applicable, no result was interpreted and no manual run replaced a gate.",
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail",
+    "runtime_evidence_present_and_changed": "fail",
+    "rationale": "The bound evidence is a committed snapshot, so it is always present and always reproducible. Absence is therefore a failure, not a declared not_applicable."
+  },
+  "evidence_binding_note": "The sanitised phase results are committed beside this record, so the binding survives a later re-run of the same block. Raw logs stay in the gitignored runtime area and are never committed or quoted. The bound artifacts are the state at the acceptance commit; records written in the determinative commit that follows are bound by this record's own presence, not listed as artifacts of a commit they did not yet exist in.",
+  "committed_artifacts": [
+    {
+      "path": "config/gates/blocks/b0d-guard-hardening.json",
+      "blob_sha256": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc"
+    },
+    {
+      "path": "config/gates/features/b0d-guard-hardening.lineage.json",
+      "blob_sha256": "a0370c7afa0a89c8efb01f56b5599f54aa06929e3daddf2c39f8cb9308f68844"
+    },
+    {
+      "path": "config/gates/history/b0d-commit-plan.json",
+      "blob_sha256": "61f102f8e862ef37eb6f3e2a92cdd4b92ba26ea8af8c08b54bbc28ebc7775e35"
+    },
+    {
+      "path": "config/gates/history/b0d-historical-exception-objects.json",
+      "blob_sha256": "f03ca89d79e104fd0d3fb3dfb056e32825f08ba1becd50bb1acdc9190c006aea"
+    },
+    {
+      "path": "config/governance/config-loaders.json",
+      "blob_sha256": "099a02af966ca6108c64d4908736dd04f33bab07688cedaf77b5bdb4d6b7aed9"
+    },
+    {
+      "path": "config/governance/effect-evidence.json",
+      "blob_sha256": "8ba26991c27e200e899d00a8e29a2dcb405d4764ff27514d0263fc08437353d8"
+    },
+    {
+      "path": "config/governance/field-binding.json",
+      "blob_sha256": "cde83722ba4bc5d95505607a58a8ae15db3681d907047aa3cf8855bde1bd6c69"
+    },
+    {
+      "path": "config/governance/guard-trust-model.json",
+      "blob_sha256": "0ed6f43ca67a4d47ea10d2314d5a2982d3952cde8c08c73b19c4962a66430d6f"
+    },
+    {
+      "path": "config/governance/owner-expectations.json",
+      "blob_sha256": "b25d1d501072f06c91145750f067141ceefd7396086db587dde1b1d546a669c3"
+    },
+    {
+      "path": "config/guard/exception-manipulation-matrix.json",
+      "blob_sha256": "0f5dbeaf791b23f59f1ed3cf042e81e1a9ec7d2d79153b3e51a2dffef0a97508"
+    },
+    {
+      "path": "config/guard/rule-changes.json",
+      "blob_sha256": "b655867c3443053cbd43136490a356384b6f2fbf17f285719331275915f54a5b"
+    }
+  ],
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/preflight.json",
+      "phase": "preflight",
+      "sha256": "40eeec031da5f11fe6ba3efe18889e130d4e6cf76da8e8760ac12bde4f9dafab",
+      "recorded_status": "pass",
+      "recorded_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/targeted.json",
+      "phase": "targeted",
+      "sha256": "5c9cf280a770efea4c576fa61123236affbc44d8248edc54172c57fa0ce4c2d3",
+      "recorded_status": "pass",
+      "recorded_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/offline-final.json",
+      "phase": "offline-final",
+      "sha256": "c4258d264184ba154f06d7fc82c840729e40d034c087cd6c2d99cd31816875c9",
+      "recorded_status": "pass",
+      "recorded_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/platform-live.json",
+      "phase": "platform-live",
+      "sha256": "653585db2b732ab56e138202330513930fb59e23637f3bc34903109ce952788a",
+      "recorded_status": "pass",
+      "recorded_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    },
+    {
+      "path": "config/gates/evidence/b0d-guard-hardening/module-final.json",
+      "phase": "module-final",
+      "sha256": "7344747a3005a4ce24b3c314c4ba84528d20a8f9d9da594a339e487923bb44e0",
+      "recorded_status": "pass",
+      "recorded_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+      "recorded_manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+      "recorded_engine_version": "1.0.0",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "scope": "committed_snapshot"
+    }
+  ],
+  "phase_results": {
+    "preflight": {
+      "status": "pass",
+      "checks": 12,
+      "run_id": "7ada701ba7b7e87d131a4874e4d69e0c",
+      "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc"
+    },
+    "targeted": {
+      "status": "pass",
+      "checks": 10,
+      "run_id": "24860bc39de2ec10b55a72e102af22bf",
+      "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc"
+    },
+    "offline-final": {
+      "status": "pass",
+      "checks": 32,
+      "run_id": "f5794648ba9234bff8768acdb98a98b2",
+      "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc"
+    },
+    "platform-live": {
+      "status": "pass",
+      "checks": 5,
+      "run_id": "aad2aa855cccd6a4e588e66263dbcb36",
+      "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc"
+    },
+    "module-final": {
+      "status": "pass",
+      "checks": 4,
+      "run_id": "93cb18cb6fa85cec07cc99e3d57fcb3a",
+      "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc"
+    }
+  },
+  "block_scope": {
+    "normative_commits": [
+      "d3f9337462aafc9be65498b4d49ed3748f001285",
+      "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a"
+    ],
+    "determinative_commit": "the commit that carries this record",
+    "note": "The five phase acceptance run was made against the last normative commit, with a clean working tree. The determinative commit adds records only \u2014 evidence, this record, the correction notes, the expectation entry, the handoff and the own features that describe them. Targeted and offline-final were run again after those records were written and stayed pass; that supplementary run is stated here rather than replacing the bound evidence."
+  },
+  "guard_activation": {
+    "guard_version": "1.2.0",
+    "source_commit": "f3dd0f48b2896acc6df789f4ae775021a924cda8",
+    "package_sha256": "249743e9a9eecaebe403abaa92b1783179ac9c7ffd9e57c70d310881859a2d7b",
+    "performed_by": "owner",
+    "verified": true,
+    "candidate_version": "1.3.0",
+    "candidate_is_active": false,
+    "candidate_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+    "candidate_package_sha256": "a775a30f4f0ce88b7ad2aff939222b650d5260b3d920f423755630e9cf212db4",
+    "note": "The block was accepted against the guard version that is actually active. No manifest passes an expected version, the platform-live modes work on what is installed, and the offline runners are subprocesses the PreToolUse hook never sees. Activation is therefore a consequence of this acceptance, not its condition, and is an owner action after the block."
+  },
+  "documented_limitations": [
+    "The owner collection tool refuses against the active guard 1.2.0, because that version has no qualification layer and the tool will not describe a guard in words it does not have. Every gate check uses the repository copy and states that source in its report. This resolves on activation.",
+    "The recording of ignored objects begins on activation. Until then the observation area does not exist and recording is a no-op, which is the documented behaviour.",
+    "mf-evidence and mf-phase-results aggregated an empty set during the acceptance run, because the evidence of this block is committed in the determinative commit that follows it. They are meaningful for a later re-run, not for this one.",
+    "The R9 declaration covers the seven functions this block introduced or repaired. The corpus wide review is deferred to a separate test hardening step and is not claimed here.",
+    "The product guard declaration is unchanged from B0c: allowed_paths is a single wildcard, because the examined range starts at the line origin and that range already touches product paths from before this line of work. The statement that this block changed no product code rests on the block delta, not on that declaration."
+  ]
+}

@@ -468,6 +468,22 @@
       ]
     },
     {
+      "binding_id": "history-b0d-corrections",
+      "expectation": "accepted",
+      "kind": "structural",
+      "optional_fields": [],
+      "pattern": "config/gates/history/b0d-corrections.json",
+      "reason": "The correction notes that stand beside the statements they correct; the declared field set is its accepting reader.",
+      "required_fields": [
+        "block_id",
+        "kind",
+        "notes",
+        "principle",
+        "recorded_at_commit",
+        "schema_version"
+      ]
+    },
+    {
       "binding_id": "history-b0d-exception-objects",
       "expectation": "accepted",
       "kind": "structural",

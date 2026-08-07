@@ -1,0 +1,43 @@
+{
+  "baseline_commit": null,
+  "block": "b0d-guard-hardening",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "tg-claim-lint",
+    "tg-collect-tool",
+    "tg-config-loaders",
+    "tg-effect-evidence",
+    "tg-guard-tests",
+    "tg-historical-objects",
+    "tg-manipulation-matrix",
+    "tg-observed-wiring",
+    "tg-owner-expectations",
+    "tg-rule-changes"
+  ],
+  "commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-07T11:01:59Z",
+  "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+  "phase": "targeted",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "128b840e2de67ab4a1a9405d24271acf96ad238d2c2649b21b7bb4ee8e8db801",
+    "1b67bffa18b70433ae1559e2a5f9561aa3093755fadc4f06034abf85a447c8b6",
+    "31a19501ab5aedf2399901cfd8916a1a6043b6de726abb53f96bf1f40fe766ee",
+    "342f673fa525e24376db6a0afd93a3b4959ba7506d7ecc62661d39a9db09504e",
+    "5011b227af168dd12e1bcb54cdf590a49b83000347b81b243e644e5374deee29",
+    "77e0cbc217135b34a9c0321ca7fbc101340d9dafbcb873ed55746628d0113bbb",
+    "92be404a7e0212fdd6069679db55d58eeb3c74d9d26e33a9db780b94ff572113",
+    "c4837c14acc29e73bd2e981333136441fc4f6c41083f0a2ffa82dd559a3a8e5e",
+    "d3bc02e8588a99191010642c685e066ac55ef10840322821eed4cfb0acfc6ae4",
+    "f6e5524147828a633c8dee266dc31387826d1d858d20bcfe4e4c0d19cf98c2dc"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "24860bc39de2ec10b55a72e102af22bf",
+  "schema_version": 1,
+  "started_at": "2026-08-07T11:01:47Z",
+  "status": "pass"
+}

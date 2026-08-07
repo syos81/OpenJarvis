@@ -12,6 +12,15 @@
       "value": "249743e9a9eecaebe403abaa92b1783179ac9c7ffd9e57c70d310881859a2d7b",
       "derivation": "git archive <commit> is unpacked into a scratch tree and tools/guardpkg/build.py --source <tree> is run against it; the reported package_sha256 is the value. Built from the commit object, never from a worktree.",
       "published_at_commit": "a4a6e7f1154d539eb1281868a48f41d3de4926cd"
+    },
+    {
+      "expectation_id": "EXP-002-guard-package-b0d-acceptance",
+      "owner_action": "guard activation via scripts/guard-install.sh",
+      "artifact": "guard_runtime_package",
+      "commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+      "value": "a775a30f4f0ce88b7ad2aff939222b650d5260b3d920f423755630e9cf212db4",
+      "derivation": "git archive <commit> is unpacked into a scratch tree and tools/guardpkg/build.py --source <tree> is run against it; the reported package_sha256 is the value. Built from the commit object, never from a worktree. Derived twice independently at that commit, once along the installer's own path and once through this engine, with the same result.",
+      "published_at_commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a"
     }
   ]
 }

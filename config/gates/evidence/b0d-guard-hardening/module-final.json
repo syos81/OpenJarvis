@@ -1,0 +1,31 @@
+{
+  "baseline_commit": null,
+  "block": "b0d-guard-hardening",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "mf-evidence",
+    "mf-feature-lineage",
+    "mf-phase-results",
+    "mf-preservation"
+  ],
+  "commit": "5fe885a7dca7a1e7f9e82f26e24f0a7c41b1635a",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-07T11:05:53Z",
+  "manifest_digest": "56333c879702b53a37f611c8a7232c2af3331ac1467563cadd69633da7b250fc",
+  "phase": "module-final",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "2039eb491c46e65d0c10059db115d5dd4d9cbf9359c81538afd0e17cb074d36b",
+    "c460cc51cab3024d83716c1be1f04f5ab0ede39b43d40b4b4023d6d248e54802"
+  ],
+  "reason_codes": [
+    "check_passed",
+    "evidence_complete",
+    "phase_results_consistent"
+  ],
+  "run_id": "93cb18cb6fa85cec07cc99e3d57fcb3a",
+  "schema_version": 1,
+  "started_at": "2026-08-07T11:05:52Z",
+  "status": "pass"
+}
