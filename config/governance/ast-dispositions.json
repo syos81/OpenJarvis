@@ -22,7 +22,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "7455302beebcd46d7b9cd5b00327a8af8046d1ae6522322332132d47de4fa21d",
+      "source_digest": "a380bed62bd4b29179838d282b065178160e8608e77b73b34a7e2529d5e8e31f",
       "unit": "mode_method"
     },
     {
@@ -45,7 +45,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
     },
     {
@@ -69,7 +69,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
     },
     {
@@ -190,7 +190,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
     },
     {
@@ -278,7 +278,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "verify_resolution"
     },
     {
@@ -344,9 +344,9 @@
       "candidate_id": "r10-2a700cef8a3947f8",
       "category": "r10_emptiness_fails_closed",
       "category_proof": {
-        "mechanism": "equality_pin",
+        "mechanism": "guard",
         "names": [
-          "covered"
+          "expected"
         ]
       },
       "disposition": "exclude_with_reason",
@@ -354,11 +354,11 @@
       "fingerprint": "f40c8e49a2132760995a7de6",
       "lineno": 210,
       "occurrence": 0,
-      "reason": "Self-application: the re-review coverage set is pinned by equality against the register-derived expected set; an empty or partial walk mismatches and appends category_rereview_incomplete, so a single-case fix can never satisfy the category-wide duty.",
+      "reason": "Re-decided after the RC-029 closure: the coverage comparison is now guarded \u2014 an affected set whose expected coverage is empty fails as category_rereview_vacuous, and the affected set itself is derived from the digest-bound reviews, so the equality can no longer be discharged vacuously.",
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "7455302beebcd46d7b9cd5b00327a8af8046d1ae6522322332132d47de4fa21d",
+      "source_digest": "a380bed62bd4b29179838d282b065178160e8608e77b73b34a7e2529d5e8e31f",
       "unit": "mode_blind"
     },
     {
@@ -446,7 +446,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
     },
     {
@@ -583,7 +583,9 @@
       "category_proof": {
         "document": "config/governance/generality-scope.json",
         "key_path": [
-          "declared_identifiers"
+          "declared_identifiers",
+          0,
+          "paths"
         ]
       },
       "disposition": "exclude_with_reason",
@@ -595,7 +597,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "d8407e857406c3ec83eb6538eaf8152809de4666ebfae11e2250bdca6b1ee224",
+      "source_digest": "143d940a3ba8c3b7b4d670069fbd4de9b2bed014f5d0bc3d7376502423ecb404",
       "unit": "check_declared_identifiers"
     },
     {
@@ -759,7 +761,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "normative_exclusions"
     },
     {
@@ -942,8 +944,32 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
+    },
+    {
+      "ast_class": "Call",
+      "candidate_class": "vacuous_quantifier",
+      "candidate_id": "r10-7c202cf2b2d55861",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "names",
+          "consumers"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "657df57a61572c9e1f2d0931",
+      "lineno": 1017,
+      "occurrence": 0,
+      "reason": "Self-application: proof names and consumer citations are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, and a use-free consumer citation is refused rather than vetted vacuously.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
+      "unit": "_check_excusal_only_flow"
     },
     {
       "ast_class": "For",
@@ -965,7 +991,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_document_consistency"
     },
     {
@@ -987,6 +1013,30 @@
       "unit": "mode_not_applicable_review"
     },
     {
+      "ast_class": "ListComp",
+      "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-88b74e1dd945df79",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "names",
+          "consumers"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "7bf7ac9f25b044bdff70fde8",
+      "lineno": 964,
+      "occurrence": 0,
+      "reason": "Self-application: proof names and consumer citations are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, and a use-free consumer citation is refused rather than vetted vacuously.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
+      "unit": "_check_excusal_only_flow"
+    },
+    {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-890c9af7dc0415ee",
@@ -1006,7 +1056,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "7455302beebcd46d7b9cd5b00327a8af8046d1ae6522322332132d47de4fa21d",
+      "source_digest": "a380bed62bd4b29179838d282b065178160e8608e77b73b34a7e2529d5e8e31f",
       "unit": "mode_blind"
     },
     {
@@ -1038,6 +1088,30 @@
     {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-8ad961f07e96b8b3",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "names",
+          "consumers"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/astcat.py",
+      "fingerprint": "747d54fa5304609ff5806034",
+      "lineno": 958,
+      "occurrence": 0,
+      "reason": "Self-application: proof names and consumer citations are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, and a use-free consumer citation is refused rather than vetted vacuously.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
+      "unit": "_check_excusal_only_flow"
+    },
+    {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-8c0291a7f473ecc8",
       "category": "r10_required_key_prevalidated",
       "category_proof": {
@@ -1062,24 +1136,18 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-8fb5b0da8400535d",
-      "category": "r10_emptiness_fails_closed",
-      "category_proof": {
-        "mechanism": "guard",
-        "names": [
-          "names",
-          "consumers"
-        ]
-      },
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "repair",
       "file": "tools/gates/astcat.py",
       "fingerprint": "00195ea209039f69742f2e8c",
       "lineno": 924,
       "occurrence": 0,
-      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "The anchored use-walk was restructured by the RC-030 closure of the excusal validator; the successor anchors carry their own confirmed dispositions.",
+      "repair_note": "Superseded by the RC-030 rewrite (use-free consumer citations refused); successor anchors r10-88b74e1dd945df79 and r10-8ad961f07e96b8b3.",
+      "resolved_by_removal": true,
       "rule": "R10",
-      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
       "unit": "_check_excusal_only_flow"
     },
     {
@@ -1102,7 +1170,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_document_consistency"
     },
     {
@@ -1154,6 +1222,29 @@
     {
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-9868049eea65fce3",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "guard",
+        "names": [
+          "reviews"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/runners/b0f_checks.py",
+      "fingerprint": "42ebf2611e44d484e39abd78",
+      "lineno": 223,
+      "occurrence": 0,
+      "reason": "Self-application: an absent or empty review list is guarded explicitly \u2014 the mode returns blocked before any walk, and the one-to-one consumption check fails every missing review id.",
+      "repair_note": "",
+      "resolved_by_removal": false,
+      "rule": "R10",
+      "source_digest": "a380bed62bd4b29179838d282b065178160e8608e77b73b34a7e2529d5e8e31f",
+      "unit": "mode_blind"
+    },
+    {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-99ae6c8c24aa91c5",
       "category": "r10_runtime_emptyset_guarded",
       "category_proof": {
@@ -1194,7 +1285,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
       "unit": "_check_conditional_import_target"
     },
     {
@@ -1212,7 +1303,7 @@
       "repair_note": "In tools/gates/generality.py process_paths_present: detect key absence explicitly - e.g. 'missing = [k for k in (\"schema_globs\",\"route_globs\",\"core_globs\") if k not in activation]' and raise/return a non-success marker, or use activation[key] so absence cannot be walked as emptiness; then have mode_configuration_test turn that into a failure entry (code 'process_activation_key_missing', category 'configuration') before the state is used. Present-but-empty lists stay legitimate.",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "d8407e857406c3ec83eb6538eaf8152809de4666ebfae11e2250bdca6b1ee224",
+      "source_digest": "143d940a3ba8c3b7b4d670069fbd4de9b2bed014f5d0bc3d7376502423ecb404",
       "unit": "process_paths_present"
     },
     {
@@ -1235,7 +1326,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "d8407e857406c3ec83eb6538eaf8152809de4666ebfae11e2250bdca6b1ee224",
+      "source_digest": "143d940a3ba8c3b7b4d670069fbd4de9b2bed014f5d0bc3d7376502423ecb404",
       "unit": "check_declared_identifiers"
     },
     {
@@ -1267,7 +1358,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "d8407e857406c3ec83eb6538eaf8152809de4666ebfae11e2250bdca6b1ee224",
+      "source_digest": "143d940a3ba8c3b7b4d670069fbd4de9b2bed014f5d0bc3d7376502423ecb404",
       "unit": "declared_identifier_masks"
     },
     {
@@ -1331,7 +1422,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "verify_resolution"
     },
     {
@@ -1377,7 +1468,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
     },
     {
@@ -1537,7 +1628,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
       "unit": "_check_conditional_import_target"
     },
     {
@@ -1577,24 +1668,18 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-ce53f65dd06bef0c",
-      "category": "r10_emptiness_fails_closed",
-      "category_proof": {
-        "mechanism": "guard",
-        "names": [
-          "names",
-          "consumers"
-        ]
-      },
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "repair",
       "file": "tools/gates/astcat.py",
       "fingerprint": "1e694a3d651cbdfa91a20573",
       "lineno": 928,
       "occurrence": 0,
-      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "Found by the B0f category re-examination of the tooling itself: the anchored walk could be discharged vacuously.",
+      "repair_note": "the excusal validator refuses use-free consumer citations (RC-030).",
+      "resolved_by_removal": true,
       "rule": "R10",
-      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
       "unit": "_check_excusal_only_flow"
     },
     {
@@ -1619,27 +1704,18 @@
       "ast_class": "For",
       "candidate_class": "empty_default_iteration",
       "candidate_id": "r10-d15d6d0800e94c75",
-      "category": "r10_emptiness_fails_closed",
-      "category_proof": {
-        "mechanism": "equality_pin",
-        "names": [
-          "found"
-        ],
-        "site": {
-          "file": "tools/gates/governance.py",
-          "unit": "verify_resolution"
-        }
-      },
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "repair",
       "file": "tools/gates/governance.py",
       "fingerprint": "edb696632e7bd615a5985cba",
       "lineno": 139,
       "occurrence": 0,
-      "reason": "tools/gates/governance.py:137-139: git_file(...) or '' maps an unreadable ADR body to h1 == '', and every downstream judgement compares h1 against an expected non-empty title (verify_collision_sides:229, verify_resolution:69, mode_citations:234), where '' produces collision_title_mismatch/renumbered_title_mismatch/citation_title_mismatch failures, never a pass; the listing the loop walks comes from glob/ls-tree of the same commit, so the path is known to exist and the '' case cannot silently stand in for a missing file.",
-      "repair_note": "",
-      "resolved_by_removal": false,
+      "reason": "Rejected by the B0f blind review and confirmed on re-examination: the per-file or-empty normalisation let two unreadable primary sources compare equal, masking a possible title collision symmetrically.",
+      "repair_note": "adr_entries returns None when any listed source cannot be read, the module's existing non-evidence protocol; pair RC-027 in tests/tooling/gates/test_b0f_rereview.py.",
+      "resolved_by_removal": true,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "adr_entries"
     },
     {
@@ -1669,25 +1745,42 @@
       "ast_class": "Call",
       "candidate_class": "vacuous_quantifier",
       "candidate_id": "r10-df2aeb044ec5c2be",
-      "category": "r10_emptiness_fails_closed",
-      "category_proof": {
-        "mechanism": "guard",
-        "names": [
-          "names",
-          "consumers"
-        ]
-      },
-      "disposition": "exclude_with_reason",
+      "category": "",
+      "category_proof": {},
+      "disposition": "repair",
       "file": "tools/gates/astcat.py",
       "fingerprint": "99ff4d78bff26e1386edb52e",
       "lineno": 966,
       "occurrence": 0,
-      "reason": "Self-application: the proof parameters are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, so no category can be confirmed on missing evidence.",
+      "reason": "Found by the B0f category re-examination of the tooling itself: the anchored walk could be discharged vacuously.",
+      "repair_note": "the excusal validator scans comprehension element expressions and ifs for sink mutators (RC-030).",
+      "resolved_by_removal": true,
+      "rule": "R10",
+      "source_digest": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
+      "unit": "_check_excusal_only_flow"
+    },
+    {
+      "ast_class": "For",
+      "candidate_class": "empty_default_iteration",
+      "candidate_id": "r10-e2b30f678662f4ca",
+      "category": "r10_emptiness_fails_closed",
+      "category_proof": {
+        "mechanism": "empty_yields_failure",
+        "names": [
+          "affected"
+        ]
+      },
+      "disposition": "exclude_with_reason",
+      "file": "tools/gates/runners/b0f_checks.py",
+      "fingerprint": "6bbc403edc49e4292db4956d",
+      "lineno": 239,
+      "occurrence": 0,
+      "reason": "Self-application: an empty affected set cannot discharge the duty \u2014 every rejected candidate's category membership test against it fails and appends rejected_category_not_covered, and a non-empty affected set without expected coverage fails as vacuous.",
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "fff5af7d3139bc6d177830af73b3170c8ab357f0ddae4b3ee5e13b6f6c9bc5cb",
-      "unit": "_check_excusal_only_flow"
+      "source_digest": "a380bed62bd4b29179838d282b065178160e8608e77b73b34a7e2529d5e8e31f",
+      "unit": "mode_blind"
     },
     {
       "ast_class": "For",
@@ -1843,7 +1936,7 @@
       "repair_note": "",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "8023b14aa9a28a3e49ea4d1ae716e671dccb22ff48f2d9f51fd23c8a7304d363",
+      "source_digest": "a266c47f40a3794b9787be20db3278258b4b262b9ffcaedb52fc6c1a4368061c",
       "unit": "check_delivery_order"
     },
     {
@@ -1861,7 +1954,7 @@
       "repair_note": "In tools/gates/runners/generality_checks.py mode_literal_comparisons: after building provider_values, emit a failure (e.g. code 'provider_term_without_variants', category 'literal_comparison') when scope['provider_terms'] is non-empty but provider_values is empty (or when any active provider term has no variants), before running find_literal_comparisons. Alternatively have find_literal_comparisons distinguish provider_values=None (feature off by explicit caller choice) from a supplied empty list and refuse the latter. First check to add: assert/require non-empty provider_values against the independently counted provider_terms.",
       "resolved_by_removal": false,
       "rule": "R10",
-      "source_digest": "d8407e857406c3ec83eb6538eaf8152809de4666ebfae11e2250bdca6b1ee224",
+      "source_digest": "143d940a3ba8c3b7b4d670069fbd4de9b2bed014f5d0bc3d7376502423ecb404",
       "unit": "find_literal_comparisons"
     },
     {

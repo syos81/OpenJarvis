@@ -20,11 +20,20 @@
     },
     {
       "position": 3,
+      "purpose": "purely normative consequence of blind round 1 (6 reject_exclusion) and the category-wide re-examination: the adr_entries unreadable-is-not-empty repair (RC-027), the strengthened generality scope reader with the corrected key-deletion proof (RC-028), the closure of the re-review coverage duty (RC-029) and of the excusal validator (RC-030), the clarified blind verdict semantics, the register re-dispositions, and the R4 bindings for the record files that now exist in the worktree",
+      "message": "fix(gates): close the vacuity paths the category re-examination found",
+      "correction": {
+        "found_during": "blind review round 1 and the category-wide re-examination against position 2",
+        "rule": "a normative error found during determination gets a new normative commit, a machine readable justification and a complete fresh run; the sample is redrawn against the new normative state; no amend"
+      }
+    },
+    {
+      "position": 4,
       "purpose": "purely determinative: the drawn sample record, the validated blind dataset, the stored independent evaluations, the unblinding comparison, the correction notes against the B0e control values, gate evidence, acceptance record and handoff \u2014 together with the R4 bindings for exactly these record files, following the B0d precedent that record bindings land with their records",
       "message": "test(gates): finalize b0f sample, blind review, evidence and handoff"
     }
   ],
-  "max_commits": 3,
+  "max_commits": 4,
   "forbidden_operations": [
     "commit --amend",
     "rebase",

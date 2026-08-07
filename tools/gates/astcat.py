@@ -921,6 +921,22 @@ def _check_emptiness_fails_closed(root, entry, proof):
     return "mechanism_unknown"
 
 
+def _comprehension_parent(unit, generator):
+    """The comprehension node owning this generator, if any."""
+    for node in ast.walk(unit.node):
+        if isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ) and any(candidate is generator for candidate in node.generators):
+            return node
+    return None
+
+
+def _comprehension_elements(node):
+    if isinstance(node, ast.DictComp):
+        return [node.key, node.value]
+    return [node.elt]
+
+
 _EXCUSAL_CALLS = ("sub", "union", "update", "difference", "get", "escape")
 _FOREIGN_MUTATORS = (
     "remove",
@@ -943,9 +959,16 @@ def _check_excusal_only_flow(root, entry, proof):
         unit = _resolve_unit(root, site)
         if unit is None:
             return "proof_site_unresolved"
-        for use in _name_uses(unit, names):
-            if isinstance(use.ctx, ast.Store):
-                continue
+        # Rule R10 for this validator itself (B0f re-examination): a cited
+        # consumer that never uses the names would be vetted vacuously.
+        load_uses = [
+            use
+            for use in _name_uses(unit, names)
+            if not isinstance(use.ctx, ast.Store)
+        ]
+        if not load_uses:
+            return "excusal_name_unused_in_consumer"
+        for use in load_uses:
             allowed = False
             for node in ast.walk(unit.node):
                 if isinstance(node, ast.Compare) and any(
@@ -980,14 +1003,24 @@ def _check_excusal_only_flow(root, entry, proof):
                                     for name_node in ast.walk(argument):
                                         if isinstance(name_node, ast.Name):
                                             sinks.add(name_node.id)
-                        body = node.body if isinstance(node, ast.For) else []
+                        # B0f re-examination: a comprehension's mutation
+                        # lives in its element expression, not in a body —
+                        # both shapes are scanned, so `[sink.remove(x) for
+                        # x in excused]` can never read as excusal.
+                        if isinstance(node, ast.For):
+                            scanned = list(node.body)
+                        else:
+                            scanned = [node.iter] + list(node.ifs)
+                            parent = _comprehension_parent(unit, node)
+                            if parent is not None:
+                                scanned.extend(_comprehension_elements(parent))
                         sink_mutation = any(
                             isinstance(inner, ast.Call)
                             and isinstance(inner.func, ast.Attribute)
                             and inner.func.attr in _FOREIGN_MUTATORS
                             and _base_name(inner.func.value) in sinks
                             and _base_name(inner.func.value) not in names
-                            for statement in body
+                            for statement in scanned
                             for inner in ast.walk(statement)
                         )
                         if not sink_mutation:

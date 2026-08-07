@@ -394,6 +394,51 @@ class TestR10Categories(CategoryFixture):
             "non_excusal_use_found",
         )
 
+    def test_a_use_free_consumer_citation_is_refuted(self):
+        """RC-030 sharpening: a cited consumer that never uses the names
+        would be vetted vacuously; the validator refuses it."""
+        source = """
+            def scan(scope, findings, failures):
+                exceptions = {entry for entry in scope.get("exceptions", [])}
+                for finding in findings:
+                    if finding in exceptions:
+                        continue
+                    failures.append(finding)
+
+            def unrelated(failures):
+                failures.append("x")
+            """
+        self.assertEqual(
+            self.check(
+                "tools/fx.py", source, "r10_excusal_only_flow",
+                proof={
+                    "names": ["exceptions"],
+                    "consumers": [{"file": "tools/fx.py", "unit": "unrelated"}],
+                },
+            ),
+            "excusal_name_unused_in_consumer",
+        )
+
+    def test_a_comprehension_that_mutates_a_sink_is_refuted(self):
+        """RC-030 sharpening: the mutation lives in the comprehension's
+        element expression; it must not read as excusal."""
+        source = """
+            def scan(scope, failures):
+                excused = [entry for entry in scope.get("exceptions", [])]
+                [failures.remove(entry) for entry in excused]
+                _emit(_PASSED, failures, [])
+            """
+        self.assertEqual(
+            self.check(
+                "tools/fx.py", source, "r10_excusal_only_flow",
+                proof={
+                    "names": ["excused"],
+                    "consumers": [{"file": "tools/fx.py", "unit": "scan"}],
+                },
+            ),
+            "non_excusal_use_found",
+        )
+
     def test_diagnostics_only_flow_confirms_and_refutes(self):
         positive = """
             def mode(entries, failures):

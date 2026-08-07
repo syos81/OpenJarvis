@@ -294,6 +294,46 @@
       "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestRegisterDiscipline",
       "counter_test": "tests/tooling/gates/test_b0f_sampling.py::TestReviewConsumption",
       "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-027",
+      "block_id": "b0f-dispo-hardening",
+      "rule_id": "unreadable_primary_source_is_not_empty",
+      "kind": "sharpening",
+      "summary": "Rule R10, found by the B0f blind review (reject_exclusion on the adr_entries walk): a per-file read failure of an ADR primary source was normalised to an empty document, so two unreadable sides compared equal and could mask a real title collision symmetrically. adr_entries now returns None \u2014 the module's existing non-evidence protocol \u2014 when any listed source cannot be read; every consumer already turns None into a visible failure (adr_directory_unreadable, collision_primary_source_unreadable, citation_source_missing).",
+      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestUnreadableIsNotEmpty::test_an_unreadable_primary_source_yields_no_listing",
+      "counter_test": "tests/tooling/gates/test_b0f_rereview.py::TestUnreadableIsNotEmpty::test_readable_sources_parse_exactly_as_before",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-028",
+      "block_id": "b0f-dispo-hardening",
+      "rule_id": "scope_reader_validates_declaration_entries",
+      "kind": "sharpening",
+      "summary": "Rule R4, found by the B0f category re-examination: the r10_required_key_prevalidated proof for the declared-identifier staleness walk held against the wrong key \u2014 the structural reader validated top-level fields only, while the walk consumes the per-entry paths key. The generality scope binding is now a callable reader (tools.gates.generality:load_scope_document) that validates the closed top-level field set and the per-entry shape of declared_identifiers, so a declaration cannot silently lose its paths key; a present-but-empty list stays a legitimate declaration.",
+      "sharpening_test": "tests/tooling/gates/test_b0f_rereview.py::TestScopeReaderValidatesEntries::test_a_declaration_without_paths_is_rejected",
+      "counter_test": "tests/tooling/gates/test_b0f_rereview.py::TestScopeReaderValidatesEntries::test_the_real_scope_document_is_accepted_unchanged",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-029",
+      "block_id": "b0f-dispo-hardening",
+      "rule_id": "rereview_duty_derived_from_rejections",
+      "kind": "sharpening",
+      "summary": "Rule R10, found by the B0f category re-examination of its own gate: the category-wide re-review duty compared coverage against the record's self-declared affected categories, so a record naming an unknown or unpopulated category with an empty candidate list discharged the duty vacuously. The affected set is now derived from the rejected candidates themselves, unknown categories fail, a still-excluded rejected candidate's category must be covered, and an affected set whose expected coverage is empty fails as vacuous.",
+      "sharpening_test": "tests/tooling/gates/test_b0f_sampling.py::TestTheBlindGate::test_a_bogus_category_set_cannot_discharge_the_duty",
+      "counter_test": "tests/tooling/gates/test_b0f_sampling.py::TestTheBlindGate::test_a_complete_category_rereview_satisfies_the_consequence",
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-030",
+      "block_id": "b0f-dispo-hardening",
+      "rule_id": "excusal_validator_scans_all_uses",
+      "kind": "sharpening",
+      "summary": "Rule R10, found by the B0f category re-examination of its own validator: a cited consumer without any use of the excusal names was vetted vacuously, and a comprehension whose element expression mutates a judgment sink was normalised to an empty body and read as excusal. The validator now refuses use-free consumer citations and scans comprehension element expressions and ifs for sink mutators.",
+      "sharpening_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_a_use_free_consumer_citation_is_refuted",
+      "counter_test": "tests/tooling/gates/test_b0f_categories.py::TestR10Categories::test_excusal_only_flow_confirms_and_refutes",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [

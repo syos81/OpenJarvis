@@ -275,6 +275,63 @@ def find_literal_comparisons(source, sensitive, filename="<core>",
 # --------------------------------------------------------------------------
 # Activation of the positive configuration test
 # --------------------------------------------------------------------------
+#: Top-level fields of the scope document; the closed set doubles as the
+#: accepting reader for rule R4 (schema before data).
+SCOPE_FIELDS = (
+    "config_id",
+    "core_paths",
+    "declared_identifiers",
+    "exceptions",
+    "organization_terms",
+    "process_activation",
+    "provider_allowed_paths",
+    "provider_terms",
+    "scan_scope",
+    "schema_version",
+    "sensitive_identifiers",
+)
+_DECLARED_IDENTIFIER_REQUIRED = ("identifier_id", "value", "kind", "paths")
+
+
+class ScopeError(ValueError):
+    """Raised with a machine readable code for an unusable scope document."""
+
+    def __init__(self, code, detail=""):
+        self.code = code
+        self.detail = detail
+        super().__init__(f"{code}: {detail}" if detail else code)
+
+
+def load_scope_document(root, relative):
+    """The validating reader for the generality scope (rule R4).
+
+    Bound in config-loaders; validates the closed top-level field set and —
+    found by the B0f category re-examination — the per-entry shape of
+    ``declared_identifiers``: a declaration whose ``paths`` key is silently
+    absent would produce no mask and no staleness walk, so absence is
+    rejected here rather than normalised downstream. A present-but-empty
+    list stays a legitimate declaration."""
+    import json
+
+    target = Path(root) / relative
+    document = json.loads(target.read_text(encoding="utf-8"))
+    if not isinstance(document, dict) or sorted(document) != sorted(SCOPE_FIELDS):
+        raise ScopeError("scope_field_set")
+    for index, entry in enumerate(document["declared_identifiers"]):
+        if not isinstance(entry, dict):
+            raise ScopeError("declared_identifier_not_an_object", str(index))
+        for field in _DECLARED_IDENTIFIER_REQUIRED:
+            if field not in entry:
+                raise ScopeError(
+                    "declared_identifier_field_missing", f"{index}:{field}"
+                )
+        if not isinstance(entry["paths"], list) or not all(
+            isinstance(path, str) for path in entry["paths"]
+        ):
+            raise ScopeError("declared_identifier_paths_invalid", str(index))
+    return document
+
+
 class ActivationError(ValueError):
     """Raised when the activation declaration is structurally unusable."""
 

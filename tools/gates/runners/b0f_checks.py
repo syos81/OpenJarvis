@@ -174,7 +174,7 @@ def mode_blind(args):
     comparison = _load_json(root, UNBLINDING)
     dataset = (dataset_document or {}).get("records")
     reviews = (reviews_document or {}).get("records")
-    if not dataset or reviews is None or comparison is None:
+    if not dataset or not reviews or comparison is None:
         return _report.emit(
             _report.BLOCKED,
             [_fail("blind", "review_artifacts_missing")],
@@ -205,8 +205,40 @@ def mode_blind(args):
             failures.append(_fail(REREVIEW, "category_rereview_missing"))
         else:
             affected = set(rereview.get("affected_categories", []))
-            if not affected:
-                failures.append(_fail(REREVIEW, "affected_categories_empty"))
+            by_candidate = {
+                e["candidate_id"]: e for e in register["dispositions"]
+            }
+            # The affected set is derived from the rejected candidates, never
+            # trusted from the record — and the rejected candidates are
+            # derived from the digest-bound reviews through the deterministic
+            # id map, never from the comparison rows: a rejected candidate
+            # that is still an exclusion binds its category into the duty,
+            # and one that is no longer an exclusion must have been
+            # re-dispositioned.
+            id_map = {
+                b0fsample.review_id(seed, entry["candidate_id"]): entry["candidate_id"]
+                for rule in drawn
+                for entry in drawn[rule]
+            }
+            for review in reviews:
+                if review.get("verdict") != "reject_exclusion":
+                    continue
+                candidate_id = id_map.get(str(review.get("review_id", "")))
+                if candidate_id is None:
+                    continue  # already failed as review_unexpected upstream
+                entry = by_candidate.get(candidate_id)
+                if entry is None:
+                    failures.append(
+                        _fail(candidate_id, "rejected_candidate_unknown")
+                    )
+                elif entry["disposition"] == "exclude_with_reason":
+                    if entry["category"] not in affected:
+                        failures.append(
+                            _fail(candidate_id, "rejected_category_not_covered")
+                        )
+            for category in sorted(affected):
+                if category not in astcat.CATEGORIES:
+                    failures.append(_fail(category, "affected_category_unknown"))
             covered = {
                 item["candidate_id"] for item in rereview.get("candidates", [])
             }
@@ -216,6 +248,9 @@ def mode_blind(args):
                 if e["disposition"] == "exclude_with_reason"
                 and e["category"] in affected
             }
+            if affected and not expected:
+                # Rule R10: a duty over an empty set discharges nothing.
+                failures.append(_fail(REREVIEW, "category_rereview_vacuous"))
             if covered != expected:
                 # A single-case fix is not a category-wide re-examination.
                 failures.append(_fail(REREVIEW, "category_rereview_incomplete"))

@@ -188,9 +188,13 @@ _TASK = (
     "whether the perturbation's effect is mechanically established or "
     "provably irrelevant before any expectation; for R10, whether a missing "
     "input normalised to an empty walk can carry a positive judgment here. "
-    "Answer confirm_exclusion, reject_exclusion or insufficient_evidence "
-    "with a technical justification. No particular distribution of answers "
-    "is expected or desired."
+    "Answer confirm_exclusion when the material carries the exclusion; "
+    "reject_exclusion when the material positively establishes that the "
+    "exclusion is wrong — for example a concrete input or path on which the "
+    "guarded outcome goes wrong; insufficient_evidence when the material "
+    "can establish neither, including when validity would depend on facts "
+    "outside this record. Give a technical justification either way. No "
+    "particular distribution of answers is expected or desired."
 )
 
 

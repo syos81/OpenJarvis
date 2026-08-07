@@ -134,7 +134,14 @@ def adr_entries(commit, cwd):
         match = re.match(r"^(ADR-\d{4})-", name)
         if not match:
             continue
-        content = git_file(commit, path, cwd) or ""
+        content = git_file(commit, path, cwd)
+        if content is None:
+            # Rule R10 (B0f re-examination): a per-file read failure must not
+            # normalise to emptiness — two unreadable sides would compare
+            # equal and mask a real title collision symmetrically. One
+            # unreadable primary source makes the whole listing non-evidence,
+            # exactly like an unreadable directory.
+            return None
         h1 = ""
         for line in content.splitlines():
             if line.startswith("# "):

@@ -337,6 +337,29 @@ class TestTheBlindGate(GitFixture):
         _outcome, codes = self._codes()
         self.assertIn("category_rereview_incomplete", codes)
 
+    def test_a_bogus_category_set_cannot_discharge_the_duty(self):
+        """RC-029 sharpening: the affected set is derived from the rejected
+        candidates, never trusted — a re-review naming an unrelated or
+        unknown category with an empty coverage list discharges nothing."""
+        self._write_artifacts(verdict="reject_exclusion")
+        (self.history / "b0f-category-rereview.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "kind": "b0f_category_rereview",
+                    "block_id": "fixture-block",
+                    "affected_categories": ["r10_no_such_category"],
+                    "candidates": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        b0f_checks.mode_blind(None)
+        _outcome, codes = self._codes()
+        self.assertIn("affected_category_unknown", codes)
+        self.assertIn("rejected_category_not_covered", codes)
+        self.assertIn("category_rereview_vacuous", codes)
+
     def test_a_complete_category_rereview_satisfies_the_consequence(self):
         self._write_artifacts(verdict="reject_exclusion")
         register = json.loads(
