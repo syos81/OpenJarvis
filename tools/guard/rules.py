@@ -18,6 +18,7 @@ allow.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -154,6 +155,38 @@ _OPTIONAL_CONFIG_FIELDS = (
     "fixture_targets",
 )
 
+#: Rule R7: ``config_version`` names the configuration format this loader
+#: implements, and that claim is bound to the format instead of being carried
+#: along. The signature is computed from the loader's own field sets, so a
+#: field added or removed without a version change makes the loader refuse to
+#: run rather than keep a version number that no longer describes anything.
+#:
+#: The binding is not theoretical. Applied to the history of this repository
+#: it fails exactly at the commit where ``fixture_targets`` entered the format
+#: while ``config_version`` stayed at 1.0.0 — the real miss it exists for.
+CONFIG_FORMAT_VERSION = "1.1.0"
+CONFIG_FORMAT_SIGNATURE = (
+    "bd08934548df7e0e501bec5fd7bee32120ad41b2f946db5770758d91b654fc4e"
+)
+
+#: Rule R8: widen, migrate, narrow. During a migration this tuple names both
+#: the outgoing and the incoming form, so every intermediate state is valid
+#: whichever file is written first. It is narrowed to the incoming form only
+#: after the data has moved. Outside a migration it holds exactly one entry.
+ACCEPTED_CONFIG_VERSIONS = (CONFIG_FORMAT_VERSION,)
+
+
+def format_signature(required=None, optional=None):
+    """Digest of the declared configuration format.
+
+    Derived from the field sets the loader actually enforces, never from the
+    document it is about to read.
+    """
+    required = _REQUIRED_CONFIG_FIELDS if required is None else required
+    optional = _OPTIONAL_CONFIG_FIELDS if optional is None else optional
+    material = "|".join(sorted(required)) + "||" + "|".join(sorted(optional))
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
 
 def load_rules(path):
     """Load and validate ``rules.json``. Raises :class:`ConfigError`."""
@@ -173,6 +206,13 @@ def load_rules(path):
         raise ConfigError("rules_unknown_fields:" + ",".join(unknown))
     if raw.get("config_schema") != CONFIG_SCHEMA:
         raise ConfigError("rules_schema_mismatch")
+    # R7: the format must still be the one this loader names.
+    if format_signature() != CONFIG_FORMAT_SIGNATURE:
+        raise ConfigError("rules_format_signature_drift")
+    # R8: during a migration both forms are accepted, so no write order can
+    # produce an invalid intermediate state.
+    if str(raw.get("config_version")) not in ACCEPTED_CONFIG_VERSIONS:
+        raise ConfigError("rules_config_version_mismatch")
     try:
         rules = RuleSet(raw)
     except (KeyError, TypeError, re.error) as exc:

@@ -90,11 +90,23 @@ class TestBinding(ExceptionTestBase):
         self.assertTrue(outcome.granted)
 
     def test_expired_exception_is_not_released(self):
+        """An expired object releases nothing and says nothing.
+
+        Changed in B0d: the outcome is now byte identical to the outcome with
+        no object present at all. An expired object no longer contributes a
+        reason of its own, because a reason of its own is how it used to reach
+        the decision. It appears as diagnosis instead.
+        """
         command = "git commit " + AMEND
         self.create(command, created_at=1000, ttl=600)
         outcome = self.consume(command, now=1000 + 601)
         self.assertFalse(outcome.granted)
-        self.assertEqual(outcome.reason_code, "exception_expired")
+        self.assertEqual(outcome.reason_code, "no_exception")
+        self.assertEqual(outcome.nonce_digest, "")
+        self.assertEqual(
+            [item.classification for item in outcome.observations],
+            [owner_exception.EXPIRED],
+        )
 
     def test_marker_survives_a_removal_attempt_semantically(self):
         command = "git commit " + AMEND
@@ -193,10 +205,14 @@ class TestIntegrityIsNeverExcepted(ExceptionTestBase):
         self.create(command)
         target = self.root / "active" / "guard" / "rules.json"
         os.chmod(str(target), 0o644)
-        target.write_text(
-            target.read_text(encoding="utf-8").replace("1.0.0", "1.0.1", 1),
-            encoding="utf-8",
-        )
+        before = target.read_bytes()
+        # Append a byte rather than substituting a literal that happens to be
+        # in the file today. The previous version replaced the string
+        # "1.0.0"; when config_version moved to 1.1.0 that substitution became
+        # a no-op and this test silently stopped testing anything. The
+        # assertion below makes that failure mode impossible.
+        target.write_bytes(before + b"\n")
+        self.assertNotEqual(target.read_bytes(), before, "mutation had no effect")
         response = _support.run_bootstrap(self.root, self.bash_payload(command))
         self.assertEqual(_support.decision_of(response), "deny")
         self.assertIn("GUARD_PACKAGE_HASH_MISMATCH", _support.reason_of(response))

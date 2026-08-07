@@ -40,6 +40,7 @@ PACKAGE_MEMBERS = (
     "entry.py",
     "errors.py",
     "fixture.py",
+    "observed.py",
     "owner_exception.py",
     "rules.json",
     "rules.py",

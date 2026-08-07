@@ -148,6 +148,82 @@
       ],
       "violation_set_effect": "grows",
       "finding_origin": "Derived from a real finding: a guard package hash was derived once from an uncommitted worktree state, then published twice for two different commits without being derived again from either. The owner's dry run refused it. Reproduced mechanically — replacing one superseded function in the committed tree reproduces the published value exactly."
+    },
+    {
+      "change_id": "RC-014",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "config_version_binding",
+      "kind": "sharpening",
+      "summary": "Rule R7. config_version is bound to a signature over the loader's own field sets instead of being carried along. A format change without a version change makes the loader refuse to run.",
+      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestConfigVersionIsBound::test_a_version_that_does_not_name_the_format_is_rejected",
+      "counter_test": "tests/tooling/gates/test_field_binding.py::TestConfigVersionIsBound::test_the_declared_version_is_the_format_version",
+      "violation_set_effect": "grows",
+      "finding_origin": "The field named the configuration format and was compared to nothing. Binding carries over removal, proven against history: the signature differs between 06b7d7e and 6feb7ce while the declared version is identical in both, so the binding would have failed exactly at the commit where the real miss happened."
+    },
+    {
+      "change_id": "RC-015",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "configuration_migration",
+      "kind": "sharpening",
+      "summary": "Rule R8, widen migrate narrow. A format change to a configuration the active guard loads happens in three steps, and every intermediate state is valid whichever file is written first. The accepted version set is a membership test that is widened for the migration and narrowed afterwards.",
+      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestR8Migration::test_a_widened_reader_accepts_both_forms",
+      "counter_test": "tests/tooling/gates/test_field_binding.py::TestR8Migration::test_a_narrowed_reader_rejects_the_outgoing_form",
+      "violation_set_effect": "unchanged",
+      "finding_origin": "Applying R7 in the R4 order still produced an invalid state between the two writes, and the repository side hook blocked the session in that window. R4 requires the reader first; it does not secure the window between reader and data. R8 does."
+    },
+    {
+      "change_id": "RC-016",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "repository_layer_deference",
+      "kind": "sharpening",
+      "summary": "The repository side layer abstains before reading its own rule configuration instead of after. It declares itself non authoritative, so an unusable configuration must not let it block every request while an authoritative guard is active.",
+      "sharpening_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_abstains",
+      "counter_test": "tests/tooling/gates/test_field_binding.py::TestDeferenceIsComplete::test_a_broken_configuration_still_blocks_without_a_guard",
+      "violation_set_effect": "unchanged",
+      "behaviour_change": "Only an error path moved. Which commands count as violations is unchanged, and with no authoritative guard present the layer still denies on an unusable configuration.",
+      "owner_decision": "Owner instruction of 2026-08-07: a deference that only takes effect after loading what it renounces is not a deference; correct it or model it honestly, and prove which carries. Correction was proven to carry — it abstains despite a broken configuration and still fails closed without a guard.",
+      "finding_origin": "Reported by the agent against its own earlier claim. _rules() ran at module import through three module level assignments, so the abstention at main() was never reached."
+    },
+    {
+      "change_id": "RC-017",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "exception_override_layering",
+      "kind": "sharpening",
+      "summary": "The layer 1 decision is built and held before any exception object is read. An exception object may replace it with an allow or leave it alone and may never alter it. Structural validation, version bindings and expiry are three separate questions; only structural failure is corruption and still blocks.",
+      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_version_foreign_object_changes_nothing",
+      "counter_test": "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_structurally_corrupt_object_still_blocks",
+      "negative_controls": [
+        "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_an_expired_object_changes_nothing",
+        "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_many_invalid_objects_change_nothing_in_any_file_order",
+        "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_a_valid_exception_survives_a_version_foreign_neighbour",
+        "tests/tooling/guard/test_exception_qualification.py::TestDecisionInvariance::test_an_unwritable_diagnosis_area_changes_nothing"
+      ],
+      "violation_set_effect": "unchanged",
+      "finding_origin": "Observed in production: two version foreign objects in the pending area replaced the reason of an unrelated deny with GUARD_EXCEPTION_CORRUPT, because consume() parsed every candidate before comparing worktree and command and parse() raised on the version binding."
+    },
+    {
+      "change_id": "RC-018",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "exception_validity_window",
+      "kind": "sharpening",
+      "summary": "Temporal validity is the conjunction of three bounds: not in the future at all, not past the object's own expiry, and an age below the policy maximum. With the maximum at 600 seconds this is exactly 0 <= now - created_at < 600. The previous 60 second tolerance for objects dated in the future is removed.",
+      "sharpening_test": "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_age_exactly_600_is_expired",
+      "counter_test": "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_age_599_is_still_a_candidate",
+      "negative_controls": [
+        "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_a_future_object_is_not_yet_valid",
+        "tests/tooling/guard/test_exception_qualification.py::TestExpiryBoundary::test_a_non_numeric_timestamp_is_corrupt_not_expired"
+      ],
+      "violation_set_effect": "grows"
+    },
+    {
+      "change_id": "RC-019",
+      "block_id": "b0d-guard-hardening",
+      "rule_id": "engine_min_version_binding",
+      "kind": "sharpening",
+      "summary": "Rule R7. engine_min_version is compared against the engine that is actually running. A manifest demanding a newer engine now fails instead of proceeding.",
+      "sharpening_test": "tests/tooling/gates/test_manifest.py::TestManifestValidation",
+      "counter_test": "tests/tooling/gates/test_field_binding.py::TestR7Sweep::test_every_examined_field_has_a_verdict",
+      "violation_set_effect": "grows"
     }
   ],
   "declared_relaxations": [
@@ -204,6 +280,11 @@
       "path": "tests/tooling/gates/test_expectations.py",
       "purpose": "Declared fixture for rule R6. Every repository is a fresh temporary one built from copies of the guard sources; the protected repository is never committed to, and the two synthetic commits are asserted to really differ so the sharpening test cannot pass on a tie.",
       "abuse_test": "tests/tooling/gates/test_expectations.py::TestTheRule::test_the_two_commits_really_differ"
+    },
+    {
+      "path": "tests/tooling/guard/test_exception_qualification.py",
+      "purpose": "Declared fixtures for the exception qualification. Every pending area is a throwaway directory below the gitignored runtime fixture root; the historical objects are hashed read only and copied byte identically, never linked and never re-activated.",
+      "abuse_test": "tests/tooling/guard/test_exception_qualification.py::TestHistoricalObjects::test_no_test_writes_into_the_historical_area"
     }
   ]
 }

@@ -125,19 +125,29 @@ def _context(now=None):
 
 #: Every hard deny code the active rule set can produce, with its sentence.
 #: Kept as a tuple so the B0a-1 consistency test keeps its shape.
-def _hard_deny_rules():
+#:
+#: All three are computed on access rather than at import. This layer
+#: declares itself non authoritative and abstains whenever the owner
+#: installed guard is active — but it used to read its own rule
+#: configuration while being imported, so an unusable configuration made
+#: it block every request before it could abstain. A deference that only
+#: takes effect after loading the very thing it renounces is not a
+#: deference, so the loading moved behind it.
+def hard_deny_command_rules():
     rules = _rules()
     return tuple((code, rules.message(code)) for code in rules.codes())
 
 
-HARD_DENY_COMMAND_RULES = _hard_deny_rules()
+def rewrite_classes():
+    """Declared classification of the local history rewrite operations.
 
-#: Declared classification of the local history rewrite operations. The audit
-#: of comparable operations lives in ``config/guard/history-rewrite-matrix.json``.
-REWRITE_CLASSES = _rules().rewrite_classes()
+    The audit of comparable operations lives in
+    ``config/guard/history-rewrite-matrix.json``.
+    """
+    return _rules().rewrite_classes()
 
-REASON_TEXT = dict(_rules().reason_text)
-REASON_TEXT.update(
+
+_EXTRA_REASON_TEXT = (
     {
         "foreign_worktree_mutation": (
             "This would modify a different worktree of the same repository. "
@@ -154,6 +164,27 @@ REASON_TEXT.update(
         "current_worktree_mutation": "Target is inside the current worktree.",
     }
 )
+
+
+def reason_text():
+    text = dict(_rules().reason_text)
+    text.update(_EXTRA_REASON_TEXT)
+    return text
+
+
+def __getattr__(name):
+    """Keep the previous module attributes working, but lazily.
+
+    Reading one of them still loads the configuration; importing the
+    module no longer does.
+    """
+    if name == "HARD_DENY_COMMAND_RULES":
+        return hard_deny_command_rules()
+    if name == "REWRITE_CLASSES":
+        return rewrite_classes()
+    if name == "REASON_TEXT":
+        return reason_text()
+    raise AttributeError(name)
 
 
 def canonicalize(raw_path, base_dir):
@@ -261,7 +292,9 @@ def build_response(decision, reason_code):
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": decision,
-            "permissionDecisionReason": REASON_TEXT.get(reason_code, reason_code),
+            "permissionDecisionReason": reason_text().get(
+                reason_code, reason_code
+            ),
         }
     }
 

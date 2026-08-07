@@ -21,6 +21,7 @@ import json
 import re
 from pathlib import Path
 
+from . import ENGINE_VERSION
 from . import MANIFEST_SCHEMA_VERSION
 from . import sanitize
 from . import statuses
@@ -35,6 +36,12 @@ PHASES = (
 PHASE_INDEX = {phase: index for index, phase in enumerate(PHASES)}
 
 PARSERS = ("gate_json", "unittest", "exit_only")
+
+_VERSION_RE = re.compile(r"^\d+(?:\.\d+)*$")
+
+
+def _version_tuple(text):
+    return tuple(int(part) for part in str(text).split("."))
 BASELINE_CAPABLE_PARSERS = ("gate_json", "unittest")
 RUNNER_TYPES = ("argv", "internal")
 EVIDENCE_PROFILES = ("tooling",)
@@ -622,6 +629,25 @@ def validate(data, *, digest=None, path=None):
     block_id = data.get("block_id", "")
     if not isinstance(block_id, str) or not _ID_RE.match(block_id):
         validator.fail("invalid_id", f"invalid block_id: {block_id!r}")
+
+    # Rule R7: ``engine_min_version`` claims a minimum this engine must meet.
+    # It used to be read for its type and never compared to anything, so a
+    # manifest could demand an engine newer than the one running it and the
+    # run would proceed regardless. The claim is now checked against the
+    # engine that is actually executing.
+    declared_minimum = data.get("engine_min_version", "")
+    if isinstance(declared_minimum, str) and declared_minimum:
+        if not _VERSION_RE.match(declared_minimum):
+            validator.fail(
+                "invalid_engine_min_version",
+                f"engine_min_version must be dotted numeric: {declared_minimum!r}",
+            )
+        elif _version_tuple(declared_minimum) > _version_tuple(ENGINE_VERSION):
+            validator.fail(
+                "engine_too_old",
+                f"manifest requires engine {declared_minimum}, "
+                f"this engine is {ENGINE_VERSION}",
+            )
 
     required_phases = data.get("required_phases")
     if required_phases != list(PHASES):

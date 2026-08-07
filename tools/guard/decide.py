@@ -6,7 +6,11 @@ Layers, in this order. A later layer can never overrule an earlier one:
    imported. An owner command exception can never reach it.
 1. **hard denies** — argument based, with a raw text backstop.
 2. **owner exception** — consulted only for a layer 1 deny, only for the
-   exact canonicalised command, only once.
+   exact canonicalised command, only once. The layer 1 decision is built and
+   held *before* this layer runs: an exception object may replace it with an
+   allow or leave it alone, and may never alter it. An expired or version
+   foreign object is neither, so it is recorded as diagnosis and the layer 1
+   decision is returned byte identical.
 2a. **target bound fixture rule** — consulted only for an eligible layer 1
    deny, and only released when the target fully resolves into a throwaway
    bare repository below the declared fixture root. Unlike an exception it
@@ -28,6 +32,7 @@ from pathlib import Path
 
 from . import errors
 from . import fixture
+from . import observed
 from . import owner_exception
 from . import rules as rules_module
 
@@ -53,6 +58,7 @@ class Context:
         "now",
         "git_binary",
         "exceptions_enabled",
+        "observed_dir",
     )
 
     def __init__(
@@ -66,6 +72,7 @@ class Context:
         now=0,
         git_binary=GIT_BINARY,
         exceptions_enabled=True,
+        observed_dir=None,
     ):
         self.rules = rules
         self.pending_dir = pending_dir
@@ -75,6 +82,9 @@ class Context:
         self.now = now
         self.git_binary = git_binary
         self.exceptions_enabled = exceptions_enabled
+        #: Where non decision bearing observations are recorded. ``None``
+        #: disables recording and changes no decision.
+        self.observed_dir = observed_dir
 
 
 class Decision:
@@ -240,6 +250,21 @@ def decide(payload, context):
         command = str(tool_input.get("command", ""))
         code, layer = rules_module.evaluate_command(rules, command, cwd=cwd)
         if code:
+            # -- layer 1 result, complete and final on its own ---------------
+            # The base decision is built here, before any exception object is
+            # looked at. Everything below may replace it with an allow or
+            # leave it alone; nothing below may alter it.
+            base = Decision(
+                DECISION_DENY,
+                code,
+                message=rules.message(code),
+                detection_layer=layer,
+                tool=tool_name,
+                command_digest=owner_exception.command_digest(command),
+                request_excerpt=command,
+                worktree_id=_safe_worktree_id(cwd),
+                local_original_target=command,
+            )
             verdict = fixture.evaluate(
                 rules,
                 code,
@@ -259,7 +284,15 @@ def decide(payload, context):
                     local_original_target=command,
                     local_canonical_target=verdict.local_target,
                 )
+            # -- layer 2: override attempt, and only that --------------------
             outcome = _consult_exception(context, cwd, command)
+            if outcome is not None:
+                # Diagnosis is recorded after the base decision exists and
+                # before it is returned, so a failure here cannot influence
+                # what is returned. record_all never raises.
+                observed.record_all(
+                    context.observed_dir, outcome.observations, now=None
+                )
             if outcome is not None and outcome.granted:
                 return Decision(
                     DECISION_ALLOW,
@@ -273,20 +306,13 @@ def decide(payload, context):
                     worktree_id=_safe_worktree_id(cwd),
                     local_original_target=command,
                 )
-            return Decision(
-                DECISION_DENY,
-                code,
-                message=rules.message(code),
-                detection_layer=layer,
-                tool=tool_name,
-                command_digest=owner_exception.command_digest(command),
-                request_excerpt=command,
-                worktree_id=_safe_worktree_id(cwd),
-                exception_nonce_digest=(
-                    outcome.nonce_digest if outcome is not None else ""
-                ),
-                local_original_target=command,
+            # No override. The base decision is returned unchanged — a non
+            # candidate object contributes no nonce digest, so this is byte
+            # identical to the decision reached with no objects at all.
+            base.exception_nonce_digest = (
+                outcome.nonce_digest if outcome is not None else ""
             )
+            return base
         if layer == "unparseable":
             return Decision(
                 DECISION_DENY,
