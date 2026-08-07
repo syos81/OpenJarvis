@@ -1,0 +1,37 @@
+{
+  "block_id": "b0f-dispo-hardening",
+  "corrections": [
+    {
+      "consequence": "Re-dispositioned mark_and_fix and repaired like the B0e marks (observation as first assertion, declared under the R9 convention). The B0e control value of 123 exclusions splits into 119 migrated exclusions and 4 documented falsifications; the B0e evidence stays untouched, this note is the correction.",
+      "finding": "During the migration onto the closed vocabulary the r9_injection_load_bearing probe showed four tests staying green with their injection neutralised: tests/telemetry/test_energy_nvidia.py::test_polling_trapezoidal_integration, tests/cli/test_scan.py::test_scutil_not_available, tests/agents/test_config_defaults.py::test_class_default_used_when_config_fails, tests/agents/test_channel_agent.py::test_error_path_also_uses_conversation_id_as_destination.",
+      "id": "B0F-N1",
+      "subject": "four B0e exclusions falsified by the execution probe"
+    },
+    {
+      "consequence": "The categorised exclusion population at the final normative commit is 129 (59 R9, 70 R10); identity detected == disposed holds over the whole set.",
+      "finding": "The vocabulary and gate modules are corpus members; their sweeps yielded candidates in tools/gates/astcat.py and tools/gates/runners/b0f_checks.py across the block's iterations, each excluded on a confirmed category or repaired.",
+      "id": "B0F-N2",
+      "subject": "self-application exclusions of the B0f tooling"
+    },
+    {
+      "consequence": "Correction instead of history rewrite: the determinative position supersedes the record with the draw against the final normative commit; the sample gate holds the stored record to the deterministic re-draw, which a stale record cannot satisfy.",
+      "finding": "Commit 690d2f8a48d1689ee9a0a77712739bb9bd434e5d unintentionally included config/gates/history/b0f-sample-record.json from the aborted first draw against 1d0e5898cff199a5b94e36e7a53ef14338a8b2b5 (its blind dataset had failed validation).",
+      "id": "B0F-N3",
+      "subject": "stale sample record entered normative position 2"
+    },
+    {
+      "consequence": "All repairs are normative commits with their mandatory test pairs; the sample is redrawn against the new normative state and re-reviewed blind, as the pre-declared plan requires.",
+      "finding": "The first blind round (26 drawn, 26 evaluated, digest-bound) returned 6 reject_exclusion. The category-wide re-examination of all three affected categories confirmed the probe-carried exclusions, found one wrongly bound key-deletion proof (RC-028), one genuine symmetric-masking defect (RC-027, adr_entries), and three vacuity defects in the B0f tooling itself (RC-029, RC-030).",
+      "id": "B0F-N4",
+      "subject": "blind review round 1 and the category-wide consequence"
+    },
+    {
+      "consequence": "Implemented as RC-031 with its mandatory pair; the anchor is structurally resolved by the rewrite and the register entry now records the implementation. The B0e evidence stays untouched; this note is the correction.",
+      "finding": "The register entry r10-d128cf65b554fc43 (history_checks.check_anchors) carried disposition repair since B0e, but no commit implemented the prescribed guard and no test covered it: an absent gate_anchoring declaration still normalised to an empty walk and mode_gate_anchoring passed with anchors=0. Found by the B0f blind review round 2 via the mode_k1_status rejection and the diagnostics category re-examination.",
+      "id": "B0F-N5",
+      "subject": "a B0e repair disposition whose repair was never implemented"
+    }
+  ],
+  "kind": "b0f_corrections",
+  "schema_version": 1
+}

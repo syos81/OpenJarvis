@@ -1,0 +1,47 @@
+{
+  "baseline_commit": null,
+  "block": "b0f-dispo-hardening",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "tg-b0f-baseline",
+    "tg-b0f-blind",
+    "tg-b0f-method",
+    "tg-b0f-sample",
+    "tg-claim-lint",
+    "tg-config-loaders",
+    "tg-corpus",
+    "tg-dispositions",
+    "tg-effect-evidence",
+    "tg-rule-changes",
+    "tg-scan-tests",
+    "tg-violation-corpus"
+  ],
+  "commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-07T20:37:53Z",
+  "manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+  "phase": "targeted",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "06792d72cef26f68cce0e7cbbe9013775b659e61fa487e88a58abf6b4ebcf4de",
+    "2ed0ca278187b4da2b770c661a07f8a0fb5188967f06717c3d552d9e8c4e0841",
+    "3dafec176f3a21357ff5ae4e36d68e35e80a76ef4316d7773be95685e1e40588",
+    "3ffe7f44c67f0d5e2763bae82ae465a1eef7de3d80f043593881cf29f8da76b7",
+    "5bd10c18c92c6444a6e3ca36b5d5c8e765b387ccb910e8bf8309b367607fbddf",
+    "64b3311b9e91806f5bc897f2c64c548ef93205ffc414f8c52e4ebdb27fe788e0",
+    "8f18dd21185e29403d85873bfa5ba556f1051d3d100f4e6bed1995a8e938d8fa",
+    "be5018d09aff4123f5500054bf6cf4544037f10fb821f25d8ad89fe80c44b065",
+    "d7cb9e2778d1beba8c75a2b2b0c8524566cab55929563b67b2d4cff4fca6008d",
+    "d7e28dbb611169225cb4fe8456ddc6102d29f723e6bab92fb110f4391d483361",
+    "e9c03d8f0a96b2042aaf0f9919ffaab384e9b54b4dcd456456212533ff960591",
+    "ffc4a0a773424dbcd25052cad904e066feeb37d0f507839bde157d9ac15511ba"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "a22dd6a4b5b043995359bb1d3cd7ec2b",
+  "schema_version": 1,
+  "started_at": "2026-08-07T20:34:02Z",
+  "status": "pass"
+}

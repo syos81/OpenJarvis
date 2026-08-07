@@ -1,0 +1,191 @@
+{
+  "block_id": "b0f-dispo-hardening",
+  "commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+  "comparison": [
+    {
+      "agreement": true,
+      "candidate_id": "r10-9868049eea65fce3",
+      "register_category": "r10_emptiness_fails_closed",
+      "review_id": "rev-0075d871406a",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": false,
+      "candidate_id": "r10-99ae6c8c24aa91c5",
+      "register_category": "r10_runtime_emptyset_guarded",
+      "review_id": "rev-09b19fe7931b",
+      "verdict": "insufficient_evidence"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-c3330aed7752aa1b",
+      "register_category": "r10_diagnostics_only_flow",
+      "review_id": "rev-1c30c5465587",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-935f7da7c479a39b",
+      "register_category": "r10_diagnostics_only_flow",
+      "review_id": "rev-1d7238a3b595",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-b52bffef14bf756c",
+      "register_category": "r10_diagnostics_only_flow",
+      "review_id": "rev-207f98d14059",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-585c75efd7258b30",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-246cfe3dd58f",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-b3f556eaeefd5243",
+      "register_category": "r10_emptiness_fails_closed",
+      "review_id": "rev-2b786f80e9ab",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-35b2bc67011b0dd0",
+      "register_category": "r10_required_key_prevalidated",
+      "review_id": "rev-2ecfe76c3082",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-307a94491b9948b7",
+      "register_category": "r10_emptiness_fails_closed",
+      "review_id": "rev-3c11b3c53e21",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-2f2deb6073bbedd2",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-3f6a86b93614",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-f9145c3d32a0fe28",
+      "register_category": "r9_post_judgment_position",
+      "review_id": "rev-4db8a62eaa51",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-ba7bbb5f6a224de0",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-604e214b3deb",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-71e9675b813a5865",
+      "register_category": "r10_emptiness_fails_closed",
+      "review_id": "rev-6fb00720fb8e",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": false,
+      "candidate_id": "r9-91d18f2f044aef1d",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-766409a51e45",
+      "verdict": "insufficient_evidence"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-cd098eee1ed80417",
+      "register_category": "r10_excusal_only_flow",
+      "review_id": "rev-7d6fc70a652a",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-8c0291a7f473ecc8",
+      "register_category": "r10_required_key_prevalidated",
+      "review_id": "rev-9873582fa56f",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-2c1e75bc7c57148e",
+      "register_category": "r9_both_outcomes_judged",
+      "review_id": "rev-c1c5acb235cb",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-0bcfc81e1414efe1",
+      "register_category": "r10_diagnostics_only_flow",
+      "review_id": "rev-c9d7a13a2d49",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-9b4087ceeb15703c",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-cead3ef9d567",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-08ffb52f01f82c65",
+      "register_category": "r10_emptiness_fails_closed",
+      "review_id": "rev-d7a1b79ee40a",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r10-65835393f0d15b15",
+      "register_category": "r10_emptiness_fails_closed",
+      "review_id": "rev-dbebcd4bb5ac",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-fbd546011afe0d57",
+      "register_category": "r9_loud_guarded_removal",
+      "review_id": "rev-e5018510b016",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-2cde2258d8feffb5",
+      "register_category": "r9_after_state_observed",
+      "review_id": "rev-e575da8ba458",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-a69cdb70f351664d",
+      "register_category": "r9_post_judgment_position",
+      "review_id": "rev-eb08b83590b4",
+      "verdict": "confirm_exclusion"
+    },
+    {
+      "agreement": false,
+      "candidate_id": "r9-939ba920bb30a4a3",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-f5920819ecb8",
+      "verdict": "reject_exclusion"
+    },
+    {
+      "agreement": true,
+      "candidate_id": "r9-7d4db93de4674f69",
+      "register_category": "r9_injection_load_bearing",
+      "review_id": "rev-f714b8beabd0",
+      "verdict": "confirm_exclusion"
+    }
+  ],
+  "kind": "b0f_unblinding",
+  "reviews_sha256": "95f8ee03ebb89aaea823e9c18a746b667a2e6d9427bafd86cf6eb64eaa6889e5",
+  "schema_version": 1
+}

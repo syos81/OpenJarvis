@@ -1,43 +1,43 @@
 {
   "block_id": "b0f-dispo-hardening",
-  "commit": "1d0e5898cff199a5b94e36e7a53ef14338a8b2b5",
+  "commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
   "drawn": {
     "R10": [
+      "r10-99ae6c8c24aa91c5",
+      "r10-08ffb52f01f82c65",
+      "r10-71e9675b813a5865",
+      "r10-307a94491b9948b7",
+      "r10-c3330aed7752aa1b",
+      "r10-0bcfc81e1414efe1",
+      "r10-65835393f0d15b15",
+      "r10-b3f556eaeefd5243",
+      "r10-935f7da7c479a39b",
       "r10-cd098eee1ed80417",
-      "r10-612355d11ca58bde",
-      "r10-b4fd3790611b06c7",
-      "r10-294344f3793f5f02",
-      "r10-ce53f65dd06bef0c",
-      "r10-8491f7cd1127db34",
-      "r10-f42d64591b635c69",
-      "r10-3087f128b3f2c464",
-      "r10-08b6ce48bd51a8a1",
-      "r10-df2aeb044ec5c2be",
-      "r10-a6856a89616218b8",
-      "r10-e37e5f711abeca26",
-      "r10-8fb5b0da8400535d",
-      "r10-ad4d2544e6148868"
+      "r10-8c0291a7f473ecc8",
+      "r10-9868049eea65fce3",
+      "r10-b52bffef14bf756c",
+      "r10-35b2bc67011b0dd0"
     ],
     "R9": [
-      "r9-bb70da69fc9d580a",
-      "r9-91d18f2f044aef1d",
-      "r9-50cbdf067c807543",
-      "r9-1aff7a15e19d3033",
-      "r9-eb9c551476688a39",
-      "r9-90371ece5c7e56f8",
+      "r9-a69cdb70f351664d",
+      "r9-2f2deb6073bbedd2",
       "r9-585c75efd7258b30",
-      "r9-cfacc6ac5248d124",
-      "r9-a289b81508185991",
-      "r9-1192093690255842",
-      "r9-068732cb7ff253bc",
-      "r9-c7d800ebc517c098"
+      "r9-f9145c3d32a0fe28",
+      "r9-91d18f2f044aef1d",
+      "r9-2cde2258d8feffb5",
+      "r9-7d4db93de4674f69",
+      "r9-ba7bbb5f6a224de0",
+      "r9-939ba920bb30a4a3",
+      "r9-9b4087ceeb15703c",
+      "r9-fbd546011afe0d57",
+      "r9-2c1e75bc7c57148e"
     ]
   },
   "kind": "b0f_sample_record",
   "population": {
     "definition": "register entries with disposition exclude_with_reason at the named commit",
-    "size": 127
+    "size": 128
   },
   "schema_version": 1,
-  "seed": "1cc2b3febc2543be32b209ddfa1b0d08853c51ca1c62fb7cdd1ab445f3848892"
+  "seed": "72bffa0830f2571546a4a6c3b1c61dcda6d17bc61ac9c6819fd9eeed7eeec41d"
 }

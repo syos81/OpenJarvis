@@ -1,0 +1,31 @@
+{
+  "baseline_commit": null,
+  "block": "b0f-dispo-hardening",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "mf-evidence",
+    "mf-feature-lineage",
+    "mf-phase-results",
+    "mf-preservation"
+  ],
+  "commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-07T20:43:04Z",
+  "manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+  "phase": "module-final",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "416b208e97da67892f3f897cbbac70d1b4e74d583e0f854b097eed56bbde3165",
+    "e8c91863e029454e9cd1c1a5ff3ca41f2278b13c2b51bdab62d1a394e650fefc"
+  ],
+  "reason_codes": [
+    "check_passed",
+    "evidence_complete",
+    "phase_results_consistent"
+  ],
+  "run_id": "5b04261f674ab4cc55cd3b459085a3be",
+  "schema_version": 1,
+  "started_at": "2026-08-07T20:43:04Z",
+  "status": "pass"
+}

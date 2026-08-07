@@ -1,0 +1,23 @@
+{
+  "baseline_commit": null,
+  "block": "b0f-dispo-hardening",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "platform-live.declared"
+  ],
+  "commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-07T20:43:04Z",
+  "manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+  "phase": "platform-live",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [],
+  "reason_codes": [
+    "phase_not_applicable_by_manifest"
+  ],
+  "run_id": "7a05b709f2abb11dfd8bf455e2cd5d5f",
+  "schema_version": 1,
+  "started_at": "2026-08-07T20:43:03Z",
+  "status": "not_applicable"
+}

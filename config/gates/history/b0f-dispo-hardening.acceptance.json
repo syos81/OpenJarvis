@@ -1,0 +1,195 @@
+{
+  "acceptance_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. platform-live is declared not applicable by the manifest with a derived, substantive reason; no result was interpreted and no manual run replaced a gate.",
+  "block_id": "b0f-dispo-hardening",
+  "block_scope": {
+    "covers": "The closed exclusion vocabulary with mechanical validators, the schema-2 register with every exclusion categorised, the pre-declared blind sample with its independent evaluations, the unit-locality classification and the Slack isolation proof.",
+    "exclusion_population": {
+      "r10": 69,
+      "r9": 59,
+      "total": 128
+    },
+    "guard_paths_diff_since_block_start": [],
+    "sample": {
+      "drawn": {
+        "R10": 14,
+        "R9": 12
+      },
+      "seed": "72bffa0830f2571546a4a6c3b1c61dcda6d17bc61ac9c6819fd9eeed7eeec41d",
+      "verdicts": {
+        "confirm_exclusion": 23,
+        "insufficient_evidence": 2,
+        "reject_exclusion": 1
+      }
+    },
+    "unblinding_reviews_sha256": "95f8ee03ebb89aaea823e9c18a746b667a2e6d9427bafd86cf6eb64eaa6889e5"
+  },
+  "committed_artifacts": [
+    {
+      "blob_sha256": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+      "path": "config/gates/blocks/b0f-dispo-hardening.json"
+    },
+    {
+      "blob_sha256": "246dd696cd53ec9bf044e3360cfb1fc00fe8a6060bf92ed7852da12c893767c3",
+      "path": "config/gates/features/b0f-dispo-hardening.lineage.json"
+    },
+    {
+      "blob_sha256": "aca462d05d1ebf4842e0cb50e12416581b56a4bf0419d800c4f8119985c74bd1",
+      "path": "config/gates/history/b0f-commit-plan.json"
+    },
+    {
+      "blob_sha256": "b4cf51924ce42fe8de282aea01972d76e03d3a8b0bf7a609763b501ced005fc6",
+      "path": "config/governance/ast-dispositions.json"
+    },
+    {
+      "blob_sha256": "7928229ca4088f559730921f5a121d5f68ad1e7c44c299ff4e5b387a0f4f87ae",
+      "path": "config/governance/b0f-sample-plan.json"
+    },
+    {
+      "blob_sha256": "ca818e898be447acf2bca544a24f254e477a2bbc6a51c3ae57a23513aa87fef5",
+      "path": "config/governance/b0f-unit-locality.json"
+    },
+    {
+      "blob_sha256": "7633681ff111b58002842a6801f2c483013e7f7674490909847ecb45af2f2f2c",
+      "path": "config/governance/config-loaders.json"
+    },
+    {
+      "blob_sha256": "29f2470e8ef9b871674e6666e050215162d8f6bebc38351d4f6c21236a13ddd2",
+      "path": "config/governance/effect-evidence.json"
+    },
+    {
+      "blob_sha256": "c7540b9cde1f13354ad265d71db95b553221baea6398e5fa3f204cfe114caaf4",
+      "path": "config/guard/rule-changes.json"
+    },
+    {
+      "blob_sha256": "f6a77bd09b261256d3f1a3cb4f314901366e0bfbdee184b530f895ff76261129",
+      "path": "tools/gates/astcat.py"
+    },
+    {
+      "blob_sha256": "1966e65226eb086db52f3e591ad834e53733b0c1c69557bf9c2b999c56a26eab",
+      "path": "tools/gates/b0fneuter.py"
+    },
+    {
+      "blob_sha256": "b250ffb68fda1a0c48d749340a22944e965eac6f4481708403bda7c07405c01d",
+      "path": "tools/gates/b0fsample.py"
+    },
+    {
+      "blob_sha256": "a380bed62bd4b29179838d282b065178160e8608e77b73b34a7e2529d5e8e31f",
+      "path": "tools/gates/runners/b0f_checks.py"
+    },
+    {
+      "blob_sha256": "3b855d7834b3b6676f866f7375c425a7729f1d59c84fde6886a685caadafa251",
+      "path": "tests/server/test_connectors_network_isolation.py"
+    },
+    {
+      "blob_sha256": "2f7ed471edf8a355e824c0ee43f0689bda5313fc3553675234b9281245ec8882",
+      "path": "tests/tooling/gates/test_b0f_categories.py"
+    },
+    {
+      "blob_sha256": "c8f04fbbeaff0d3c16587c410a790b4b556e5856bbfdca5bbf417e0fc885c8ee",
+      "path": "tests/tooling/gates/test_b0f_method.py"
+    },
+    {
+      "blob_sha256": "92722908095ac5b3291fb16adfe1e55bd7b0d43d872f5fde77d8d7efdd528fb1",
+      "path": "tests/tooling/gates/test_b0f_sampling.py"
+    }
+  ],
+  "documented_limitations": [
+    "The unit locality of the sweeps stays an open_gap (config/governance/b0f-unit-locality.json): cross-unit flows are outside structural reach and remain a genuine follow-up blocker for a later method decision.",
+    "Category criteria are mechanical necessarily-checkable approximations of their claims; the blind sample exists precisely because a criterion can hold while an exclusion is still wrong."
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.11",
+    "system": "Darwin"
+  },
+  "evidence_binding_note": "The five snapshots below are byte copies of the sanitised runtime evidence of the acceptance run, bound by sha256; raw logs stay in the gitignored runtime area.",
+  "external_inputs": [],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "guard_activation": {
+    "reason": "No file under tools/guard, tools/guardpkg or tools/guardops changed in this block (see block_scope); the active 1.3.0 installation is untouched.",
+    "required": false
+  },
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+    "block_start_commit": "4b443e1b5a2552c09c50ab21f5f013ca37dbdbdd",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "4b443e1b5a2552c09c50ab21f5f013ca37dbdbdd"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 18,
+  "own_feature_prefix": "B0F-",
+  "phase_results": {
+    "module-final": "pass",
+    "offline-final": "pass",
+    "platform-live": "not_applicable",
+    "preflight": "pass",
+    "targeted": "pass"
+  },
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b0f-dispo-hardening/preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "87a649c965c735458040cd918a25bbc4fd198c12b1b4770d6a93265031a18393"
+    },
+    {
+      "path": "config/gates/evidence/b0f-dispo-hardening/targeted.json",
+      "phase": "targeted",
+      "recorded_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "f390c16265e653d091e7b435063f8fc75cc4cc4b57b1861e34d4d490312ac510"
+    },
+    {
+      "path": "config/gates/evidence/b0f-dispo-hardening/offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "f99e02dfeb51dfc49c576dfb9ccbe7bb82a7e60f39ebd837d1458ca71ad6b1f6"
+    },
+    {
+      "path": "config/gates/evidence/b0f-dispo-hardening/platform-live.json",
+      "phase": "platform-live",
+      "recorded_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "not_applicable",
+      "scope": "committed_snapshot",
+      "sha256": "8b0a873bebe4e206c339fa39971231eed7fdd8d9e271c6d76eb6457054014639"
+    },
+    {
+      "path": "config/gates/evidence/b0f-dispo-hardening/module-final.json",
+      "phase": "module-final",
+      "recorded_commit": "7a0333a102285513971bb8f72bb0f0b64372e34d",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "9ea834c951987b761cf2e83771dcd39a2a5380d857dd304a46a846cee96b0e42",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "22fdeb0e182e8a009daec8f5cfcbc5ffc6afd6a686647e1942c5b45c2cc30915"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B0f disposition hardening: the closed exclusion vocabulary, the blind reproducible sample and the method findings"
+}

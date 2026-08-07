@@ -1,0 +1,664 @@
+{
+  "affected_categories": [
+    "r10_diagnostics_only_flow",
+    "r10_emptiness_fails_closed",
+    "r10_excusal_only_flow",
+    "r10_required_key_prevalidated",
+    "r10_runtime_emptyset_guarded",
+    "r9_after_state_observed",
+    "r9_both_outcomes_judged",
+    "r9_conditional_import_target",
+    "r9_injection_load_bearing",
+    "r9_loud_guarded_removal",
+    "r9_post_judgment_position",
+    "r9_property_established_at_creation",
+    "r9_reraising_error_path",
+    "r9_target_unconsumed_after"
+  ],
+  "block_id": "b0f-dispo-hardening",
+  "candidates": [
+    {
+      "candidate_id": "r10-0097169ed82fe3a8",
+      "ground": "validate_entry=''. b0f_checks.py mode_method (now 248-251): walked value is the fixed 2-tuple (reference, counter), never empty; each ref degrades to '' on absent keys and the guard 'not file_part or not (root/file_part).is_file()' binds the walked ref's derived file_part directly, appending covering_proof_missing. reference and counter are each checked against the filesystem, never compared for equality against each other or another normalised value - no symmetric masking path.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-036969cf7cc91e82",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 376-378): the set built from order.get('forbidden_order_sources', []) is compared against the fixed literal {'DEC-049','ADR-0024'}. The pin binds the walked set 'forbidden' itself; the other side is a module constant, not a normalised input, so two absent inputs can never compare equal - missing key yields the empty set, equality fails, forbidden_order_source_declaration_wrong is reported. An entry without 'id' raises KeyError loudly (entry['id'] direct access), not a silent default.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-04fc12a2e4d58b1b",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 322-333): an empty by_position dict makes the EXPECTED_ORDER loop yield element_missing_at_position for all four positions. The expectation is the EXPECTED_ORDER module constant, independent of the walked data - asymmetric by construction, no equality between two normalised sides.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-08b6ce48bd51a8a1",
+      "ground": "Probe '' (deleting checks[0].runner.argv from b0a-1-tooling.json is rejected by the block-manifest binding tools.gates.manifest:load). Binding verified: profiles.py collect() loads every config/gates/blocks/*.json (BLOCKS_DIR, profiles.py:47,131-134) including the proof document, and the generator at profiles.py:112-118 walks check['runner'].get('argv', []) on those checks - the exact key the proof deletes; checks[0].runner in b0a-1-tooling.json is an argv-type runner carrying argv.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-08ffb52f01f82c65",
+      "ground": "validate_entry=''. signature.py build_cause_signature (now 106-108): failures and diagnostics both empty returns None (83-84) and compare() maps None to (False,'cause_signature_unavailable'). Symmetric-masking probe on compare(): compare({},{}) would return True via None==None digests, but this path is unreachable - baseline.py compare_runs (248-269) is the sole caller and always feeds two freshly built signatures, each either None (handled at 262-268 as FAIL) or carrying a computed digest. Empty diagnostics on both sides hash equal only when every other structural element is also identical, which is the intended meaning, not a masked difference.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-0bcfc81e1414efe1",
+      "ground": "validate_entry('') holds. The For loop (generality_checks.py, mode_organization_scan) appends only declared_identifier_pending_owner_decision=<id> strings to the diagnostics list; the failures list is built solely from scan_terms findings minus path exceptions and from check_declared_identifiers, neither touched by this loop. An empty declared_identifiers default is fail-closed at every other consumption: no masks in scan_terms means more findings (more failures, never fewer), and check_declared_identifiers over an empty list yields nothing to excuse. No path from the walked value to a pass/fail verdict, failure entry, or excusal.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-0c5650680fd94315",
+      "ground": "validate_entry=''. guard_checks.py mode_rule_changes (now 77-80): guard 'if not changes' binds exactly the walked name and appends no_declared_rule_change; the walk itself only appends failures. Per-change refs degrade to '' and fail via test_missing - each checked independently against the filesystem, never compared to another normalised value.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-0ebe439f49b6c393",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 356-371): the extra-rules walk over elements only adds findings; an absent 'elements' key already fails via delivery_position_gap against the constant [1,2,3,4] and element_missing_at_position against EXPECTED_ORDER, and elements lacking the read fields already carry order_field_missing (306-308). The number==position comparisons read two fields of the same element under isinstance(int) guards - missing fields skip the extra rule but never remove the earlier recorded failure, so no absence route ends clean.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-10e58fa95b6d8813",
+      "ground": "Probe '' (deleting baseline_policy.dependency_lock_paths from b0a-1-tooling.json is rejected by manifest:load). Binding verified: the anchor IS the validating reader - manifest.py:462-467 walks baseline.get(field) for field in ('dependency_lock_paths','config_digest_paths') on the very document under validation; absence yields None, fails invalid_type in the same condition before the any() matters, and missing_field at 451-453. Proof key is one of the two walked fields of the proof document.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-1ac4d0f8cce95912",
+      "ground": "Probe '' (deleting historical_resolution_records from normative-sources.json is rejected: governance-normative-sources lists it in required_fields). Binding verified: integration_checks.py:171 loads NORMATIVE = config/governance/normative-sources.json and line 173 walks normative.get('historical_resolution_records', []) - same document, same key as the proof.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-1f9464eb18d88370",
+      "ground": "Probe '' (deleting canonical_ids_unchanged from decision-collisions.json is rejected: governance-decision-collisions requires it). Binding verified: verify_resolution has exactly one caller, governance_checks.py:56, whose registry is loaded at line 51 from COLLISIONS = config/governance/decision-collisions.json; governance.py:73 walks registry.get('canonical_ids_unchanged', []) - same document, same key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-262ba2b8b3dc4fbd",
+      "ground": "Validator ''. Anchor integration_checks.py:147 (SetComp over registry.get('mechanism_files', [])). Both consumers (mode_reference_migration:153, mode_dart_removed:283) union the result into 'excluded' and use it only as 'if relative in excluded: continue' skip sets - pure excusal flow. Missing registry file returns set() via the is_file() early return at 144-145; an unreadable-but-present file raises in json.loads (loud, not masked). Empty walk excuses nothing, so every mechanism file is scanned and can only add stale_contacts_line_reference/dart_placeholder_reference failures; no positive judgement grows from the empty set. No symmetric comparison of two absent inputs exists at this site.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-294344f3793f5f02",
+      "ground": "validate_entry=''. profiles.py declared_attribution (now 147-156): missing file returns {}, and the derivation's judgement direction is verified in b0c_checks.py:135-138 - no collisions must yield NOT_JUSTIFIED, so empty attribution keeps the lock in force (conservative outcome). An unreadable/invalid attribution file raises through json.loads with no except clause - loud, not normalised. JUSTIFIED requires an actual computed collision, which an empty walk cannot produce; no equality of two normalised-absent sides exists.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-2a700cef8a3947f8",
+      "ground": "The coverage duty is closed by RC-029 (affected set derived from digest-bound reviews, vacuous coverage fails); the surviving anchor is excluded under the new guard.",
+      "outcome": "repaired_then_reconfirmed"
+    },
+    {
+      "candidate_id": "r10-2c2f76543ccfdd5f",
+      "ground": "validate_entry=''. history_checks.py check_anchors (now 543-554): guard 'if not sources' binds the walked name exactly and appends no_carrying_source; the walk only adds problems. The quote_anchor marker check is guarded 'if not marker or marker not in text' - an empty marker fails instead of trivially matching, and the file side is read with errors='replace' but only ever searched against a guarded non-empty marker, so two degraded sides are never compared equal.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-307a94491b9948b7",
+      "ground": "validate_entry=''. hookguard.py authoritative_guard_active (now 93-104): missing hooks/PreToolUse yields the empty walk and fallthrough return False - the conservative 'not registered' verdict that makes the repo layer enforce. The only True path requires str(hook.get('command','')) == str(wrapper) where wrapper is a concrete constructed path, never empty - the normalised '' can never equal it, so no symmetric masking. Unreadable policy file returns False via the OSError/ValueError except (83-92).",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-3087f128b3f2c464",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 303-320): empty elements collect no positions, fixed != [1,2,3,4] yields delivery_position_gap and the EXPECTED_ORDER loop yields four element_missing_at_position findings. Both expectations are module constants independent of the walked collection - asymmetric, fail-closed on every absence route.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-3092762f5b6fd741",
+      "ground": "validate_entry('') holds. The DictComp product element_profiles feeds only profile_values -> inputs.existing_acceptance_profiles and elements_by_profile -> observed.delivery_elements_by_acceptance_profile in derive()'s report. The justified/not_justified result derives exclusively from collisions(signatures, attribution) plus comparable/by_signature, none of which reads element_profiles. The only downstream judge, b0c_checks.mode_profile_derivation, checks result-vs-collisions, block-manifest counts, criterion/falsifiability strings and lock_is_consistent_with (which compares only derivation_result) - no judged field is derived from the walked value. A degenerate delivery-order 'elements' shape is independently failed by governance.check_delivery_order in the order gate.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-340fc744d479ae34",
+      "ground": "validate_entry=''. guard_checks.py mode_trust_model (now 713-714): the any() is negated before feeding the judgement - vacuously False over empty open_roots makes the negation True and application_root_not_declared is appended; empty open_roots is independently failed by no_open_trust_root_declared (711-712) and a missing trust_roots key by field_missing (673-675). The needle 'claude' is a constant; str(item.get('root','')) degrading to '' cannot contain it.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-353d2b4aaa15091c",
+      "ground": "Validator ''. Anchor generality_checks.py:70 (SetComp over scope.get('exceptions', [])). Sole consumer is the filter 'if finding[\"path\"] not in exceptions' at line 78 when turning scan findings into organization_scan failures - excusal-only. A missing/empty exceptions key converts every finding into a failure (strictly stricter); scope itself is loaded via json.loads which raises loudly on an unreadable file. The findings the set excuses are produced independently by generality.scan_terms, so an empty excusal set cannot vacuously discharge anything.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-35b2bc67011b0dd0",
+      "ground": "Probe '' (deleting checks from b0a-1-tooling.json is rejected by manifest:load). Binding verified: the anchor is inside validate() itself - phase_checks at manifest.py:685-689 filters raw_checks = data.get('checks') or [] (line 663) of the document under validation; absence is failed as missing_field via TOP_LEVEL_FIELDS at 612-614 in the same call. Proof key matches the walked key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-44e6e88c70e5def2",
+      "ground": "Probe '' (deleting declared_relaxations from config/guard/rule-changes.json is rejected: guard-rule-changes lists it in required_fields). Binding verified: guard_checks.py:76 loads exactly config/guard/rule-changes.json and line 96 walks data.get('declared_relaxations', []) - same document, same key as the proof.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-4fe4dddbf5d18063",
+      "ground": "The key-deletion probe now targets the per-entry paths key under the strengthened callable reader (RC-028).",
+      "outcome": "recategorized_proof"
+    },
+    {
+      "candidate_id": "r10-5ef075fed62579af",
+      "ground": "Probe '' (deleting baseline_policy.dependency_lock_paths from b0e-test-hardening.json is rejected by manifest:load). Binding verified: identical anchor to r10-10e58fa95b6d8813 - manifest.py:462-467 is the validating reader walking baseline.get('dependency_lock_paths') of the document under validation; the proof names that key in a document the block-manifest binding covers.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-612355d11ca58bde",
+      "ground": "validate_entry=''. preflight_checks.py mode_claude_config (now 122-127): the inner hooks walk only fills commands, and 'if not commands: pretooluse_hook_missing' fails the mode when every group lacks hooks. The membership consumer compares against filesystem existence of the referenced script, not against another normalised value - no symmetric equality.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-6330827761dcfc93",
+      "ground": "Probe '' (deleting features from config/gates/features/b0e-test-hardening.lineage.json is rejected: feature-lineage binding requires 'features'). Binding verified: the b0e manifest's feature_lineage.lineage_file names exactly this document, the runner feeds it to validate_lineage (feature_lineage.py:45-47), _validate_shape fails a lineage missing 'features' (LINEAGE_FIELDS, features.py:79-81) and returns FAIL at features.py:244-247 before validate_own_features runs; the walk at features.py:153 .get()s the same 'features' key of the same document.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-64f7ce7885540b88",
+      "ground": "Validator ''. Anchor governance.py:38 (DictComp in normative_exclusions over registry.get('historical_non_normative', [])). All four consumers (governance_checks.py mode_id_freeze/mode_citations, integration_checks.py:153/283) use the mapping purely as a skip set over document walks. Missing normative-sources.json returns {} at 35-36, so strictly more documents are scanned and only additional failures can result; a present-but-invalid file raises in json.loads. The empty dict never carries a positive judgement, and there is no second absent input it could be symmetrically compared against.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-65835393f0d15b15",
+      "ground": "validate_entry=''. guard_checks.py mode_trust_model (now 704-707): the joined string from a missing not_protected_against is '' and both constant needles ('hostile actor', 'interactive owner authentication') are then absent, appending two incomplete failures; the key is additionally covered by the _TRUST_MODEL_FIELDS completeness check (673-675). Needles are literals - asymmetric, no masking.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-6699b370d7f33f8a",
+      "ground": "validate_entry=''. signature.py _normalised_failures (now 56-62): frames absent and frames [] both normalise to [] with the same meaning; an entry with empty id, class and code is refused via CauseSignatureError, so build returns None and compare fails closed as cause_signature_unavailable. Two failure entries both lacking frames hash equal only when ids/classes/codes and all other digest elements are identical - structural identity is carried by the refused-if-empty handle fields, and both compare() inputs are always freshly built in compare_runs (baseline.py 248-269), so the both-sides-degraded digest path is unreachable.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-670bf33661ae7cca",
+      "ground": "validate_entry=''. guard_checks.py mode_active_guard (now 515-518): the inner hooks walk feeds commands; the membership pin 'str(root/\"bootstrap.sh\") not in commands' has a constant, never-empty needle, so empty or degraded commands always fail with guard_not_registered. hook.get('command','') degrading to '' cannot equal the absolute wrapper path - asymmetric, no masking.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-71e9675b813a5865",
+      "ground": "validate_entry=''. guard_checks.py mode_active_guard (now 514-518): the outer PreToolUse walk only fills commands and the same constant-needle membership pin applies; missing hooks keys yield empty commands and guard_not_registered. The registration file itself is read after root-ownership and mode checks; unparseable JSON raises loudly (json.loads without except at 512).",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-7745f70c927ba193",
+      "ground": "validate_entry=''. preflight_checks.py mode_claude_config, outer walk (now 122): 'for group in hooks if isinstance(hooks, list) else []' only fills commands; a missing hooks/PreToolUse key or a non-list value normalises to the empty walk, commands stays empty and the guard at 126-127 appends pretooluse_hook_missing, failing the mode. The downstream check compares each command against filesystem existence of the referenced script, never against a second normalised value - no symmetric equality path.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-78aaf52e04f16bf8",
+      "ground": "validate_entry=''. guard_checks.py mode_history_matrix (now 168-183): seen_blocked is populated only inside the walk and the post-loop pin 'if \"git_commit_amend\" not in seen_blocked' has a constant needle - an absent or empty operations key leaves seen_blocked empty and appends mandatory_operation_not_blocked. entry.get('code','') degrading to '' additionally fails blocked_without_active_rule against the known rule codes. Asymmetric pins throughout.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-7bdf9abd7adf1957",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 379-382): the walk only adds wrong_order_source_assigned findings. The one masking-shaped route - empty forbidden set making the membership test never fire - is closed by the constant equality pin at 376-378 (empty forbidden != {'DEC-049','ADR-0024'} is itself a failure), and absent elements/normative_sources are failed via delivery_position_gap resp. order_field_missing. Every absence route records a failure before the empty walk could read clean.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-7c202cf2b2d55861",
+      "ground": "Self-application: proof names and consumer citations are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, and a",
+      "outcome": "newly_disposed_in_closure"
+    },
+    {
+      "candidate_id": "r10-8491f7cd1127db34",
+      "ground": "validate_entry=''. governance.py check_document_consistency (now 428-441): the bidirectional site was examined specifically for symmetric masking. Both-absent: empty document text yields no rows and order_document_table_missing with early return, independent of elements. Elements absent, rows present: reverse walk flags every row order_document_extra_row. Document file missing is failed upstream (governance_checks.py mode_consistency 274-275) and unreadable files raise through read_text/load_json - never normalised. The one both-None equality (doc non-digit number vs element fachmodul_number None) cannot mask: the element side is independently pinned per position against EXPECTED_ORDER in check_delivery_order (None allowed only where the constant demands None), and element field access is direct (KeyError is loud).",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-88b74e1dd945df79",
+      "ground": "Self-application: proof names and consumer citations are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, and a",
+      "outcome": "newly_disposed_in_closure"
+    },
+    {
+      "candidate_id": "r10-890c9af7dc0415ee",
+      "ground": "validate_entry=''. b0f_checks.py mode_blind (now 175-193): the guard 'if not dataset or reviews is None or comparison is None: return BLOCKED(review_artifacts_missing)' binds the walked dataset exactly and fires before any walk on missing or empty records. The rebuilt != dataset comparison cannot mask symmetrically: an absent dataset never reaches it, and rebuilt comes from the deterministic in-process rebuild, not from a second normalised file read.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-898273e88e987533",
+      "ground": "Probe '' (deleting checks[0].runner.argv from b0e-test-hardening.json is rejected by manifest:load). Binding verified: astcorpus._block_manifests loads every config/gates/blocks/*.json through manifest_module.load itself and raises corpus_manifest_invalid on rejection (astcorpus.py:183-187), so the mutilated document can never reach the walk; line 243 iterates argv = list(check.runner.get('argv') or []) (line 216) - the proof-named key of the proof-named document, whose checks[0].runner is an argv-type runner.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-8ad961f07e96b8b3",
+      "ground": "Self-application: proof names and consumer citations are guarded explicitly \u2014 absent or empty proof fields return probe_reference_invalid before any walk, and a",
+      "outcome": "newly_disposed_in_closure"
+    },
+    {
+      "candidate_id": "r10-8c0291a7f473ecc8",
+      "ground": "Probe '' (deleting feature_lineage from b0e-test-hardening.json is rejected by manifest:load). Binding verified: the anchor is inside the reader - manifest.py:529 walks (data.get(section) or {}).items() for section in ('feature_lineage','product_guard') of the document under validation, and lines 489-498 in the same function record missing_field for every FEATURE_LINEAGE_FIELDS member when the section is absent. Proof key is one of the two walked sections.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-91a5d8954a317a50",
+      "ground": "validate_entry=''. governance.py check_document_consistency (now 442-446): the set comprehension exists to drive the reverse check - an absent elements key makes the set empty and every parsed row then fails order_document_extra_row, so emptiness maximises failures; empty rows are failed earlier by order_document_table_missing (425-427). No equality of two normalised-absent sides.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-92a6cdb5048e6ff1",
+      "ground": "Probe '' (deleting checks from b0e-test-hardening.json is rejected by manifest:load). Binding verified: manifest.py:663-666 walks raw_checks = data.get('checks') or [] of the document under validation, and absence is failed as missing_field via TOP_LEVEL_FIELDS at 612-614 in the same validate() call. Proof key matches the walked key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-935f7da7c479a39b",
+      "ground": "The anchors DictComp feeds only blocking_reason/anchored label fields; the reviewer's deletion input is now caught by check_anchors (RC-031: gate_anchoring_undeclared), so the label walk carries no judgment and the guarding check exists.",
+      "outcome": "reconfirmed_after_dependency_repair"
+    },
+    {
+      "candidate_id": "r10-9868049eea65fce3",
+      "ground": "Self-application: an absent or empty review list is guarded explicitly \u2014 the mode returns blocked before any walk, and the one-to-one consumption check fails ev",
+      "outcome": "newly_disposed_in_closure"
+    },
+    {
+      "candidate_id": "r10-99ae6c8c24aa91c5",
+      "ground": "Validator ''. Anchor evidence.py:246 (For over (result or {}).get('checks', [])). The runtime emptyset guard binds the real value: the consumer GateEngine._internal_evidence (engine.py:352-367) routes counts.verified against counts.declared through emptyset.verdict, and declared comes from the separately-read, validate_evidence-checked record file, not from the walked collection. A missing/None stored result gives verified 0 with declared>0 -> BLOCKED/aggregation_set_empty (emptyset.py:74-75). No symmetric masking: a missing record file is caught earlier as evidence_missing (engine.py:332-334) before any comparison; declared 0 with verified 0 is the documented derived_empty_set exception where the record itself independently predicted the emptiness. verified>declared raises EmptySetError uncaught (loud).",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-a1f9f5cef709e7df",
+      "ground": "validate_entry=''. astcat.py _check_conditional_import_target, any() at line 711 (fingerprint-verified): 'attribute' is guarded non-empty at 691-693 (probe_reference_invalid), an unreadable/unparseable module returns target_module_unparseable, and a vacuous any() leaves the loop without a match so the function falls through to the non-empty failure code attribute_not_conditionally_bound. The equality t.id == attribute compares AST identifiers against a guarded non-empty proof value - '' can appear on neither side.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-a6856a89616218b8",
+      "ground": "Probe '' (deleting declared_identifiers from generality-scope.json is rejected: governance-generality-scope requires it). Binding verified: check_declared_identifiers has exactly one caller, generality_checks.py:81, whose declared is scope.get('declared_identifiers', []) at line 66 with scope loaded from config/governance/generality-scope.json; the walk at generality.py:117 iterates exactly that value. Unlike the line-118 sibling, the walked key here IS the proof key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-aa17c55275815b30",
+      "ground": "Validator ''. Anchor generality.py:109 (For over 'declared or []' in declared_identifier_masks). Masks only suppress: scan_terms re.subs each mask out of the content at 148-149 before counting term occurrences, and the path component is counted unmasked. A missing/None declared list yields zero masks, so every occurrence a declaration would have excused resurfaces as a finding - strictly stricter. The dual duty (a stale declaration is itself a finding) is carried independently by check_declared_identifiers (115-125), which the consumer mode_organization_scan invokes separately, so an empty mask walk cannot discharge that duty vacuously.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-ad4d2544e6148868",
+      "ground": "validate_entry=''. guard_checks.py mode_trust_model (now 709-712): doubly fail-closed - missing trust_roots is failed by the _TRUST_MODEL_FIELDS completeness check (673-675) and empty open_roots by no_open_trust_root_declared (711-712). The comprehension's filter 'closable is False' cannot be satisfied by a degraded default (item.get returns None, and None is not False under 'is'), so absence never widens the open set.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-b2c773d8b768c20b",
+      "ground": "Probe '' (deleting historical_resolution from decision-collisions.json is rejected: governance-decision-collisions lists it in required_fields). Binding verified: sole caller governance_checks.py:56 passes the registry loaded from config/governance/decision-collisions.json (line 51); governance.py:55 walks registry.get('historical_resolution', []) - same document, same key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-b2fd49e38ce19883",
+      "ground": "validate_entry=''. features.py _verify_feature (now 113-123): the walk only searches for a match to return (True,'feature_verified'); missing key, empty walk and unreadable manifests (skipped via except at 116-119) all fall through to (False,'feature_verification_unresolved'). The equality check.get('check_id') == ref is asymmetric: ref is validated as a non-empty string at 104 before this point, so a degraded None/'' on the manifest side can never match.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-b3f556eaeefd5243",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 384-388): an empty normative_sources walk makes ids the empty set and AMBIENT_PLACEHOLDER (constant) is then not in ids, yielding ambient_source_not_the_placeholder - the empty walk itself produces the failure; a missing normative_sources field is separately failed as order_field_missing. Constant needle, no symmetric equality.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-b4fd3790611b06c7",
+      "ground": "validate_entry=''. governance_checks.py mode_ambient (now 207-211): the set from order.get('not_assigned_to_tooling_merge', []) feeds only the membership pin against forbidden_decision, which comes from config['forbidden']['assigned_to_decision'] via direct key access - a missing config key raises loudly, so the needle can never be a degraded default. Missing/empty walked key yields the empty set, the membership test fails and dec_050_not_declared_unassigned is appended.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-b52bffef14bf756c",
+      "ground": "validate_entry('') holds. record_all (observed.py) is invoked at its only production call site (decide.py:293-295) after _consult_exception has already produced the outcome; the return value is discarded and the subsequent branch tests outcome.granted, computed before the call. record_all swallows every exception per observation and per write, and its contract (docstring plus write_record) makes a failed, absent or duplicate write indistinguishable to the caller - zero written records is a designed state exercised by b0d_checks. The written count feeds no verdict, failure entry, or excusal anywhere.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-bbf0f90924ae0de4",
+      "ground": "Probe '' (deleting checks from b0e-test-hardening.json is rejected by manifest:load). Binding verified: the ordering walk at manifest.py:669 iterates the same raw_checks = data.get('checks') or [] (line 663) of the document under validation, whose absence is failed as missing_field at 612-614 in the same call. Proof key matches the walked key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-c3330aed7752aa1b",
+      "ground": "validate_entry('') holds. The GeneratorExp over diagnostics[:5] (engine.py, GateEngine._run_check) feeds only entry['detail'], a sanitize.scrub display string. entry['status'] and entry['reason_code'] derive from run.passed and run.structured['outcome'] alone. On the baseline branch an empty diagnostics cannot create an excusal either: build_cause_signature returns None when failures and diagnostics are both empty, and compare_runs then returns FAIL cause_signature_unavailable - the empty walk is fail-closed on every judged path.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-c6f656a95afb5000",
+      "ground": "validate_entry=''. test_dense.py _ollama_up (now 52-65): missing 'models' key and empty model list both mean the embed model is unconfirmed; any() over the empty set is False, network/parse errors return False via the except, and skipif(not _ollama_up()) produces a visible skip with an explicit reason - never a pass. _EMBED_MODEL is the non-empty literal 'nomic-embed-text' (line 31), so m.get('model','') degrading to '' cannot satisfy startswith - asymmetric, no masking.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-c962735f5da6f3e2",
+      "ground": "validate_entry=''. astcat.py _check_conditional_import_target, any() at line 715 (fingerprint-verified): same fail-closed frame as line 711 - guarded non-empty 'attribute', vacuous quantifier falls through to attribute_not_conditionally_bound. alias.asname/alias.name are AST-guaranteed non-empty identifiers compared against the guarded non-empty attribute; no degraded-equal path exists.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-cd098eee1ed80417",
+      "ground": "Validator ''. Anchor re-resolved by fingerprint to integration_checks.py:261 (register lineno 255 has drifted; same For over registry.get('historical_non_normative', []) in mode_single_normative_source). The marker-verification duty is intrinsically coupled to the excusal grant: governance.normative_exclusions (governance.py:32-41) reads the identical key, so when the key is absent nothing is excused repo-wide (all scans strictly stricter) and the empty verification walk genuinely has nothing to verify - no positive judgement rests on it having iterated. The per-entry 'if not path.is_file(): continue' at 263-264 skips marker verification for a vanished file, but a vanished file also never appears in any text_files walk, so the corresponding excusal is inert; no silent widening is possible.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-db4710b97e5db817",
+      "ground": "Probe '' (deleting declared_identifiers from generality-scope.json is rejected: governance-generality-scope requires it). Binding verified: within the anchor unit mode_organization_scan, declared = scope.get('declared_identifiers', []) at generality_checks.py:66 with scope loaded from config/governance/generality-scope.json (SCOPE, line 30), and the line-81 walk iterates check_declared_identifiers(root, declared) fed from exactly that value - same document, same key.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-e2b30f678662f4ca",
+      "ground": "Self-application: an empty affected set cannot discharge the duty \u2014 every rejected candidate's category membership test against it fails and appends rejected_ca",
+      "outcome": "newly_disposed_in_closure"
+    },
+    {
+      "candidate_id": "r10-e37e5f711abeca26",
+      "ground": "validate_entry=''. hookguard.py authoritative_guard_active, inner walk (now 99-103): group.get('hooks', []) or [] contributes no match when absent/empty and the function falls through to return False - the conservative verdict. True requires an exact string equality against the concrete wrapper path, which a degraded '' can never satisfy - asymmetric, no masking.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-efb3ebeecba63153",
+      "ground": "validate_entry=''. integration_checks.py mode_bundle_id_pinned (now 305-311): the length pin len(entry.get('paths',[])) != 5 fails a missing or emptied key with path_list_changed before the walk, the declaration count is pinned to exactly one (299-301), and entry['value'] is a direct access checked against a constant literal - the walk itself only adds failures (inexact pattern, missing file, missing identifier in content). Constants on one side throughout; no two-normalised-sides equality.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-f02860bff1585b4e",
+      "ground": "Validator ''. Anchor evidence.py:243 (ListComp building 'declared' from (record or {}).get('raw_log_sha256', [])). In the only production call path (engine.py:337-353) the record has already passed validate_evidence, whose closed allowlist requires raw_log_sha256 as a sorted list of _HEX64_RE digests (evidence.py:132-133, 191); a missing key is a missing-field EvidenceSchemaError -> evidence_invalid hard issue before phase_evidence_counts runs, so the '(record or {})' normalisation is unreachable there. The 'if digest' filter drops nothing that validation admits (no falsy hex64 exists). The derived expectation therefore always reflects the record's real declaration and feeds emptyset.verdict as the independent count.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-f172de9b7ceb280a",
+      "ground": "validate_entry=''. test_desktop_dependency_contract.py (now 110-115): p.get('dependencies', []) mirrors uv.lock where the table is legitimately omitted for leaf packages - absence and emptiness carry the same meaning. The only judgement is the exact equality verlangt == {'faster-whisper'} against a non-empty independent literal: schema drift emptying the walk makes verlangt set() and the assert fails loudly. The inner d.get('name') == 'onnxruntime' compares against a constant - a degraded None can never match. Asymmetric, no masking.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-f42d64591b635c69",
+      "ground": "validate_entry('') holds. In parse_gate_report (runner.py) the ListComp feeds structured['diagnostics'], consumed as display detail and as a signature ingredient only. The outcome verdict is taken from the validated outcome enum and cross-checked against the exit code (gate_report_contradicts_exit_code); a passed claim with non-zero exit becomes OUTCOME_ERROR/non-structural. An empty diagnostics list can never create an excusal: build_cause_signature (signature.py) returns None when failures and diagnostics are both empty, compare_runs turns that into FAIL cause_signature_unavailable, and any pass_with_baseline still requires digest equality with the independently stored baseline signature.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-f458a71eb06cc549",
+      "ground": "validate_entry=''. governance.py check_delivery_order (now 380 within 379-382): element.get('normative_sources', []) can only be empty for an element already carrying order_field_missing ('normative_sources' is in ORDER_FIELDS, presence check at 306-308), and the walk only adds wrong_order_source_assigned findings - its emptiness never contributes a positive outcome. The forbidden set it tests against is itself pinned to a constant literal at 376-378.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r10-f8be161eeac25bdb",
+      "ground": "Probe '' (deleting checks[0].runner.argv from b0a-1-tooling.json is rejected by manifest:load). Binding verified: same anchor family as r10-898273e88e987533 - astcorpus._block_manifests loads config/gates/blocks/*.json through the validating reader itself (astcorpus.py:183-187), line 236 walks the argv list derived at line 216 from check.runner.get('argv'); the proof names that key in the proof document, whose checks[0].runner carries argv.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-068732cb7ff253bc",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 03292ca8ebc083212b161b8c, occurrence 0) to a no-op inside tests/tools/test_image_tool.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_image_tool.py::TestImageGenerateTool.test_api_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-0e07faef5d549c2b",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 4c052419c422b2adc9658a3b, occurrence 0) to a no-op inside tests/bench/test_energy.py, the marker confirmed the rewrite applied, and the rerun of tests/bench/test_energy.py::TestEnergyBenchmark.test_run_with_errors FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-0e4094181cd9aad4",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint e48d2bc84c32baab777ef466, occurrence 0) to a no-op inside tests/tools/test_http_request.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_http_request.py::TestHttpRequestTool.test_request_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-1192093690255842",
+      "ground": "Validator ''. Anchor re-resolved to guard_checks.py:565 (drift from 555; same swallowed os.unlink in _write_probe). The probe's verdict is fully determined before the unlink: os.open failure (552-554) and os.write failure (556-558) both return False; the unlink is reached only after a successful write, where _write_probe returns True and mode_tamper appends session_can_write_protected_component (599-600). A silently failing unlink cannot flip the verdict in either direction - the writability statement is already evidenced, and a leftover probe file can only coexist with an already-reported failure of the same probe. No after-state of the cleanup feeds any later criterion.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-122f60e3b23536e4",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 659eaabe37d4284ecffd9ae5, occurrence 0) to a no-op inside tests/cli/test_scan.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_scan.py::TestFileVault.test_command_not_found FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-14950d88ec387229",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 4c052419c422b2adc9658a3b, occurrence 0) to a no-op inside tests/bench/test_throughput.py, the marker confirmed the rewrite applied, and the rerun of tests/bench/test_throughput.py::TestThroughputBenchmark.test_zero_latency_handling FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-17993cf6a555bf62",
+      "ground": "Validator ''. Anchor runner.py:275 (guarded chmod of the report file). Post-judgment: parse happens at 263-268 before the chmod; the RunResult's structured outcome and raw-log digest do not rest on it. The confidentiality claim is carried by paths.ensure_private_dir (paths.py:87-98), which chmods the raw-log directory to 0o700 at runner.py:183 and, on POSIX, verifies the resulting mode and raises when it is not 0o700 - so even a skipped or failed file chmod leaves the report unreachable to other users. The exists() guard skips only when no report was written (nothing to protect, and parse_gate_report already reported gate_report_missing).",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-191f5bf9fcb91fda",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint cccbf913983283d64ccd0de8, occurrence 0) to a no-op inside tests/cli/test_registry_cmd.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_registry_cmd.py::TestRegistryCmd.test_registry_show_handles_exception FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-1aff7a15e19d3033",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 6d782c04d872ec65720ecc43, occurrence 0) to a no-op inside tests/tools/test_browser_axtree.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser_axtree.py::TestBrowserAXTreeTool.test_execute_snapshot_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-1c076b5aada9367a",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 2da6bc8fa25a7dc93332a010, occurrence 0) to a no-op inside tests/agents/test_trace_recording.py, the marker confirmed the rewrite applied, and the rerun of tests/agents/test_trace_recording.py::test_executor_records_error_trace FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-205525756e4cd21f",
+      "ground": "Validator ''. Anchor cache.py:177 (guarded os.unlink of the mkstemp temp file inside 'except BaseException: ... raise', 175-178). The exception is unconditionally re-raised, so BaselineCache.store never reports success on this path - the perturbation cannot underwrite a positive judgement. The exists() guard skips exactly when os.replace(174) already consumed the temp file, which is the intended after-state; a failing unlink itself raises (not swallowed), so the after-state cannot silently diverge. Under the flock held since line 150, no concurrent writer can be masked.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-244cf9fc7eb021d9",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 122b4371e9f5ff62649e0255, occurrence 0) to a no-op inside tests/mining/test_discovery.py, the marker confirmed the rewrite applied, and the rerun of tests/mining/test_discovery.py::test_check_docker_available_false_when_sdk_missing FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-27783ae1bed7813e",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 665d374baa7fbf2d7d044cf2, occurrence 0) to a no-op inside tests/scheduler/test_scheduler.py, the marker confirmed the rewrite applied, and the rerun of tests/scheduler/test_scheduler.py::TestExecuteTask.test_execute_with_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-2c1e75bc7c57148e",
+      "ground": "Validator ''. Anchor re-resolved to guard_checks.py:637 (drift from 627; os.unlink of the spent marker in mode_tamper). Both outcomes are judged: OSError appends the diagnostic spent=marker_not_removable (638-639), success appends the failure session_can_remove_marker (640-641). The creation side is also judged - an unclaimable marker appends session_cannot_claim_marker (632-633) - so no empty or wrong-object input discharges the duty vacuously. The 'if spent.is_dir():' guard without else skips only when the spent directory is absent, and that absence is independently a runtime_component_missing failure in mode_active_guard of the same runner (532-539).",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-2cde2258d8feffb5",
+      "ground": "Validator ''. Anchor b0d_checks.py:66 (rmtree in _fresh, 63-68). After-state mechanically observed twice: rmtree runs without ignore_errors, so a failed removal raises directly, and the immediately following area.mkdir(parents=True) uses the default exist_ok=False, so a removal that did not take effect raises FileExistsError before any fixture is used. There is no path on which a dirty area silently survives into a judgement.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-2f2deb6073bbedd2",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 4c052419c422b2adc9658a3b, occurrence 0) to a no-op inside tests/bench/test_latency.py, the marker confirmed the rewrite applied, and the rerun of tests/bench/test_latency.py::TestLatencyBenchmark.test_run_with_errors FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-36a3ed5076e1f7b9",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 67c991f2a215c67fd47c5021, occurrence 0) to a no-op inside tests/cli/test_registry_cmd.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_registry_cmd.py::TestRegistryCmd.test_registry_show_handles_error_during_iteration FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see. Note: the register's informational lineno (149) has drifted from the anchor call's current span (153-155); the anchor contract is fingerprint+occurrence, which resolves correctly, so the probe's carriage is unaffected.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-3b6335f0dd57b699",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint e07d67dd2fce568d153d8d65, occurrence 0) to a no-op inside tests/cli/test_tool_cmd.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_tool_cmd.py::TestToolCmd.test_tool_list_catches_registry_exception FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-3bf4debee53d748f",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint da638d149f9726faa06e4fd0, occurrence 0) to a no-op inside tests/tools/test_llm_tool.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_llm_tool.py::TestLLMTool.test_engine_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-3f9536124147af0b",
+      "ground": "Validator ''. Anchor b0c_checks.py:442 (rmtree ignore_errors=True of the build stage in mode_guard_activation's finally). The only value the mode takes from the stage, package_sha256, is parsed from the completed subprocess stdout at line 440 before the finally runs; a non-zero build or unparseable stdout is judged/raised before cleanup. No later statement reads the stage, and each run's tempfile.mkdtemp(prefix='gate-guard-build-') is a fresh unique system-temp directory, so a surviving stage cannot alter a later run's candidate digest or activation diagnostics - the after-state cannot silently diverge from anything the mode establishes.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-400b063536bf2a17",
+      "ground": "Validator ''. Anchor test_collect_tool.py:280 (write_text performing the structural_parse rename). The after-state is observed from re-read file bytes before the refusal expectation: assertNotIn('\\ndef structural_parse(', target.read_text(), ...) at 285-289. Probed the vacuous-discharge corner: if the source pattern had drifted so that the replace no-ops AND the assertNotIn passed vacuously, the guard would retain its qualification layer, collect_module.main would then not refuse, and assertEqual(code, EXIT_UNUSABLE) at 297 fails loudly - the final expectation is unsatisfiable by an unperturbed guard, so no silent pass exists.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-50cbdf067c807543",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 4f64337b99b747a926c012d9, occurrence 0) to a no-op inside tests/mining/test_discovery.py, the marker confirmed the rewrite applied, and the rerun of tests/mining/test_discovery.py::test_check_docker_available_false_when_daemon_down FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-585c75efd7258b30",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint ddc0bfdda86e38e18ccc1716, occurrence 0) to a no-op inside tests/tools/test_browser.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser.py::TestBrowserNavigateTool.test_execute_navigation_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-5b8dbf7e38eb391b",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint f03115946dffd46140b7601e, occurrence 0) to a no-op inside tests/cli/test_chat_cmd.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_chat_cmd.py::TestReadInput.test_read_input_keyboard_interrupt FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-5bfe09305f8dd88b",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 3288a34198e90aec941760bb, occurrence 0) to a no-op inside tests/speech/test_faster_whisper.py, the marker confirmed the rewrite applied, and the rerun of tests/speech/test_faster_whisper.py::test_faster_whisper_health_captures_load_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-674e8563cc01beb4",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 720f5bb10e0f108ebbf2d7e4, occurrence 0) to a no-op inside tests/server/test_model_management.py, the marker confirmed the rewrite applied, and the rerun of tests/server/test_model_management.py::TestModelPull.test_pull_ollama_unreachable FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-7b68dbc254fa3792",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint b921696428b7a391dde657a7, occurrence 0) to a no-op inside tests/tools/test_http_request.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_http_request.py::TestHttpRequestTool.test_timeout_handling FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-7d4db93de4674f69",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint d16f8058e5a90073e4a4878a, occurrence 0) to a no-op inside tests/tools/test_audio_tool.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_audio_tool.py::TestAudioTranscribeTool.test_api_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-7dc592e9dc00b3e8",
+      "ground": "Validator ''. Anchor evidence.py:86 (swallowed chmod in write_raw_log). The 0o600 property is established at creation by os.open(..., O_CREAT|O_TRUNC, 0o600) at 78-80 and asserted by the canary test on the produced log's stat mode. Probed the pre-existing-file corner (where a creation mode would not apply): raw log paths embed run_id = sha256(os.urandom(32))[:32] (engine.py:44-45), so production paths are fresh per run, and the parent directory is ensure_private_dir-verified 0o700 (paths.py:94-98) before any write - a hypothetically lax file mode is unreachable regardless. The swallow tolerates only permissionless platforms, where the canary property is inexpressible.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-7e13e7e4b71ae37b",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint d5717fa36a6930cbb8bf3846, occurrence 0) to a no-op inside tests/cli/test_model_pull.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_model_pull.py::TestOllamaPull.test_ollama_pull_connect_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-8d167ebd39bcdc03",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint c736aa0c81103fc4ff1d34a4, occurrence 0) to a no-op inside tests/tools/test_browser_axtree.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser_axtree.py::TestBrowserAXTreeTool.test_playwright_not_installed FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-90371ece5c7e56f8",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint d9ac5666bb9ee362c6d1c693, occurrence 0) to a no-op inside tests/cli/test_chat_cmd.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_chat_cmd.py::TestReadInput.test_read_input_eof FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-91d18f2f044aef1d",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 735a6b5a82a0d24d7f0f42ea, occurrence 0) to a no-op inside tests/cli/test_channel_cmd.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_channel_cmd.py::TestChannelList.test_list_connection_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-939ba920bb30a4a3",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 86fefec7d916e743d39646f7, occurrence 0) to a no-op inside tests/agents/test_channel_agent.py, the marker confirmed the rewrite applied, and the rerun of tests/agents/test_channel_agent.py::TestChannelAgent.test_agent_error_sends_friendly_message FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-9af91e529ac3d44a",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 80cd3506e29d08f32819d602, occurrence 0) to a no-op inside tests/mcp/test_loader.py, the marker confirmed the rewrite applied, and the rerun of tests/mcp/test_loader.py::TestLoaderFailureIsolation.test_one_server_failure_doesnt_abort_others FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-9b4087ceeb15703c",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 858f323b5d5777e6728dd39d, occurrence 0) to a no-op inside tests/tools/test_browser.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser.py::TestBrowserScreenshotTool.test_execute_screenshot_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-9d3491f179137eff",
+      "ground": "Validator ''. Anchor b0d_checks.py:297 (rmtree ignore_errors=True closing mode_collect_tool). Post-judgment confirmed: the before/after digest comparison (290-293, the mode's load-bearing statement), the read-only subcommand and report-schema checks (250-288) and the AST write-scan (296) have all appended to failures before the cleanup, and _emit at 298 only formats that list. Residue cannot leak forward: line 212 re-creates the identical fixture path through _fresh, whose non-tolerant rmtree plus mkdir(exist_ok=False) yields a verified-clean area on the next run.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-a289b81508185991",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 7a6980093a349d95d84fb252, occurrence 0) to a no-op inside tests/mining/test_collector.py, the marker confirmed the rewrite applied, and the rerun of tests/mining/test_collector.py::test_collector_handles_gateway_errors_gracefully FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-a3401c56cff9b22e",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 8344661230adeaf55b97bcbd, occurrence 0) to a no-op inside tests/tools/test_pdf_tool.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_pdf_tool.py::TestPDFExtractTool.test_pdf_extraction_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-a69cdb70f351664d",
+      "ground": "Validator ''. Anchor b0c_checks.py:411 (rmtree ignore_errors=True in mode_fixture_rule's finally). All seven fixture.evaluate cases (403-409) are judged into failures before the finally runs; _emit only reports that list. The fixture is a unique tempfile.mkdtemp(prefix='gate-register-') directory under .gate-runtime/fixtures/git (_fixture_repository, 191-203), so a surviving directory collides with no later run. The escape.git symlink inside it points at the real .git, but shutil.rmtree unlinks symlink entries without descending, so even the cleanup path cannot touch the repository - no silent after-state divergence.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-acbdf6dd53ba5174",
+      "ground": "Validator ''. Anchor test_manipulation_matrix.py:58 (guarded rmtree in MatrixTestBase.setUp). Pre-test hygiene whose success is mechanically observed: the rmtree runs without ignore_errors (failures raise), and the next statement self.area.mkdir(parents=True) with default exist_ok=False raises FileExistsError if the area survived. No test statement rests on this removal - each row's manipulation is separately proved effective before assertion, and the per-test area name (case-<testname>) plus the write_object discipline confine all writes to the freshly verified area.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-af9f7f6408744542",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 6f3cd443fff98aa767c31bca, occurrence 0) to a no-op inside tests/tools/test_web_search.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_web_search.py::TestWebSearchTool.test_execute_duckduckgo_fallback_format FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-b0e1e4b06abcdd7b",
+      "ground": "Validator ''. Anchor runner.py:275, same site as r9-17993cf6a555bf62, this entry covering the swallowed OSError. The swallow tolerates only the permissionless-platform case of a best-effort tightening that cannot alter the RunResult: parsing completed at 263-268, and confidentiality rests on the 0o700 parent directory that paths.ensure_private_dir establishes and, on POSIX, verifies with a raise at runner.py:183 - a mechanism independent of this chmod, inside the gitignored .gate-runtime area. No judgement can silently rest on the swallowed call.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-b5151bb35138a945",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 40b88a465c4dd7bce0f7ca0f, occurrence 0) to a no-op inside tests/tools/test_browser.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser.py::TestBrowserExtractTool.test_execute_extract_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-ba7bbb5f6a224de0",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint e943f5bbc1c47c08027ad5c9, occurrence 0) to a no-op inside tests/agents/test_executor.py, the marker confirmed the rewrite applied, and the rerun of tests/agents/test_executor.py::TestExecutorBasic.test_execute_tick_gives_up_after_max_retries FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-bb70da69fc9d580a",
+      "ground": "Validator ''. Anchor test_terminalbench_native_backend.py:88 (monkeypatch.setattr(tbn, 'Harness', FakeHarness, raising=False)). The target is genuinely conditional: terminalbench_native.py:18-23 imports Harness inside try/except ImportError, so the attribute is absent without terminal_bench installed and raising=False is required there. The mask cannot hide a renamed production symbol: run_harness resolves the module global 'Harness' at line 218, the fixture resets FakeHarness.captured_kwargs to {} at line 85, and every consuming test asserts concrete keys of captured_kwargs - a bypassed fake leaves {} and the assertions fail with KeyError. The substitution is thus mechanically observed by the tests' own expectations.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-c77813c72f7cbce9",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 696d0b922359e0eb3440c0a2, occurrence 0) to a no-op inside tests/server/test_speech_routes.py, the marker confirmed the rewrite applied, and the rerun of tests/server/test_speech_routes.py::test_transcribe_endpoint_surfaces_backend_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-c7d800ebc517c098",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 7e8ca80741f7cf441339878f, occurrence 0) to a no-op inside tests/tools/test_shell_exec.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_shell_exec.py::TestShellExecTool.test_rust_exception_sets_failure FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-cfacc6ac5248d124",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint a871628df4ee06bfff9d642e, occurrence 0) to a no-op inside tests/cli/test_model_pull.py, the marker confirmed the rewrite applied, and the rerun of tests/cli/test_model_pull.py::TestPullCliMultiEngine.test_pull_llamacpp_huggingface_cli_not_found FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-d07ba0e11591ffed",
+      "ground": "Validator ''. Anchor test_terminalbench_native_backend.py:137 (monkeypatch.setattr(tbn, 'Harness', OldFakeHarness, raising=False)). Same conditional-import target (terminalbench_native.py:18-23). A no-op substitution fails loudly: the expected RuntimeError matching 'global_agent_timeout_sec' is raised only by _check_timeout_kwargs_supported (223-249) when inspect.signature(Harness.__init__) has no VAR_KEYWORD and lacks the timeout kwargs - true for OldFakeHarness (explicit legacy signature, no **kwargs) and false for the fixture's FakeHarness(**kwargs), so if the patch did not take effect pytest.raises reports a non-raise. The after-state of the substitution is therefore the very thing the expectation measures.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-df26141cee33ad96",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint ab38679e2ba4e52d08582145, occurrence 0) to a no-op inside tests/tools/test_browser.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser.py::TestBrowserClickTool.test_execute_click_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-e274f3161c3aabfd",
+      "ground": "Validator ''. Anchor b0d_checks.py:160 (rmtree ignore_errors=True closing mode_manipulation_matrix). Post-judgment confirmed: every matrix row is applied and judged (probe_holds asserted first at 129-131 with manipulation_had_no_effect on failure; field, collection and consumption mismatches appended per row) before line 160, and _emit at 161 reports the finished list. Residue is neutralised structurally: mode start calls _fresh(base) at line 100 and each row gets _fresh(base/identifier), both via non-tolerant rmtree plus mkdir(exist_ok=False), so a surviving directory from this cleanup is verifiably removed or trips FileExistsError on the next run.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-e6cbf1f5b3ac7cab",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 0d3decc489f7d96c989aeab8, occurrence 0) to a no-op inside tests/agents/test_executor.py, the marker confirmed the rewrite applied, and the rerun of tests/agents/test_executor.py::TestExecutorBasic.test_execute_tick_handles_fatal_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-eb9c551476688a39",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint 040da60bd3d3ccb26ba66bd0, occurrence 0) to a no-op inside tests/tools/test_web_search.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_web_search.py::TestWebSearchTool.test_execute_tavily_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-f576e9ecf8f6621c",
+      "ground": "Neuter probe executed: astcat.validate_entry rewrote the anchor (fingerprint c690b417ba09f6b73352c598, occurrence 0) to a no-op inside tests/tools/test_browser.py, the marker confirmed the rewrite applied, and the rerun of tests/tools/test_browser.py::TestBrowserTypeTool.test_execute_type_error FAILED (nonzero pytest exit) \u2014 the assertions are not satisfiable without the injection firing. Binding verified: the category_proof test equals the anchor's own file::unit, the fingerprint resolves uniquely inside that unit, and this neuter probe runs on every dispositions gate as the standing mechanical observation the blind reviewers could not see.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-f667e5b811691fa8",
+      "ground": "Validator ''. Anchor guardops/collect.py:510 (swallowed shutil.chown in _move_object). The ownership property is established at creation by the root gate: _move_object's only production caller is command_collect (line 567), whose first statement refuses with collect_requires_root unless os.geteuid() == 0 (523-532), so the destination created via os.open(O_CREAT|O_EXCL, 0o444) at 492 is root-owned from birth. The chown only normalises the group to wheel; its failure (OSError/LookupError) leaves a root-owned, 0o444, never-overwritten file. The source is unlinked only after the byte-identical digest verification at 503-508, and both digest reads raise loudly on failure - no symmetric masking of two unreadable inputs is possible.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-f7300bf7da9c8fee",
+      "ground": "Validator ''. Anchor b0c_checks.py:296 (rmtree ignore_errors=True in mode_register_model's finally). Post-verdict confirmed: state reproduction, compare-and-swap refusal (255-260), terminal-state and event-count checks (262-266), all forbidden transitions (269-280) and the tamper-detection check (282-291) are collected into failures before the finally; _emit formats the final list. Each run's fixture is a unique tempfile.mkdtemp(prefix='gate-register-') path under .gate-runtime/fixtures/git, so a surviving directory is never re-entered and cannot shadow a later run's bare repository.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-f9145c3d32a0fe28",
+      "ground": "Validator ''. Anchor b0d_checks.py:396 (rmtree ignore_errors=True closing mode_observed_wiring). Post-judgment confirmed: the AST/entry-point checks (365-385) and the behavioural check on the never-created base/'absent' path (392-394) run before the cleanup; _emit follows at 397, and the area is re-established via _fresh at 389 on every run, so residue cannot leak into a later verdict - the removal itself carries no expectation. Separate observation, outside this entry's criterion: the behavioural check record_all(str(base/'absent'), []) passes an empty observations list, and observed.record_all (tools/guard/observed.py:98-119) returns 0 for an empty list even when the directory exists, so written==0 does not by itself distinguish the missing-directory no-op from having nothing to record; the mode's no-op claim would be sharper with a non-empty observation. This does not affect the rmtree's post-judgment ground.",
+      "outcome": "reconfirmed"
+    },
+    {
+      "candidate_id": "r9-fbd546011afe0d57",
+      "ground": "Validator ''. Anchor runner.py:187 (report_path.unlink() behind the exists() guard, 186-187). Loud guarded removal confirmed: the guard skips only when the file is already absent (the desired after-state), and a failing unlink raises out of execute() unswallowed. After-state divergence is additionally caught downstream: a fresh run whose child wrote no report yields gate_report_missing (parse_gate_report, runner.py:106-112), and a hypothetically surviving stale report whose passed outcome disagrees with a non-zero fresh exit code is rejected as gate_report_contradicts_exit_code (runner.py:142-146).",
+      "outcome": "reconfirmed"
+    }
+  ],
+  "insufficient_evidence_resolution": "Round 2 returned three insufficient_evidence verdicts (r9-36a3ed5076e1f7b9, r9-cfacc6ac5248d124, r10-9868049eea65fce3) and round 3 two (r10-99ae6c8c24aa91c5, r9-91d18f2f044aef1d). Cause, established for all five: the deciding facts \u2014 the neuter execution probe for the injection candidates, the one-to-one review consumption check for the gate candidate, and the engine-side emptyset consumer for the runtime-guarded candidate \u2014 live outside the blind material by design of the information barrier and cannot be added to the dataset without disclosing the category they constitute. The verdicts stand unchanged in the stored evaluations; none is upgraded. Every affected candidate is covered, with its mechanical ground, by this record's category-wide re-examination, which spans all fourteen categories and which the blind gate enforces as the consequence path.",
+  "kind": "b0f_category_rereview",
+  "schema_version": 1
+}
