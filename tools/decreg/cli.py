@@ -144,6 +144,20 @@ def command_scan(args):
 
 
 def _append(args, action):
+    wants_import_marking = (
+        getattr(args, "import_note", None) is not None
+        or getattr(args, "original_file", None) is not None
+    )
+    if wants_import_marking and not bool(getattr(args, "genesis", False)):
+        # The model would silently drop the fields on a normal event; a
+        # writer that discards what the caller stated is worse than one
+        # that refuses, so the refusal happens loudly here.
+        return refused(
+            "genesis_field_on_normal_event",
+            "import marking requires --genesis",
+            dec_id=args.dec_id,
+            action=action,
+        )
     current = _state(args)
     previous_event_id = (
         current["events"][-1]["event_id"] if current["events"] else None
@@ -160,6 +174,8 @@ def _append(args, action):
             previous_digest=current["digest"],
             previous_event_id=previous_event_id,
             genesis=bool(getattr(args, "genesis", False)),
+            original_file=getattr(args, "original_file", None),
+            import_note=getattr(args, "import_note", None),
         )
         text = model.append(current["text"], event)
     except model.RegisterError as error:
@@ -308,6 +324,13 @@ def build_parser():
         sub.add_argument("--dry-run", action="store_true")
         if name == "assign":
             sub.add_argument("--genesis", action="store_true")
+            # Genesis import contract (B0g): unprovable historical metadata
+            # is marked on the event itself. The model already carries and
+            # validates both fields and rejects them on non-genesis events;
+            # the arguments only close the gap that the writer could not
+            # emit what its own reader demands.
+            sub.add_argument("--import-note", default=None)
+            sub.add_argument("--original-file", default=None)
         sub.set_defaults(handler=handler)
 
     push = subparsers.add_parser("plan-push")

@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "kind": "commit_plan",
+  "block_id": "b0g-rule-codification",
+  "start_commit": "537f9c2b0dbc0fefcda071deaa3de0df2f59655c",
+  "planned_commits": [
+    {
+      "position": 1,
+      "purpose": "purely normative preparation: the genesis import contract becomes writable through the register tool (RC-032) so the canonical governance ref can be brought into real operation with the marking its own schema demands; plus this plan",
+      "message": "feat(governance): make the genesis import contract writable through the register tool"
+    },
+    {
+      "position": 2,
+      "purpose": "purely normative: the thirteen DEC documents and register rows against their reserved ids, the authority binding model with its validator and negative fixtures, the reference migration of CLAUDE.md and the governance configurations, the b0g manifest, lineage, gates and tests",
+      "message": "feat(governance): codify the thirteen standing decisions onto their reserved DEC ids"
+    },
+    {
+      "position": 3,
+      "purpose": "purely determinative: gate evidence against the pair of the fixed normative branch commit and the verified governance ref oid, register oid proofs, single-source-of-truth proof, acceptance record, correction notes and handoff",
+      "message": "test(governance): finalize b0g codification evidence, acceptance and handoff"
+    }
+  ],
+  "max_commits": 3,
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "--force-with-lease",
+    "automatic push",
+    "direct remote ref mutation",
+    "sudo",
+    "guard activation",
+    "dec release owner action"
+  ],
+  "push_status": "not_performed_owner_action",
+  "split_justification": {
+    "declared_in_advance": true,
+    "decided_by": "owner instruction for block B0g",
+    "separation": "normative and determinative stay in separate branch commits; positions 1 and 2 are normative, position 3 is determinative; the append-only history on refs/governance/dec-reservations is a separate owner-pushed event chain and is never equated with branch commits",
+    "reason": "Position 1 must exist before the genesis because the genesis events must carry the import contract marking through the committed tool. Position 2 can only exist after the reservations, because no decision may enter a normative branch commit before its id is reserved; the assigned events afterwards bind to exactly this commit. The determinative position exists so evidence describes the fixed pair of branch commit and governance ref oid.",
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates",
+      "the full tooling test suite passes",
+      "the configuration loader binding check passes",
+      "every phase declared for the changed subject has run against the new scope (R5)",
+      "a commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified."
+  },
+  "guard_package_affected": {
+    "value": false,
+    "reason": "B0g changes no file under tools/guard, tools/guardpkg or tools/guardops; the installed guard, its package and its digest stay untouched and no guard activation exists in this block. The owner actions of this block are register ref pushes, not guard actions.",
+    "owner_activation_required": false
+  }
+}
