@@ -1,0 +1,16 @@
+{
+  "app_bundle_sha256_main_binary": "79a6ea8215c6f86f84e9b899428f5fe1590c70a6b4f74ec3698fb8396396f3a1",
+  "authorization_status": "authorized",
+  "calendars_count": 11,
+  "embedded_calendar_sidecar_sha256": "5fd645da5a809855e10893d5bbada3f9ea8527ca7298c6e81c4b4ee13d423ad2",
+  "events_count": 61,
+  "functional_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+  "kind": "b1_live_record",
+  "recorded_at_utc": "2026-08-08T15:22:14Z",
+  "schema_version": 1,
+  "statement": "PII-armer Live-Nachweis des B1-Abnahmelaufs vom 2026-08-08: nur Zaehler, Status, Digeste und Fensterzeiten; keine Titel, Notizen, Teilnehmer oder sonstige Kalenderinhalte. Re-derivierbar gegen die produktive Datenbank durch pl-b1-live-data.",
+  "sync_outcome": "ok",
+  "sync_runs_count": 1,
+  "window_end_utc": "2027-08-08T15:13:45Z",
+  "window_start_utc": "2026-05-10T15:13:45Z"
+}

@@ -1,0 +1,43 @@
+{
+  "baseline_commit": null,
+  "block": "b1-calendar-visible",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "of-b1-bundle",
+    "of-b1-path",
+    "of-b1-readonly",
+    "of-config-loaders",
+    "of-feature-lineage",
+    "of-frontend-tests",
+    "of-manifest-validation",
+    "of-preservation",
+    "of-shell-syntax",
+    "of-tooling-tests"
+  ],
+  "commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-08T15:55:16Z",
+  "manifest_digest": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+  "phase": "offline-final",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "03ffeebd24c46a081322e70542f67ef766024b5525bbe0eaf9720a8a2b5cba83",
+    "07acace75b67ef0104945d8cfcf0f446eb398d29c06dd219901fdfe134d6eab3",
+    "07d759ba7f1f255e0d1e186d0cd82b4a4565a4e8f55b255b41e4d1407e97d638",
+    "17a78424fe7c1d26e61b0844b2ef418db09c124805adda26277949eeb9629b26",
+    "3b3e3447c1ca0f334c6f57e5334f274da45a557afd91dc6c01156bd54435fa7d",
+    "41a230f0083c1835a17382f7df6dc6fb3499d80ba4f25ab94e2a457fa876ad9d",
+    "4fc8b7ce03cb5ec82420544534d758560b28d8f975a473de487487185bb5045c",
+    "5072428c581dedc3aa299a9c3b27775245b4ac9bc40bb8c629d30ce16edd950a",
+    "646edaf278cc52cb19879aef4ff0e9ee703334f4c5153c0a14dcd4487362a117",
+    "af1edfc9e25fcc3bdf35f8f1ab0d569dc548e31a93ca21cfe29571cba78d1970"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "14712532267310c291cc189d6875b080",
+  "schema_version": 1,
+  "started_at": "2026-08-08T15:49:48Z",
+  "status": "pass"
+}

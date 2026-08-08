@@ -48,6 +48,15 @@
       "reason": "The register stage record is read exclusively by the assignment loader, which enforces the closed stage set and the commit binding an assigned stage demands."
     },
     {
+      "binding_id": "b1-live-record",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.runners.b1_checks:load_live_record",
+      "pattern": "config/gates/history/b1-live-record.json",
+      "reason": "The PII-poor live record is read exclusively by the B1 live-data check, whose loader rejects unknown fields so no calendar content can ever ride along."
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",

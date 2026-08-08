@@ -1,0 +1,188 @@
+{
+  "acceptance_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. platform-live is applicable and ran on the Intel Mac against the real packed bundle, the fresh remote branch state and the productive database; the TCC grant was given interactively by the owner from the responsible packed process. No result was interpreted and no manual run replaced a gate.",
+  "block_id": "b1-calendar-visible",
+  "block_scope": {
+    "covers": "The sidebar entry to the existing /calendar views, the packed and resealed x86_64 app bundle with both sidecars, the calendar sidecar path injection, the calendar usage descriptions, the bridge handshake before the status is believed, and the first productive EventKit read: real authorization from the packed app, one real sync, real events visible in the app.",
+    "guard_paths_diff_since_block_start": [],
+    "k1_mapping": {
+      "K1-O01": "x86_64 half evidenced by this block: real read run from the packed app through the productive sidecar with interactive TCC grant. arm64 half open; the gate stays open.",
+      "K1-O02": "not touched by B1 (arm64).",
+      "K1-O03": "not evidenced: every rebuild happened before the grant; no rebuild-after-grant persistence observation exists yet.",
+      "K1-O05": "not evidenced: the real inventory contains zero events with attendees (mechanical count).",
+      "K1-O06": "not evidenced: the read-parity contract binds to M2 reference hardware."
+    },
+    "live_run": {
+      "authorization": "full_access, granted interactively from the packed app",
+      "date_utc": "2026-08-08",
+      "db_rows": {
+        "calendars": 11,
+        "events": 61,
+        "sync_runs": 1
+      },
+      "owner_visual_confirmation": "eleven calendars in three source groups, events in the August 2026 month grid, view switching intact, no bridge warning",
+      "sync": {
+        "calendars": "11/11",
+        "events_created": 61,
+        "events_seen": 63,
+        "events_tombstoned": 0,
+        "events_updated": 2,
+        "outcome": "completed"
+      }
+    },
+    "tcc_attribution": {
+      "claim": "the calendar grant is bound to the signed app as responsible process",
+      "proof": "counter-probe: the identical bundled sidecar binary, spawned by the identical .venv python OUTSIDE the app chain, reports NOT_DETERMINED (passive status query, no prompt), while the app-descendant chain reports full_access and read 63 real events. The grant therefore follows the responsible process of the app chain, not the sidecar binary or the python helper. TCC.db and the unified log are not readable without full disk access; this mechanical counter-probe is the evidence."
+    }
+  },
+  "committed_artifacts": [
+    {
+      "blob_sha256": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+      "path": "config/gates/blocks/b1-calendar-visible.json"
+    },
+    {
+      "blob_sha256": "10d8ec08726c5076307e01fe69d005ae6748975bc378a9bebe53ca1a9cf8a05c",
+      "path": "config/gates/features/b1-calendar-visible.lineage.json"
+    },
+    {
+      "blob_sha256": "e00797b5d9a845a18374ffd22a08f90bc1d19316d44b8091fe4802f89dc726f3",
+      "path": "config/gates/history/b1-commit-plan.json"
+    },
+    {
+      "blob_sha256": "1554d165fbb7f400be4a953614e29343a5f1effbde2d2a601353b7d9524076f1",
+      "path": "tools/gates/runners/b1_checks.py"
+    },
+    {
+      "blob_sha256": "359135a1b8e517489942574f31a76df69cf30a9125f7a4bcef45bf236e6371e5",
+      "path": "frontend/src/components/Sidebar/Sidebar.tsx"
+    },
+    {
+      "blob_sha256": "8b819ec8d660488319422941e2a8f909700e3cde540cbc15da820f966aebdd5a",
+      "path": "frontend/src/personal/calendar/CalendarWorkspace.tsx"
+    },
+    {
+      "blob_sha256": "b38151a9042b78f6f938e92eacf20e1de7e0b764b4ca19f8c74295e308d9826d",
+      "path": "frontend/src-tauri/Info.plist"
+    },
+    {
+      "blob_sha256": "b11d8df8afdd475a432f99de58293c7bc119c9d991499c026b45b8f7c2113aaa",
+      "path": "frontend/src-tauri/src/lib.rs"
+    },
+    {
+      "blob_sha256": "a0a2947e4826cb2fb71f45d8db8712b7a05f4d0c9f6b66618e0d97330be97786",
+      "path": "frontend/src-tauri/scripts/reseal-contacts-sidecar.sh"
+    },
+    {
+      "blob_sha256": "a00e1811df58dc53e7a03d50449b773aca8667113ee3bc9a13ec7dc854661701",
+      "path": "frontend/src-tauri/Entitlements.plist"
+    },
+    {
+      "blob_sha256": "f3cbf189e11c6852d1e2fe04e591794648653f2073c1dd1b82c2ae4bf5b83ae3",
+      "path": "frontend/src-tauri/CalendarSidecar.entitlements"
+    }
+  ],
+  "documented_limitations": [
+    "The app's backend start (uv run) resynced the development venv and pruned dev dependencies mid-block; the tooling suite failed until uv sync --extra dev restored them. Side finding, not repaired beyond restoration (F1): the packed app and the development venv share one environment on this machine.",
+    "tauri build reports a missing TAURI_SIGNING_PRIVATE_KEY for updater artifacts; the .app itself builds and is resealed with the productive certificate. Updater signing is outside B1.",
+    "TCC attribution is proven by the mechanical counter-probe recorded in block_scope.tcc_attribution; the TCC database itself is unreadable without full disk access.",
+    "The bundle carries multiple embedded frontend asset generations (index-*.js); the running app loads the current one. Noted, not cleaned (F1)."
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.11",
+    "system": "Darwin"
+  },
+  "evidence_binding_note": "The five snapshots below are byte copies of the sanitised runtime evidence of the acceptance run, bound by sha256; raw logs stay in the gitignored runtime area.",
+  "external_inputs": [
+    "git ls-remote origin refs/heads/spike/calendar-foundation-intel-2026-08-04 during platform-live (fresh ancestor check)",
+    "the productive database ~/.openjarvis/personal/jarvis.db during platform-live (read-only re-derivation of the PII-poor live record)",
+    "the interactive TCC decision of the owner in the packed app"
+  ],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "guard_activation": {
+    "reason": "No file under tools/guard, tools/guardpkg or tools/guardops changed in this block; the active installation is untouched.",
+    "required": false
+  },
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+    "block_start_commit": "7accb1694bd3b51a18c2000fe546c457f048e568",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "7accb1694bd3b51a18c2000fe546c457f048e568"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 8,
+  "own_feature_prefix": "B1-",
+  "phase_results": {
+    "module-final": "pass",
+    "offline-final": "pass",
+    "platform-live": "pass",
+    "preflight": "pass",
+    "targeted": "pass"
+  },
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b1-calendar-visible/preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "33b8030946b391e150f8aded07ab3af42ce9ad2dd6e9659385a1e085a6878098"
+    },
+    {
+      "path": "config/gates/evidence/b1-calendar-visible/targeted.json",
+      "phase": "targeted",
+      "recorded_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "33c9d9b00bc7e47cb6a33044668899fac143f45d25a4f76b453474c89be4c3c8"
+    },
+    {
+      "path": "config/gates/evidence/b1-calendar-visible/offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "cae406b93ce29ac2000858553c9fd24636d987fb938b3f1eb1e023e68d01034a"
+    },
+    {
+      "path": "config/gates/evidence/b1-calendar-visible/platform-live.json",
+      "phase": "platform-live",
+      "recorded_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "7abd78a7f11c489c45b417cad54638c1b3ea88c4a2f25ff776cf8534ee288bf5"
+    },
+    {
+      "path": "config/gates/evidence/b1-calendar-visible/module-final.json",
+      "phase": "module-final",
+      "recorded_commit": "ef3e66c2071e7cea35dea71808dcb016a6d09054",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "52fd2a7ba735e0cd2f9d0fe1ea24f1ba8105f3af9828f76bea69c34952208ebd",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "1f309922b25d8eb6002f698ed3ecc610d3f03f647fb5fb5a367bbde68046ea0c"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B1 calendar visible on x86_64: real events in the packed, signed app over the read-only path"
+}
