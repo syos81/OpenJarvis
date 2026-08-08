@@ -10,6 +10,12 @@
 // ein freier, dass ein Berechtigungsproblem seinen Grund nennt, und dass kein
 // Rendern und kein Ansichtswechsel einen Sync auslöst.
 
+// Die Fixtures dieser Datei sprechen Europe/Berlin, das Raster bucketiert in
+// der Systemzeitzone. Ohne Pin kippt derselbe Bestand unter TZ=UTC (der
+// deterministischen Gate-Umgebung) in den Vortag. Der Pin steht vor allen
+// Imports, damit keine Date-Operation die Zeitzone vorher einfriert.
+process.env.TZ = 'Europe/Berlin';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { KalenderZeile, ModulStatus, Termin } from './api';
@@ -358,5 +364,19 @@ describe('Tastaturbedienung', () => {
     fireEvent.keyDown(feld, { key: 't' });
     // Der Titel darf sich dadurch nicht aendern.
     expect(screen.getByText('August 2026')).toBeTruthy();
+  });
+});
+
+describe('Navigation (B1)', () => {
+  it('bindet die Seite genau einmal in Route und Navigation ein', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const hier = dirname(fileURLToPath(import.meta.url));
+    const app = readFileSync(join(hier, '../../App.tsx'), 'utf8');
+    const sidebar = readFileSync(
+      join(hier, '../../components/Sidebar/Sidebar.tsx'), 'utf8');
+    expect(app.match(/path="calendar"/g)).toHaveLength(1);
+    expect(sidebar.match(/path: '\/calendar'/g)).toHaveLength(1);
   });
 });

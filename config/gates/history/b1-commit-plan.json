@@ -1,0 +1,54 @@
+{
+  "block_id": "b1-calendar-visible",
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "--force-with-lease",
+    "automatic push",
+    "direct remote ref mutation",
+    "sudo",
+    "guard activation",
+    "dec release owner action",
+    "calendar mutation of any kind"
+  ],
+  "guard_package_affected": {
+    "owner_activation_required": false,
+    "reason": "B1 changes no file under tools/guard, tools/guardpkg or tools/guardops; the active installation stays untouched.",
+    "value": false
+  },
+  "kind": "commit_plan",
+  "max_commits": 4,
+  "planned_commits": [
+    {
+      "message": "feat(calendar): make the calendar reachable and packageable on x86_64",
+      "position": 1,
+      "purpose": "functional: the sidebar entry with its navigation test, the B1 gate scaffold (runner, manifest, lineage, this plan, live-record loader binding) — everything the visible x86_64 calendar goal needs and nothing else"
+    },
+    {
+      "message": "test(calendar): finalize b1 visible-calendar evidence, acceptance and handoff",
+      "position": 2,
+      "purpose": "purely determinative: gate evidence of the five phases against the fixed functional commit and the live run, the PII-poor live record, the x86_64 K1 mapping, acceptance and handoff"
+    }
+  ],
+  "push_status": "not_performed_owner_action",
+  "schema_version": 1,
+  "split_justification": {
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates",
+      "the configuration loader binding check passes",
+      "every phase declared for the changed subject has run against the new scope (R5)",
+      "a commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it, where phases requiring live interaction may be green from the acceptance run they describe"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified.",
+    "decided_by": "owner instruction for block B1",
+    "declared_in_advance": true,
+    "reason": "B1 stays deliberately small: one functional commit carries the visible goal, the determinative commit carries only evidence of the run against it. A genuine functional defect found by the live run creates a further functional commit with a machine-readable reason here, never an amend.",
+    "separation": "normative and determinative stay in separate branch commits; position 1 is functional, position 2 is determinative"
+  },
+  "start_commit": "7accb1694bd3b51a18c2000fe546c457f048e568"
+}

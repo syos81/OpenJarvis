@@ -1,0 +1,719 @@
+{
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cache_enabled": false,
+    "cause_signature_version": "cs-1",
+    "config_digest_paths": [
+      "config/governance/ast-dispositions.json",
+      "config/governance/b0f-sample-plan.json",
+      "config/governance/b0f-unit-locality.json",
+      "config/governance/config-loaders.json",
+      "config/governance/effect-evidence.json",
+      "config/governance/guard-trust-model.json",
+      "config/governance/owner-expectations.json",
+      "config/guard/rule-changes.json"
+    ],
+    "dependency_lock_paths": [],
+    "owner_marker": "openjarvis-gate-baseline"
+  },
+  "block_id": "b1-calendar-visible",
+  "checks": [
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-b1-path",
+      "description": "The functional chain exists: /calendar route, exactly one sidebar entry, client prefix, x86_64 sidecar at the Tauri path, reseal coverage and both entitlement layers.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "path"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-b1-readonly",
+      "description": "Read-only invariant: no mutating bridge operation declared, the mutation-symbol lock stands, and the shipped sidecar binary carries no EventKit write selector.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-config-loaders",
+      "description": "Every configuration bound to exactly one accepting reader (R4).",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-guard-base",
+      "description": "Active guard installation verified.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-manifest",
+      "description": "This manifest validates.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b1-calendar-visible"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree",
+      "description": "Expected branch.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "spike/calendar-foundation-intel-2026-08-04"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree-state",
+      "description": "Worktree state for this block.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b1-calendar-visible"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b1-bundle",
+      "description": "The packed app: native x86_64 binaries, strict deep codesign verification, non ad-hoc signature, calendars entitlement on the responsible process, minimal sidecar contract.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "bundle"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b1-frontend-tests",
+      "description": "The calendar frontend tests including the B1 navigation test.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "frontend-tests"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b1-path",
+      "description": "The functional chain exists: /calendar route, exactly one sidebar entry, client prefix, x86_64 sidecar at the Tauri path, reseal coverage and both entitlement layers.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "path"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b1-readonly",
+      "description": "Read-only invariant: no mutating bridge operation declared, the mutation-symbol lock stands, and the shipped sidecar binary carries no EventKit write selector.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-config-loaders",
+      "description": "Loader binding against the current change.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b1-bundle",
+      "description": "The packed app: native x86_64 binaries, strict deep codesign verification, non ad-hoc signature, calendars entitlement on the responsible process, minimal sidecar contract.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "bundle"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b1-path",
+      "description": "The functional chain exists: /calendar route, exactly one sidebar entry, client prefix, x86_64 sidecar at the Tauri path, reseal coverage and both entitlement layers.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "path"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b1-readonly",
+      "description": "Read-only invariant: no mutating bridge operation declared, the mutation-symbol lock stands, and the shipped sidecar binary carries no EventKit write selector.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-config-loaders",
+      "description": "Loader binding at the fixed commit.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-feature-lineage",
+      "description": "Feature completeness against the immediate predecessor.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b1-calendar-visible"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-frontend-tests",
+      "description": "The calendar frontend tests at the fixed commit.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "frontend-tests"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-manifest-validation",
+      "description": "Manifest validation with fixtures.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b1-calendar-visible",
+          "--with-fixtures"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-preservation",
+      "description": "Historical acceptance preservation.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-shell-syntax",
+      "description": "Shell syntax of scripts/.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/shell_syntax.py",
+          "--directory",
+          "scripts"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-tooling-tests",
+      "description": "The full tooling test suite.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling",
+          "-t",
+          "."
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 3600
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-bundle",
+      "description": "The packed app: native x86_64 binaries, strict deep codesign verification, non ad-hoc signature, calendars entitlement on the responsible process, minimal sidecar contract.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "bundle"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-live-data",
+      "description": "The PII-poor live record re-derives against the productive database: authorized, sync ok, real calendars and events.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "live-data"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-readonly",
+      "description": "Read-only invariant: no mutating bridge operation declared, the mutation-symbol lock stands, and the shipped sidecar binary carries no EventKit write selector.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-remote-ancestor",
+      "description": "The published branch tip read fresh from origin is an ancestor of the local HEAD.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "remote-ancestor"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-evidence",
+      "description": "Evidence completeness.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_evidence",
+        "type": "internal"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-feature-lineage",
+      "description": "Feature completeness at close.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b1-calendar-visible"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-phase-results",
+      "description": "All stored phase results fresh and green.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_phase_results",
+        "type": "internal"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-preservation",
+      "description": "Preservation at close.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    }
+  ],
+  "engine_min_version": "1.0.0",
+  "evidence_policy": {
+    "raw_log_area": "runtime_only",
+    "sanitized_evidence": true
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b1-calendar-visible.lineage.json",
+    "own_expected": 8,
+    "own_prefix": "B1-",
+    "predecessor_file": "config/gates/features/b0g-rule-codification.lineage.json"
+  },
+  "phase_definitions": {
+    "module-final": {
+      "applicable": true,
+      "reason": "Closing aggregation over stored phase results, evidence completeness, feature lineage and preservation.",
+      "required": true
+    },
+    "offline-final": {
+      "applicable": true,
+      "reason": "The full offline acceptance against the fixed functional commit: everything checkable without real TCC or app interaction.",
+      "required": true
+    },
+    "platform-live": {
+      "applicable": true,
+      "reason": "The subject of B1 is the real packed app on this Intel Mac: real signatures, real remote branch state, and the PII-poor live record re-derived against the productive database.",
+      "required": true
+    },
+    "preflight": {
+      "applicable": true,
+      "reason": "Worktree, branch, guard, loader bindings and the existing calendar chain are prerequisites of every later step.",
+      "required": true
+    },
+    "targeted": {
+      "applicable": true,
+      "reason": "During the work the changed pieces are checked: navigation, packaging, read-only invariant, bundle and the affected frontend tests.",
+      "required": true
+    }
+  },
+  "platform_requirements": {
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.11",
+    "systems": [
+      "Darwin"
+    ]
+  },
+  "product_guard": {
+    "allowed_paths": [
+      "*"
+    ],
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "forbidden_paths": []
+  },
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "schema_version": 1,
+  "targeted_selection": {
+    "always": [
+      "tg-b1-frontend-tests",
+      "tg-b1-path",
+      "tg-b1-readonly"
+    ],
+    "base_ref": "7accb1694bd3b51a18c2000fe546c457f048e568",
+    "rules": [
+      {
+        "checks": [
+          "tg-b1-bundle",
+          "tg-b1-frontend-tests",
+          "tg-b1-path"
+        ],
+        "paths": [
+          "frontend/*"
+        ],
+        "rule_id": "r-frontend"
+      },
+      {
+        "checks": [
+          "tg-b1-path",
+          "tg-b1-readonly",
+          "tg-config-loaders"
+        ],
+        "paths": [
+          "tools/*",
+          "config/*",
+          "scripts/*"
+        ],
+        "rule_id": "r-tooling"
+      }
+    ]
+  },
+  "title": "B1 calendar visible on x86_64: the packed app shows real events over the existing read-only path"
+}
