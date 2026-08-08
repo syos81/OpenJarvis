@@ -69,6 +69,12 @@ function mockApi(over: {
   fensterVon?: string; fensterBis?: string;
 } = {}) {
   vi.spyOn(api, 'ladeStatus').mockResolvedValue({ ...STATUS, ...over.status });
+  vi.spyOn(api, 'pruefeBridge').mockResolvedValue({
+    bridge_available: (over.status?.bridge_available ?? STATUS.bridge_available),
+    authorization_status:
+      (over.status?.authorization_status ?? STATUS.authorization_status),
+    detail: '',
+  });
   vi.spyOn(api, 'ladeKalender').mockResolvedValue(
     { calendars: KALENDER, count: KALENDER.length });
   vi.spyOn(api, 'ladeTermine').mockImplementation(async (von, bis) => ({
@@ -378,5 +384,41 @@ describe('Navigation (B1)', () => {
       join(hier, '../../components/Sidebar/Sidebar.tsx'), 'utf8');
     expect(app.match(/path="calendar"/g)).toHaveLength(1);
     expect(sidebar.match(/path: '\/calendar'/g)).toHaveLength(1);
+  });
+});
+
+describe('Bridge-Handshake beim Laden (B1)', () => {
+  // Der Live-Lauf vom 2026-08-08 zeigte den Fehler: `/status` meldet den
+  // ZULETZT BEKANNTEN Stand, und der ist bei frischem Backend „noch nicht
+  // geprueft" — also nicht verfuegbar. Die Ansicht behauptete daraufhin eine
+  // fehlende Bridge und bot den Berechtigungsweg nie an, obwohl der
+  // Handshake gegen dasselbe Backend `bridge_available: true` lieferte.
+
+  it('prueft die Bridge beim Laden, bevor sie den Status glaubt', async () => {
+    mockApi({ status: { authorization_status: 'not_determined', can_read: false } });
+    render(<CalendarWorkspace />);
+    await waitFor(() => expect(api.pruefeBridge).toHaveBeenCalled());
+    // Und der Berechtigungsweg ist danach erreichbar, statt vom
+    // Nichtverfuegbar-Zustand verdeckt zu werden.
+    expect(screen.getByRole('button', { name: 'Zugriff anfragen' })).toBeTruthy();
+  });
+
+  it('bleibt beim Handshake ein Lesevorgang: kein Sync, keine Berechtigungsfrage', async () => {
+    const sync = vi.spyOn(api, 'synchronisiere');
+    const frage = vi.spyOn(api, 'frageBerechtigungAn');
+    await rendern();
+    expect(api.pruefeBridge).toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
+    expect(frage).not.toHaveBeenCalled();
+  });
+
+  it('wirft die Ansicht nicht in den Fehlerzustand, wenn der Handshake scheitert', async () => {
+    mockApi({ status: { bridge_available: false, can_read: false,
+                        authorization_status: 'unknown' } });
+    vi.spyOn(api, 'pruefeBridge').mockRejectedValue(new Error('kein Backend'));
+    render(<CalendarWorkspace />);
+    await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
+    // Fail-closed und ehrlich: der Vorwert bleibt stehen und wird benannt.
+    expect(screen.getByText(/nicht gesagt, dass dein Kalender leer ist/)).toBeTruthy();
   });
 });

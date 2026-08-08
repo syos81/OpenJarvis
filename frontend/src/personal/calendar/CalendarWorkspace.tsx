@@ -15,7 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './tokens.css';
 import {
   type KalenderZeile, type LaufBericht, type ModulStatus, type Termin,
-  frageBerechtigungAn, ladeKalender, ladeStatus, ladeTermine, synchronisiere,
+  frageBerechtigungAn, ladeKalender, ladeStatus, ladeTermine, pruefeBridge,
+  synchronisiere,
 } from './api';
 import {
   CalendarSidebar, JahresRaster, MonatsRaster, TerminDetail, ZeitRaster,
@@ -57,6 +58,18 @@ export function CalendarWorkspace() {
   // Nur lesen. Weder Mount noch Ansichtswechsel loesen einen Sync aus.
   const laden = useCallback(async (vonUtc: string, bisUtc: string) => {
     try {
+      // Erst der kalenderfreie Handshake, dann der Status: `/status` meldet
+      // bewusst den ZULETZT BEKANNTEN Bridge-Stand und fragt den Provider
+      // nicht. Bei frischem Backend ist das „noch nicht geprueft" — also
+      // `bridge_available: false`. Ohne diesen Aufruf zeigte die Ansicht
+      // „Bridge nicht verfuegbar", obwohl die Bridge da ist, und bot den
+      // Berechtigungsweg deshalb nie an.
+      //
+      // Der Handshake liest keinen Kalender und startet keinen Sync. Sein
+      // Fehlschlag darf die Ansicht nicht in den generischen Fehlerzustand
+      // werfen: dann bliebe der Status auf seinem fail-closed Vorwert, und
+      // die Ansicht sagt ehrlich, dass die Bridge nicht verfuegbar ist.
+      await pruefeBridge().catch(() => undefined);
       const [s, k, t] = await Promise.all([
         ladeStatus(), ladeKalender(), ladeTermine(vonUtc, bisUtc),
       ]);
