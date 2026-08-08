@@ -23,6 +23,12 @@
   },
   "kind": "commit_plan",
   "max_commits": 4,
+  "plan_change": {
+    "actual": 3,
+    "decided_by": "commit plan rule for live-found functional defects",
+    "declared_at_start": 2,
+    "reason": "Mechanically traced before the first live start: frontend/src-tauri/src/lib.rs set OPENJARVIS_PERSONAL_ENABLED and PERSONAL_JARVIS_CONTACTS_SIDECAR but never PERSONAL_JARVIS_CALENDAR_SIDECAR, and the resolver accepts only explicitly injected paths (src/personaljarvis/base/sidecar/resolver.py). A packed app could enable the module yet never resolve its own bundled calendar bridge. Repaired as its own functional commit; no amend."
+  },
   "planned_commits": [
     {
       "message": "feat(calendar): make the calendar reachable and packageable on x86_64",
@@ -30,8 +36,13 @@
       "purpose": "functional: the sidebar entry with its navigation test, the B1 gate scaffold (runner, manifest, lineage, this plan, live-record loader binding) — everything the visible x86_64 calendar goal needs and nothing else"
     },
     {
-      "message": "test(calendar): finalize b1 visible-calendar evidence, acceptance and handoff",
+      "message": "fix(calendar): inject the bundled calendar sidecar path into the backend start",
       "position": 2,
+      "purpose": "functional repair found while mechanically tracing the packed-app chain before the live run: the backend start injected only the contacts sidecar path; without PERSONAL_JARVIS_CALENDAR_SIDECAR the resolver (which accepts only injected paths) could never reach the bundled calendar bridge"
+    },
+    {
+      "message": "test(calendar): finalize b1 visible-calendar evidence, acceptance and handoff",
+      "position": 3,
       "purpose": "purely determinative: gate evidence of the five phases against the fixed functional commit and the live run, the PII-poor live record, the x86_64 K1 mapping, acceptance and handoff"
     }
   ],

@@ -318,6 +318,17 @@ fn bundled_contacts_sidecar() -> Option<std::path::PathBuf> {
     candidate.is_file().then_some(candidate)
 }
 
+/// The read-only calendar sidecar shipped next to the app binary, if any.
+///
+/// Same contract as `bundled_contacts_sidecar`: the backend resolver only
+/// accepts explicitly injected paths (env var or bundle dir), so without
+/// this the packed app could never reach its own bundled calendar bridge.
+fn bundled_calendar_sidecar() -> Option<std::path::PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let candidate = dir.join("jarvis-calendar");
+    candidate.is_file().then_some(candidate)
+}
+
 /// How far up from the executable to look for `pyproject.toml`.
 ///
 /// See the walk comment in `find_project_root` for where the number comes from.
@@ -1622,6 +1633,12 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     if let Some(sidecar) = bundled_contacts_sidecar() {
         cmd.env("OPENJARVIS_PERSONAL_ENABLED", "1");
         cmd.env("PERSONAL_JARVIS_CONTACTS_SIDECAR", &sidecar);
+    }
+    // The calendar sidecar rides the same switch: read-only module, no
+    // operation on its own — authorization and sync each require an
+    // explicit click in the UI (B1).
+    if let Some(sidecar) = bundled_calendar_sidecar() {
+        cmd.env("PERSONAL_JARVIS_CALENDAR_SIDECAR", &sidecar);
     }
 
     // Die eigene PID, damit das Backend den Tod der GUI erkennt — auch den
