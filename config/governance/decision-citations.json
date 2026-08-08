@@ -259,6 +259,136 @@
       "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Kalender-Fundament-Spike (Intel) freigegeben und begrenzt"
+    },
+    {
+      "commit": null,
+      "id": "DEC-056",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Genau eine normative Stelle je Sachverhalt"
+    },
+    {
+      "commit": null,
+      "id": "DEC-057",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "DEC-/ADR-Vergabe ausschließlich über das kanonische Reservierungsregister"
+    },
+    {
+      "commit": null,
+      "id": "DEC-058",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Kein stilles not_applicable für garantiert vorhandene Artefakte"
+    },
+    {
+      "commit": null,
+      "id": "DEC-059",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Schema vor Daten: jede Konfiguration an genau einen akzeptierenden Leser gebunden"
+    },
+    {
+      "commit": null,
+      "id": "DEC-060",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Jede deklarierte Phase läuft gegen den neuen Prüfumfang"
+    },
+    {
+      "commit": null,
+      "id": "DEC-061",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Eigentümer-Erwartungswerte reproduzierbar aus genau dem benannten Commit"
+    },
+    {
+      "commit": null,
+      "id": "DEC-062",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Jedes normative Feld ist mechanisch an seinen Gegenstand gebunden"
+    },
+    {
+      "commit": null,
+      "id": "DEC-063",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Konfigurationsmigrationen laufen als weiten, migrieren, verengen"
+    },
+    {
+      "commit": null,
+      "id": "DEC-064",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Eine absichtliche Einwirkung wird vor der Erwartung mechanisch belegt"
+    },
+    {
+      "commit": null,
+      "id": "DEC-065",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Eine Aggregation über eine leere Menge meldet nie pass"
+    },
+    {
+      "commit": null,
+      "id": "DEC-066",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Zwei-Test-Regel für jede Änderung einer bestehenden Prüfregel"
+    },
+    {
+      "commit": null,
+      "id": "DEC-067",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Der Bericht ist Folge der Definition, nie ihre Schwester"
+    },
+    {
+      "commit": null,
+      "id": "DEC-068",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Eigentümergrenzen: abschließende Klassen der Eigentümerhandlungen"
     }
   ],
   "lines": {

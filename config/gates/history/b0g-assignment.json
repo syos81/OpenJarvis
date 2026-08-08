@@ -14,13 +14,13 @@
     "DEC-067",
     "DEC-068"
   ],
-  "expected_events": 85,
-  "expected_remote_oid": "912887065f89e8b1bbeb04274a1929b5f4a0074e",
+  "expected_events": 98,
+  "expected_remote_oid": "3e58129bdd3491eb85ea2b764b400e45606cb9bb",
   "genesis_events": 72,
   "kind": "b0g_assignment_record",
-  "normative_commit": null,
+  "normative_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
   "register_ref": "refs/governance/dec-reservations",
   "schema_version": 1,
-  "stage": "reserved",
+  "stage": "assigned",
   "statement": "Evidenzrecord des Registerstands fuer B0g. Autoritative Historie ist ausschliesslich die Ereigniskette auf refs/governance/dec-reservations; dieses Record deklariert den erwarteten Stand fuer die mechanische Pruefung. Normative Quelle der Vergaberegel: DEC-057 — ID-Vergabe nur ueber das Register (docs/governance/decisions/DEC-057-id-vergabe-nur-ueber-register.md)."
 }

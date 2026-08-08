@@ -1,0 +1,247 @@
+{
+  "acceptance_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. platform-live is applicable and ran against the real remote governance ref; the recorded remote oid was read fresh and matched the local chain. No result was interpreted and no manual run replaced a gate.",
+  "block_id": "b0g-rule-codification",
+  "block_scope": {
+    "authority_model": {
+      "decisions": 13,
+      "fragment_findings": 0,
+      "scanned_carrier_files": 59
+    },
+    "covers": "The thirteen DEC documents DEC-056..DEC-068 with register rows, the genesis import of 72 historical allocations from both immutable lines, thirteen reservations and thirteen assignments on refs/governance/dec-reservations, the authority binding model with its validator and fixtures, and the reference migration of CLAUDE.md and the governance configurations.",
+    "guard_paths_diff_since_block_start": [],
+    "register": {
+      "assignment_source_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+      "chain_digest": "a7284a5e599d32b3f8d66d75edff367d346620b4febe9a2f74b56670697de535",
+      "events": 98,
+      "genesis_events": 72,
+      "ref": "refs/governance/dec-reservations",
+      "remote_oid": "3e58129bdd3491eb85ea2b764b400e45606cb9bb",
+      "reserved_then_assigned": [
+        "DEC-056",
+        "DEC-057",
+        "DEC-058",
+        "DEC-059",
+        "DEC-060",
+        "DEC-061",
+        "DEC-062",
+        "DEC-063",
+        "DEC-064",
+        "DEC-065",
+        "DEC-066",
+        "DEC-067",
+        "DEC-068"
+      ]
+    }
+  },
+  "committed_artifacts": [
+    {
+      "blob_sha256": "be3b4a88009213702224b24d9ac7d6e24e319a6dc64b1ca365a2e2bca3431186",
+      "path": "config/gates/blocks/b0g-rule-codification.json"
+    },
+    {
+      "blob_sha256": "aab5f2b663375255b04ca8d33f427665688377570afde023eaac516d16a519ee",
+      "path": "config/gates/features/b0g-rule-codification.lineage.json"
+    },
+    {
+      "blob_sha256": "f74d2822e795d816f484ddcfb0223d5b062a2c78e50352e0b618936f446f089d",
+      "path": "config/gates/history/b0g-commit-plan.json"
+    },
+    {
+      "blob_sha256": "b3d5b493c6bc2e2094e082655dd0e506370f4c94d97fc8214c08b2c49ed70894",
+      "path": "config/gates/history/b0g-assignment.json"
+    },
+    {
+      "blob_sha256": "a457373a9fa1beb4da522a747b8a2b62f3fd8f692903b2795795c0b476f9cb54",
+      "path": "config/governance/decision-authority.json"
+    },
+    {
+      "blob_sha256": "866e3f79a14fffb36bd0210abc4a7cc90319239cff40fd7f65c7014abb752244",
+      "path": "config/governance/config-loaders.json"
+    },
+    {
+      "blob_sha256": "df00e51cc3e0739a270426da613073b9b7871f0ec2f9269438119bd08071f8f3",
+      "path": "config/governance/ast-dispositions.json"
+    },
+    {
+      "blob_sha256": "1a54ed9c6b559b5303f1409fa64acf252a8fa1316cdbb410a505abc7325db4a6",
+      "path": "config/guard/rule-changes.json"
+    },
+    {
+      "blob_sha256": "7c1b178741a10c5655378cc24b532e68b05b5daf850603b14cf698ba8c026b52",
+      "path": "CLAUDE.md"
+    },
+    {
+      "blob_sha256": "980d1d67f918d36ee9a214f5c748033387e463fc10a7dbc29c37565735808098",
+      "path": "docs/personal-jarvis/decisions-register.md"
+    },
+    {
+      "blob_sha256": "0335c005b60a36d8ae4883bb17b46af358b15882cf961541002a79251c7ee26f",
+      "path": "tools/gates/decauthority.py"
+    },
+    {
+      "blob_sha256": "135b59353a920b6e74d57ecc669d697008542921edf42880406f21de82a2ed48",
+      "path": "tools/gates/runners/b0g_checks.py"
+    },
+    {
+      "blob_sha256": "840caf603afd029b4f5ffe756a69a3423c2105870aa99030cf6ccdae8bf565cc",
+      "path": "tools/decreg/cli.py"
+    },
+    {
+      "blob_sha256": "45507965e9ec19e8a4ff3933d9078252956aed37ea600a9211b5cc8c5653eda1",
+      "path": "docs/governance/decisions/DEC-056-eine-normative-stelle.md"
+    },
+    {
+      "blob_sha256": "bfdf1fbcf7788c822a32e6283ad7cc42a9373cc5b58bc8b3191704a3d658eaa9",
+      "path": "docs/governance/decisions/DEC-057-id-vergabe-nur-ueber-register.md"
+    },
+    {
+      "blob_sha256": "62c23ad17158198bc742996856ea7917221e5339202ed82decf3e852e5ae25fc",
+      "path": "docs/governance/decisions/DEC-058-kein-stilles-not-applicable.md"
+    },
+    {
+      "blob_sha256": "e8808bd6126ddb3289cb7dab1f6eb1d0cea86c87babe2488ce86beaa28bb0bde",
+      "path": "docs/governance/decisions/DEC-059-schema-vor-daten.md"
+    },
+    {
+      "blob_sha256": "2767d044d5a3dece1b83fa27e82c33b7848c0df539f3157df9cb04a3a7e5d25e",
+      "path": "docs/governance/decisions/DEC-060-phasen-gegen-neuen-umfang.md"
+    },
+    {
+      "blob_sha256": "399be467c0e414dc173790fe6251314ae53a21a5fb66b7b6abd1dd1ffcdb5b3c",
+      "path": "docs/governance/decisions/DEC-061-erwartungswerte-aus-dem-commit.md"
+    },
+    {
+      "blob_sha256": "629430a9d4c2f8e54b884e39bebed577a5983918b90ddd922f08d582c417bc27",
+      "path": "docs/governance/decisions/DEC-062-feldbindung.md"
+    },
+    {
+      "blob_sha256": "c4a4b8f4c2e2d62cb35d85cf4c54efbf7c8fd58dbadd6bf31482d5ee19472683",
+      "path": "docs/governance/decisions/DEC-063-weiten-migrieren-verengen.md"
+    },
+    {
+      "blob_sha256": "b9ac560ae01bd5c0c08aef189b106f850cca52c4859da9c82d8ec200070cc067",
+      "path": "docs/governance/decisions/DEC-064-einwirkung-belegt.md"
+    },
+    {
+      "blob_sha256": "fe25beeedd69ab3c5e1afca41dc53243951791eab53b5edda131a0a54a5a2abc",
+      "path": "docs/governance/decisions/DEC-065-leere-aggregation-besteht-nie.md"
+    },
+    {
+      "blob_sha256": "c0dc4113acd82312d2e5e47ac4ea09f7e758971c7fd00741795523c067659874",
+      "path": "docs/governance/decisions/DEC-066-zwei-test-regel.md"
+    },
+    {
+      "blob_sha256": "596a2d0731861a89e1d3c12f1ee481b127c99e5ea252aff3ce63db8390767291",
+      "path": "docs/governance/decisions/DEC-067-bericht-als-folge.md"
+    },
+    {
+      "blob_sha256": "e314a79b5b736851b2a2783491fd1e21406053633a41fa8de91499b49b44fa84",
+      "path": "docs/governance/decisions/DEC-068-eigentuemergrenzen.md"
+    }
+  ],
+  "documented_limitations": [
+    "The commissioning prompt referenced a switch cross_line_dec_allocation_permitted=false as an expected repository state; the switch does not exist anywhere in the repository or its history (mechanically searched over all commits). It was treated as an unverified prompt claim: no switch was invented and cross-line allocation semantics remain carried by the per-event origin_line fields alone.",
+    "The register tool test had pinned first-unused claims (DEC-056, DEC-D18) against the moving HEAD; they went stale the moment the register legitimately grew. Corrected beside, not rewritten: the pins now bind to the immutable b0g start commit 537f9c2b0dbc0fefcda071deaa3de0df2f59655c and HEAD is checked structurally (gap-free, first-unused follows the maximum).",
+    "The b0f blind/sample evidence checks are not inherited into the b0g manifest: they bind to the b0f commit pair by construction and can pass on no later commit. The durable b0f baseline and method checks carry forward.",
+    "DEC-067's ordering half (the normative/determinative commit separation) is declared per block in the commit plans and consumed by no checker; the enforcement gap is documented in the DEC document itself.",
+    "The alias binding R1..R10 to rule texts rests on the documented inference in each DEC document's Herkunft section; DEC-067's title is the B0g-authored reading label of an owner decision whose halves are lifted verbatim."
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.11",
+    "system": "Darwin"
+  },
+  "evidence_binding_note": "The five snapshots below are byte copies of the sanitised runtime evidence of the acceptance run, bound by sha256; raw logs stay in the gitignored runtime area.",
+  "external_inputs": [
+    "git ls-remote origin refs/governance/dec-reservations during platform-live, read fresh and required to equal the local chain and the recorded expectation"
+  ],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "guard_activation": {
+    "reason": "No file under tools/guard, tools/guardpkg or tools/guardops changed in this block; the active installation is untouched. The owner actions of this block were the three register ref pushes, all performed by the owner.",
+    "required": false
+  },
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+    "block_start_commit": "537f9c2b0dbc0fefcda071deaa3de0df2f59655c",
+    "governance_ref_oid": "3e58129bdd3491eb85ea2b764b400e45606cb9bb",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "537f9c2b0dbc0fefcda071deaa3de0df2f59655c"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 16,
+  "own_feature_prefix": "B0G-",
+  "phase_results": {
+    "module-final": "pass",
+    "offline-final": "pass",
+    "platform-live": "pass",
+    "preflight": "pass",
+    "targeted": "pass"
+  },
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b0g-rule-codification/preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "be3b4a88009213702224b24d9ac7d6e24e319a6dc64b1ca365a2e2bca3431186",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "815d99337428ba3dcd7d103023b176c52112cbe8058983510af86de521209318"
+    },
+    {
+      "path": "config/gates/evidence/b0g-rule-codification/targeted.json",
+      "phase": "targeted",
+      "recorded_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "be3b4a88009213702224b24d9ac7d6e24e319a6dc64b1ca365a2e2bca3431186",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "4df59235edffab329df98a24585880cefaad882c587fa80be539d38addfc4ec8"
+    },
+    {
+      "path": "config/gates/evidence/b0g-rule-codification/offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "be3b4a88009213702224b24d9ac7d6e24e319a6dc64b1ca365a2e2bca3431186",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "17aa710cced3b115de815b81b7ace3de890f4c07e1fdd09e9d116b10e9bf080c"
+    },
+    {
+      "path": "config/gates/evidence/b0g-rule-codification/platform-live.json",
+      "phase": "platform-live",
+      "recorded_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "be3b4a88009213702224b24d9ac7d6e24e319a6dc64b1ca365a2e2bca3431186",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "328d5b3c693e962d5d77254c742a5ad3d04b3a16b08cf4aac87927980047c407"
+    },
+    {
+      "path": "config/gates/evidence/b0g-rule-codification/module-final.json",
+      "phase": "module-final",
+      "recorded_commit": "c12617d1944310fdc47dbf4a0b11716c6d6d0bb3",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "be3b4a88009213702224b24d9ac7d6e24e319a6dc64b1ca365a2e2bca3431186",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "98cd00cfb723a125983ba9f6883478db470927c6d0128e2a1a59f41803f3f39f"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B0g rule codification: thirteen standing decisions assigned on the real remote governance register, with the authority binding model in force"
+}
