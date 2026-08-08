@@ -23,8 +23,13 @@ import {
 } from './panes';
 import {
   RASTER_LABELS, RASTER_MODI, type RasterModus,
-  baueRaster, heute, systemZeitzone, termintage, verschiebeAnker,
+  baueRaster, heute, systemWochenstart, systemZeitzone, termintage,
+  verschiebeAnker,
 } from './raster';
+
+/** Anzeigereihenfolge des Umschalters wie die Referenz: Tag · Woche · Monat · Jahr. */
+const UMSCHALTER_REIHENFOLGE: readonly RasterModus[] =
+  [...RASTER_MODI].reverse();
 
 type Ladezustand = 'laedt' | 'bereit' | 'fehler';
 
@@ -39,8 +44,11 @@ const LEER: Bestand = { von: null, bis: null, termine: [], truncated: false };
 
 export function CalendarWorkspace() {
   const zone = useMemo(() => systemZeitzone(), []);
+  const wochenstart = useMemo(() => systemWochenstart(), []);
   const [modus, setModus] = useState<RasterModus>('month');
   const [anker, setAnker] = useState(() => heute(zone));
+  // B2: lesende Tagesauswahl. Reiner Ansichtszustand, keine Schreibsemantik.
+  const [gewaehlterTag, setGewaehlterTag] = useState<string | null>(null);
   const [status, setStatus] = useState<ModulStatus | null>(null);
   const [kalender, setKalender] = useState<KalenderZeile[]>([]);
   const [bestand, setBestand] = useState<Bestand>(LEER);
@@ -52,8 +60,16 @@ export function CalendarWorkspace() {
   const [meldung, setMeldung] = useState<{ text: string; art: 'ok' | 'warnung' | 'fehler' } | null>(null);
   const rasterRef = useRef<HTMLDivElement>(null);
 
-  const raster = useMemo(() => baueRaster(modus, anker, zone), [modus, anker, zone]);
+  const raster = useMemo(() => baueRaster(modus, anker, zone, wochenstart),
+                         [modus, anker, zone, wochenstart]);
   const heuteTag = useMemo(() => heute(zone), [zone]);
+
+  // Beim Wechsel in die Tagesansicht oeffnet sich der gewaehlte Tag (B2 §9).
+  // Ohne Auswahl gilt das bisherige Verhalten unveraendert.
+  const wechsleModus = useCallback((m: RasterModus) => {
+    if (m === 'day' && gewaehlterTag !== null) setAnker(gewaehlterTag);
+    setModus(m);
+  }, [gewaehlterTag]);
 
   // Nur lesen. Weder Mount noch Ansichtswechsel loesen einen Sync aus.
   const laden = useCallback(async (vonUtc: string, bisUtc: string) => {
@@ -99,13 +115,13 @@ export function CalendarWorkspace() {
       else if (e.key === 't' || e.key === 'T') { setAnker(heute(zone)); e.preventDefault(); }
       else if (e.key === 'Escape') setAusgewaehlt(null);
       else if (['1', '2', '3', '4'].includes(e.key)) {
-        setModus(RASTER_MODI[Number(e.key) - 1]!);
+        wechsleModus(RASTER_MODI[Number(e.key) - 1]!);
         e.preventDefault();
       }
     };
     window.addEventListener('keydown', aufTaste);
     return () => window.removeEventListener('keydown', aufTaste);
-  }, [modus, zone]);
+  }, [modus, zone, wechsleModus]);
 
   const sichtbar = useMemo(() => {
     const suchbegriff = suche.trim().toLowerCase();
@@ -216,36 +232,22 @@ export function CalendarWorkspace() {
   const bridgeDa = status?.bridge_available === true;
 
   return (
-    <div className="flex flex-col h-full min-h-0" data-testid="kalender-workspace">
-      {/* ── Toolbar ── */}
-      <header className="flex items-center gap-2 flex-shrink-0 px-3"
+    <div className="flex flex-col h-full min-h-0" data-testid="kalender-workspace"
+      style={{ background: 'var(--pjk-surface)' }}>
+      {/* ── Toolbar, wie die Referenz: Umschalter mittig, Navigation und
+             Suche rechts. Der Monatstitel steht gross im Inhaltsbereich. ── */}
+      <header className="grid items-center gap-2 flex-shrink-0 px-3"
         style={{ height: 'var(--pjk-toolbar-height)',
+                 gridTemplateColumns: '1fr auto 1fr',
                  borderBottom: '1px solid var(--pjk-line)',
                  paddingRight: 'var(--pjk-toolbar-reserve)' }}>
-        <button type="button" aria-label="Zurück" className="px-2 py-1 text-sm"
-          onClick={() => setAnker((a) => verschiebeAnker(modus, a, -1))}>‹</button>
-        <button type="button" className="px-2 py-1 text-xs"
-          onClick={() => setAnker(heute(zone))}>Heute</button>
-        <button type="button" aria-label="Weiter" className="px-2 py-1 text-sm"
-          onClick={() => setAnker((a) => verschiebeAnker(modus, a, 1))}>›</button>
-        <h1 className="text-sm font-medium ml-1 truncate"
-          style={{ color: 'var(--pjk-ink)' }}>{raster.titel}</h1>
+        <div />
 
-        <div className="flex-1" />
-
-        <input type="search" value={suche} placeholder="Suchen"
-          onChange={(e) => setSuche(e.target.value)}
-          aria-label="Termine durchsuchen"
-          className="text-xs px-2 py-1 rounded"
-          style={{ width: 'var(--pjk-search-width)',
-                   border: '1px solid var(--pjk-line)',
-                   background: 'var(--pjk-surface-2)', color: 'var(--pjk-ink)' }} />
-
-        <div role="tablist" aria-label="Ansicht" className="flex rounded overflow-hidden"
+        <div role="tablist" aria-label="Ansicht" className="flex rounded overflow-hidden justify-self-center"
           style={{ border: '1px solid var(--pjk-line)' }}>
-          {RASTER_MODI.map((m) => (
+          {UMSCHALTER_REIHENFOLGE.map((m) => (
             <button key={m} type="button" role="tab" aria-selected={modus === m}
-              onClick={() => setModus(m)} className="text-xs px-2 py-1"
+              onClick={() => wechsleModus(m)} className="text-xs px-2 py-1"
               style={{
                 background: modus === m ? 'var(--pjk-ink)' : 'transparent',
                 color: modus === m ? 'var(--pjk-surface)' : 'var(--pjk-ink)',
@@ -253,12 +255,27 @@ export function CalendarWorkspace() {
           ))}
         </div>
 
-        <button type="button" onClick={() => void jetztSynchronisieren()}
-          disabled={laeuft || !darfLesen} className="text-xs px-2 py-1 rounded"
-          style={{ border: '1px solid var(--pjk-line)',
-                   opacity: laeuft || !darfLesen ? 0.5 : 1 }}>
-          {laeuft ? 'Läuft …' : 'Aktualisieren'}
-        </button>
+        <div className="flex items-center gap-2 justify-self-end">
+          <button type="button" aria-label="Zurück" className="px-2 py-1 text-sm"
+            onClick={() => setAnker((a) => verschiebeAnker(modus, a, -1))}>‹</button>
+          <button type="button" className="px-2 py-1 text-xs"
+            onClick={() => setAnker(heute(zone))}>Heute</button>
+          <button type="button" aria-label="Weiter" className="px-2 py-1 text-sm"
+            onClick={() => setAnker((a) => verschiebeAnker(modus, a, 1))}>›</button>
+          <input type="search" value={suche} placeholder="Suchen"
+            onChange={(e) => setSuche(e.target.value)}
+            aria-label="Termine durchsuchen"
+            className="text-xs px-2 py-1 rounded"
+            style={{ width: 'var(--pjk-search-width)',
+                     border: '1px solid var(--pjk-line)',
+                     background: 'var(--pjk-surface-2)', color: 'var(--pjk-ink)' }} />
+          <button type="button" onClick={() => void jetztSynchronisieren()}
+            disabled={laeuft || !darfLesen} className="text-xs px-2 py-1 rounded"
+            style={{ border: '1px solid var(--pjk-line)',
+                     opacity: laeuft || !darfLesen ? 0.5 : 1 }}>
+            {laeuft ? 'Läuft …' : 'Aktualisieren'}
+          </button>
+        </div>
       </header>
 
       {/* ── Meldungen: immer als HANDLUNG, nie als Zustand ── */}
@@ -322,42 +339,46 @@ export function CalendarWorkspace() {
       <div className="flex flex-1 min-h-0">
         <div style={{ width: 'var(--pjk-sidebar-width)', flexShrink: 0 }}>
           <CalendarSidebar kalender={kalender} versteckt={versteckt}
-            aufAendern={umschalten} zone={zone} />
+            aufAendern={umschalten} zone={zone}
+            anker={anker} heuteTag={heuteTag} wochenstart={wochenstart}
+            aufTag={(tag) => { setAnker(tag); setGewaehlterTag(tag); }} />
         </div>
 
-        <div ref={rasterRef} className="flex-1 min-w-0"
+        <div ref={rasterRef} className="flex-1 min-w-0 flex flex-col"
           style={{ minWidth: 'var(--pjk-grid-min)' }}>
-          {modus === 'month' && (
-            <MonatsRaster raster={raster} termineProTag={termineProTag} zone={zone}
-              heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
-              aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null} />
-          )}
-          {(modus === 'week' || modus === 'day') && (
-            <ZeitRaster raster={raster} termineProTag={termineProTag} zone={zone}
-              heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
-              aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null} />
-          )}
-          {modus === 'year' && (
-            <JahresRaster raster={raster} termineProTag={termineProTag} zone={zone}
-              heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
-              aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
-              aufTag={(tag) => { setAnker(tag); setModus('day'); }} />
-          )}
+          {/* B2: Monatstitel gross und deutlich links im Inhaltsbereich. */}
+          <h1 className="flex-shrink-0 px-4 pt-3 pb-1 text-2xl font-bold truncate"
+            style={{ color: 'var(--pjk-ink)' }}>{raster.titel}</h1>
+          <div className="flex-1 min-h-0">
+            {modus === 'month' && (
+              <MonatsRaster raster={raster} termineProTag={termineProTag} zone={zone}
+                heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
+                aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
+                wochenstart={wochenstart} gewaehlterTag={gewaehlterTag}
+                aufTagAuswahl={setGewaehlterTag} />
+            )}
+            {(modus === 'week' || modus === 'day') && (
+              <ZeitRaster raster={raster} termineProTag={termineProTag} zone={zone}
+                heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
+                aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
+                wochenstart={wochenstart} gewaehlterTag={gewaehlterTag}
+                aufTagAuswahl={setGewaehlterTag} />
+            )}
+            {modus === 'year' && (
+              <JahresRaster raster={raster} termineProTag={termineProTag} zone={zone}
+                heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
+                aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
+                wochenstart={wochenstart} gewaehlterTag={gewaehlterTag}
+                aufTagAuswahl={setGewaehlterTag}
+                aufTag={(tag) => { setGewaehlterTag(tag); setAnker(tag); setModus('day'); }} />
+            )}
+          </div>
         </div>
 
         <div style={{ width: 'var(--pjk-detail-width)', flexShrink: 0 }}>
           <TerminDetail termin={ausgewaehlt} zone={zone} />
         </div>
       </div>
-
-      {/* ── Herkunft und Grenze bleiben sichtbar ── */}
-      <footer className="flex-shrink-0 px-3 py-1 text-[10px]"
-        style={{ borderTop: '1px solid var(--pjk-line-soft)',
-                 color: 'var(--pjk-ink-dim)' }}>
-        Herkunft: Apple Kalender · lokal über EventKit · in dieser Fassung nur
-        lesend. Geladener Zeitraum: {raster.titel}. Schraffierte Tage sind nicht
-        geladen — sie sind nicht „frei", sondern unbekannt.
-      </footer>
     </div>
   );
 }

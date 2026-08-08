@@ -1,0 +1,54 @@
+{
+  "block_id": "b2-month-parity",
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "--force-with-lease",
+    "automatic push",
+    "direct remote ref mutation",
+    "sudo",
+    "guard activation",
+    "dec release owner action",
+    "calendar mutation of any kind"
+  ],
+  "guard_package_affected": {
+    "owner_activation_required": false,
+    "reason": "B2 changes no file under tools/guard, tools/guardpkg or tools/guardops; the active installation stays untouched.",
+    "value": false
+  },
+  "kind": "commit_plan",
+  "max_commits": 4,
+  "planned_commits": [
+    {
+      "message": "feat(calendar): align the month view to the reference and add read-only day selection",
+      "position": 1,
+      "purpose": "functional: the month view aligned to the reference (neutral system surface, locale week start, day cells, event types, header, sidebar with mini month, read-only day selection into the day view), the B2 tests, the comparison matrix and the gate scaffold"
+    },
+    {
+      "message": "test(calendar): finalize b2 month-parity evidence, owner matrix and handoff",
+      "position": 2,
+      "purpose": "purely determinative: gate evidence of the five phases against the fixed functional commit, the owner-decided comparison matrix, remaining deviations and the handoff"
+    }
+  ],
+  "push_status": "not_performed_owner_action",
+  "schema_version": 1,
+  "split_justification": {
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates",
+      "the configuration loader binding check passes",
+      "every phase declared for the changed subject has run against the new scope (R5)",
+      "a commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it, where phases requiring live owner interaction may be green from the acceptance run they describe"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified.",
+    "decided_by": "owner instruction for block B2",
+    "declared_in_advance": true,
+    "reason": "B2 stays deliberately small. An owner-reported visible B2 deviation from the live comparison creates a further functional commit with a machine-readable reason here; no amend.",
+    "separation": "normative and determinative stay in separate branch commits; position 1 is functional, position 2 is determinative"
+  },
+  "start_commit": "1e86f436bbf77e1f31ca3806442ebf1ccaa37f50"
+}

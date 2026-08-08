@@ -51,6 +51,63 @@ function isoWochentag(date: Date): number {
   return (date.getUTCDay() + 6) % 7;
 }
 
+/**
+ * Der erste Wochentag als ISO-Versatz (0 = Montag … 6 = Sonntag) — aus der
+ * Locale-Schicht der Plattform, nie fest codiert (B2 §4).
+ *
+ * Quelle ist `Intl.Locale#weekInfo` (Safari/WebKit) beziehungsweise
+ * `getWeekInfo()` (V8); CLDR liefert 1 = Montag … 7 = Sonntag. Liefert die
+ * Plattform nichts, gilt die ISO-Vorgabe Montag. Bekannte Grenze, ehrlich
+ * dokumentiert: eine systemweite macOS-Uebersteuerung (AppleFirstWeekday)
+ * erreicht die WebView-Locale-Schicht nicht.
+ */
+export function systemWochenstart(locale?: string): number {
+  try {
+    const sprache = locale
+      ?? (typeof navigator !== 'undefined' ? navigator.language : undefined)
+      ?? 'de-DE';
+    const l = new Intl.Locale(sprache) as Intl.Locale & {
+      weekInfo?: { firstDay?: number };
+      getWeekInfo?: () => { firstDay?: number };
+    };
+    const info = l.weekInfo ?? l.getWeekInfo?.();
+    const erster = info?.firstDay;
+    if (typeof erster === 'number' && erster >= 1 && erster <= 7) {
+      return erster % 7 === 0 ? 6 : erster - 1;
+    }
+  } catch { /* Rückfall unten */ }
+  return 0;
+}
+
+/** Versatz eines Datums relativ zum konfigurierten Wochenbeginn. */
+function wochenVersatz(date: Date, wochenstart: number): number {
+  return (isoWochentag(date) - wochenstart + 7) % 7;
+}
+
+/**
+ * Die Wochentagsköpfe in locale-üblicher Schreibweise, beginnend beim
+ * konfigurierten Wochenbeginn — aus `Intl`, nicht aus einer festen Liste.
+ */
+export function wochentagsKoepfe(wochenstart = 0, locale?: string): string[] {
+  const sprache = locale
+    ?? (typeof navigator !== 'undefined' ? navigator.language : undefined)
+    ?? 'de-DE';
+  const format = new Intl.DateTimeFormat(sprache,
+    { weekday: 'short', timeZone: 'UTC' });
+  // Der 1. Januar 2024 ist ein Montag; von dort aus rotieren.
+  return Array.from({ length: 7 }, (_, i) =>
+    format.format(new Date(Date.UTC(2024, 0, 1 + ((wochenstart + i) % 7)))));
+}
+
+/** Kurzlabel eines einzelnen Tages (z. B. Spaltenkopf der Wochenansicht). */
+export function wochentagsLabel(tag: string, locale?: string): string {
+  const sprache = locale
+    ?? (typeof navigator !== 'undefined' ? navigator.language : undefined)
+    ?? 'de-DE';
+  return new Intl.DateTimeFormat(sprache, { weekday: 'short', timeZone: 'UTC' })
+    .format(new Date(`${tag}T00:00:00Z`));
+}
+
 /** Verschiebt einen Datumsschlüssel um n Tage (kalendarisch, driftfrei). */
 export function plusTage(tag: string, n: number): string {
   const [y, m, d] = tag.split('-').map(Number);
@@ -162,7 +219,8 @@ const MONATSNAMEN = [
  * Nutzer sieht, und damit genau der Zeitraum, den die Ansicht kennen muss.
  * Sonst blieben die Randtage leer und sähen aus wie frei.
  */
-export function baueRaster(modus: RasterModus, anker: string, zone: string): Raster {
+export function baueRaster(modus: RasterModus, anker: string, zone: string,
+                           wochenstart = 0): Raster {
   const [y, m, d] = anker.split('-').map(Number);
   const jahr = y ?? 1970;
   const monat = (m ?? 1) - 1;
@@ -179,9 +237,10 @@ export function baueRaster(modus: RasterModus, anker: string, zone: string): Ras
     });
   } else if (modus === 'week') {
     const ankerDatum = new Date(Date.UTC(jahr, monat, tag));
-    const montag = new Date(ankerDatum.getTime() - isoWochentag(ankerDatum) * 86_400_000);
+    const wochenanfang = new Date(
+      ankerDatum.getTime() - wochenVersatz(ankerDatum, wochenstart) * 86_400_000);
     for (let i = 0; i < 7; i += 1) {
-      const cur = new Date(montag.getTime() + i * 86_400_000);
+      const cur = new Date(wochenanfang.getTime() + i * 86_400_000);
       tage.push({
         tag: key(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate()),
         inPeriode: true,
@@ -208,10 +267,12 @@ export function baueRaster(modus: RasterModus, anker: string, zone: string): Ras
   } else {
     const ersterDesMonats = new Date(Date.UTC(jahr, monat, 1));
     const rasterStart = new Date(
-      ersterDesMonats.getTime() - isoWochentag(ersterDesMonats) * 86_400_000);
+      ersterDesMonats.getTime()
+        - wochenVersatz(ersterDesMonats, wochenstart) * 86_400_000);
     const letzterDesMonats = new Date(Date.UTC(jahr, monat + 1, 0));
     const rasterEnde = new Date(
-      letzterDesMonats.getTime() + (6 - isoWochentag(letzterDesMonats)) * 86_400_000);
+      letzterDesMonats.getTime()
+        + (6 - wochenVersatz(letzterDesMonats, wochenstart)) * 86_400_000);
     const gesamt = Math.round(
       (rasterEnde.getTime() - rasterStart.getTime()) / 86_400_000) + 1;
     for (let i = 0; i < gesamt; i += 1) {

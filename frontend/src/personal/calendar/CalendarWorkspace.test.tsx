@@ -185,10 +185,13 @@ describe('Geladen und leer ist nicht ungeladen', () => {
     expect(bekannt[0]!.className).not.toContain('pjk-unbekannt');
   });
 
-  it('nennt den geladenen Zeitraum in der Fusszeile', async () => {
+  it('traegt keine Erklaer-Fusszeile mehr, die Ehrlichkeit bleibt strukturell (B2)', async () => {
     await rendern();
-    expect(screen.getByText(/Geladener Zeitraum: August 2026/)).toBeTruthy();
-    expect(screen.getByText(/nicht „frei", sondern unbekannt/)).toBeTruthy();
+    // B2 entfernt die Erklaertexte, die die Referenz nicht zeigt. Die
+    // Unterscheidung geladen/unbekannt bleibt als Schraffur bestehen und
+    // wird im vorigen Test strukturell geprueft.
+    expect(screen.queryByText(/Geladener Zeitraum/)).toBeNull();
+    expect(screen.queryByText(/nicht „frei", sondern unbekannt/)).toBeNull();
   });
 });
 
@@ -347,13 +350,15 @@ describe('Sichtbarkeit und Suche', () => {
 describe('Tastaturbedienung', () => {
   it('blaettert mit den Pfeiltasten und springt mit T auf heute', async () => {
     await rendern();
+    const titel = (name: string) =>
+      screen.getByRole('heading', { level: 1, name });
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    await waitFor(() => expect(screen.getByText('September 2026')).toBeTruthy());
+    await waitFor(() => expect(titel('September 2026')).toBeTruthy());
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
-    await waitFor(() => expect(screen.getByText('August 2026')).toBeTruthy());
+    await waitFor(() => expect(titel('August 2026')).toBeTruthy());
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     fireEvent.keyDown(window, { key: 't' });
-    await waitFor(() => expect(screen.getByText('August 2026')).toBeTruthy());
+    await waitFor(() => expect(titel('August 2026')).toBeTruthy());
   });
 
   it('wechselt die Ansicht mit den Zifferntasten', async () => {
@@ -369,7 +374,8 @@ describe('Tastaturbedienung', () => {
     const feld = screen.getByLabelText('Termine durchsuchen');
     fireEvent.keyDown(feld, { key: 't' });
     // Der Titel darf sich dadurch nicht aendern.
-    expect(screen.getByText('August 2026')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'August 2026' }))
+      .toBeTruthy();
   });
 });
 
@@ -420,5 +426,97 @@ describe('Bridge-Handshake beim Laden (B1)', () => {
     await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
     // Fail-closed und ehrlich: der Vorwert bleibt stehen und wird benannt.
     expect(screen.getByText(/nicht gesagt, dass dein Kalender leer ist/)).toBeTruthy();
+  });
+});
+
+describe('Tagesauswahl (B2)', () => {
+  it('waehlt einen leeren Tag per Klick sichtbar aus', async () => {
+    await rendern();
+    const leer = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-05')!;
+    fireEvent.click(leer);
+    expect(leer.getAttribute('data-selected')).toBe('1');
+    expect(leer.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('waehlt einen belegten Tag aus und wechselt die Auswahl korrekt', async () => {
+    await rendern();
+    const zellen = screen.getAllByTestId('kalender-tag');
+    const belegt = zellen.find((z) => z.getAttribute('data-date') === '2026-08-12')!;
+    const anderer = zellen.find((z) => z.getAttribute('data-date') === '2026-08-20')!;
+    fireEvent.click(belegt);
+    expect(belegt.getAttribute('data-selected')).toBe('1');
+    fireEvent.click(anderer);
+    expect(anderer.getAttribute('data-selected')).toBe('1');
+    expect(belegt.getAttribute('data-selected')).toBe('0');
+  });
+
+  it('oeffnet beim Wechsel auf Tag genau den gewaehlten Tag', async () => {
+    await rendern();
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-05')!;
+    fireEvent.click(zelle);
+    fireEvent.click(screen.getByRole('tab', { name: 'Tag' }));
+    await waitFor(() => expect(
+      screen.getByRole('heading', { level: 1,
+        name: /Mittwoch, 05\. August 2026/ })).toBeTruthy());
+  });
+
+  it('loest bei Auswahl und Wechsel keinerlei Schreib- oder Synclauf aus', async () => {
+    const sync = vi.spyOn(api, 'synchronisiere');
+    const frage = vi.spyOn(api, 'frageBerechtigungAn');
+    await rendern();
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-05')!;
+    fireEvent.click(zelle);
+    fireEvent.click(screen.getByRole('tab', { name: 'Tag' }));
+    expect(sync).not.toHaveBeenCalled();
+    expect(frage).not.toHaveBeenCalled();
+  });
+
+  it('ohne Auswahl bleibt der Tageswechsel beim bisherigen Verhalten', async () => {
+    await rendern();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tag' }));
+    await waitFor(() => expect(
+      screen.getByRole('heading', { level: 1,
+        name: /Mittwoch, 12\. August 2026/ })).toBeTruthy());
+  });
+});
+
+describe('Referenzmerkmale der Monatsansicht (B2)', () => {
+  it('zeigt den Umschalter in der Reihenfolge Tag Woche Monat Jahr', async () => {
+    await rendern();
+    const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(tabs).toEqual(['Tag', 'Woche', 'Monat', 'Jahr']);
+  });
+
+  it('setzt die Tageszahl rechts und die Koepfe ohne Vollgrossschreibung', async () => {
+    await rendern();
+    const koepfe = screen.getAllByRole('columnheader').map((k) => k.textContent);
+    expect(koepfe.length).toBe(7);
+    // Locale-uebliche Kurzform, nicht MO/DI/…: mindestens ein Kleinbuchstabe.
+    for (const kopf of koepfe) expect(kopf).toMatch(/[a-zäöü]/);
+    const zelle = screen.getAllByTestId('kalender-tag')[0]!;
+    const zeile = zelle.querySelector('div')!;
+    expect(zeile.className).toContain('justify-end');
+  });
+
+  it('zeigt den Miniaturmonat in der Seitenleiste', async () => {
+    await rendern();
+    expect(screen.getByTestId('kalender-minimonat')).toBeTruthy();
+  });
+
+  it('rendert zeitgebundene Termine ohne Vollflaeche und ganztaegige als Balken', async () => {
+    const zeitgebunden = termin();
+    const ganztags: Termin = { ...termin(), id: 'evt-ganz', is_all_day: true,
+      starts_at_utc: '2026-08-13T00:00:00Z', ends_at_utc: '2026-08-14T00:00:00Z' };
+    mockApi({ termine: [zeitgebunden, ganztags] });
+    render(<CalendarWorkspace />);
+    await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
+    const chips = screen.getAllByTestId('kalender-termin');
+    const zeitChip = chips.find((c) => c.getAttribute('data-event-id') === zeitgebunden.id)!;
+    const ganzChip = chips.find((c) => c.getAttribute('data-event-id') === 'evt-ganz')!;
+    expect(zeitChip.style.background).toBe('transparent');
+    expect(ganzChip.style.background).not.toBe('transparent');
   });
 });

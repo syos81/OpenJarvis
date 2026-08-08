@@ -49,11 +49,20 @@
   /* ── Farben (aus den Jarvis-Basistokens abgeleitet) ─────────────────── */
   --pjk-line: var(--color-border);
   --pjk-line-soft: color-mix(in srgb, var(--color-border) 55%, transparent);
-  --pjk-surface: var(--color-bg-primary);
+  /* B2: die frueheren Ziele --color-bg-primary/--color-text-primary
+     existieren in index.css nicht — die Flaeche war transparent und der
+     App-Hintergrundverlauf schien durch. Jetzt die realen Theme-Tokens,
+     hell wie dunkel. */
+  --pjk-surface: var(--color-bg);
   --pjk-surface-2: var(--color-bg-secondary);
-  --pjk-ink: var(--color-text-primary);
+  --pjk-ink: var(--color-text);
   --pjk-ink-dim: var(--color-text-secondary);
-  --pjk-heute: var(--color-accent, #d0342c);
+  /* Heute wie die Referenz rot — ueber den vorhandenen semantischen roten
+     Theme-Token, nicht ueber eine abgeschriebene Screenshot-Farbe. */
+  --pjk-heute: var(--color-error, #d0342c);
+  /* Ausgewaehlter Tag: neutrale Systemflaeche, deutlich vom Heute-Rot
+     unterscheidbar. */
+  --pjk-auswahl: color-mix(in srgb, var(--color-text) 20%, transparent);
   /* Ausserhalb der Periode: gedämpft, aber lesbar. */
   --pjk-outside-opacity: 0.45;
   /* Kontrollierter Ersatz, wenn EventKit für einen Kalender keine Farbe

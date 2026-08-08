@@ -11,10 +11,10 @@
 
 import type { KalenderZeile, Termin } from './api';
 import {
-  type Raster, lokalerTag, plusTage, tagesAnteil, termintage, uhrzeit,
+  type Raster, baueRaster, lokalerTag, plusTage, tagesAnteil, termintage,
+  uhrzeit, wochentagsKoepfe, wochentagsLabel,
 } from './raster';
 
-const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const MONATSKUERZEL = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
                        'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
@@ -46,10 +46,56 @@ export interface SidebarProps {
   versteckt: ReadonlySet<string>;
   aufAendern: (id: string) => void;
   zone: string;
+  /** Miniaturmonat unten in der Seitenleiste (B2, wie die Referenz). */
+  anker: string;
+  heuteTag: string;
+  wochenstart: number;
+  aufTag: (tag: string) => void;
+}
+
+/** Der kleine Monat unten in der Seitenleiste — reine Navigation, kein Laden. */
+export function MiniMonat({ anker, heuteTag, wochenstart, zone, aufTag }: {
+  anker: string; heuteTag: string; wochenstart: number; zone: string;
+  aufTag: (tag: string) => void;
+}) {
+  const raster = baueRaster('month', anker, zone, wochenstart);
+  const koepfe = wochentagsKoepfe(wochenstart);
+  return (
+    <div data-testid="kalender-minimonat" className="px-3 pt-2 pb-3"
+      style={{ borderTop: '1px solid var(--pjk-line-soft)' }}>
+      <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--pjk-ink)' }}>
+        {raster.titel}
+      </p>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+        {koepfe.map((w, i) => (
+          <div key={`${w}-${i}`} className="text-[9px] text-center"
+            style={{ color: 'var(--pjk-ink-dim)' }}>{w[0]}</div>
+        ))}
+        {raster.tage.map((d) => {
+          const istHeute = d.tag === heuteTag;
+          return (
+            <button key={d.tag} type="button" data-date={d.tag}
+              onClick={() => aufTag(d.tag)}
+              className="text-[10px] tabular-nums"
+              style={{
+                height: 'var(--pjk-year-cell)',
+                borderRadius: '50%',
+                color: istHeute ? '#fff' : 'var(--pjk-ink)',
+                background: istHeute ? 'var(--pjk-heute)' : 'transparent',
+                opacity: d.inPeriode ? 1 : 'var(--pjk-outside-opacity)',
+              }}>
+              {Number(d.tag.slice(8))}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 /** Kalender nach Quelle gruppiert — wie Apple (P-1). */
-export function CalendarSidebar({ kalender, versteckt, aufAendern, zone }: SidebarProps) {
+export function CalendarSidebar({ kalender, versteckt, aufAendern, zone,
+                                  anker, heuteTag, wochenstart, aufTag }: SidebarProps) {
   const gruppen = new Map<string, KalenderZeile[]>();
   for (const k of kalender) {
     const name = k.source_title ?? 'Andere';
@@ -59,8 +105,10 @@ export function CalendarSidebar({ kalender, versteckt, aufAendern, zone }: Sideb
   }
 
   return (
-    <nav aria-label="Kalender" className="h-full overflow-y-auto py-2"
-      style={{ borderRight: '1px solid var(--pjk-line)' }}>
+    <nav aria-label="Kalender" className="h-full flex flex-col py-2"
+      style={{ borderRight: '1px solid var(--pjk-line)',
+               background: 'var(--pjk-surface-2)' }}>
+      <div className="flex-1 overflow-y-auto">
       {kalender.length === 0 && (
         <p className="px-3 py-2 text-xs" style={{ color: 'var(--pjk-ink-dim)' }}>
           Noch kein Kalender bekannt — synchronisieren liest sie ein.
@@ -106,12 +154,11 @@ export function CalendarSidebar({ kalender, versteckt, aufAendern, zone }: Sideb
           </ul>
         </section>
       ))}
-      <p className="px-3 pt-2 text-[10px] leading-relaxed"
-        style={{ color: 'var(--pjk-ink-dim)',
-                 borderTop: '1px solid var(--pjk-line-soft)' }}>
-        Ein- und Ausblenden ist reine Ansicht — es ändert keine Zuordnung und
-        nichts in Apple Kalender. Zeitzone der Anzeige: {zone}.
-      </p>
+      </div>
+      {/* B2: Miniaturmonat unten, wie die Referenz. Der frühere Erklärtext
+          ist entfallen — das Ein-/Ausblenden bleibt trotzdem reine Ansicht. */}
+      <MiniMonat anker={anker} heuteTag={heuteTag} wochenstart={wochenstart}
+        zone={zone} aufTag={aufTag} />
     </nav>
   );
 }
@@ -128,6 +175,11 @@ export interface RasterProps {
   bekanntBis: string | null;
   aufAuswahl: (t: Termin) => void;
   ausgewaehlt: string | null;
+  /** B2: erster Wochentag als ISO-Versatz (0 = Montag … 6 = Sonntag). */
+  wochenstart: number;
+  /** B2: lesende Tagesauswahl per Klick. */
+  gewaehlterTag: string | null;
+  aufTagAuswahl: (tag: string) => void;
 }
 
 /** Ob über diesen Tag überhaupt etwas bekannt ist. */
@@ -144,38 +196,44 @@ function TerminChip({ t, tag, zone, aufAuswahl, ausgewaehlt }: {
   const farbe = farbeVon(t);
   const aktiv = ausgewaehlt === t.id;
   const serie = t.recurrence_rule !== null;
+  // B2, wie die Referenz: ein zeitgebundener Termin ist Punkt + Titel +
+  // rechtsbuendige Uhrzeit — KEIN gefuellter Block nur wegen einer Uhrzeit.
+  // Ganztaegige Termine bleiben der gefuellte Balken.
   return (
     <button
       type="button"
       data-testid="kalender-termin"
       data-event-id={t.id}
-      onClick={() => aufAuswahl(t)}
+      onClick={(e) => { e.stopPropagation(); aufAuswahl(t); }}
       aria-current={aktiv ? 'true' : undefined}
       title={`${t.title ?? 'Ohne Titel'} — ${t.calendar_name}`}
       className="flex w-full items-center gap-1 px-1 text-left truncate"
       style={{
         minHeight: 'var(--pjk-chip-height)',
         borderRadius: 'var(--pjk-chip-radius)',
-        background: t.is_all_day ? farbe : mitAlpha(farbe, 0.16),
-        borderLeft: t.is_all_day ? 'none' : `3px solid ${farbe}`,
-        outline: aktiv ? '2px solid var(--pjk-heute)' : 'none',
+        background: t.is_all_day ? farbe : 'transparent',
+        outline: aktiv ? '2px solid var(--pjk-auswahl)' : 'none',
       }}
     >
       {!t.is_all_day && (
-        <span className="text-[10px] flex-shrink-0 tabular-nums"
-          style={{ color: 'var(--pjk-ink-dim)' }}>
-          {uhrzeit(t.starts_at_utc, zone)}
-        </span>
+        <span aria-hidden className="flex-shrink-0" style={{
+          width: 6, height: 6, borderRadius: '50%', background: farbe }} />
       )}
       {/* Serien werden als Serien gezeigt, bevor jemand etwas anfasst (P-8). */}
       {serie && <span aria-label="Serie" title="Serie"
         className="text-[9px] flex-shrink-0">↻</span>}
-      <span className="text-[11px] truncate" style={{
+      <span className="text-[11px] truncate flex-1 min-w-0" style={{
         color: t.is_all_day ? lesbarAuf(farbe) : 'var(--pjk-ink)',
         fontWeight: t.is_all_day ? 600 : 500,
       }}>
         {t.title ?? 'Ohne Titel'}
       </span>
+      {!t.is_all_day && (
+        <span className="text-[10px] flex-shrink-0 tabular-nums text-right"
+          style={{ color: 'var(--pjk-ink-dim)' }}>
+          {uhrzeit(t.starts_at_utc, zone)}
+        </span>
+      )}
     </button>
   );
 }
@@ -183,14 +241,16 @@ function TerminChip({ t, tag, zone, aufAuswahl, ausgewaehlt }: {
 // ── Monat ───────────────────────────────────────────────────────────────────
 
 export function MonatsRaster(p: RasterProps) {
-  const { raster, termineProTag, zone, heuteTag, aufAuswahl, ausgewaehlt } = p;
+  const { raster, termineProTag, zone, heuteTag, aufAuswahl, ausgewaehlt,
+          wochenstart, gewaehlterTag, aufTagAuswahl } = p;
+  const koepfe = wochentagsKoepfe(wochenstart);
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="grid flex-shrink-0"
         style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
-        {WOCHENTAGE.map((w) => (
-          <div key={w} role="columnheader"
-            className="text-[10px] font-medium uppercase tracking-wide text-center"
+        {koepfe.map((w, i) => (
+          <div key={`${w}-${i}`} role="columnheader"
+            className="text-[11px] font-medium text-right pr-2"
             style={{
               height: 'var(--pjk-weekday-height)',
               color: 'var(--pjk-ink-dim)',
@@ -207,33 +267,36 @@ export function MonatsRaster(p: RasterProps) {
         {raster.tage.map((d, i) => {
           const termine = termineProTag.get(d.tag) ?? [];
           const istHeute = d.tag === heuteTag;
+          const istGewaehlt = d.tag === gewaehlterTag;
           const bekannt = istBekannt(d.tag, p.bekanntVon, p.bekanntBis, zone);
           return (
             <div key={d.tag} role="gridcell" data-testid="kalender-tag"
               data-date={d.tag} data-bekannt={bekannt ? '1' : '0'}
-              className={`p-1 min-w-0 ${bekannt ? '' : 'pjk-unbekannt'}`}
+              data-selected={istGewaehlt ? '1' : '0'}
+              aria-selected={istGewaehlt}
+              onClick={() => aufTagAuswahl(d.tag)}
+              className={`p-1 min-w-0 cursor-default ${bekannt ? '' : 'pjk-unbekannt'}`}
               style={{
                 borderRight: (i + 1) % 7 === 0 ? 'none' : '1px solid var(--pjk-line-soft)',
                 borderBottom: '1px solid var(--pjk-line-soft)',
                 opacity: d.inPeriode ? 1 : 'var(--pjk-outside-opacity)',
               }}>
-              <div className="flex items-center justify-between mb-0.5">
+              {/* B2, wie die Referenz: Tageszahl oben RECHTS; heute als roter
+                  gefuellter Kreis; der gewaehlte Tag als neutraler Kreis. */}
+              <div className="flex items-center justify-end mb-0.5">
                 <span className="inline-flex items-center justify-center text-[11px] font-medium tabular-nums"
                   style={{
                     minWidth: 'var(--pjk-daynumber-size)',
                     height: 'var(--pjk-daynumber-size)',
                     borderRadius: '50%',
                     color: istHeute ? '#fff' : 'var(--pjk-ink)',
-                    background: istHeute ? 'var(--pjk-heute)' : 'transparent',
+                    background: istHeute ? 'var(--pjk-heute)'
+                      : istGewaehlt ? 'var(--pjk-auswahl)' : 'transparent',
+                    outline: istHeute && istGewaehlt
+                      ? '2px solid var(--pjk-auswahl)' : 'none',
                   }}>
                   {Number(d.tag.slice(8))}
                 </span>
-                {!bekannt && (
-                  <span className="text-[9px]" style={{ color: 'var(--pjk-ink-dim)' }}
-                    title="Dieser Tag ist nicht geladen — er ist nicht frei, sondern unbekannt.">
-                    ?
-                  </span>
-                )}
               </div>
               <div className="flex flex-col" style={{ gap: 'var(--pjk-chip-gap)' }}>
                 {termine.map((t) => (
@@ -274,8 +337,8 @@ export function ZeitRaster(p: RasterProps) {
           const istHeute = d.tag === heuteTag;
           return (
             <div key={d.tag} className="flex-1 min-w-0 text-center py-1">
-              <div className="text-[10px] uppercase" style={{ color: 'var(--pjk-ink-dim)' }}>
-                {WOCHENTAGE[(new Date(`${d.tag}T00:00:00Z`).getUTCDay() + 6) % 7]}
+              <div className="text-[10px]" style={{ color: 'var(--pjk-ink-dim)' }}>
+                {wochentagsLabel(d.tag)}
               </div>
               <div className="inline-flex items-center justify-center text-[12px] font-medium tabular-nums"
                 style={{
@@ -380,9 +443,10 @@ export function ZeitRaster(p: RasterProps) {
 // ── Jahr ────────────────────────────────────────────────────────────────────
 
 export function JahresRaster(p: RasterProps & { aufTag: (tag: string) => void }) {
-  const { raster, termineProTag, heuteTag, aufTag } = p;
+  const { raster, termineProTag, heuteTag, aufTag, wochenstart } = p;
   const jahr = raster.tage[0]?.tag.slice(0, 4) ?? '';
   const monate = Array.from({ length: 12 }, (_, m) => m);
+  const koepfe = wochentagsKoepfe(wochenstart);
 
   return (
     <div className="grid gap-4 p-3 overflow-y-auto h-full"
@@ -392,14 +456,15 @@ export function JahresRaster(p: RasterProps & { aufTag: (tag: string) => void })
         const praefix = `${jahr}-${String(m + 1).padStart(2, '0')}`;
         const tage = raster.tage.filter((d) => d.tag.startsWith(praefix));
         const ersterWochentag = tage.length > 0
-          ? (new Date(`${tage[0]!.tag}T00:00:00Z`).getUTCDay() + 6) % 7 : 0;
+          ? ((new Date(`${tage[0]!.tag}T00:00:00Z`).getUTCDay() + 6) % 7
+             - wochenstart + 7) % 7 : 0;
         return (
           <section key={m} aria-label={`${MONATSKUERZEL[m]} ${jahr}`}>
             <h3 className="text-[12px] font-semibold mb-1"
               style={{ color: 'var(--pjk-heute)' }}>{MONATSKUERZEL[m]}</h3>
             <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
-              {WOCHENTAGE.map((w) => (
-                <div key={w} className="text-[9px] text-center"
+              {koepfe.map((w, i) => (
+                <div key={`${w}-${i}`} className="text-[9px] text-center"
                   style={{ color: 'var(--pjk-ink-dim)' }}>{w[0]}</div>
               ))}
               {Array.from({ length: ersterWochentag }, (_, i) => (

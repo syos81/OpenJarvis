@@ -12,10 +12,12 @@ import {
   lokaleMitternachtUtc,
   lokalerTag,
   plusTage,
+  systemWochenstart,
   systemZeitzone,
   tagesAnteil,
   termintage,
   verschiebeAnker,
+  wochentagsKoepfe,
 } from './raster';
 
 const BERLIN = 'Europe/Berlin';
@@ -289,5 +291,46 @@ describe('systemZeitzone', () => {
     expect(zone.length).toBeGreaterThan(0);
     // Der Punkt der Baseline B-7: die Zone kommt vom System, nicht aus dem Code.
     expect(lokaleMitternachtUtc('2026-08-12', zone)).not.toBe('');
+  });
+});
+
+describe('Wochenbeginn ist Konfiguration, nie Konstante (B2)', () => {
+  it('verschiebt das Monatsraster bei Wochenbeginn Sonntag korrekt', () => {
+    // August 2026 beginnt an einem Samstag. Bei Wochenbeginn Sonntag (Versatz
+    // 6) beginnt das Raster am Sonntag, 26. Juli; bei Montag am 27. Juli.
+    const sonntag = baueRaster('month', '2026-08-15', BERLIN, 6);
+    const montag = baueRaster('month', '2026-08-15', BERLIN, 0);
+    expect(sonntag.tage[0]!.tag).toBe('2026-07-26');
+    expect(montag.tage[0]!.tag).toBe('2026-07-27');
+    expect(sonntag.tage.length % 7).toBe(0);
+    expect(montag.tage.length % 7).toBe(0);
+    // Der letzte Rastertag schliesst die Woche in derselben Ordnung.
+    const letzterSonntag = sonntag.tage[sonntag.tage.length - 1]!.tag;
+    const letzterMontag = montag.tage[montag.tage.length - 1]!.tag;
+    expect(new Date(`${letzterSonntag}T00:00:00Z`).getUTCDay()).toBe(6);
+    expect(new Date(`${letzterMontag}T00:00:00Z`).getUTCDay()).toBe(0);
+  });
+
+  it('verschiebt die Wochenansicht mit dem Wochenbeginn', () => {
+    const sonntag = baueRaster('week', '2026-08-12', BERLIN, 6);
+    const montag = baueRaster('week', '2026-08-12', BERLIN, 0);
+    expect(sonntag.tage[0]!.tag).toBe('2026-08-09');
+    expect(montag.tage[0]!.tag).toBe('2026-08-10');
+  });
+
+  it('ordnet die Wochentagskoepfe in derselben Ordnung wie das Raster', () => {
+    const sonntag = wochentagsKoepfe(6, 'de-DE');
+    const montag = wochentagsKoepfe(0, 'de-DE');
+    expect(sonntag[0]!.toLowerCase().startsWith('so')).toBe(true);
+    expect(montag[0]!.toLowerCase().startsWith('mo')).toBe(true);
+    expect(sonntag.length).toBe(7);
+    // Locale-uebliche Schreibweise, keine Vollgrossschreibung.
+    for (const kopf of montag) expect(kopf).toMatch(/[a-zäöü]/);
+  });
+
+  it('leitet den Systemwochenbeginn aus der Locale-Schicht ab', () => {
+    // de-DE: CLDR-Vorgabe Montag; en-US: Sonntag. Beide über dieselbe Quelle.
+    expect(systemWochenstart('de-DE')).toBe(0);
+    expect(systemWochenstart('en-US')).toBe(6);
   });
 });

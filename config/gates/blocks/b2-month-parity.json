@@ -1,0 +1,696 @@
+{
+  "baseline_policy": {
+    "baseline_commit": "7986bee",
+    "cache_enabled": false,
+    "cause_signature_version": "cs-1",
+    "config_digest_paths": [
+      "config/governance/ast-dispositions.json",
+      "config/governance/b0f-sample-plan.json",
+      "config/governance/b0f-unit-locality.json",
+      "config/governance/config-loaders.json",
+      "config/governance/effect-evidence.json",
+      "config/governance/guard-trust-model.json",
+      "config/governance/owner-expectations.json",
+      "config/guard/rule-changes.json"
+    ],
+    "dependency_lock_paths": [],
+    "owner_marker": "openjarvis-gate-baseline"
+  },
+  "block_id": "b2-month-parity",
+  "checks": [
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-b1-path",
+      "description": "The B1 calendar chain exists unchanged in this tree.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "path"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-b1-readonly",
+      "description": "No mutating calendar semantics in the starting path.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-config-loaders",
+      "description": "Every configuration bound to exactly one accepting reader (R4).",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-guard-base",
+      "description": "Active guard installation verified.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/integration_checks.py",
+          "--mode",
+          "guard-base"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-manifest",
+      "description": "This manifest validates.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "manifest",
+          "--block",
+          "b2-month-parity"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree",
+      "description": "Expected branch.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/preflight_checks.py",
+          "--mode",
+          "worktree",
+          "--expected-branch",
+          "spike/calendar-foundation-intel-2026-08-04"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pf-worktree-state",
+      "description": "Worktree state for this block.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "preflight",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/repo_guard.py",
+          "--mode",
+          "state",
+          "--block",
+          "b2-month-parity"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b1-readonly",
+      "description": "Read-only invariant against the current change.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b2-frontend-tests",
+      "description": "The personal frontend suites: calendar with the B2 features, contacts as shared-component regression.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "frontend-tests"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-b2-matrix",
+      "description": "The block-local comparison matrix is structurally valid, automated evidence resolves and no live feature is pre-filled.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "tg-config-loaders",
+      "description": "Loader binding against the current change.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "targeted",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b1-readonly",
+      "description": "Read-only invariant at the fixed commit.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b2-frontend-tests",
+      "description": "The personal frontend suites at the fixed commit.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "frontend-tests"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 1800
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-b2-matrix",
+      "description": "The block-local comparison matrix is structurally valid, automated evidence resolves and no live feature is pre-filled.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-config-loaders",
+      "description": "Loader binding at the fixed commit.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b0c_checks.py",
+          "--mode",
+          "config-loaders"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-feature-lineage",
+      "description": "Feature completeness against the immediate predecessor.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b2-month-parity"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-manifest-validation",
+      "description": "Manifest validation with fixtures.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/manifest_validate.py",
+          "--block",
+          "b2-month-parity",
+          "--with-fixtures"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-preservation",
+      "description": "Historical acceptance preservation.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "of-tooling-tests",
+      "description": "The full tooling test suite.",
+      "evidence_profile": "tooling",
+      "parser": "unittest",
+      "phase": "offline-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "-m",
+          "unittest",
+          "discover",
+          "-v",
+          "-s",
+          "tests/tooling",
+          "-t",
+          "."
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 3600
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-bundle",
+      "description": "The packed x86_64 bundle still verifies: architecture, strict codesign, entitlements, sidecar contract.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "bundle"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-readonly",
+      "description": "No write selector in the shipped sidecar.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "readonly"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b1-remote-ancestor",
+      "description": "The published branch tip is an ancestor of the local HEAD.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b1_checks.py",
+          "--mode",
+          "remote-ancestor"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b2-live-matrix",
+      "description": "The owner acceptance is complete: every live feature decided, none pending, none failing.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "live-matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "pl-b2-regression",
+      "description": "B1 data is still there: real calendars, events and sync runs in the productive database.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "platform-live",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "regression"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-evidence",
+      "description": "Evidence completeness over all stored phases, under rule R10.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_evidence",
+        "type": "internal"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-feature-lineage",
+      "description": "Feature completeness at close.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/feature_lineage.py",
+          "--block",
+          "b2-month-parity"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-live-matrix",
+      "description": "The decided owner matrix at close.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/b2_checks.py",
+          "--mode",
+          "live-matrix"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-phase-results",
+      "description": "Stored phase results are consistent and complete, under rule R10.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "name": "module_final_phase_results",
+        "type": "internal"
+      },
+      "timeout_seconds": 900
+    },
+    {
+      "baseline_eligible": false,
+      "check_id": "mf-preservation",
+      "description": "Preservation at close.",
+      "evidence_profile": "tooling",
+      "parser": "gate_json",
+      "phase": "module-final",
+      "required": true,
+      "runner": {
+        "argv": [
+          "${GATE_PYTHON}",
+          "${GATE_TOOLS}/runners/history_checks.py",
+          "--mode",
+          "preservation"
+        ],
+        "cwd": "worktree",
+        "type": "argv"
+      },
+      "timeout_seconds": 900
+    }
+  ],
+  "engine_min_version": "1.0.0",
+  "evidence_policy": {
+    "raw_log_area": "runtime_only",
+    "sanitized_evidence": true
+  },
+  "feature_lineage": {
+    "lineage_file": "config/gates/features/b2-month-parity.lineage.json",
+    "own_expected": 10,
+    "own_prefix": "B2-",
+    "predecessor_file": "config/gates/features/b1-calendar-visible.lineage.json"
+  },
+  "phase_definitions": {
+    "module-final": {
+      "applicable": true,
+      "reason": "Closing aggregation: stored phases, evidence, feature lineage, preservation and the decided owner matrix.",
+      "required": true
+    },
+    "offline-final": {
+      "applicable": true,
+      "reason": "The full offline acceptance against the fixed functional commit: every automatable matrix feature, the suites, lineage and preservation.",
+      "required": true
+    },
+    "platform-live": {
+      "applicable": true,
+      "reason": "The owner compares the month view against Apple Calendar on this Intel Mac in light and dark mode and decides every live feature; B1 function is re-derived against the productive database and the packed bundle.",
+      "required": true
+    },
+    "preflight": {
+      "applicable": true,
+      "reason": "Worktree, branch, guard, loader bindings, the existing B1 calendar chain and the read-only invariant are prerequisites.",
+      "required": true
+    },
+    "targeted": {
+      "applicable": true,
+      "reason": "During the work the matrix, the frontend suites and the read-only invariant run against the current change.",
+      "required": true
+    }
+  },
+  "platform_requirements": {
+    "architectures": [
+      "x86_64"
+    ],
+    "min_python": "3.11",
+    "systems": [
+      "Darwin"
+    ]
+  },
+  "product_guard": {
+    "allowed_paths": [
+      "*"
+    ],
+    "block_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "forbidden_paths": []
+  },
+  "required_phases": [
+    "preflight",
+    "targeted",
+    "offline-final",
+    "platform-live",
+    "module-final"
+  ],
+  "schema_version": 1,
+  "targeted_selection": {
+    "always": [
+      "tg-b1-readonly",
+      "tg-b2-frontend-tests",
+      "tg-b2-matrix"
+    ],
+    "base_ref": "1e86f436bbf77e1f31ca3806442ebf1ccaa37f50",
+    "rules": [
+      {
+        "checks": [
+          "tg-b2-frontend-tests",
+          "tg-b2-matrix"
+        ],
+        "paths": [
+          "frontend/*"
+        ],
+        "rule_id": "r-frontend"
+      },
+      {
+        "checks": [
+          "tg-b2-matrix",
+          "tg-config-loaders"
+        ],
+        "paths": [
+          "tools/*",
+          "config/*"
+        ],
+        "rule_id": "r-tooling"
+      }
+    ]
+  },
+  "title": "B2 month view in Apple parity on x86_64: neutral system surface, locale week start, reference day cells and read-only day selection"
+}

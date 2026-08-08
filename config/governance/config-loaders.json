@@ -57,6 +57,15 @@
       "reason": "The PII-poor live record is read exclusively by the B1 live-data check, whose loader rejects unknown fields so no calendar content can ever ride along."
     },
     {
+      "binding_id": "b2-parity-matrix",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.runners.b2_checks:load_matrix",
+      "pattern": "config/gates/history/b2-parity-matrix.json",
+      "reason": "The block-local comparison matrix is read exclusively by the B2 matrix checks, whose loader rejects unknown fields, open proof modes and unknown live results."
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",
