@@ -15,5 +15,9 @@
 <dict>
   <key>NSContactsUsageDescription</key>
   <string>Personal Jarvis liest deine Kontakte, um sie lokal auf diesem Mac zu durchsuchen und zu ordnen. Neue Kontakte werden nur nach deiner ausdrücklichen Freigabe angelegt; bestehende Kontakte werden nicht verändert und keine Daten übertragen.</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>Personal Jarvis liest deinen Kalender, um Termine lokal auf diesem Mac anzuzeigen und zu durchsuchen. Es werden keine Termine angelegt, geändert oder gelöscht und keine Daten übertragen.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>Personal Jarvis liest deinen Kalender, um Termine lokal auf diesem Mac anzuzeigen und zu durchsuchen. macOS bietet für das Lesen nur die Stufe „Vollzugriff" an; Jarvis legt trotzdem keine Termine an, ändert und löscht keine und überträgt keine Daten.</string>
 </dict>
 </plist>

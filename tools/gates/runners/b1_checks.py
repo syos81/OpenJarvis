@@ -223,6 +223,16 @@ def mode_bundle(args):
         failures.append(_fail(str(app), "app_identifier_unexpected"))
     if CALENDARS_KEY not in _entitlements_of(app):
         failures.append(_fail(str(app), "app_calendars_entitlement_missing"))
+    info_plist = (app / "Contents" / "Info.plist")
+    if info_plist.is_file():
+        info = _run(["plutil", "-convert", "xml1", "-o", "-",
+                     str(info_plist)]).stdout
+        if "NSCalendarsUsageDescription" not in info:
+            # Without the usage description macOS aborts instead of asking;
+            # from outside that is indistinguishable from a user's no.
+            failures.append(_fail(str(info_plist), "calendars_usage_description_missing"))
+    else:
+        failures.append(_fail(str(info_plist), "info_plist_missing"))
     if embedded.is_file():
         sidecar_detail = _run(["codesign", "-dvv", str(embedded)]).stderr
         if "de.kluender.jarvis.calendar-bridge" not in sidecar_detail:

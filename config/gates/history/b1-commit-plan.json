@@ -24,10 +24,14 @@
   "kind": "commit_plan",
   "max_commits": 4,
   "plan_change": {
-    "actual": 3,
+    "actual": 4,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 2,
-    "reason": "Mechanically traced before the first live start: frontend/src-tauri/src/lib.rs set OPENJARVIS_PERSONAL_ENABLED and PERSONAL_JARVIS_CONTACTS_SIDECAR but never PERSONAL_JARVIS_CALENDAR_SIDECAR, and the resolver accepts only explicitly injected paths (src/personaljarvis/base/sidecar/resolver.py). A packed app could enable the module yet never resolve its own bundled calendar bridge. Repaired as its own functional commit; no amend."
+    "reason": "Mechanically traced before the first live start: frontend/src-tauri/src/lib.rs set OPENJARVIS_PERSONAL_ENABLED and PERSONAL_JARVIS_CONTACTS_SIDECAR but never PERSONAL_JARVIS_CALENDAR_SIDECAR, and the resolver accepts only explicitly injected paths (src/personaljarvis/base/sidecar/resolver.py). A packed app could enable the module yet never resolve its own bundled calendar bridge. Repaired as its own functional commit; no amend.",
+    "second_change": {
+      "decided_by": "commit plan rule for live-found functional defects",
+      "reason": "Pre-live TCC identity check: frontend/src-tauri/Info.plist declared only NSContactsUsageDescription. Without NSCalendarsUsageDescription macOS denies or aborts instead of showing the dialog — from outside indistinguishable from a user's no (same failure class as the entitlement finding in docs/testing/calendar-read-probe-x86_64-2026-08-04.md). The texts are lifted from the sidecar's own Info.plist; the b1 bundle check now fails mechanically on a missing usage description. Own functional commit; no amend."
+    }
   },
   "planned_commits": [
     {
@@ -41,8 +45,13 @@
       "purpose": "functional repair found while mechanically tracing the packed-app chain before the live run: the backend start injected only the contacts sidecar path; without PERSONAL_JARVIS_CALENDAR_SIDECAR the resolver (which accepts only injected paths) could never reach the bundled calendar bridge"
     },
     {
-      "message": "test(calendar): finalize b1 visible-calendar evidence, acceptance and handoff",
+      "message": "fix(calendar): declare the calendar usage descriptions on the app bundle",
       "position": 3,
+      "purpose": "functional repair found while mechanically preparing the TCC live run: the app Info.plist carried only the contacts usage description; without NSCalendarsUsageDescription macOS aborts instead of asking. The bundle check now catches this class mechanically"
+    },
+    {
+      "message": "test(calendar): finalize b1 visible-calendar evidence, acceptance and handoff",
+      "position": 4,
       "purpose": "purely determinative: gate evidence of the five phases against the fixed functional commit and the live run, the PII-poor live record, the x86_64 K1 mapping, acceptance and handoff"
     }
   ],
