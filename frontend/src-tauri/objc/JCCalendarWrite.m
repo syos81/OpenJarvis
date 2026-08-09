@@ -347,12 +347,24 @@ int32_t jc_calendar_write_delete_probe(const char *event_identifier,
 
     // Rohe Fakten, KEINE Inhalte: kein Teilnehmername, keine URL, kein
     // Ortstext verlässt diese Funktion. Die Bewertung übernimmt Rust.
+    //
+    // JEDER Wahrheitswert wird über eine BOOL-typisierte Variable geboxt
+    // (P3-Livebefund vom 2026-08-09, Stufe probe_unparseable): Clang boxt
+    // nur BOOL-typisierte Ausdrücke als JSON-true/false; ein nackter
+    // Vergleichsausdruck in @() ist ein int und emittiert 0/1 — und der
+    // Rust-Vertrag weist Zahlen als Wahrheitswerte fail-closed ab.
+    // Beobachtet, nicht abgeleitet: gleiches Clang/SDK, gleiche
+    // Serialisierung, @(x != nil) → 0, @(boolLokal) → false.
     NSUInteger serien = event.hasRecurrenceRules
         ? event.recurrenceRules.count : 0;
     NSUInteger teilnehmer = event.hasAttendees ? event.attendees.count : 0;
     NSUInteger wecker = event.hasAlarms ? event.alarms.count : 0;
     BOOL geoOrt = event.structuredLocation != nil
         && event.structuredLocation.geoLocation != nil;
+    BOOL hatOrganisator = event.organizer != nil;
+    BOOL hatUrl = event.URL != nil;
+    BOOL hatGeburtstagsbindung = event.birthdayContactIdentifier != nil;
+    BOOL hatTeilnahmestatus = event.status != EKEventStatusNone;
     // Verfügbarkeit: als BELEGT gilt ausschliesslich eine ausdrücklich
     // gesetzte Markierung (free/tentative/unavailable). busy ist der
     // EventKit-Standard, notSupported heisst „der Kalender kennt das
@@ -373,14 +385,14 @@ int32_t jc_calendar_write_delete_probe(const char *event_identifier,
         @"is_detached": @(event.isDetached),
         @"has_attendees": @(event.hasAttendees),
         @"attendee_count": @(teilnehmer),
-        @"has_organizer": @(event.organizer != nil),
+        @"has_organizer": @(hatOrganisator),
         @"has_alarms": @(event.hasAlarms),
         @"alarm_count": @(wecker),
-        @"has_url": @(event.URL != nil),
+        @"has_url": @(hatUrl),
         @"has_structured_location_geo": @(geoOrt),
-        @"has_birthday_link": @(event.birthdayContactIdentifier != nil),
+        @"has_birthday_link": @(hatGeburtstagsbindung),
         @"availability_marked": @(verfuegbarkeitMarkiert),
-        @"has_participation_status": @(event.status != EKEventStatusNone),
+        @"has_participation_status": @(hatTeilnahmestatus),
     };
     NSError *jsonError = nil;
     NSData *data = [NSJSONSerialization dataWithJSONObject:dict options:0

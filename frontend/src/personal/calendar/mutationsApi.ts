@@ -212,7 +212,11 @@ export function bereiteLoeschenVor(providerCalendarId: string,
 export type LoeschProbeErgebnis =
   | { stage: 'ok'; probe: LoeschProbe }
   | { stage: 'not_authorized' | 'event_unreadable' | 'probe_unparseable'
-      | 'platform_unavailable' | 'channel_invalid' };
+      | 'platform_unavailable' | 'channel_invalid';
+      /** Nur bei probe_unparseable: die ROHE Shim-Emission — PII-arm per
+       *  Konstruktion (Flags, Zähler, Kennungen; nie ein Inhalt). Der
+       *  byte-genaue Beleg statt einer Vermutung (R6). */
+      raw?: string };
 
 /**
  * Erhebt die READ-ONLY Delete-Safety-Probe am nativen Event (App-Prozess).
@@ -236,7 +240,8 @@ export async function erhebeLoeschProbe(eventIdentifier: string,
   }
   if (stage === 'not_authorized' || stage === 'event_unreadable'
       || stage === 'probe_unparseable' || stage === 'platform_unavailable') {
-    return { stage };
+    const raw = typeof wert?.raw === 'string' ? wert.raw : undefined;
+    return raw !== undefined ? { stage, raw } : { stage };
   }
   return { stage: 'channel_invalid' };
 }

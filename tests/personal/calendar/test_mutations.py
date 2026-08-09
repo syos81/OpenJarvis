@@ -1068,6 +1068,36 @@ class TestDeleteSettle:
             delete_dienst.claim(mutation_id)
 
 
+class TestEmissionsWaechter:
+    """P3-Livebefund (Stufe probe_unparseable): Clang boxt nackte
+    Vergleichsausdrücke in @() als 0/1-ZAHLEN, nicht als JSON-true/false —
+    vier Probe-Wahrheitswerte fielen deshalb fail-closed am Rust-Vertrag.
+    Dieser Wächter hält die Reparaturregel mechanisch fest: im Schreib-Shim
+    wird NIE ein Vergleichs- oder Logikausdruck direkt geboxt; Wahrheits-
+    werte laufen über BOOL-typisierte Variablen oder BOOL-Properties."""
+
+    def test_kein_vergleichsausdruck_wird_direkt_geboxt(self):
+        import re
+        from pathlib import Path
+
+        wurzel = Path(__file__).resolve().parents[3]
+        quelle = (wurzel / "frontend" / "src-tauri" / "objc"
+                  / "JCCalendarWrite.m").read_text(encoding="utf-8")
+        # Kommentare ausblenden: der Wächter prüft Code, nicht Prosa.
+        quelle = re.sub(r"//[^\n]*", "", quelle)
+        # R10: erst belegen, dass der Scan auf Material läuft — die
+        # Boxing-Stellen existieren.
+        geboxt = re.findall(r"@\(([^)]*)\)", quelle)
+        assert len(geboxt) >= 10, "leerer Scan bewiese nichts (R10)"
+        verstoesse = sorted({
+            ausdruck.strip() for ausdruck in geboxt
+            if re.search(r"!=|==|<|>|&&|\|\|", ausdruck)
+        })
+        assert verstoesse == [], (
+            "Vergleichs-/Logikausdruck direkt geboxt (emittiert 0/1 statt "
+            f"true/false): {verstoesse}")
+
+
 class TestEligibilityVertrag:
     def test_pins_stimmen_mit_der_rust_seite_ueberein(self):
         assert eligibility_digest_of(PROBE) == ELIGIBILITY_DIGEST_PIN

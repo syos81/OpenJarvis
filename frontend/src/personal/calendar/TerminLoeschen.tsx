@@ -117,8 +117,10 @@ export function TerminLoeschen({ termin, zone, aufSchliessen,
             channel_invalid: 'Der Probe-Kanal antwortete ausserhalb des '
               + 'Vertrags — ohne frische Prüfung gibt es keinen Löschweg.',
           };
+          const roh = 'raw' in probeErgebnis && probeErgebnis.raw !== undefined
+            ? ` — Rohemission: ${probeErgebnis.raw}` : '';
           setFehler(`${STUFEN[probeErgebnis.stage] ?? probeErgebnis.stage} `
-            + `(Stufe: ${probeErgebnis.stage})`);
+            + `(Stufe: ${probeErgebnis.stage})${roh}`);
           setSchritt('ergebnis');
           setErgebnis({ ok: false, text: 'Es wurde nichts gelöscht.' });
           return;

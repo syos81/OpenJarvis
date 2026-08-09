@@ -1161,10 +1161,15 @@ mod nativ {
                 "stage": "ok",
                 "probe": kanonische_probe(&roh),
             }),
-            // PII-arm: nur die Länge, nie der Inhalt.
+            // Die ROHE Emission reist mit (P3-Livebefund, R6: beobachten
+            // statt ableiten). Sie ist PII-arm PER KONSTRUKTION: der Shim
+            // emittiert ausschliesslich Flags, Zähler und die beiden
+            // Kennungen — nie einen Inhalt. Ohne diesen Beleg wäre der
+            // nächste Emissionsdrift wieder nur eine Vermutung.
             Err(_) => serde_json::json!({
                 "stage": "probe_unparseable",
                 "raw_len": text.len(),
+                "raw": text,
             }),
         }
     }
@@ -2140,13 +2145,49 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn die_beobachtete_defekte_emission_faellt_fail_closed() {
+        // DER P3-Livebefund (Stufe probe_unparseable), als Regression
+        // festgehalten: der Shim boxte vier Wahrheitswerte über nackte
+        // Vergleichsausdrücke — Clang emittiert die als 0/1-ZAHLEN, nicht
+        // als true/false (beobachtet am gleichen Clang/SDK mit denselben
+        // Ausdrucksformen, nicht abgeleitet). Genau diese Emission MUSS
+        // weiterhin fallen: eine Zahl ist kein Wahrheitswert, und die
+        // Reparatur gehört auf die Shim-Seite, nie in eine Lockerung des
+        // Parsers.
+        let beobachtet_defekt = r#"{
+            "event_identifier": "EK-EVENT-1",
+            "provider_calendar_id": "cal-1",
+            "has_recurrence_rules": false,
+            "recurrence_rule_count": 0,
+            "is_detached": false,
+            "has_attendees": false,
+            "attendee_count": 0,
+            "has_organizer": 0,
+            "has_alarms": false,
+            "alarm_count": 0,
+            "has_url": 0,
+            "has_structured_location_geo": false,
+            "has_birthday_link": 0,
+            "availability_marked": false,
+            "has_participation_status": 0
+        }"#;
+        assert!(
+            serde_json::from_str::<RohProbe>(beobachtet_defekt).is_err(),
+            "0/1 als Wahrheitswert darf NIE parsbar werden (keine Lockerung)"
+        );
+    }
+
+    #[test]
     fn das_objc_probe_json_parst_in_die_rohprobe() {
-        // Streckenpin (P3-Livebefund): die Rust-Seite hat das ECHTE
-        // Shim-JSON nie geparst — die Fakes injizieren Structs. Dieses
-        // Literal ist exakt die Emissionsform von
-        // jc_calendar_write_delete_probe (NSJSONSerialization: alle 15
-        // Schlüssel, Wahrheitswerte, Zähler) und muss fail-closed in die
-        // RohProbe und weiter in die gepinnte kanonische Probe laufen.
+        // Streckenpin: nach der Shim-Reparatur (alle Wahrheitswerte über
+        // BOOL-typisierte Variablen geboxt) ist DIES die Emissionsform —
+        // die Wertformen sind BEOBACHTET (gleiches Clang/SDK, gleiche
+        // NSJSONSerialization: BOOL-geboxt → true/false, NSUInteger →
+        // Zahl), nicht aus dem Quelltext geraten; der byte-genaue
+        // Realbeleg am echten Event kommt zusätzlich über das
+        // `raw`-Feld der probe_unparseable-Stufe, sobald je wieder eine
+        // Drift auftritt. Muss fail-closed in die RohProbe und weiter in
+        // die gepinnte kanonische Probe laufen.
         let literal = r#"{
             "event_identifier": "EK-EVENT-1",
             "provider_calendar_id": "cal-1",

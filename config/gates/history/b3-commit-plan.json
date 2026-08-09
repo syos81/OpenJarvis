@@ -24,9 +24,9 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 10,
+  "max_commits": 11,
   "plan_change": {
-    "actual": 10,
+    "actual": 11,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
     "fifth_change": {
@@ -41,6 +41,10 @@
     "second_change": {
       "decided_by": "owner decision (Option 2) after the anchored live finding",
       "reason": "The created event lay floating in the store: the order never carried a zone (gap in the write contract, same class as the B2 all-day instant finding — instant without zone anchor), while the read model has always known time_zone. Repaired through every layer with the pair anchored/floating plus the missing-key negative and a cross-layer source guard; the first event is frozen as a historical finding, a second anchored acceptance event follows with its own approval. Own functional commit; no amend."
+    },
+    "sixth_change": {
+      "decided_by": "commit plan rule for live-found functional defects",
+      "reason": "Owner-run diagnosis attempt returned the typed stage probe_unparseable, excluding TCC and identifier resolution. Observed (not derived, R6) at the same clang/SDK with the same expression forms: clang boxes bare comparison expressions in @() as 0/1 NUMBERS while BOOL-typed expressions box as true/false; exactly the four probe truth values built from comparisons therefore fell fail-closed at the Rust contract. The shim is the wrong side (the probe contract demands truth values; the parser stays strict). Repair: BOOL-typed locals for the four fields; the broken emission is pinned as a must-fail regression; a source guard forbids boxing comparison/logic expressions in the write shim; the probe_unparseable stage now carries the raw emission (PII-poor by construction) so any future drift is observed, never guessed. The prior parse pin was green because it pinned the derived assumption on both sides instead of the observed emission — recorded as the actual finding."
     },
     "third_change": {
       "decided_by": "owner decision (binding, 2026-08-09): range behaviour belongs to running P1 function work",
@@ -97,6 +101,11 @@
       "message": "fix(calendar): delete probe reports its failure stage",
       "position": 10,
       "purpose": "diagnosis repair from the aborted P3-A live attempt: typed probe failure stages (not_authorized / event_unreadable / probe_unparseable) instead of one stageless null, plus the ObjC-JSON-to-Rust parse contract pin"
+    },
+    {
+      "message": "fix(calendar): box probe truth values as BOOL, capture raw emission",
+      "position": 11,
+      "purpose": "functional repair of the observed emission defect (stage probe_unparseable): BOOL-typed boxing for the four comparison-derived probe fields, must-fail regression pin of the observed broken emission, source guard against boxed comparisons, raw emission capture in the failure stage"
     }
   ],
   "push_status": "not_performed_owner_action",
