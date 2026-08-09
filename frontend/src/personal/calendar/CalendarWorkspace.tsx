@@ -19,8 +19,10 @@ import {
   synchronisiere,
 } from './api';
 import {
-  CalendarSidebar, JahresRaster, MonatsRaster, TerminDetail, ZeitRaster,
+  CalendarSidebar, JahresRaster, MonatsRaster, TagesListe, TerminDetail,
+  ZeitRaster,
 } from './panes';
+import { PanelLeft } from 'lucide-react';
 import { PaneDivider } from '../contacts/workspace/PaneDivider';
 
 /** Pixelwert eines Tokens — deterministischer Startwert, wie im Kontaktmodul. */
@@ -73,6 +75,16 @@ export function CalendarWorkspace() {
   }), []);
   const [sidebarBreite, setSidebarBreite] = useState(grenzen.sidebar.start);
   const [detailBreite, setDetailBreite] = useState(grenzen.detail.start);
+  // B2-Livebefund 4: die Kalenderliste ist ausblendbar — reiner
+  // Ansichtszustand, das vorhandene Trennermuster bleibt unberuehrt.
+  const [sidebarVersteckt, setSidebarVersteckt] = useState(false);
+
+  // B2-Livebefund 3: Tagesklick zeigt rechts die Termine des Tages und
+  // schliesst eine offene Einzelauswahl.
+  const waehleTag = useCallback((tag: string) => {
+    setGewaehlterTag(tag);
+    setAusgewaehlt(null);
+  }, []);
   const [status, setStatus] = useState<ModulStatus | null>(null);
   const [kalender, setKalender] = useState<KalenderZeile[]>([]);
   const [bestand, setBestand] = useState<Bestand>(LEER);
@@ -265,7 +277,16 @@ export function CalendarWorkspace() {
                  gridTemplateColumns: '1fr auto 1fr',
                  borderBottom: '1px solid var(--pjk-line)',
                  paddingRight: 'var(--pjk-toolbar-reserve)' }}>
-        <div />
+        <div className="justify-self-start">
+          <button type="button"
+            aria-label={sidebarVersteckt
+              ? 'Kalenderliste einblenden' : 'Kalenderliste ausblenden'}
+            onClick={() => setSidebarVersteckt((v) => !v)}
+            className="p-1 rounded"
+            style={{ color: 'var(--pjk-ink-dim)' }}>
+            <PanelLeft size={16} />
+          </button>
+        </div>
 
         <div role="tablist" aria-label="Ansicht" className="flex rounded overflow-hidden justify-self-center"
           style={{ border: '1px solid var(--pjk-line)' }}>
@@ -273,8 +294,10 @@ export function CalendarWorkspace() {
             <button key={m} type="button" role="tab" aria-selected={modus === m}
               onClick={() => wechsleModus(m)} className="text-xs px-2 py-1"
               style={{
-                background: modus === m ? 'var(--pjk-ink)' : 'transparent',
-                color: modus === m ? 'var(--pjk-surface)' : 'var(--pjk-ink)',
+                // Systemakzentfarbe statt Grau (B2-Livebefund): Highlight
+                // folgt der macOS-Farbsprache und loest in WebKit 15 auf.
+                background: modus === m ? 'var(--pjk-auswahl)' : 'transparent',
+                color: modus === m ? 'var(--pjk-auswahl-text)' : 'var(--pjk-ink)',
               }}>{RASTER_LABELS[m]}</button>
           ))}
         </div>
@@ -359,20 +382,26 @@ export function CalendarWorkspace() {
         </p>
       )}
 
-      {/* ── Drei Bereiche: Liste · Raster · Detail, Breiten verschiebbar ── */}
+      {/* ── Drei Bereiche: Liste · Raster · Detail, Breiten verschiebbar,
+             Liste ausblendbar ── */}
       <div className="grid flex-1 min-h-0"
-        style={{ gridTemplateColumns:
-          `${sidebarBreite}px auto minmax(var(--pjk-grid-min), 1fr) auto ${detailBreite}px` }}>
-        <div className="min-w-0">
-          <CalendarSidebar kalender={kalender} versteckt={versteckt}
-            aufAendern={umschalten} zone={zone}
-            anker={anker} heuteTag={heuteTag} wochenstart={wochenstart}
-            aufTag={(tag) => { setAnker(tag); setGewaehlterTag(tag); }} />
-        </div>
+        style={{ gridTemplateColumns: sidebarVersteckt
+          ? `minmax(var(--pjk-grid-min), 1fr) auto ${detailBreite}px`
+          : `${sidebarBreite}px auto minmax(var(--pjk-grid-min), 1fr) auto ${detailBreite}px` }}>
+        {!sidebarVersteckt && (
+          <div className="min-w-0">
+            <CalendarSidebar kalender={kalender} versteckt={versteckt}
+              aufAendern={umschalten} zone={zone}
+              anker={anker} heuteTag={heuteTag} wochenstart={wochenstart}
+              aufTag={(tag) => { setAnker(tag); waehleTag(tag); }} />
+          </div>
+        )}
 
-        <PaneDivider label="Kalenderliste anpassen" wert={sidebarBreite}
-          min={grenzen.sidebar.min} max={grenzen.sidebar.max}
-          onChange={setSidebarBreite} />
+        {!sidebarVersteckt && (
+          <PaneDivider label="Kalenderliste anpassen" wert={sidebarBreite}
+            min={grenzen.sidebar.min} max={grenzen.sidebar.max}
+            onChange={setSidebarBreite} />
+        )}
 
         <div ref={rasterRef} className="min-w-0 flex flex-col">
           {/* B2: Monatstitel gross und deutlich links im Inhaltsbereich. */}
@@ -384,21 +413,21 @@ export function CalendarWorkspace() {
                 heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
                 aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
                 wochenstart={wochenstart} gewaehlterTag={gewaehlterTag}
-                aufTagAuswahl={setGewaehlterTag} />
+                aufTagAuswahl={waehleTag} />
             )}
             {(modus === 'week' || modus === 'day') && (
               <ZeitRaster raster={raster} termineProTag={termineProTag} zone={zone}
                 heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
                 aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
                 wochenstart={wochenstart} gewaehlterTag={gewaehlterTag}
-                aufTagAuswahl={setGewaehlterTag} />
+                aufTagAuswahl={waehleTag} />
             )}
             {modus === 'year' && (
               <JahresRaster raster={raster} termineProTag={termineProTag} zone={zone}
                 heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
                 aufAuswahl={setAusgewaehlt} ausgewaehlt={ausgewaehlt?.id ?? null}
                 wochenstart={wochenstart} gewaehlterTag={gewaehlterTag}
-                aufTagAuswahl={setGewaehlterTag}
+                aufTagAuswahl={waehleTag}
                 aufTag={(tag) => { setGewaehlterTag(tag); setAnker(tag); setModus('day'); }} />
             )}
           </div>
@@ -409,7 +438,14 @@ export function CalendarWorkspace() {
           onChange={setDetailBreite} richtung="rechts" />
 
         <div className="min-w-0">
-          <TerminDetail termin={ausgewaehlt} zone={zone} />
+          {ausgewaehlt !== null ? (
+            <TerminDetail termin={ausgewaehlt} zone={zone} />
+          ) : (
+            <TagesListe tag={gewaehlterTag}
+              termine={gewaehlterTag !== null
+                ? (termineProTag.get(gewaehlterTag) ?? []) : []}
+              zone={zone} aufAuswahl={setAusgewaehlt} />
+          )}
         </div>
       </div>
     </div>

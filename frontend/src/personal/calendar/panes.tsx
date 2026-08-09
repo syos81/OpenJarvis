@@ -290,7 +290,8 @@ export function MonatsRaster(p: RasterProps) {
                     minWidth: 'var(--pjk-daynumber-size)',
                     height: 'var(--pjk-daynumber-size)',
                     borderRadius: '50%',
-                    color: istHeute || istGewaehlt ? '#fff' : 'var(--pjk-ink)',
+                    color: istHeute ? '#fff'
+                      : istGewaehlt ? 'var(--pjk-auswahl-text)' : 'var(--pjk-ink)',
                     background: istHeute ? 'var(--pjk-heute)'
                       : istGewaehlt ? 'var(--pjk-auswahl)' : 'transparent',
                     outline: istHeute && istGewaehlt
@@ -511,6 +512,65 @@ function zeitBeschreibung(t: Termin, zone: string): string {
                              : `Ganztägig · ${start} bis ${letzter}`;
   }
   return `${uhrzeit(t.starts_at_utc, zone)} – ${uhrzeit(t.ends_at_utc, zone)}`;
+}
+
+/**
+ * Die Termine eines gewählten Tages im rechten Bereich (B2-Livebefund 3).
+ *
+ * BEWUSSTE ABWEICHUNG von der Referenz, im Paritätsvertrag als solche
+ * deklariert: Apples Monatsansicht hat keinen rechten Bereich. Der Klick auf
+ * einen Tag zeigt hier dessen Termine; ein Klick auf einen Termin öffnet das
+ * Detail. Rein lesend.
+ */
+export function TagesListe({ tag, termine, zone, aufAuswahl }: {
+  tag: string | null; termine: Termin[]; zone: string;
+  aufAuswahl: (t: Termin) => void;
+}) {
+  if (tag === null) {
+    return (
+      <aside className="h-full p-4 text-xs" style={{
+        borderLeft: '1px solid var(--pjk-line)', color: 'var(--pjk-ink-dim)' }}>
+        Keinen Termin ausgewählt.
+      </aside>
+    );
+  }
+  return (
+    <aside aria-label={`Termine am ${tag}`} data-testid="kalender-tagesliste"
+      className="h-full overflow-y-auto p-3"
+      style={{ borderLeft: '1px solid var(--pjk-line)' }}>
+      <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--pjk-ink)' }}>
+        {new Date(`${tag}T00:00:00Z`).toLocaleDateString('de-DE', {
+          timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'long',
+        })}
+      </h2>
+      {termine.length === 0 && (
+        <p className="text-xs" style={{ color: 'var(--pjk-ink-dim)' }}>
+          Keine Termine an diesem Tag.
+        </p>
+      )}
+      <ul className="flex flex-col gap-1">
+        {termine.map((t) => (
+          <li key={t.id}>
+            <button type="button" data-testid="tagesliste-termin"
+              onClick={() => aufAuswahl(t)}
+              className="flex w-full items-center gap-2 px-1 py-1 text-left rounded"
+              style={{ color: 'var(--pjk-ink)' }}>
+              <span aria-hidden className="flex-shrink-0" style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: farbeVon(t) }} />
+              <span className="text-xs truncate flex-1 min-w-0">
+                {t.title ?? 'Ohne Titel'}
+              </span>
+              <span className="text-[10px] flex-shrink-0 tabular-nums"
+                style={{ color: 'var(--pjk-ink-dim)' }}>
+                {t.is_all_day ? 'ganztägig' : uhrzeit(t.starts_at_utc, zone)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
 }
 
 export function TerminDetail({ termin, zone }: { termin: Termin | null; zone: string }) {

@@ -50,7 +50,7 @@ BUNDLE_APP = (
 MATRIX_KEYS = {"schema_version", "kind", "statement", "reference", "features"}
 FEATURE_KEYS = {
     "feature_id", "title", "proof", "automated_evidence", "live_result",
-    "live_note",
+    "live_note", "deliberate_deviation",
 }
 PROOFS = ("automated", "live_owner", "both")
 LIVE_RESULTS = ("pending", "pass", "fail", "not_applicable_automated_only")
@@ -82,6 +82,14 @@ def load_matrix(path):
             raise ValueError("unknown proof mode")
         if feature.get("live_result") not in LIVE_RESULTS:
             raise ValueError("unknown live_result")
+        deviation = feature.get("deliberate_deviation")
+        if deviation is not None:
+            # Eine gewollte Abweichung ist ausdruecklich deklariert und
+            # traegt ihren Grund — sie ist nie ein stiller Paritaetsanspruch.
+            if deviation is not True:
+                raise ValueError("deliberate_deviation must be true when present")
+            if not str(feature.get("live_note", "")).strip():
+                raise ValueError("a deliberate deviation needs its reason in live_note")
     return document
 
 

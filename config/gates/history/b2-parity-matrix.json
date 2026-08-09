@@ -159,6 +159,31 @@
       "live_result": "pending",
       "proof": "both",
       "title": "drei Bereiche (Liste, Raster, Detail) mit verschiebbaren Breiten"
+    },
+    {
+      "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::traegt Auswahl und aktiven Umschalter in der semantischen Systemfarbe",
+      "feature_id": "B2-M21",
+      "live_note": "",
+      "live_result": "pending",
+      "proof": "both",
+      "title": "Auswahl und aktiver Umschalter in Apples Systemfarbsprache (Highlight/HighlightText)"
+    },
+    {
+      "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::listet nach Tagesklick alle Termine des Tages rechts auf",
+      "deliberate_deviation": true,
+      "feature_id": "B2-M22",
+      "live_note": "GEWOLLTE ABWEICHUNG von der Referenz, keine Paritaet: Apples Monatsansicht hat keinen rechten Bereich. Eigentümerentscheid aus der Live-Abnahme 2026-08-09; rein lesend.",
+      "live_result": "pending",
+      "proof": "both",
+      "title": "Tagesklick listet rechts alle Termine des Tages"
+    },
+    {
+      "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::blendet die Liste aus und wieder ein",
+      "feature_id": "B2-M23",
+      "live_note": "",
+      "live_result": "pending",
+      "proof": "both",
+      "title": "Kalenderliste ausblendbar"
     }
   ],
   "kind": "b2_parity_matrix",

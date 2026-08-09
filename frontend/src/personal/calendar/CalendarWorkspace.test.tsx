@@ -544,7 +544,7 @@ describe('WebView-Vertraeglichkeit der Tokens (B2-Livebefund)', () => {
     fireEvent.click(zelle);
     const nummer = zelle.querySelector('span')!;
     expect(nummer.style.background).toBe('var(--pjk-auswahl)');
-    expect(nummer.style.color).toBe('rgb(255, 255, 255)');
+    expect(nummer.style.color).toBe('var(--pjk-auswahl-text)');
   });
 });
 
@@ -567,5 +567,66 @@ describe('Drei Bereiche mit verschiebbaren Breiten (B2, Livebefund 4)', () => {
     // Separator nach links = Detailbereich waechst.
     fireEvent.keyDown(rechts, { key: 'ArrowLeft' });
     expect(Number(rechts.getAttribute('aria-valuenow'))).toBe(detailVorher + 16);
+  });
+});
+
+describe('Tagesliste rechts (B2, bewusste Abweichung von Apple)', () => {
+  it('listet nach Tagesklick alle Termine des Tages rechts auf', async () => {
+    const a = termin();
+    const b = termin({ id: 'e2', title: 'Zweiter',
+      starts_at_utc: '2026-08-12T12:00:00Z', ends_at_utc: '2026-08-12T13:00:00Z' });
+    mockApi({ termine: [a, b] });
+    render(<CalendarWorkspace />);
+    await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-12')!;
+    fireEvent.click(zelle);
+    const liste = screen.getByTestId('kalender-tagesliste');
+    expect(liste).toBeTruthy();
+    expect(screen.getAllByTestId('tagesliste-termin').length).toBe(2);
+  });
+
+  it('zeigt bei einem leeren Tag eine ehrliche leere Liste', async () => {
+    await rendern();
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-05')!;
+    fireEvent.click(zelle);
+    expect(screen.getByText('Keine Termine an diesem Tag.')).toBeTruthy();
+  });
+
+  it('oeffnet aus der Liste das Termindetail und kehrt mit Escape zurueck', async () => {
+    await rendern();
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-12')!;
+    fireEvent.click(zelle);
+    fireEvent.click(screen.getAllByTestId('tagesliste-termin')[0]!);
+    expect(screen.getByLabelText('Termindetails')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByTestId('kalender-tagesliste')).toBeTruthy();
+  });
+});
+
+describe('Ausblendbare Kalenderliste (B2)', () => {
+  it('blendet die Liste aus und wieder ein', async () => {
+    await rendern();
+    expect(screen.getByRole('navigation', { name: 'Kalender' })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Kalenderliste ausblenden'));
+    expect(screen.queryByRole('navigation', { name: 'Kalender' })).toBeNull();
+    fireEvent.click(screen.getByLabelText('Kalenderliste einblenden'));
+    expect(screen.getByRole('navigation', { name: 'Kalender' })).toBeTruthy();
+  });
+});
+
+describe('Systemfarbsprache der Auswahl (B2)', () => {
+  it('traegt Auswahl und aktiven Umschalter in der semantischen Systemfarbe', async () => {
+    await rendern();
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-05')!;
+    fireEvent.click(zelle);
+    const nummer = zelle.querySelector('span')!;
+    expect(nummer.style.background).toBe('var(--pjk-auswahl)');
+    expect(nummer.style.color).toBe('var(--pjk-auswahl-text)');
+    const monatTab = screen.getByRole('tab', { name: 'Monat' });
+    expect(monatTab.style.background).toBe('var(--pjk-auswahl)');
   });
 });

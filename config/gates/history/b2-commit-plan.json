@@ -24,10 +24,14 @@
   "kind": "commit_plan",
   "max_commits": 4,
   "plan_change": {
-    "actual": 3,
+    "actual": 4,
     "decided_by": "commit plan rule for owner-reported visible B2 deviations",
     "declared_at_start": 2,
-    "reason": "The live comparison found a correctness defect (all-day events one day off; cause proven against the productive database, termintage byte-identical since the B1 close, so no B2 regression), a platform defect (color-mix unsupported in WebKit 17613 made selection and soft grid lines invisible) and one visible-deviation repair (cell borders). The resizable three-pane request was mechanically assessed: the contacts PaneDivider is a reusable, tested component and the takeover is small (one direction prop, two width states); the hideable-panes half does not exist in the contacts module either and stays a reported finding. Own functional commit; no amend."
+    "reason": "The live comparison found a correctness defect (all-day events one day off; cause proven against the productive database, termintage byte-identical since the B1 close, so no B2 regression), a platform defect (color-mix unsupported in WebKit 17613 made selection and soft grid lines invisible) and one visible-deviation repair (cell borders). The resizable three-pane request was mechanically assessed: the contacts PaneDivider is a reusable, tested component and the takeover is small (one direction prop, two width states); the hideable-panes half does not exist in the contacts module either and stays a reported finding. Own functional commit; no amend.",
+    "third_change": {
+      "decided_by": "commit plan rule for owner-reported visible B2 deviations",
+      "reason": "Second live round: the gray selection ring should speak Apple's system color language (solved with the semantic CSS system colors Highlight/HighlightText — no own values, WebKit-15-safe per the color-mix finding); the day click should list the day's events on the right (held in the parity matrix as an explicitly deliberate deviation, since Apple's month view has no right pane); the calendar list should hide (mechanically assessed on the existing PaneDivider pattern: one view state and a toolbar toggle — small, so built in B2). Rolling the color language out to the rest of Jarvis is explicitly NOT B2 and stays a reported finding for its own block with the calendar as reference. Own functional commit; no amend."
+    }
   },
   "planned_commits": [
     {
@@ -41,8 +45,13 @@
       "purpose": "functional repair from the owner's live comparison: (a) the one-day shift of every all-day event — mechanically traced to raw local-midnight instants in the productive database meeting a string-slice reader that assumed normalized date anchors, a legacy defect predating B2 and proven unchanged since the B1 close; (b) invisible selection and washed-out grid lines — color-mix() is unsupported by this Mac's WebKit 17613, every such token silently failed in the packed app; (c) clearly visible cell borders; (d) the small takeover of the contacts PaneDivider for resizable three-pane widths"
     },
     {
-      "message": "test(calendar): finalize b2 month-parity evidence, owner matrix and handoff",
+      "message": "feat(calendar): system accent selection, day list pane and hideable calendar list",
       "position": 3,
+      "purpose": "functional, from the owner's second live round: selection and active switcher in the semantic system colors Highlight/HighlightText (Apple's color language, resolvable in WebKit 15), the day click listing the day's events in the right pane (declared deliberate deviation from the reference, never parity), and the hideable calendar list (assessed small: one view state and a toggle on the existing divider pattern)"
+    },
+    {
+      "message": "test(calendar): finalize b2 month-parity evidence, owner matrix and handoff",
+      "position": 4,
       "purpose": "purely determinative: gate evidence of the five phases against the fixed functional commit, the owner-decided comparison matrix, remaining deviations and the handoff"
     }
   ],

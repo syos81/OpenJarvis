@@ -63,9 +63,11 @@
   /* Heute wie die Referenz rot — ueber den vorhandenen semantischen roten
      Theme-Token, nicht ueber eine abgeschriebene Screenshot-Farbe. */
   --pjk-heute: var(--color-error, #d0342c);
-  /* Ausgewaehlter Tag: neutraler grauer Kreis wie die Referenz, in beiden
-     Modi deutlich sichtbar und vom Heute-Rot unterscheidbar. */
-  --pjk-auswahl: var(--color-text-tertiary);
+  /* Auswahl in Apples Systemfarbsprache (B2-Livebefund): die semantischen
+     CSS-Systemfarben Highlight/HighlightText folgen der macOS-Akzentfarbe
+     des Nutzers und loesen auch in WebKit 15 auf — keine eigenen Werte. */
+  --pjk-auswahl: Highlight;
+  --pjk-auswahl-text: HighlightText;
   /* Ausserhalb der Periode: gedämpft, aber lesbar. */
   --pjk-outside-opacity: 0.45;
   /* Kontrollierter Ersatz, wenn EventKit für einen Kalender keine Farbe
