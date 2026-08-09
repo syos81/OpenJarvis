@@ -1,6 +1,6 @@
 // Die minimale CREATE-Maske des Kalenders (B3 P1) — zwei Schritte.
 //
-// ENTWURF: die sechs Vertragsfelder, sonst nichts. VORSCHAU: ausschliesslich
+// ENTWURF: die sieben Vertragsfelder, sonst nichts. VORSCHAU: ausschliesslich
 // die vom SERVER gelieferte Vorschau — freigegeben wird, was man sieht — mit
 // GENAU EINEM Freigabeknopf. Nichts ist vorangekreuzt, nichts läuft von
 // selbst: normativ DEC-069 — Kalenderschreiben produktiv zugelassen:
@@ -18,7 +18,9 @@ import {
   MutationsFehler,
   beanspruche, bereiteVor, bricheAb, fuehreAus, gibFrei, schliesseAb,
 } from './mutationsApi';
-import { lokaleMitternachtUtc, lokalerTag, plusTage, uhrzeit } from './raster';
+import {
+  lokaleMitternachtUtc, lokalerTag, plusTage, systemZeitzone, uhrzeit,
+} from './raster';
 
 /** ISO-8601 UTC in Sekundenpräzision — exakt das Vertragsformat des Servers
  *  (`YYYY-MM-DDTHH:MM:SSZ`, ohne Millisekunden). */
@@ -178,6 +180,11 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
         is_all_day: ganztaegig,
         location: ort.trim() === '' ? null : ort.trim(),
         notes: notiz.trim() === '' ? null : notiz.trim(),
+        // Der Zeitzonenanker kommt mechanisch aus der Plattformquelle
+        // (`systemZeitzone()`), nie hart codiert. Ganztägig sendet `null`:
+        // der Bestand trägt Ganztagstermine schwebend (events.time_zone
+        // ist dort NULL, m0009) — das ist die ehrliche Semantik.
+        time_zone: ganztaegig ? null : systemZeitzone(),
       });
       setVorgang(v);
       setSchritt('vorschau');
@@ -399,6 +406,14 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
                   Zeit
                 </dt>
                 <dd>{zeitZeile(p, zone)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium" style={{ color: 'var(--pjk-ink-dim)' }}>
+                  Zeitzone
+                </dt>
+                {/* Die SERVER-validierte Zone — freigegeben wird auch der
+                    Anker, nicht nur die Uhrzeit. */}
+                <dd>{p.time_zone ?? 'schwebend — ohne feste Zeitzone'}</dd>
               </div>
               {p.location !== null && (
                 <div>

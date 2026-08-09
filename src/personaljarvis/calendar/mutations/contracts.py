@@ -1,7 +1,7 @@
 """Transportverträge des Kalender-Mutationskanals (B3 P1).
 
 Dieselbe Bauart wie bei den Kontakten (`execution_contracts.py`), aber ein
-**eigener** Vertrag: Der Kalender hat einen geschlossenen Feldsatz von sechs
+**eigener** Vertrag: Der Kalender hat einen geschlossenen Feldsatz von sieben
 Feldern, kennt keinen Container und bindet sein Ziel über
 `provider_calendar_id` plus — ab `update`/`delete` — den `event_identifier`.
 
@@ -20,6 +20,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
+from zoneinfo import ZoneInfo
 
 # Die Fehlerklassen sind wortgleich mit dem CHECK der Outbox-Spalte
 # `error_class` (Migration 0008). Der Import aus der Migration ist Absicht:
@@ -62,10 +63,13 @@ READBACK_STATUSES: tuple[str, ...] = (
     "confirmed", "absent_confirmed", "unavailable", "not_checked",
 )
 
-#: Der geschlossene Feldsatz. Genau diese sechs — kein siebtes Feld reist
-#: durch diesen Kanal, auch nicht „zur Sicherheit".
+#: Der geschlossene Feldsatz. Genau diese sieben — kein achtes Feld reist
+#: durch diesen Kanal, auch nicht „zur Sicherheit". `time_zone` ist seit der
+#: B3-P1-Zeitzonenkorrektur Pflichtschlüssel: fehlend ist ein Schemafehler,
+#: `null` ist die ausdrücklich angeforderte schwebende Semantik.
 FIELD_NAMES: tuple[str, ...] = (
     "title", "starts_at_utc", "ends_at_utc", "is_all_day", "location", "notes",
+    "time_zone",
 )
 
 #: Größenlimits, wortgleich mit dem Kontakte-Kanal. Darüber ist fail-closed.
@@ -112,11 +116,35 @@ def _pruefe_zeitpunkt(wert: object, feld: str) -> str:
     return wert
 
 
+def _pruefe_zeitzone(fields: dict[str, Any]) -> str | None:
+    """Der Zeitzonenanker — Pflichtschlüssel, nie ein Default.
+
+    „Fehlt" ist ein Schemafehler wie jeder andere; schwebend (`null`) ist
+    ausschliesslich die ausdrücklich mitgesendete Entscheidung. Ein Wert muss
+    ein gültiger IANA-Name sein — geprüft gegen die Zonendatenbank, nicht
+    gegen ein Muster.
+    """
+    if "time_zone" not in fields:
+        raise InvalidMutationFields(
+            "time_zone fehlt (null wäre die bewusste schwebende Semantik)")
+    wert = fields["time_zone"]
+    if wert is None:
+        return None
+    if not isinstance(wert, str) or not wert:
+        raise InvalidMutationFields("time_zone ist weder IANA-Name noch null")
+    try:
+        ZoneInfo(wert)
+    except (KeyError, ValueError, OSError) as exc:
+        raise InvalidMutationFields(
+            "time_zone ist kein gültiger IANA-Name") from exc
+    return wert
+
+
 def validate_fields(fields: object) -> dict[str, Any]:
     """Prüft den geschlossenen Feldsatz und normalisiert ihn.
 
     Fehlende optionale Felder werden ausdrücklich `None`; unbekannte Felder
-    fallen fail-closed. Das Ergebnis enthält **immer** alle sechs Schlüssel —
+    fallen fail-closed. Das Ergebnis enthält **immer** alle sieben Schlüssel —
     der Fingerprint deckt sie samt `null`-Werten.
     """
     if not isinstance(fields, dict):
@@ -138,6 +166,7 @@ def validate_fields(fields: object) -> dict[str, Any]:
 
     ergebnis: dict[str, Any] = {
         "starts_at_utc": starts, "ends_at_utc": ends, "is_all_day": ganztags,
+        "time_zone": _pruefe_zeitzone(fields),
     }
     for name in ("title", "location", "notes"):
         wert = fields.get(name)
@@ -162,6 +191,9 @@ def fingerprint_of(fields: dict[str, Any], provider_calendar_id: str) -> str:
         "is_all_day": fields.get("is_all_day"),
         "location": fields.get("location"),
         "notes": fields.get("notes"),
+        # Der Zeitzonenanker gehört zum Zustand: dieselbe Uhrzeit in einer
+        # anderen Zone ist ein ANDERER Termin — der Fingerprint bindet das.
+        "time_zone": fields.get("time_zone"),
     })
 
 
@@ -231,7 +263,7 @@ class ExecutionReportV1:
     save_request_count: int
     readback_status: str
     schema_version: int = EXECUTION_SCHEMA_VERSION
-    #: Der gelesene Zustand: die sechs Felder plus `provider_calendar_id`.
+    #: Der gelesene Zustand: die sieben Felder plus `provider_calendar_id`.
     #: Aus ihm führt der Kern den lokalen Spiegel nach — erfunden wird nichts.
     readback_event: dict[str, Any] | None = None
     #: Die rohe Providerkennung (EventKit `eventIdentifier`). Sie reist

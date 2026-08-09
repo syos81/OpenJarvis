@@ -1,0 +1,23 @@
+{
+  "classification": "create_path_proven_but_temporal_contract_incomplete",
+  "event_identity_digest": "e19c822bbe8c00a02b7cf2d807ce1e0f6bdebd95823e292a3e5040c7cd8fc03c",
+  "kind": "b3_first_create_finding",
+  "order_field_set": [
+    "ends_at_utc",
+    "is_all_day",
+    "location",
+    "notes",
+    "starts_at_utc",
+    "title"
+  ],
+  "order_payload_digest": "97a5ee049860832c42c524f2ff9090e29699285c76d17f6e21263c99517c1de8",
+  "owner_confirmed_local_time": "09:00-10:00",
+  "recorded_at_utc": "2026-08-09T13:30:00Z",
+  "schema_version": 1,
+  "statement": "Erstlauf eingefroren (Option 2): der Termin bleibt unveraendert als historischer Befund; er zaehlt nicht als Funktionsnachweis und wird nach der P3-Beweiskette separat mit eigener Freigabe aufgeraeumt.",
+  "store_time_zone": null,
+  "stored_ends_at_utc": "2026-08-10T08:00:00Z",
+  "stored_starts_at_utc": "2026-08-10T07:00:00Z",
+  "visible_in_apple": true,
+  "visible_in_jarvis": true
+}

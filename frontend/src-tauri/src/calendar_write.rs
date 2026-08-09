@@ -55,7 +55,18 @@ pub struct CalendarExecutionOrder {
     pub expected_fingerprint: Option<serde_json::Value>,
 }
 
-/// Die sechs Vertragsfelder eines Create-Payloads (`canonical_payload.fields`).
+/// Serde-Kniff für den Zeitzonenanker: der Wert bleibt nullbar, aber der
+/// SCHLÜSSEL wird Pflicht — `deserialize_with` schaltet Serdes stilles
+/// „fehlendes `Option` = None" ab. Ein fehlendes `time_zone` ist ein
+/// Schemafehler, nie ein stilles „schwebend".
+fn pflicht_option<'de, D>(d: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde::Deserialize::deserialize(d)
+}
+
+/// Die sieben Vertragsfelder eines Create-Payloads (`canonical_payload.fields`).
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct EventFelder {
@@ -65,11 +76,14 @@ pub struct EventFelder {
     pub is_all_day: bool,
     pub location: Option<String>,
     pub notes: Option<String>,
+    /// IANA-Name oder `null` (bewusst schwebend) — der Schlüssel ist Pflicht.
+    #[serde(deserialize_with = "pflicht_option")]
+    pub time_zone: Option<String>,
 }
 
 // ── Bericht (Vertrag zur Python-Seite) ──────────────────────────────────────
 
-/// Der zurückgelesene Zustand: die sechs Felder plus der Kalender, in dem
+/// Der zurückgelesene Zustand: die sieben Felder plus der Kalender, in dem
 /// das Event tatsächlich liegt — Datumsformat exakt `YYYY-MM-DDTHH:MM:SSZ`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -80,6 +94,9 @@ pub struct ReadbackEvent {
     pub is_all_day: bool,
     pub location: Option<String>,
     pub notes: Option<String>,
+    /// `event.timeZone.name` des gelesenen Events; `null` = schwebend.
+    #[serde(deserialize_with = "pflicht_option")]
+    pub time_zone: Option<String>,
     pub provider_calendar_id: String,
 }
 
@@ -311,6 +328,12 @@ pub fn execute_order_mit_operationen(
     match ops.speichere_event(&felder, &kalender_id) {
         Err(fehler) if fehler.vor_save => {
             // Beweisbar nichts übergeben: der Fehler lag vor dem Save.
+            // Ein vom Shim abgewiesener Zeitzonenname ist ein Payload-
+            // Defekt, kein Providerfehler — nur EventKit kennt die Zonen-
+            // datenbank, deshalb fällt er erst hier und trägt die Klasse.
+            if fehler.beschreibung == "unknown_time_zone" {
+                bericht.error_class = Some("invalid_payload".into());
+            }
             bericht.error_digest = Some(sha256_hex(&fehler.beschreibung));
             bericht
         }
@@ -565,6 +588,8 @@ pub(crate) mod tests {
                 is_all_day: felder.is_all_day,
                 location: felder.location.clone(),
                 notes: felder.notes.clone(),
+                // Exakt das Gespeicherte — der Fake erfindet nie eine Zone.
+                time_zone: felder.time_zone.clone(),
                 provider_calendar_id: kalender.clone(),
             })
         }
@@ -579,7 +604,8 @@ pub(crate) mod tests {
                 "ends_at_utc": "2026-08-10T10:00:00Z",
                 "is_all_day": false,
                 "location": "Testraum",
-                "notes": null
+                "notes": null,
+                "time_zone": "Europe/Berlin"
             },
             "provider_target": {
                 "provider_calendar_id": "CAL-TEST",
@@ -631,7 +657,65 @@ pub(crate) mod tests {
         assert!(!gelesen.is_all_day);
         assert_eq!(gelesen.location.as_deref(), Some("Testraum"));
         assert_eq!(gelesen.notes, None);
+        assert_eq!(gelesen.time_zone.as_deref(), Some("Europe/Berlin"));
         assert_eq!(gelesen.provider_calendar_id, "CAL-TEST");
+    }
+
+    #[test]
+    fn die_zone_erreicht_save_und_readback_unveraendert() {
+        // Verankerter Create (B3-P1-Zeitzonenkorrektur): die Zone kommt bei
+        // der Save-Operation an und der Read-back meldet DIESELBE zurück.
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
+        let b = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops);
+        let (gespeichert, _) = ops.gespeichert.as_ref().expect("Save fehlt");
+        assert_eq!(gespeichert.time_zone.as_deref(), Some("Europe/Berlin"));
+        assert_eq!(
+            b.readback_event.expect("Read-back fehlt").time_zone.as_deref(),
+            Some("Europe/Berlin")
+        );
+    }
+
+    #[test]
+    fn ein_bewusst_schwebender_create_bleibt_null() {
+        // `null` ist eine Entscheidung: kein Layer ersetzt sie still durch
+        // eine Systemzone — weder Save noch Read-back.
+        let mut p = payload();
+        p["fields"]["time_zone"] = serde_json::Value::Null;
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
+        let b = execute_order_mit_operationen(&auftrag("create", p), JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied");
+        let (gespeichert, _) = ops.gespeichert.as_ref().expect("Save fehlt");
+        assert_eq!(gespeichert.time_zone, None);
+        assert_eq!(b.readback_event.expect("Read-back fehlt").time_zone, None);
+    }
+
+    #[test]
+    fn ein_fehlender_time_zone_schluessel_faellt_vor_dem_save() {
+        // Fehlend ist NICHT null: der Pflichtschlüssel fällt als
+        // Payloadfehler, beweisbar vor jeder Übergabe.
+        let mut p = payload();
+        p["fields"].as_object_mut().unwrap().remove("time_zone");
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
+        let b = execute_order_mit_operationen(&auftrag("create", p), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_unbekannter_zonenname_des_shims_ist_invalid_payload() {
+        // Nur EventKit kennt die Zonendatenbank: weist der Shim den Namen
+        // vor dem Save ab, trägt der Bericht die Payload-Klasse.
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
+        ops.save_fehler = Some(SpeicherFehler {
+            vor_save: true,
+            beschreibung: "unknown_time_zone".into(),
+        });
+        let b = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert!(!b.send_attempted);
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(b.error_digest.as_deref(), Some(sha256_hex("unknown_time_zone").as_str()));
     }
 
     #[test]
@@ -788,6 +872,7 @@ pub(crate) mod tests {
         }
         assert_eq!(json["schema_version"], 1);
         assert_eq!(json["readback_event"]["provider_calendar_id"], "CAL-TEST");
+        assert_eq!(json["readback_event"]["time_zone"], "Europe/Berlin");
         assert_eq!(json["fingerprint_matched"], serde_json::Value::Null);
     }
 
@@ -823,6 +908,7 @@ mod serververtrag_tests {
             "fields": {"ends_at_utc": "2036-08-10T08:00:00Z", "is_all_day": false,
                         "location": null, "notes": null,
                         "starts_at_utc": "2036-08-10T07:00:00Z",
+                        "time_zone": "Europe/Berlin",
                         "title": "B3-Abnahmetermin"},
             "provider_target": {"event_identifier": null,
                                  "provider_calendar_id": "CAL-1"}});

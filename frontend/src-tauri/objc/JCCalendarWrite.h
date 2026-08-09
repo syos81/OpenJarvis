@@ -44,7 +44,9 @@ typedef enum {
 /// Baut aus einer bereits digest-geprüften Feldmenge genau ein `EKEvent`
 /// und setzt genau einen `saveEvent:span:error:` (span thisEvent) ab.
 /// `fields_json`: {"title","starts_at_utc","ends_at_utc","is_all_day",
-/// "location","notes"} — Daten als `YYYY-MM-DDTHH:MM:SSZ`.
+/// "location","notes","time_zone"} — Daten als `YYYY-MM-DDTHH:MM:SSZ`;
+/// `time_zone` ist ein IANA-Name (wird als `event.timeZone` gesetzt;
+/// unbekannt ⇒ Fehler vor dem Save) oder `null` (schwebend, timeZone nil).
 int32_t jc_calendar_write_save(const char *fields_json,
                                const char *calendar_identifier,
                                char *out_identifier, int32_t identifier_capacity,

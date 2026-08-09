@@ -66,6 +66,15 @@
       "reason": "The block-local comparison matrix is read exclusively by the B2 matrix checks, whose loader rejects unknown fields, open proof modes and unknown live results."
     },
     {
+      "binding_id": "b3-first-create-finding",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.runners.b3_checks:load_first_create_finding",
+      "pattern": "config/gates/history/b3-first-create-finding.json",
+      "reason": "The frozen first-create finding is read exclusively by its fail-closed loader, which enforces the closed key set so no calendar content can ride along."
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",

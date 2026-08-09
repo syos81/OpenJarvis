@@ -73,3 +73,11 @@ App-Prozess-Mutationskanal (Backend → Claim → Frontend → Tauri →
 Contacts.framework → Settle)"). DEC-055 wird nicht umgeschrieben; diese
 Entscheidung steht daneben und hebt die Lesegrenze nur im definierten
 Mutationspfad auf.
+
+## Korrektur (2026-08-09, B3-P1)
+
+Zeitgebundene Kalender-Mutationen erhalten ihren Zeitzonenanker; schwebende
+Zeit ist ausschließlich eine ausdrücklich angeforderte Semantik. Die
+autoritative technische Form ist das Order-Schema des Mutationskanals
+(`time_zone` als Pflichtfeld, IANA-Zeichenkette oder `null`); kein weiterer
+Träger führt eine Feldliste.

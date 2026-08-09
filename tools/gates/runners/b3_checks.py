@@ -37,6 +37,13 @@ RECORD_KEYS = {
     "backup_sha256", "backup_entry_count", "target_calendar_digest",
     "functional_commit", "stages",
 }
+#: Closed key set of the frozen first-create finding (R4 loader below).
+FIRST_CREATE_FINDING_KEYS = {
+    "classification", "event_identity_digest", "kind", "order_field_set",
+    "order_payload_digest", "owner_confirmed_local_time", "recorded_at_utc",
+    "schema_version", "statement", "store_time_zone", "stored_ends_at_utc",
+    "stored_starts_at_utc", "visible_in_apple", "visible_in_jarvis",
+}
 
 
 def _fail(identifier, code):
@@ -63,6 +70,27 @@ def load_live_record(path):
             raise ValueError("unknown stage fields")
     if len(document.get("functional_commit", "")) != 40:
         raise ValueError("functional_commit must be a full oid")
+    return document
+
+
+def load_first_create_finding(path):
+    """R4 loader of the frozen, PII-poor first-create finding.
+
+    Fail closed on both sides of the key set: a missing key would hide a
+    recorded fact, an unknown key could carry calendar content along.
+    """
+    document = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(document, dict) \
+            or document.get("kind") != "b3_first_create_finding":
+        raise ValueError("unknown finding")
+    if document.get("schema_version") != 1:
+        raise ValueError("unknown schema_version")
+    if set(document) != FIRST_CREATE_FINDING_KEYS:
+        raise ValueError("finding keys must match the closed key set")
+    field_set = document.get("order_field_set")
+    if not isinstance(field_set, list) or not field_set \
+            or any(not isinstance(name, str) for name in field_set):
+        raise ValueError("order_field_set must be a non-empty string list")
     return document
 
 

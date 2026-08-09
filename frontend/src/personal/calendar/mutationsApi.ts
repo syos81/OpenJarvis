@@ -14,7 +14,7 @@ import { getBase, authHeaders, isTauri } from '../../lib/api';
 
 const PREFIX = '/v1/personal/calendar';
 
-/** Der geschlossene Feldsatz eines `create` — genau diese sechs. */
+/** Der geschlossene Feldsatz eines `create` — genau diese sieben. */
 export interface TerminFelder {
   title: string | null;
   starts_at_utc: string;
@@ -22,6 +22,8 @@ export interface TerminFelder {
   is_all_day: boolean;
   location: string | null;
   notes: string | null;
+  /** IANA-Name oder `null` (bewusst schwebend) — der Schlüssel ist Pflicht. */
+  time_zone: string | null;
 }
 
 /** Die Vorschau, wie der SERVER sie gebaut hat. Freigegeben wird, was man
@@ -34,6 +36,8 @@ export interface MutationsVorschau {
   ends_at_utc: string;
   is_all_day: boolean;
   location: string | null;
+  /** Der Zeitzonenanker, den der SERVER validiert hat; `null` = schwebend. */
+  time_zone: string | null;
 }
 
 export interface VorbereiteterVorgang {

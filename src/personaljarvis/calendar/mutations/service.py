@@ -314,6 +314,9 @@ class CalendarMutationService:
                 "ends_at_utc": felder["ends_at_utc"],
                 "is_all_day": felder["is_all_day"],
                 "location": felder["location"],
+                # Der Zeitzonenanker gehört in die Freigabe: `null` heisst
+                # hier ausdrücklich schwebend, nie „wird schon passen".
+                "time_zone": felder["time_zone"],
             }
             preview_digest = digest_of(preview)
 
@@ -682,7 +685,7 @@ class CalendarMutationService:
 
     @staticmethod
     def _readback_lesen(bericht: ExecutionReportV1) -> tuple[dict[str, Any], str] | None:
-        """Liest den Read-back fail-closed: sechs Felder plus
+        """Liest den Read-back fail-closed: sieben Felder plus
         `provider_calendar_id`, sonst nichts. Unbrauchbar ⇒ `None` — dann
         bleibt der Vorgang in der Zwischenlage, erfunden wird nichts."""
         roh = bericht.readback_event
@@ -746,6 +749,9 @@ class CalendarMutationService:
                 ends_at_utc=felder["ends_at_utc"],
                 title=felder["title"], notes=felder["notes"],
                 location=felder["location"],
+                # Die Zone kommt aus dem GELESENEN Zustand — `None` bleibt
+                # `None` (schwebend), nie eine erfundene Systemzone.
+                time_zone=felder["time_zone"],
                 is_all_day=felder["is_all_day"],
             )
             EventRepository(uow).upsert_seen(

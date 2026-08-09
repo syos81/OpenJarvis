@@ -46,6 +46,7 @@ FELDER = {
     "is_all_day": False,
     "location": None,
     "notes": None,
+    "time_zone": "Europe/Berlin",
 }
 
 READBACK = {**FELDER, "provider_calendar_id": KALENDER}
@@ -328,6 +329,117 @@ class TestSettle:
                 "SELECT COUNT(*) AS n FROM event_external_ids "
                 "WHERE provider_event_id = ?", ("EK-EVENT-1",)).fetchone()
         assert anzahl["n"] == 0
+
+
+class TestZeitzone:
+    """B3-P1-Zeitzonenkorrektur: `time_zone` ist Pflichtfeld (nullable) des
+    Schreibvertrags. Fehlend ist ein Schemafehler, `null` die ausdrücklich
+    angeforderte schwebende Semantik — kein Layer erfindet eine Zone."""
+
+    def test_verankerter_create_traegt_die_zone_durch(self, dienst, factory):
+        # Python-Hälfte der Kette: Payload → Order → Settle-Readback →
+        # Spiegel-Zeile. (Order → Rust-Felder → Fake-Save → Readback belegt
+        # das Rust-Testpaar in calendar_write.rs.)
+        mutation_id = _vorbereitet(dienst)
+        auftrag = dienst.claim(mutation_id)
+        assert auftrag.canonical_payload["fields"]["time_zone"] \
+            == "Europe/Berlin"
+        dienst.settle(mutation_id, _bericht(auftrag),
+                      claim_token=auftrag.claim_token)
+        with UnitOfWork(factory) as uow:
+            termin = uow.execute(
+                "SELECT e.time_zone FROM events e "
+                "JOIN event_external_ids x ON x.event_id = e.id "
+                "WHERE x.provider_event_id = ?", ("EK-EVENT-1",)).fetchone()
+        assert termin is not None
+        assert termin["time_zone"] == "Europe/Berlin"
+
+    def test_fingerprint_bindet_ausschliesslich_die_zone(self):
+        # Dieselbe Uhrzeit, NUR die Zone geändert ⇒ anderer Zustand.
+        anders = {**FELDER, "time_zone": "America/New_York"}
+        assert fingerprint_of(FELDER, KALENDER) \
+            != fingerprint_of(anders, KALENDER)
+
+    def test_bewusst_schwebender_create_bleibt_null(self, dienst, factory):
+        # `null` reist als `null` bis in den Spiegel — kein Layer ersetzt
+        # die schwebende Semantik still durch die Systemzone.
+        schwebend = {**FELDER, "time_zone": None}
+        vorgang = dienst.prepare_create(KALENDER, dict(schwebend))
+        assert vorgang.preview["time_zone"] is None
+        dienst.approve(vorgang.mutation_id, decision_actor="lukas")
+        auftrag = dienst.claim(vorgang.mutation_id)
+        assert auftrag.canonical_payload["fields"]["time_zone"] is None
+        bericht = _bericht(
+            auftrag, mutation_id=vorgang.mutation_id,
+            readback_event={**schwebend, "provider_calendar_id": KALENDER})
+        ergebnis = dienst.settle(vorgang.mutation_id, bericht,
+                                 claim_token=auftrag.claim_token)
+        assert ergebnis.state == "succeeded"
+        with UnitOfWork(factory) as uow:
+            termin = uow.execute(
+                "SELECT e.time_zone FROM events e "
+                "JOIN event_external_ids x ON x.event_id = e.id "
+                "WHERE x.provider_event_id = ?", ("EK-EVENT-1",)).fetchone()
+        assert termin is not None
+        assert termin["time_zone"] is None
+
+    def test_fehlender_time_zone_schluessel_faellt(self, dienst):
+        # Weglassen ist NIE Defaulting: dieselbe Fehlerklasse wie jeder
+        # andere Schemafehler.
+        ohne = {k: v for k, v in FELDER.items() if k != "time_zone"}
+        with pytest.raises(InvalidMutationFields):
+            dienst.prepare_create(KALENDER, ohne)
+
+    def test_ungueltiger_iana_name_faellt(self, dienst):
+        with pytest.raises(InvalidMutationFields):
+            dienst.prepare_create(
+                KALENDER, {**FELDER, "time_zone": "Mars/Olympus_Mons"})
+        with pytest.raises(InvalidMutationFields):
+            dienst.prepare_create(KALENDER, {**FELDER, "time_zone": ""})
+
+    def test_zeitzonen_waechter_ueber_alle_schichten(self):
+        """Cross-Layer-Wächter (Bauart des Vokabular-Wächters): `time_zone`
+        muss in JEDEM Träger der Kette mechanisch vorkommen — Quelltext-Scan,
+        ein leerer Scan bewiese nichts (R10)."""
+        import inspect
+        import re
+        from pathlib import Path
+
+        from personaljarvis.calendar.mutations import contracts
+
+        wurzel = Path(__file__).resolve().parents[3]
+        rust = (wurzel / "frontend" / "src-tauri" / "src"
+                / "calendar_write.rs").read_text(encoding="utf-8")
+        objc = (wurzel / "frontend" / "src-tauri" / "objc"
+                / "JCCalendarWrite.m").read_text(encoding="utf-8")
+        formular = (wurzel / "frontend" / "src" / "personal" / "calendar"
+                    / "TerminFormular.tsx").read_text(encoding="utf-8")
+
+        def struktur(name: str, quelle: str) -> str:
+            treffer = re.search(rf"struct {name} \{{([\s\S]*?)\n\}}", quelle)
+            return treffer.group(1) if treffer else ""
+
+        # R10: erst belegen, dass die Scans auf Material laufen.
+        for material in (struktur("EventFelder", rust),
+                         struktur("ReadbackEvent", rust), objc, formular,
+                         inspect.getsource(contracts.fingerprint_of)):
+            assert material, "leerer Scan bewiese nichts (R10)"
+
+        stellen = {
+            "contracts.FIELD_NAMES":
+                "time_zone" in contracts.FIELD_NAMES,
+            "contracts.fingerprint_of":
+                "time_zone" in inspect.getsource(contracts.fingerprint_of),
+            "rust.EventFelder":
+                "time_zone" in struktur("EventFelder", rust),
+            "rust.ReadbackEvent":
+                "time_zone" in struktur("ReadbackEvent", rust),
+            "objc.timeZoneWithName": "timeZoneWithName" in objc,
+            "ui.systemZeitzone": "systemZeitzone()" in formular,
+        }
+        fehlend = sorted(name for name, da in stellen.items() if not da)
+        assert fehlend == [], (
+            f"time_zone fehlt in diesen Trägern: {fehlend}")
 
 
 class TestVertragsEinheit:

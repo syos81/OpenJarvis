@@ -98,6 +98,20 @@ int32_t jc_calendar_write_save(const char *fields_json,
         return JCCalendarSaveFailedBeforeSave;
     }
 
+    // Zeitzonenanker (B3-P1-Korrektur): ein IANA-Name wird TATSÄCHLICH als
+    // `event.timeZone` gesetzt — die UTC-Zone des Formatters allein verankert
+    // nichts am Event. Ein Name, den die Zonendatenbank nicht kennt, fällt
+    // beweisbar VOR dem Save; `null` heisst bewusst schwebend (timeZone nil).
+    NSString *zonenName = JCCalOptionalString(felder, @"time_zone");
+    NSTimeZone *zone = nil;
+    if (zonenName != nil) {
+        zone = [NSTimeZone timeZoneWithName:zonenName];
+        if (zone == nil) {
+            JCCalCopy(out_error, error_capacity, @"unknown_time_zone");
+            return JCCalendarSaveFailedBeforeSave;
+        }
+    }
+
     EKEventStore *store = [[EKEventStore alloc] init];
     EKCalendar *kalender = [store calendarWithIdentifier:calIdent];
     if (kalender == nil) {
@@ -115,6 +129,9 @@ int32_t jc_calendar_write_save(const char *fields_json,
                        : NO;
     event.location = JCCalOptionalString(felder, @"location");
     event.notes = JCCalOptionalString(felder, @"notes");
+    if (zone != nil) {
+        event.timeZone = zone;
+    }
 
     NSError *saveError = nil;
     BOOL gespeichert = NO;
@@ -170,6 +187,8 @@ int32_t jc_calendar_write_read_event(const char *event_identifier,
         @"is_all_day": @(event.allDay),
         @"location": event.location ?: [NSNull null],
         @"notes": event.notes ?: [NSNull null],
+        // Der Anker des GELESENEN Events: nil = schwebend, nie eine Vorgabe.
+        @"time_zone": event.timeZone.name ?: [NSNull null],
         @"provider_calendar_id": event.calendar.calendarIdentifier ?: [NSNull null],
     };
     NSError *jsonError = nil;

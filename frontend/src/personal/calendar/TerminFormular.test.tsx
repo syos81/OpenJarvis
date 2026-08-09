@@ -66,7 +66,7 @@ const VORGANG: mApi.VorbereiteterVorgang = {
   preview: {
     command: 'create', calendar_display_name: 'Privat', title: 'Planung',
     starts_at_utc: '2026-08-12T07:00:00Z', ends_at_utc: '2026-08-12T08:00:00Z',
-    is_all_day: false, location: 'Raum 3',
+    is_all_day: false, location: 'Raum 3', time_zone: 'Europe/Berlin',
   },
   preview_digest: 'q'.repeat(64),
 };
@@ -168,12 +168,14 @@ describe('Vorbereitung', () => {
     const vor = vi.spyOn(mApi, 'bereiteVor').mockResolvedValue(VORGANG);
     await oeffneFormular();
     await zurVorschau();
-    // 09:00/10:00 Europe/Berlin im August = 07:00/08:00 UTC.
+    // 09:00/10:00 Europe/Berlin im August = 07:00/08:00 UTC. Die Zone kommt
+    // mechanisch aus der Plattformquelle (TZ-Pin oben), nie hart codiert.
     expect(vor).toHaveBeenCalledWith('cal-1', {
       title: 'Planung',
       starts_at_utc: '2026-08-12T07:00:00Z',
       ends_at_utc: '2026-08-12T08:00:00Z',
       is_all_day: false, location: null, notes: null,
+      time_zone: 'Europe/Berlin',
     });
   });
 
@@ -188,6 +190,9 @@ describe('Vorbereitung', () => {
       is_all_day: true,
       starts_at_utc: '2026-08-11T22:00:00Z',
       ends_at_utc: '2026-08-12T22:00:00Z',
+      // Ganztägig ist im Bestand schwebend (events.time_zone NULL) —
+      // die Maske sendet die Semantik ausdrücklich, nie die Systemzone.
+      time_zone: null,
     }));
   });
 
@@ -224,8 +229,22 @@ describe('Vorschau und Freigabe', () => {
     expect(vorschau.textContent).toContain('09:00');
     expect(vorschau.textContent).toContain('10:00');
     expect(vorschau.textContent).toContain('Raum 3');
+    // Die SERVER-Preview-Zone ist Teil dessen, was freigegeben wird.
+    expect(vorschau.textContent).toContain('Zeitzone');
+    expect(vorschau.textContent).toContain('Europe/Berlin');
     // GENAU EIN Freigabeknopf.
     expect(screen.getAllByRole('button', { name: 'Anlegen' }).length).toBe(1);
+  });
+
+  it('zeigt eine schwebende SERVER-Vorschau ehrlich als schwebend', async () => {
+    vi.spyOn(mApi, 'bereiteVor').mockResolvedValue({
+      ...VORGANG,
+      preview: { ...VORGANG.preview, is_all_day: true, time_zone: null },
+    });
+    await oeffneFormular();
+    await zurVorschau();
+    expect(screen.getByTestId('termin-vorschau').textContent)
+      .toContain('schwebend — ohne feste Zeitzone');
   });
 
   it('Abbrechen ruft cancel und erreicht NIE den App-Prozess', async () => {
