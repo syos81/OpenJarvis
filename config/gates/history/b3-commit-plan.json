@@ -24,9 +24,9 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 11,
+  "max_commits": 12,
   "plan_change": {
-    "actual": 11,
+    "actual": 12,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
     "fifth_change": {
@@ -106,6 +106,11 @@
       "message": "fix(calendar): box probe truth values as BOOL, capture raw emission",
       "position": 11,
       "purpose": "functional repair of the observed emission defect (stage probe_unparseable): BOOL-typed boxing for the four comparison-derived probe fields, must-fail regression pin of the observed broken emission, source guard against boxed comparisons, raw emission capture in the failure stage"
+    },
+    {
+      "message": "docs(governance): b3 interim handover before the owner push",
+      "position": 12,
+      "purpose": "documentation: machine-sourced interim handover (phases, lineage numbers, open P3-A protocol, M2 scope, environment findings) so the arm64 session and the evening verification start from a committed, pushed record"
     }
   ],
   "push_status": "not_performed_owner_action",
