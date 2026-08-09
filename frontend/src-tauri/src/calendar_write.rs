@@ -1127,30 +1127,63 @@ mod nativ {
     }
 
     /// Erhebt die Delete-Safety-Probe am nativen Event und liefert die
-    /// KANONISCHE Form (für Oberfläche und Server). Read-only; `None`,
-    /// wenn der Prozess nicht autorisiert ist oder das Event nicht lesbar.
-    pub fn delete_probe_kanonisch(event_identifier: &str) -> Option<serde_json::Value> {
+    /// KANONISCHE Form — oder die TYPISIERTE Fehlstufe (P3-Livebefund vom
+    /// 2026-08-09: drei verschiedene Fehlstufen als ein und dasselbe `null`
+    /// zu melden ist ein Diagnosemangel derselben Klasse wie der
+    /// 422-ohne-Grund-Befund). Read-only in jeder Stufe; die Bewertung
+    /// bleibt unangetastet.
+    pub fn delete_probe_diagnose(event_identifier: &str) -> serde_json::Value {
         if unsafe { jc_calendar_write_authorized() } != 1 {
-            return None;
+            return serde_json::json!({ "stage": "not_authorized" });
         }
-        let mut ops = EchteKalenderOperationen;
-        let roh = ops.delete_probe(event_identifier)?;
-        Some(kanonische_probe(&roh))
+        let kennung = match CString::new(event_identifier) {
+            Ok(k) => k,
+            Err(_) => {
+                return serde_json::json!({ "stage": "event_unreadable" });
+            }
+        };
+        let mut json = [0 as c_char; READBACK_CAPACITY];
+        let gelesen = unsafe {
+            jc_calendar_write_delete_probe(
+                kennung.as_ptr(),
+                json.as_mut_ptr(),
+                READBACK_CAPACITY as i32,
+            )
+        };
+        if gelesen != 1 {
+            // Der Shim hat das Event unter dieser Kennung nicht aufgelöst
+            // (oder die Serialisierung scheiterte shimseitig).
+            return serde_json::json!({ "stage": "event_unreadable" });
+        }
+        let text = puffer_zu_string(&json);
+        match serde_json::from_str::<RohProbe>(&text) {
+            Ok(roh) => serde_json::json!({
+                "stage": "ok",
+                "probe": kanonische_probe(&roh),
+            }),
+            // PII-arm: nur die Länge, nie der Inhalt.
+            Err(_) => serde_json::json!({
+                "stage": "probe_unparseable",
+                "raw_len": text.len(),
+            }),
+        }
     }
 }
 
-/// Die READ-ONLY Delete-Safety-Probe für das Tauri-Kommando: kanonische
-/// Probe des nativen Events oder `None`. Nicht-macOS-Ziele haben keinen
-/// Kalenderzugriff — ehrlich `None`, kein Ersatzweg.
-pub fn delete_probe(event_identifier: &str) -> Option<serde_json::Value> {
+/// Die READ-ONLY Delete-Safety-Probe für das Tauri-Kommando: entweder
+/// `{"stage":"ok","probe":…}` mit der kanonischen Probe oder die typisierte
+/// Fehlstufe (`not_authorized` | `event_unreadable` | `probe_unparseable`).
+/// Nicht-macOS-Ziele haben keinen Kalenderzugriff — ehrlich benannt, kein
+/// Ersatzweg.
+pub fn delete_probe(event_identifier: &str) -> serde_json::Value {
     #[cfg(target_os = "macos")]
     {
-        nativ::delete_probe_kanonisch(event_identifier)
+        nativ::delete_probe_diagnose(event_identifier)
     }
     #[cfg(not(target_os = "macos"))]
     {
         let _ = event_identifier;
-        None
+        serde_json::json!({ "stage": "platform_unavailable" })
     }
 }
 
@@ -2104,6 +2137,45 @@ pub(crate) mod tests {
             FakeKalenderOperationen::mit_bestehendem_event("cal-1", preimage_felder());
         ops.probe = Some(unauffaellige_probe());
         ops
+    }
+
+    #[test]
+    fn das_objc_probe_json_parst_in_die_rohprobe() {
+        // Streckenpin (P3-Livebefund): die Rust-Seite hat das ECHTE
+        // Shim-JSON nie geparst — die Fakes injizieren Structs. Dieses
+        // Literal ist exakt die Emissionsform von
+        // jc_calendar_write_delete_probe (NSJSONSerialization: alle 15
+        // Schlüssel, Wahrheitswerte, Zähler) und muss fail-closed in die
+        // RohProbe und weiter in die gepinnte kanonische Probe laufen.
+        let literal = r#"{
+            "event_identifier": "EK-EVENT-1",
+            "provider_calendar_id": "cal-1",
+            "has_recurrence_rules": false,
+            "recurrence_rule_count": 0,
+            "is_detached": false,
+            "has_attendees": false,
+            "attendee_count": 0,
+            "has_organizer": false,
+            "has_alarms": false,
+            "alarm_count": 0,
+            "has_url": false,
+            "has_structured_location_geo": false,
+            "has_birthday_link": false,
+            "availability_marked": false,
+            "has_participation_status": false
+        }"#;
+        let roh: RohProbe = serde_json::from_str(literal).expect("Shim-JSON parst nicht");
+        assert_eq!(roh, unauffaellige_probe());
+        assert_eq!(
+            eligibility_digest_of(&kanonische_probe(&roh)),
+            ELIGIBILITY_DIGEST_PIN
+        );
+        // Gegentest: ein fremder Schlüssel fällt (deny_unknown_fields) —
+        // eine gedriftete Shim-Emission wird nie still verdaut.
+        let fremd = literal.replace(
+            "\"has_url\": false",
+            "\"has_url\": false, \"heimlich\": 1");
+        assert!(serde_json::from_str::<RohProbe>(&fremd).is_err());
     }
 
     #[test]

@@ -95,9 +95,12 @@ function oeffne(termin: Termin = bestandsTermin()) {
 describe('Eligibility-Verweigerung (Datenverlustschutz)', () => {
   it('verweigert sichtbar und erreicht den Server nie', async () => {
     vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue({
-      ...PROBE, eligible: false,
-      unsupported_feature_flags: ['attendees', 'recurrence_rules'],
-      counts: { alarms: 0, attendees: 2, recurrence_rules: 1 },
+      stage: 'ok',
+      probe: {
+        ...PROBE, eligible: false,
+        unsupported_feature_flags: ['attendees', 'recurrence_rules'],
+        counts: { alarms: 0, attendees: 2, recurrence_rules: 1 },
+      },
     });
     const vorbereiten = vi.spyOn(mApi, 'bereiteLoeschenVor');
     const ausfuehren = vi.spyOn(mApi, 'fuehreAus');
@@ -112,11 +115,26 @@ describe('Eligibility-Verweigerung (Datenverlustschutz)', () => {
     expect(ausfuehren).not.toHaveBeenCalled();
   });
 
-  it('verweigert ehrlich, wenn die Probe nicht erhebbar ist', async () => {
-    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue(null);
+  it('verweigert ehrlich und BENENNT die Fehlstufe, wenn die Probe nicht '
+     + 'erhebbar ist', async () => {
+    // P3-Livebefund: drei Fehlstufen als ein null sind ein Diagnosemangel —
+    // die Stufe muss den Menschen erreichen.
+    vi.spyOn(mApi, 'erhebeLoeschProbe')
+      .mockResolvedValue({ stage: 'event_unreadable' });
     const vorbereiten = vi.spyOn(mApi, 'bereiteLoeschenVor');
     oeffne();
     await waitFor(() => expect(screen.getByTestId('loeschen-ergebnis')).toBeTruthy());
+    expect(screen.getByText(/Stufe: event_unreadable/)).toBeTruthy();
+    expect(vorbereiten).not.toHaveBeenCalled();
+  });
+
+  it('benennt eine fehlende Berechtigung als eigene Stufe', async () => {
+    vi.spyOn(mApi, 'erhebeLoeschProbe')
+      .mockResolvedValue({ stage: 'not_authorized' });
+    const vorbereiten = vi.spyOn(mApi, 'bereiteLoeschenVor');
+    oeffne();
+    await waitFor(() => expect(screen.getByTestId('loeschen-ergebnis')).toBeTruthy());
+    expect(screen.getByText(/Stufe: not_authorized/)).toBeTruthy();
     expect(vorbereiten).not.toHaveBeenCalled();
   });
 });
@@ -124,7 +142,7 @@ describe('Eligibility-Verweigerung (Datenverlustschutz)', () => {
 describe('Vorschau und Freigabe', () => {
   it('zeigt die SERVER-Vorschau mit Löschhinweis und genau einem Freigabeknopf',
      async () => {
-    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue(PROBE);
+    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue({ stage: 'ok', probe: PROBE });
     const vorbereiten = vi.spyOn(mApi, 'bereiteLoeschenVor')
       .mockResolvedValue(VORGANG);
     oeffne();
@@ -140,7 +158,7 @@ describe('Vorschau und Freigabe', () => {
   });
 
   it('Abbrechen ruft cancel und erreicht nie den App-Prozess', async () => {
-    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue(PROBE);
+    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue({ stage: 'ok', probe: PROBE });
     vi.spyOn(mApi, 'bereiteLoeschenVor').mockResolvedValue(VORGANG);
     const abbruch = vi.spyOn(mApi, 'bricheAb')
       .mockResolvedValue({ mutation_id: 'm1', state: 'cancelled' });
@@ -155,7 +173,7 @@ describe('Vorschau und Freigabe', () => {
 
   it('laeuft exakt approve → claim → execute → settle und meldet Erfolg',
      async () => {
-    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue(PROBE);
+    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue({ stage: 'ok', probe: PROBE });
     vi.spyOn(mApi, 'bereiteLoeschenVor').mockResolvedValue(VORGANG);
     const reihenfolge: string[] = [];
     vi.spyOn(mApi, 'gibFrei').mockImplementation(async () => {
@@ -185,7 +203,7 @@ describe('Vorschau und Freigabe', () => {
   });
 
   it('meldet einen revision_conflict ehrlich als nicht gesendet', async () => {
-    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue(PROBE);
+    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue({ stage: 'ok', probe: PROBE });
     vi.spyOn(mApi, 'bereiteLoeschenVor').mockResolvedValue(VORGANG);
     vi.spyOn(mApi, 'gibFrei')
       .mockResolvedValue({ mutation_id: 'm1', state: 'approved' });
@@ -208,7 +226,7 @@ describe('Vorschau und Freigabe', () => {
   });
 
   it('meldet eine serverseitige Nicht-Eligibility typisiert', async () => {
-    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue(PROBE);
+    vi.spyOn(mApi, 'erhebeLoeschProbe').mockResolvedValue({ stage: 'ok', probe: PROBE });
     vi.spyOn(mApi, 'bereiteLoeschenVor').mockRejectedValue(
       new mApi.MutationsFehler(409, 'delete_not_eligible'));
     const { erfolg } = oeffne();

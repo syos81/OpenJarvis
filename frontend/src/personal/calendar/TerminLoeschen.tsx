@@ -100,16 +100,30 @@ export function TerminLoeschen({ termin, zone, aufSchliessen,
     gestartet.current = true;
     void (async () => {
       try {
-        // 1. Die Probe am NATIVEN Event — read-only, PII-arm.
-        const probe: LoeschProbe | null =
-          await erhebeLoeschProbe(termin.provider_event_id);
-        if (probe === null) {
-          setFehler('Der App-Prozess kann den Termin nicht nativ lesen — '
-            + 'ohne frische Prüfung gibt es keinen Löschweg.');
+        // 1. Die Probe am NATIVEN Event — read-only, PII-arm. Jede
+        //    Fehlstufe wird BENANNT gemeldet, nie stufenlos.
+        const probeErgebnis = await erhebeLoeschProbe(termin.provider_event_id);
+        if (probeErgebnis.stage !== 'ok') {
+          const STUFEN: Record<string, string> = {
+            not_authorized: 'Der App-Prozess hat keine Kalenderberechtigung '
+              + '(TCC) — ohne sie gibt es keinen Löschweg.',
+            event_unreadable: 'EventKit löst den Termin unter seiner Kennung '
+              + 'im App-Prozess nicht auf — ohne frische Prüfung gibt es '
+              + 'keinen Löschweg.',
+            probe_unparseable: 'Die native Probe lieferte eine unlesbare '
+              + 'Antwort — ohne frische Prüfung gibt es keinen Löschweg.',
+            platform_unavailable: 'Diese Plattform hat keinen '
+              + 'Kalenderzugriff.',
+            channel_invalid: 'Der Probe-Kanal antwortete ausserhalb des '
+              + 'Vertrags — ohne frische Prüfung gibt es keinen Löschweg.',
+          };
+          setFehler(`${STUFEN[probeErgebnis.stage] ?? probeErgebnis.stage} `
+            + `(Stufe: ${probeErgebnis.stage})`);
           setSchritt('ergebnis');
           setErgebnis({ ok: false, text: 'Es wurde nichts gelöscht.' });
           return;
         }
+        const probe: LoeschProbe = probeErgebnis.probe;
         if (!probe.eligible) {
           // Sichtbar verweigern statt warnen-und-löschen. Nichts wurde
           // vorbereitet, nichts erreicht den Server.

@@ -24,11 +24,15 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 9,
+  "max_commits": 10,
   "plan_change": {
-    "actual": 9,
+    "actual": 10,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
+    "fifth_change": {
+      "decided_by": "commit plan rule for live-found functional defects",
+      "reason": "P3-A live attempt aborted BEFORE any mutation: the delete dialog refused with the probe-unavailable message and no preview/approval was ever offered; nothing was deleted (owner-confirmed). Root finding of this commit: the probe channel collapsed three distinct failure stages (process not authorized, event not resolvable, probe emission unparseable) into one stageless null — same diagnosis-defect class as the 422-without-reason live finding. The repair adds the typed failure stage through Tauri command, transport and dialog, plus the previously missing contract pin for the real ObjC JSON emission parsing into the Rust probe (the fakes had injected structs and never exercised that leg). No eligibility loosening, no delete path without a fresh native probe, architecture untouched. The actual failing stage is determined by the next owner-run attempt; further repair follows the then-proven stage."
+    },
     "fourth_change": {
       "decided_by": "commit plan rule for live-found functional defects, applied to a pre-live mechanical finding",
       "reason": "P3 pre-live check against the productive mirror showed both B3-created livetest events reading an out-of-vocabulary raw availability value although no marking was ever set (natural state of a B3-created event on this platform). The initial probe rule (everything except busy/notSupported counts as marked) would have false-blocked the acceptance delete. The rule is sharpened to the explicitly set markings free/tentative/unavailable — a populated property, not a raw-value accident. Own functional commit; no amend."
@@ -88,6 +92,11 @@
       "message": "fix(calendar): only explicitly marked availability blocks the delete",
       "position": 9,
       "purpose": "functional repair from the pre-live mechanical finding: the availability flag of the delete-safety probe counts only explicitly set markings (free/tentative/unavailable); busy, notSupported and out-of-vocabulary raw values are not a populated property"
+    },
+    {
+      "message": "fix(calendar): delete probe reports its failure stage",
+      "position": 10,
+      "purpose": "diagnosis repair from the aborted P3-A live attempt: typed probe failure stages (not_authorized / event_unreadable / probe_unparseable) instead of one stageless null, plus the ObjC-JSON-to-Rust parse contract pin"
     }
   ],
   "push_status": "not_performed_owner_action",

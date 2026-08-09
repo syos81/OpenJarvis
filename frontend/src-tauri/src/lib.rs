@@ -1896,13 +1896,15 @@ fn personal_calendar_execute_mutation(order_json: String) -> serde_json::Value {
 
 /// Erhebt die READ-ONLY Delete-Safety-Probe am nativen Event (B3 P3).
 ///
-/// Liefert die KANONISCHE, PII-arme Probe (eligible, Flags, Zähler) oder
-/// `null`, wenn der Prozess nicht autorisiert ist oder das Event nicht
-/// lesbar. Führt NIE eine Mutation aus — die Bewertung bindet der Server,
-/// und der Ausführungspfad rechnet sie unmittelbar vor dem Execute neu.
+/// Liefert `{"stage":"ok","probe":…}` mit der KANONISCHEN, PII-armen Probe
+/// (eligible, Flags, Zähler) — oder die TYPISIERTE Fehlstufe
+/// (`not_authorized` | `event_unreadable` | `probe_unparseable`), nie ein
+/// stufenloses `null` (P3-Livebefund vom 2026-08-09). Führt NIE eine
+/// Mutation aus — die Bewertung bindet der Server, und der Ausführungspfad
+/// rechnet sie unmittelbar vor dem Execute neu.
 #[tauri::command]
 fn personal_calendar_delete_probe(event_identifier: String) -> serde_json::Value {
-    calendar_write::delete_probe(&event_identifier).unwrap_or(serde_json::Value::Null)
+    calendar_write::delete_probe(&event_identifier)
 }
 
 /// Reads the Contacts authorization status. Shows no dialog.

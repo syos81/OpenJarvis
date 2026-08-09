@@ -206,22 +206,39 @@ export function bereiteLoeschenVor(providerCalendarId: string,
   });
 }
 
+/** Das typisierte Ergebnis der nativen Probe: entweder die Probe selbst
+ *  oder die BENANNTE Fehlstufe — nie ein stufenloses null (P3-Livebefund
+ *  vom 2026-08-09: drei Fehlstufen als ein null sind ein Diagnosemangel). */
+export type LoeschProbeErgebnis =
+  | { stage: 'ok'; probe: LoeschProbe }
+  | { stage: 'not_authorized' | 'event_unreadable' | 'probe_unparseable'
+      | 'platform_unavailable' | 'channel_invalid' };
+
 /**
  * Erhebt die READ-ONLY Delete-Safety-Probe am nativen Event (App-Prozess).
  *
- * `null` heisst ehrlich: nicht erhebbar (keine Autorisierung oder Event
- * nicht lesbar) — dann gibt es keinen Löschweg. Ausserhalb von Tauri gibt
- * es keinen App-Prozess; das ist ein Fehler, kein stiller Ersatzweg.
+ * Jede Fehlstufe heisst ehrlich: kein Löschweg — und sie wird BENANNT.
+ * Eine unbekannte Antwortform fällt fail-closed als `channel_invalid`.
+ * Ausserhalb von Tauri gibt es keinen App-Prozess; das ist ein Fehler,
+ * kein stiller Ersatzweg.
  */
 export async function erhebeLoeschProbe(eventIdentifier: string,
-): Promise<LoeschProbe | null> {
+): Promise<LoeschProbeErgebnis> {
   if (!isTauri()) {
     throw new Error('app_process_unavailable');
   }
   const { invoke } = await import('@tauri-apps/api/core');
-  const wert = await invoke<LoeschProbe | null>(
+  const wert = await invoke<Record<string, unknown> | null>(
     'personal_calendar_delete_probe', { eventIdentifier });
-  return wert ?? null;
+  const stage = wert?.stage;
+  if (stage === 'ok' && typeof wert?.probe === 'object' && wert.probe !== null) {
+    return { stage: 'ok', probe: wert.probe as LoeschProbe };
+  }
+  if (stage === 'not_authorized' || stage === 'event_unreadable'
+      || stage === 'probe_unparseable' || stage === 'platform_unavailable') {
+    return { stage };
+  }
+  return { stage: 'channel_invalid' };
 }
 
 /** Menschliche Freigabe. Verbraucht wird sie erst beim Claim. */
