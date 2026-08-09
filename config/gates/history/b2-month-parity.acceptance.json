@@ -1,0 +1,164 @@
+{
+  "acceptance_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+  "assertion": "Every required phase of this block ran against this commit and produced its result from the declared checks. platform-live is applicable and carries the owner's feature-by-feature comparison against Apple Calendar on this Intel Mac in light and dark mode; every live feature is decided, no result was interpreted and no manual run replaced a gate. No pixel-equality metric was invented.",
+  "block_id": "b2-month-parity",
+  "block_scope": {
+    "covers": "The month view aligned to the reference: neutral system surface in light and dark, locale-derived week start, reference day cells, dot/title/time event rows versus filled all-day bars, centered switcher in reference order, mini month, resizable and hideable panes, system-accent selection, the day list pane as a declared deliberate deviation, and the all-day instant correction proven against the productive database.",
+    "guard_paths_diff_since_block_start": [],
+    "owner_acceptance": {
+      "date": "2026-08-09",
+      "rounds": 3,
+      "verdict": "all 23 matrix features pass; verdicts recorded per feature in config/gates/history/b2-parity-matrix.json"
+    },
+    "theme_sources": "existing Jarvis theme tokens (--color-bg/-text/-border/-error families) plus the semantic CSS system colors Highlight/HighlightText; no own color values; color-mix banned from the calendar tokens by a guard test (WebKit 17613)",
+    "week_start_source": "Intl.Locale weekInfo (platform locale layer); this Mac: AppleFirstWeekday unset, de_DE, so Monday — Apple Calendar's Sunday stems from its app-private setting, documented in the matrix"
+  },
+  "committed_artifacts": [
+    {
+      "blob_sha256": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+      "path": "config/gates/blocks/b2-month-parity.json"
+    },
+    {
+      "blob_sha256": "1434fd9886efac8271b45bc45dab212843a0b14ea7e20c683675774cfcbeec6e",
+      "path": "config/gates/features/b2-month-parity.lineage.json"
+    },
+    {
+      "blob_sha256": "e0a87674b40058e50a8b2c1af50f9ba2e1dcd6f2111bc5320cf53ff05f5fd270",
+      "path": "config/gates/history/b2-commit-plan.json"
+    },
+    {
+      "blob_sha256": "816096965394d858784ca1455acc615993bc04b87450104e209e7e07ed3ae10f",
+      "path": "config/gates/history/b2-parity-matrix.json"
+    },
+    {
+      "blob_sha256": "0e2b509dfcbb676681bd14792770cf6db1484f77518cbc55f902d6380647284b",
+      "path": "tools/gates/runners/b2_checks.py"
+    },
+    {
+      "blob_sha256": "59a3398b7389e8ab57e728c4a34c52335e71f1592007e77b636074a1b73d2750",
+      "path": "frontend/src/personal/calendar/CalendarWorkspace.tsx"
+    },
+    {
+      "blob_sha256": "62b0fe508227eef6b4aee30d44022d5584e7f55e3411ec91fbcb189824497634",
+      "path": "frontend/src/personal/calendar/panes.tsx"
+    },
+    {
+      "blob_sha256": "b3b61ae31299122793b6a601efd0ec7bc88c7c5b5930e286fce47ee9e61f26aa",
+      "path": "frontend/src/personal/calendar/raster.ts"
+    },
+    {
+      "blob_sha256": "b723ce9f945e1105cf39e7e78ffb54f4371d3099d435144ff798ea6a60545e41",
+      "path": "frontend/src/personal/calendar/tokens.css"
+    },
+    {
+      "blob_sha256": "4c0981a9430bc1a95df012d05eec525f20a0eb8f063971a770fbe089ef2c11f7",
+      "path": "frontend/src/personal/contacts/workspace/PaneDivider.tsx"
+    }
+  ],
+  "documented_limitations": [
+    "The all-day one-day shift was a legacy defect from the module's creation (termintage byte-identical since the B1 close), surfaced by the first day-exact live comparison; corrected in this block with the failing test written first against the proven real data shape.",
+    "All-day events are stored as local-midnight instants without a zone anchor; a display zone differing from the creation zone would shift them. In B2 scope both zones are the system zone; held in the raster test as a documented limitation.",
+    "The day list pane is a deliberate deviation from Apple's month view (no right pane there), owner-decided and flagged as such in the parity matrix; B2 claims no parity for it.",
+    "The calendar list stays a pane inside the calendar area rather than the global app sidebar (F1 remainder, owner-accepted); hideable panes for the contacts module do not exist and stay a finding.",
+    "The packed app's backend start (uv run) resyncs the development venv and prunes dev dependencies — it hit this block twice more after each owner run; restored via uv sync each time. Standing side finding from B1.",
+    "Finding for the color-language rollout block (explicitly not B2): roll the calendar's system color language out to the rest of Jarvis with the calendar as reference, and give clickable elements a pointer cursor on hover as the contacts module already does — the same controls are touched there anyway."
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "min_python": "3.11",
+    "system": "Darwin"
+  },
+  "evidence_binding_note": "The five snapshots below are byte copies of the sanitised runtime evidence of the acceptance run, bound by sha256; raw logs stay in the gitignored runtime area.",
+  "external_inputs": [
+    "git ls-remote origin refs/heads/spike/calendar-foundation-intel-2026-08-04 during platform-live (fresh ancestor check)",
+    "the productive database ~/.openjarvis/personal/jarvis.db during platform-live (read-only non-emptiness regression)",
+    "the owner's interactive comparison against Apple Calendar in light and dark mode"
+  ],
+  "feature_schema_version": 1,
+  "gate_engine_version": "1.0.0",
+  "guard_activation": {
+    "reason": "No file under tools/guard, tools/guardpkg or tools/guardops changed in this block; the active installation is untouched.",
+    "required": false
+  },
+  "immutable_refs": {
+    "baseline_commit": "7986beed5c366aceadbd73103c4cb846b47dbe9e",
+    "block_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+    "block_start_commit": "1e86f436bbf77e1f31ca3806442ebf1ccaa37f50",
+    "guard_base_commit": "d037cb67502ab7fdcef95161bdbf2857181d0354",
+    "predecessor_commit": "1e86f436bbf77e1f31ca3806442ebf1ccaa37f50"
+  },
+  "kind": "historical_acceptance",
+  "manifest_schema_version": 1,
+  "own_feature_count": 10,
+  "own_feature_prefix": "B2-",
+  "phase_results": {
+    "module-final": "pass",
+    "offline-final": "pass",
+    "platform-live": "pass",
+    "preflight": "pass",
+    "targeted": "pass"
+  },
+  "reexecution_policy": {
+    "rerun_against_current_head": false,
+    "runtime_evidence_absent": "fail"
+  },
+  "runtime_evidence": [
+    {
+      "path": "config/gates/evidence/b2-month-parity/preflight.json",
+      "phase": "preflight",
+      "recorded_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "cbdb552c36b4397a09708051203e1b9c430e0e4754c96fb7554896983ded1d77"
+    },
+    {
+      "path": "config/gates/evidence/b2-month-parity/targeted.json",
+      "phase": "targeted",
+      "recorded_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "7dfea9c388f30de4e6166e3d1e4fe03a96f8c6c970c4d3c7db7a9fc9a9ec2ed6"
+    },
+    {
+      "path": "config/gates/evidence/b2-month-parity/offline-final.json",
+      "phase": "offline-final",
+      "recorded_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "e17049967c641f1e304c20d5b9c35a5139f64aa131a89b5d15504c7a1941c4ea"
+    },
+    {
+      "path": "config/gates/evidence/b2-month-parity/platform-live.json",
+      "phase": "platform-live",
+      "recorded_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "8c8c229b1726d23ad4255426584f281319f878186e808817101eeb482e673410"
+    },
+    {
+      "path": "config/gates/evidence/b2-month-parity/module-final.json",
+      "phase": "module-final",
+      "recorded_commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+      "recorded_engine_version": "1.0.0",
+      "recorded_manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+      "recorded_platform_class": "darwin/x86_64/12.7.6",
+      "recorded_status": "pass",
+      "scope": "committed_snapshot",
+      "sha256": "8015d1efb10a4899dc96d214c1c51383364df45fe1a9b6f54d94c9ee2d69c7f0"
+    }
+  ],
+  "schema_version": 1,
+  "title": "B2 month view in Apple parity on x86_64: owner-accepted against Apple Calendar in light and dark, with read-only day selection"
+}

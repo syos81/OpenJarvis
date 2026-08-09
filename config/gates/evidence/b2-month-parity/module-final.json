@@ -1,0 +1,33 @@
+{
+  "baseline_commit": null,
+  "block": "b2-month-parity",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "mf-evidence",
+    "mf-feature-lineage",
+    "mf-live-matrix",
+    "mf-phase-results",
+    "mf-preservation"
+  ],
+  "commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-09T08:33:17Z",
+  "manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+  "phase": "module-final",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "8b58d5b595ca74812eda0872127cb6a21f3b18dbdefef5ea6a793ad08a577bd4",
+    "a74ebcdfd8679c662c8e64e819a2346d6ea104c17be3da73908d19a574dc8377",
+    "c961038d17c984f3dba54fa7b91475a2a273754aeea6c261db5680cf37495c3f"
+  ],
+  "reason_codes": [
+    "check_passed",
+    "evidence_complete",
+    "phase_results_consistent"
+  ],
+  "run_id": "c5462a9fec7d2db1b467c4f3f3bd9b31",
+  "schema_version": 1,
+  "started_at": "2026-08-09T08:33:17Z",
+  "status": "pass"
+}

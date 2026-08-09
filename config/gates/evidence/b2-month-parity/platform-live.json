@@ -1,0 +1,33 @@
+{
+  "baseline_commit": null,
+  "block": "b2-month-parity",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "pl-b1-bundle",
+    "pl-b1-readonly",
+    "pl-b1-remote-ancestor",
+    "pl-b2-live-matrix",
+    "pl-b2-regression"
+  ],
+  "commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-09T08:28:15Z",
+  "manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+  "phase": "platform-live",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "09d612d16177a921b7c299badeada3a57a5b6dec417cd26bc7c81e51bcae01b6",
+    "4a91b1c87c7167b180c36a54e2dc57f5a6b5f12af4eb8e2e37cb15201b10984d",
+    "8b93ed641312f3d030af60f8df3a04b12f6bede75f2e80dd35b8d3f3d90849b3",
+    "c299ece763e26e34f2ee9813f38aa350cd58c3aa6938f2c9b44e45413f6f063f",
+    "e5f7be899104d5c0a632ba75257f41127af01964802dbe54dc6e5400c6dbb950"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "6cbe454054ad4015befcd09c4448d050",
+  "schema_version": 1,
+  "started_at": "2026-08-09T08:28:12Z",
+  "status": "pass"
+}

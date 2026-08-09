@@ -3,168 +3,168 @@
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::traegt keine Erklaer-Fusszeile mehr",
       "feature_id": "B2-M01",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. neutrale Systemfläche im Hellmodus bestätigt.",
+      "live_result": "pass",
       "proof": "both",
       "title": "systemnahe Flaeche hell"
     },
     {
       "automated_evidence": "",
       "feature_id": "B2-M02",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. neutrale Systemfläche im Dunkelmodus bestätigt.",
+      "live_result": "pass",
       "proof": "live_owner",
       "title": "systemnahe Flaeche dunkel"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/raster.test.ts::verschiebt das Monatsraster bei Wochenbeginn Sonntag korrekt",
       "feature_id": "B2-M03",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. System-Wochenbeginn Montag (AppleFirstWeekday ungesetzt, de_DE); Apples Sonntag stammt aus dessen app-privater Einstellung — dokumentierte Quellenlage.",
+      "live_result": "pass",
       "proof": "both",
       "title": "systemabhaengiger Wochenbeginn"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::setzt die Tageszahl rechts und die Koepfe ohne Vollgrossschreibung",
       "feature_id": "B2-M04",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Tageszahl oben rechts"
     },
     {
       "automated_evidence": "",
       "feature_id": "B2-M05",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. heutiger Tag als roter gefüllter Kreis bestätigt.",
+      "live_result": "pass",
       "proof": "live_owner",
       "title": "Heute-Markierung rot ueber semantischen Theme-Token"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::rendert zeitgebundene Termine ohne Vollflaeche und ganztaegige als Balken",
       "feature_id": "B2-M06",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "zeitgebundene Termine: Punkt, Titel, Uhrzeit rechtsbuendig, keine Vollflaeche"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::rendert zeitgebundene Termine ohne Vollflaeche und ganztaegige als Balken",
       "feature_id": "B2-M07",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "ganztaegige Termine als gefuellter Balken"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::blaettert mit den Pfeiltasten und springt mit T auf heute",
       "feature_id": "B2-M08",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Monatstitel gross und deutlich links im Inhaltsbereich"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::zeigt den Umschalter in der Reihenfolge Tag Woche Monat Jahr",
       "feature_id": "B2-M09",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Umschalter-Reihenfolge Tag Woche Monat Jahr"
     },
     {
       "automated_evidence": "",
       "feature_id": "B2-M10",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Umschalter mittig bestätigt.",
+      "live_result": "pass",
       "proof": "live_owner",
       "title": "Umschalter mittig oben"
     },
     {
       "automated_evidence": "",
       "feature_id": "B2-M11",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Navigation und Suche rechts bestätigt.",
+      "live_result": "pass",
       "proof": "live_owner",
       "title": "Navigation und Suche oben rechts"
     },
     {
       "automated_evidence": "",
       "feature_id": "B2-M12",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Kalenderliste als Seitenleiste in der Kalenderfläche; nicht in die globale App-Sidebar verlegt (F1-Restabweichung, dokumentiert).",
+      "live_result": "pass",
       "proof": "live_owner",
       "title": "Kalenderliste als Seitenleiste"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::zeigt den Miniaturmonat in der Seitenleiste",
       "feature_id": "B2-M13",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Miniaturmonat unten in der Seitenleiste"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/raster.test.ts::ordnet die Wochentagskoepfe in derselben Ordnung wie das Raster",
       "feature_id": "B2-M14",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Wochentagskoepfe in locale-ueblicher Schreibweise"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::traegt keine Erklaer-Fusszeile mehr",
       "feature_id": "B2-M15",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass.",
+      "live_result": "pass",
       "proof": "both",
       "title": "zusaetzliche Erklaertexte entfernt"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::waehlt einen leeren Tag per Klick sichtbar aus",
       "feature_id": "B2-M16",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. leerer und belegter Tag ausgewählt, Auswahl wechselt korrekt.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Tagesauswahl per Klick, leer und belegt"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::oeffnet beim Wechsel auf Tag genau den gewaehlten Tag",
       "feature_id": "B2-M17",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Tagesansicht öffnet den gewählten Tag.",
+      "live_result": "pass",
       "proof": "both",
       "title": "gewaehlter Tag oeffnet die Tagesansicht"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/raster.test.ts::ordnet einen ganztaegigen Berliner Termin dem richtigen lokalen Tag zu",
       "feature_id": "B2-M18",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Termine liegen auf den richtigen Tagen (dritte Runde, nach der Instant-Korrektur).",
+      "live_result": "pass",
       "proof": "both",
       "title": "Termine erscheinen am richtigen lokalen Tag (Ganztags-Instant-Korrektur)"
     },
     {
       "automated_evidence": "",
       "feature_id": "B2-M19",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Zellgrenzen deutlich sichtbar (zweite Runde bestätigt).",
+      "live_result": "pass",
       "proof": "live_owner",
       "title": "deutlich sichtbare Zellgrenzen des Monatsrasters"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::aendert die Breite per Tastatur — rechts gespiegelt zur Separatorbewegung",
       "feature_id": "B2-M20",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Trenner ziehbar bestätigt.",
+      "live_result": "pass",
       "proof": "both",
       "title": "drei Bereiche (Liste, Raster, Detail) mit verschiebbaren Breiten"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::traegt Auswahl und aktiven Umschalter in der semantischen Systemfarbe",
       "feature_id": "B2-M21",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Auswahlkreis in der macOS-Akzentfarbe, hell und dunkel bestätigt.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Auswahl und aktiver Umschalter in Apples Systemfarbsprache (Highlight/HighlightText)"
     },
@@ -172,16 +172,16 @@
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::listet nach Tagesklick alle Termine des Tages rechts auf",
       "deliberate_deviation": true,
       "feature_id": "B2-M22",
-      "live_note": "GEWOLLTE ABWEICHUNG von der Referenz, keine Paritaet: Apples Monatsansicht hat keinen rechten Bereich. Eigentümerentscheid aus der Live-Abnahme 2026-08-09; rein lesend.",
-      "live_result": "pending",
+      "live_note": "GEWOLLTE ABWEICHUNG von der Referenz, keine Paritaet: Apples Monatsansicht hat keinen rechten Bereich. Eigentümerentscheid aus der Live-Abnahme 2026-08-09; rein lesend. Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Tagesklick listet rechts die Termine; Termin öffnen und Escape zurück funktioniert.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Tagesklick listet rechts alle Termine des Tages"
     },
     {
       "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::blendet die Liste aus und wieder ein",
       "feature_id": "B2-M23",
-      "live_note": "",
-      "live_result": "pending",
+      "live_note": "Eigentümerabnahme 2026-08-09, Jarvis neben Apple Kalender auf dem Intel-Mac, Hell- und Dunkelmodus: pass. Ausblendknopf funktioniert.",
+      "live_result": "pass",
       "proof": "both",
       "title": "Kalenderliste ausblendbar"
     }

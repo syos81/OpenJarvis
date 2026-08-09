@@ -1,0 +1,31 @@
+{
+  "baseline_commit": null,
+  "block": "b2-month-parity",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "tg-b1-readonly",
+    "tg-b2-frontend-tests",
+    "tg-b2-matrix",
+    "tg-config-loaders"
+  ],
+  "commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-09T08:25:55Z",
+  "manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+  "phase": "targeted",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "63cde392e75eb9341e7389da03ba4c2750f10b3713ddaea54dad4c6febec8c54",
+    "6b3488cdcd16dd957da5d25a44781789cae306ca66076990d8820d7fd85e4a34",
+    "de67e748346c9b784785203d9d1a7759749e8646f7cf385f100eb0f8eb6bec05",
+    "e8d56759bc648a8040fb603a4d067a6baf980dfc86eced775f334017d02a6a4b"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "9ba28f572c5af465b0857155e9322206",
+  "schema_version": 1,
+  "started_at": "2026-08-09T08:25:43Z",
+  "status": "pass"
+}

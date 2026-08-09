@@ -1,0 +1,37 @@
+{
+  "baseline_commit": null,
+  "block": "b2-month-parity",
+  "cache_state": "not_used",
+  "cause_signature_digest": [],
+  "check_ids": [
+    "pf-b1-path",
+    "pf-b1-readonly",
+    "pf-config-loaders",
+    "pf-guard-base",
+    "pf-manifest",
+    "pf-worktree",
+    "pf-worktree-state"
+  ],
+  "commit": "bcd3b42dbcb719168b611017cf01eb7c37d94762",
+  "engine_version": "1.0.0",
+  "finished_at": "2026-08-09T08:25:42Z",
+  "manifest_digest": "4ffbea5eba528a7414475accbb71aeb0ceaa6ae2af1c4de08c8a78cd550a69ec",
+  "phase": "preflight",
+  "platform_class": "darwin/x86_64/12.7.6",
+  "raw_log_sha256": [
+    "24d8df6850b4a175eac2400cbe5f8c7a8a5ed9847034f113f0d593cd2b163e69",
+    "2da5eb44f488f01c2a24cd4f290c319eb6a9b01306c3f8a61a1a846c62aa45f9",
+    "3d278712b24e62f60c151f9e3da39586aaaca39accae75924869cab12b582fc4",
+    "4175db8bf5a8c6d88146d0a4e524e689c14713c4a52d07cf76b86279245408e8",
+    "5612dae0d7ec92ebcea52caf9344f17f26b2b9493b65e5dd63be2368a9258bc6",
+    "a81782edcc1eba9a9340cc0fab1477234102bf4335715c3112fd9f8c6567c01a",
+    "f7927474c7d9c2467ee83dfccb95e1e83f8afc55eab77c962bdb017fc69891eb"
+  ],
+  "reason_codes": [
+    "check_passed"
+  ],
+  "run_id": "235c6e7da5f9087ee55daf81eb5db042",
+  "schema_version": 1,
+  "started_at": "2026-08-09T08:25:40Z",
+  "status": "pass"
+}
