@@ -389,6 +389,16 @@
       "line_ref": "spike/calendar-foundation-intel-2026-08-04",
       "primary_source": "docs/personal-jarvis/decisions-register.md",
       "title": "Eigentümergrenzen: abschließende Klassen der Eigentümerhandlungen"
+    },
+    {
+      "commit": null,
+      "id": "DEC-069",
+      "kind": "DEC",
+      "line": "contacts_calendar",
+      "line_label": "spike/calendar-foundation-intel-2026-08-04",
+      "line_ref": "spike/calendar-foundation-intel-2026-08-04",
+      "primary_source": "docs/personal-jarvis/decisions-register.md",
+      "title": "Kalenderschreiben produktiv zugelassen: einzelfreigegebene Mutationen über den getrennten Schreibpfad"
     }
   ],
   "lines": {

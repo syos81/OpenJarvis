@@ -1,0 +1,71 @@
+{
+  "block_id": "b3-calendar-write",
+  "forbidden_operations": [
+    "commit --amend",
+    "rebase",
+    "squash",
+    "cherry-pick",
+    "reset of an existing branch",
+    "branch force",
+    "force push",
+    "--force-with-lease",
+    "automatic push",
+    "direct remote ref mutation",
+    "sudo",
+    "guard activation",
+    "dec release owner action",
+    "calendar mutation without a valid single approval",
+    "mutation before the verified backup",
+    "deletion of any event other than the b3 acceptance event in the live acceptance"
+  ],
+  "guard_package_affected": {
+    "owner_activation_required": false,
+    "reason": "B3 changes no file under tools/guard, tools/guardpkg or tools/guardops; the active installation stays untouched. The owner actions of this block are register ref pushes, per-mutation approvals and the staged live confirmations.",
+    "value": false
+  },
+  "kind": "commit_plan",
+  "max_commits": 8,
+  "planned_commits": [
+    {
+      "message": "feat(governance): codify the owner's calendar write decision as DEC-069",
+      "position": 1,
+      "purpose": "normative: the owner's binding write decision codified as DEC-069 (document, register row, citation entry, CLAUDE.md hard-limit moved to reference form), plus this plan — before any mutation path exists"
+    },
+    {
+      "message": "feat(calendar): create real events over the approved separate write path",
+      "position": 2,
+      "purpose": "functional P1 CREATE: the separate mutation path (native EventKit write adapter in the responsible app process after the contacts claim-settle pattern, approval-bound API, minimal create mask with preview), offline contracts, backup stage, live create with owner approval and halt"
+    },
+    {
+      "message": "feat(calendar): update real events with state-bound approval",
+      "position": 3,
+      "purpose": "functional P2 UPDATE: preimage, delta preview, fingerprint-bound approval, conflict abort, live update with halt"
+    },
+    {
+      "message": "feat(calendar): delete with mandatory re-read and preserved preimage",
+      "position": 4,
+      "purpose": "functional P3 DELETE: preimage with restorability check, mandatory immediate re-read, live delete of the b3 acceptance event, restore paths offline"
+    },
+    {
+      "message": "test(calendar): finalize b3 write-path evidence, acceptance and handoff",
+      "position": 5,
+      "purpose": "purely determinative: gate evidence of the five phases, PII-poor live evidence of all three stages, backup digest proof, acceptance and handoff"
+    }
+  ],
+  "push_status": "not_performed_owner_action",
+  "schema_version": 1,
+  "split_justification": {
+    "condition_per_commit": [
+      "the position is self contained: it introduces no reference to an artifact a later position creates",
+      "the configuration loader binding check passes",
+      "every phase declared for the changed subject has run against the new scope (R5)",
+      "a commit that introduces or changes a block manifest is green only when every phase that manifest declares has run against it, where phases requiring live owner interaction may be green from the acceptance run they describe"
+    ],
+    "context_rule": "If the context runs short, work stops before the commit and reports, rather than leaving finished work unsecured or committing it unverified.",
+    "decided_by": "owner instruction for block B3",
+    "declared_in_advance": true,
+    "reason": "The owner's staged acceptance (create, halt, update, halt, delete, halt) maps to one stable functional commit per stage; a live-found functional defect creates a further functional commit with a machine-readable reason here, never an amend. The governance position exists because no decision may enter a normative commit before its id is reserved, and the mutation path may not exist before the write decision is codified.",
+    "separation": "normative and determinative stay separate; positions 2-4 are the staged functional verticals create/update/delete, each carried to its live result with an owner halt before the next"
+  },
+  "start_commit": "3b6735a7c79a2c7098472884e77205e96c541036"
+}

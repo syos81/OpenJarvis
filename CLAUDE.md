@@ -13,7 +13,13 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
 ## Harte Grenzen – niemals ohne explizite Bestätigung
 
 - Keine E-Mails versenden.
-- Keine Termine oder Kalendereinträge erstellen oder löschen.
+- Keine Termine oder Kalendereinträge erstellen, ändern oder löschen —
+  außer über den einzelfreigegebenen Kalender-Mutationspfad: normativ
+  DEC-069 — Kalenderschreiben produktiv zugelassen: einzelfreigegebene
+  Mutationen über den getrennten Schreibpfad
+  (`docs/governance/decisions/DEC-069-kalenderschreiben-einzelfreigabe.md`).
+  Jede einzelne Mutation braucht dort Lukas' ausdrückliche Freigabe; der
+  Lese-Sidecar bleibt read-only.
 - Keine Dateien außerhalb dieses Projektordners löschen oder überschreiben.
 - Keine Zahlungen, Überweisungen oder Vertragsaktionen auslösen.
 - Keine Kundendaten, persönlichen Dokumente oder Zugangsdaten automatisch
