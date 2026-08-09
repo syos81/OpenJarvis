@@ -93,15 +93,35 @@ export interface SettleErgebnis {
 /** Der entscheidende Mensch — derselbe Wert wie im Kontaktmodul. */
 const ENTSCHEIDER = 'lukas';
 
+/** Ein Mutationsfehler mit dem, was der Mensch wissen muss: der
+ * typisierte Grund des Servers. Kein freier Servertext wird durchgereicht —
+ * `reason_code` ist eine geschlossene Kennung, nie ein Termininhalt.
+ * (B3-Livebefund: „calendar_api_422" ohne Grund ist ein Diagnosemangel.) */
+export class MutationsFehler extends Error {
+  readonly status: number;
+  readonly reasonCode: string | null;
+
+  constructor(status: number, reasonCode: string | null) {
+    super(`calendar_api_${status}`);
+    this.status = status;
+    this.reasonCode = reasonCode;
+  }
+}
+
 async function hole<T>(pfad: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getBase()}${PREFIX}${pfad}`, {
     ...init,
     headers: { 'content-type': 'application/json', ...authHeaders(), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
-    // Wie in `api.ts`: kein Servertext wird durchgereicht — er könnte einen
-    // Termininhalt tragen. Die Statusklasse genügt der Oberfläche.
-    throw new Error(`calendar_api_${res.status}`);
+    let reason: string | null = null;
+    try {
+      const detail = (await res.json())?.detail;
+      const roh = detail?.reason_code;
+      // Nur eine kurze, kennungsartige Zeichenkette gilt als Grund.
+      if (typeof roh === 'string' && /^[a-z0-9_]{1,64}$/.test(roh)) reason = roh;
+    } catch { /* Körper unlesbar — der Status bleibt die Aussage */ }
+    throw new MutationsFehler(res.status, reason);
   }
   return (await res.json()) as T;
 }

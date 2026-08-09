@@ -328,3 +328,66 @@ class TestSettle:
                 "SELECT COUNT(*) AS n FROM event_external_ids "
                 "WHERE provider_event_id = ?", ("EK-EVENT-1",)).fetchone()
         assert anzahl["n"] == 0
+
+
+class TestVertragsEinheit:
+    """B3-Livebefund vom 2026-08-09: Vorschau und Freigabe liefen auf zwei
+    unabhängig definierten Vertragshälften — der Adapter vergab fünf
+    Fehlerklassen, die der Server abwies. Dieses Paar hält die eine Wahrheit
+    mechanisch fest."""
+
+    def test_jede_adapterklasse_ist_im_kanonischen_vokabular(self):
+        # Schärfung: jede error_class, die der native Adapter vergeben kann,
+        # muss der Settle-Parser akzeptieren. Die Klassen werden aus der
+        # Rust-Quelle gelesen, nicht behauptet.
+        import re
+        from pathlib import Path
+
+        from personaljarvis.calendar.mutations.contracts import ERROR_CLASSES
+
+        wurzel = Path(__file__).resolve().parents[3]
+        quelle = (wurzel / "frontend" / "src-tauri" / "src"
+                  / "calendar_write.rs").read_text(encoding="utf-8")
+        vergeben = set()
+        for muster in (r'not_sent\(&order,\s*"([a-z_]+)"',
+                       r'ungebunden\("([a-z_]+)"\)',
+                       r'unknown_mit\(&order,\s*"([a-z_]+)"',
+                       r'error_class:\s*Some\("([a-z_]+)"'):
+            vergeben.update(re.findall(muster, quelle))
+        assert vergeben, "leerer Scan bewiese nichts (R10)"
+        fremd = sorted(vergeben - set(ERROR_CLASSES))
+        assert fremd == [], (
+            f"Adapterklassen ausserhalb des Vokabulars: {fremd}")
+
+    def test_eine_unbekannte_klasse_bleibt_abgewiesen(self):
+        # Gegentest: das Vokabular bleibt geschlossen — eine erfundene
+        # Klasse wird weiterhin zurückgewiesen, nie still übernommen.
+        import pytest
+
+        from personaljarvis.calendar.mutations.contracts import (
+            CalendarExecutionContractError,
+            parse_execution_report,
+        )
+
+        bericht = {
+            "schema_version": 1, "operation_id": "o", "mutation_id": "m",
+            "operation_type": "create", "outcome": "not_sent",
+            "send_attempted": False, "save_request_count": 0,
+            "readback_status": "not_checked", "readback_event": None,
+            "provider_identifier": None, "fingerprint_checked": False,
+            "fingerprint_matched": None, "error_class": "voellig_erfunden",
+            "error_digest": None, "provider_completed_at": None,
+        }
+        with pytest.raises(CalendarExecutionContractError):
+            parse_execution_report(bericht)
+
+    def test_auftragszeiten_tragen_das_vertragsformat(self):
+        # Die eine Zeitform: Z-Suffix, Sekundenpraezision — beidseitig.
+        from personaljarvis.calendar.mutations.service import (
+            _plus_sekunden,
+            utc_now,
+        )
+        jetzt = utc_now()
+        assert jetzt.endswith("Z") and len(jetzt) == 20
+        spaeter = _plus_sekunden(jetzt, 600)
+        assert spaeter.endswith("Z") and len(spaeter) == 20

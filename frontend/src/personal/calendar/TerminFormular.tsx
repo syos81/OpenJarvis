@@ -15,6 +15,7 @@ import './tokens.css';
 import type { KalenderZeile } from './api';
 import {
   type KalenderExecutionReport, type VorbereiteterVorgang,
+  MutationsFehler,
   beanspruche, bereiteVor, bricheAb, fuehreAus, gibFrei, schliesseAb,
 } from './mutationsApi';
 import { lokaleMitternachtUtc, lokalerTag, plusTage, uhrzeit } from './raster';
@@ -61,6 +62,30 @@ function vorbereitungsFehler(e: unknown): string {
       + '(z. B. Kalender nicht beschreibbar oder Backup-Nachweis fehlt).';
   }
   return `Die Vorbereitung ist fehlgeschlagen (${code || 'unbekannt'}).`;
+}
+
+/** Freigabefehler → deutsche Ansage mit dem typisierten Servergrund und
+ * dem nächsten Schritt. Ein Abbruch ohne Grund ist ein Diagnosemangel
+ * (B3-Livebefund vom 2026-08-09). */
+function freigabeFehler(e: unknown): string {
+  const grund = e instanceof MutationsFehler && e.reasonCode !== null
+    ? e.reasonCode
+    : e instanceof Error ? e.message : 'unbekannt';
+  const ANSAGEN: Record<string, string> = {
+    schema_mismatch: 'Server und App-Prozess sprachen nicht denselben '
+      + 'Auftragsvertrag — es wurde nichts angelegt. Bitte neu vorbereiten; '
+      + 'besteht der Fehler fort, ist der Baustand der App veraltet.',
+    approval_consumed: 'Die Freigabe wurde bereits verbraucht — bitte den '
+      + 'Vorgang neu vorbereiten und erneut freigeben.',
+    backup_missing: 'Es liegt kein verifizierter Sicherungsnachweis vor — '
+      + 'erst sichern, dann freigeben.',
+    app_process_unavailable: 'Diese Ansicht läuft ausserhalb der Jarvis-App; '
+      + 'nur die gepackte App darf ausführen.',
+  };
+  const ansage = ANSAGEN[grund]
+    ?? `Der Freigabefluss ist fehlgeschlagen (${grund}). Es wurde nichts `
+      + 'angelegt; bitte neu vorbereiten.';
+  return ansage;
 }
 
 /** Die Zeitzeile der Vorschau — aus den SERVER-Instants, lokal aufgelöst. */
@@ -228,11 +253,7 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
       }
       setSchritt('ergebnis');
     } catch (e) {
-      const code = e instanceof Error ? e.message : 'unbekannt';
-      setErgebnis({
-        ok: false,
-        text: `Der Freigabefluss ist fehlgeschlagen (${code}).`,
-      });
+      setErgebnis({ ok: false, text: freigabeFehler(e) });
       setSchritt('ergebnis');
     } finally {
       setLaeuft(false);

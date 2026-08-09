@@ -59,8 +59,13 @@ from personaljarvis.errors import PersonalJarvisError
 
 def utc_now() -> str:
     """UTC-Zeitstempel in ISO-8601 (07 §4). Bewusst lokal definiert: der
-    Kalender importiert keinen Kontakte-Code (Modulgrenze, `test_boundaries`)."""
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    Kalender importiert keinen Kontakte-Code (Modulgrenze, `test_boundaries`).
+
+    Suffix ausdrücklich `Z` statt `+00:00`: das ist das eine Vertragsformat
+    dieses Moduls (B3-Livebefund vom 2026-08-09 — der native Adapter und der
+    Server müssen denselben Zeittext sprechen)."""
+    return (datetime.now(timezone.utc).replace(microsecond=0)
+            .isoformat().replace("+00:00", "Z"))
 
 __all__ = [
     "MODULE",
@@ -230,7 +235,8 @@ def _plus_sekunden(zeitpunkt: str, sekunden: int) -> str:
     basis = datetime.fromisoformat(zeitpunkt.replace("Z", "+00:00"))
     if basis.tzinfo is None:
         basis = basis.replace(tzinfo=timezone.utc)
-    return (basis + timedelta(seconds=sekunden)).isoformat()
+    return ((basis + timedelta(seconds=sekunden))
+            .isoformat().replace("+00:00", "Z"))
 
 
 def _bewerte(bericht: ExecutionReportV1) -> tuple[str, str | None, str | None]:

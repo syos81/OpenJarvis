@@ -31,9 +31,17 @@ pub struct CalendarProviderTarget {
     pub event_identifier: Option<String>,
 }
 
+fn schema_version_eins() -> u32 {
+    1
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CalendarExecutionOrder {
+    /// Vertragsversion des Auftrags — die Python-Seite sendet sie immer;
+    /// eine fremde Version wird abgewiesen, nie ignoriert.
+    #[serde(default = "schema_version_eins")]
+    pub schema_version: u32,
     pub operation_id: String,
     pub mutation_id: String,
     pub claim_token: String,
@@ -188,42 +196,45 @@ fn pruefe_order(
     jetzt_unix: i64,
 ) -> Result<(CalendarExecutionOrder, EventFelder), CalendarExecutionReportV1> {
     if roh.len() > MAX_ORDER_BYTES {
-        return Err(CalendarExecutionReportV1::ungebunden("order_invalid"));
+        return Err(CalendarExecutionReportV1::ungebunden("schema_mismatch"));
     }
     let order: CalendarExecutionOrder = match serde_json::from_str(roh) {
         Ok(o) => o,
-        Err(_) => return Err(CalendarExecutionReportV1::ungebunden("order_invalid")),
+        Err(_) => return Err(CalendarExecutionReportV1::ungebunden("schema_mismatch")),
     };
     if order.operation_id.is_empty()
         || order.mutation_id.is_empty()
         || order.claim_token.is_empty()
         || order.issued_at.is_empty()
     {
-        return Err(CalendarExecutionReportV1::not_sent(&order, "order_invalid"));
+        return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     }
     if !ist_hex64(&order.payload_digest) || !ist_hex64(&order.preview_digest) {
-        return Err(CalendarExecutionReportV1::not_sent(&order, "order_invalid"));
+        return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     }
     // P1 schaltet genau `create` frei — alles andere ist keine Formfrage,
     // sondern eine nicht erteilte Freigabe.
+    if order.schema_version != 1 {
+        return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
+    }
     if order.operation_type != "create" {
         return Err(CalendarExecutionReportV1::not_sent(
             &order,
-            "operation_not_enabled",
+            "capability_denied",
         ));
     }
     let Some(ablauf) = unix_aus_iso8601(&order.expires_at) else {
-        return Err(CalendarExecutionReportV1::not_sent(&order, "order_invalid"));
+        return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     };
     if ablauf <= jetzt_unix {
-        return Err(CalendarExecutionReportV1::not_sent(&order, "order_expired"));
+        return Err(CalendarExecutionReportV1::not_sent(&order, "expired_claim_before_send"));
     }
     // Der Kern hat den Digest gebildet; hier wird er nachgerechnet. Weicht
     // er ab, wurde der Payload nach der Freigabe angefasst.
     if payload_digest(&order.canonical_payload) != order.payload_digest {
         return Err(CalendarExecutionReportV1::not_sent(
             &order,
-            "payload_digest_mismatch",
+            "digest_mismatch",
         ));
     }
     // Payloadform: `command` muss zur freigegebenen Operation passen, die
@@ -289,7 +300,7 @@ pub fn execute_order_mit_operationen(
     match ops.kalender_zugang(&kalender_id) {
         KalenderZugang::Vorhanden => {}
         KalenderZugang::NichtGefunden => {
-            return CalendarExecutionReportV1::not_sent(&order, "calendar_not_found");
+            return CalendarExecutionReportV1::not_sent(&order, "target_not_found");
         }
         KalenderZugang::NichtAutorisiert => {
             return CalendarExecutionReportV1::not_sent(&order, "not_authorized");
@@ -473,7 +484,7 @@ pub fn execute_order(roh: &str) -> CalendarExecutionReportV1 {
     #[cfg(not(target_os = "macos"))]
     {
         match pruefe_order(roh, jetzt) {
-            Ok((order, _)) => CalendarExecutionReportV1::not_sent(&order, "provider_unavailable"),
+            Ok((order, _)) => CalendarExecutionReportV1::not_sent(&order, "write_stack_unavailable"),
             Err(bericht) => bericht,
         }
     }
@@ -482,7 +493,7 @@ pub fn execute_order(roh: &str) -> CalendarExecutionReportV1 {
 // ── Tests: derselbe Ablauf, injizierte Operationen ─────────────────────────
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// Fester Zeitpunkt statt Wanduhr: 2026-08-09T00:00:00Z.
@@ -490,9 +501,9 @@ mod tests {
 
     /// Fake-Anbindung mit Zählern: Der Beleg, dass eine abgewiesene Order
     /// EventKit nie erreicht, ist `save_aufrufe == 0` — nicht eine Behauptung.
-    struct FakeKalenderOperationen {
+    pub(crate) struct FakeKalenderOperationen {
         vorhandene_kalender: Vec<String>,
-        save_aufrufe: u32,
+        pub(crate) save_aufrufe: u32,
         lese_aufrufe: u32,
         save_fehler: Option<SpeicherFehler>,
         readback_verfuegbar: bool,
@@ -500,7 +511,7 @@ mod tests {
     }
 
     impl FakeKalenderOperationen {
-        fn mit_kalender(kennung: &str) -> Self {
+        pub(crate) fn mit_kalender(kennung: &str) -> Self {
             Self {
                 vorhandene_kalender: vec![kennung.to_string()],
                 save_aufrufe: 0,
@@ -633,7 +644,7 @@ mod tests {
         let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
         let b = execute_order_mit_operationen(&roh.to_string(), JETZT, &mut ops);
         assert_eq!(b.outcome, "not_sent");
-        assert_eq!(b.error_class.as_deref(), Some("payload_digest_mismatch"));
+        assert_eq!(b.error_class.as_deref(), Some("digest_mismatch"));
         assert!(!b.send_attempted);
         assert_eq!(b.save_request_count, 0);
         assert_eq!(ops.save_aufrufe, 0, "Fake-Save wurde aufgerufen");
@@ -645,7 +656,7 @@ mod tests {
         let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
         let b = execute_order_mit_operationen(&auftrag("update", payload()), JETZT, &mut ops);
         assert_eq!(b.outcome, "not_sent");
-        assert_eq!(b.error_class.as_deref(), Some("operation_not_enabled"));
+        assert_eq!(b.error_class.as_deref(), Some("capability_denied"));
         assert_eq!(ops.save_aufrufe, 0);
     }
 
@@ -656,7 +667,7 @@ mod tests {
         let jetzt_danach = JETZT + 3600;
         let b = execute_order_mit_operationen(&auftrag("create", payload()), jetzt_danach, &mut ops);
         assert_eq!(b.outcome, "not_sent");
-        assert_eq!(b.error_class.as_deref(), Some("order_expired"));
+        assert_eq!(b.error_class.as_deref(), Some("expired_claim_before_send"));
         assert_eq!(ops.save_aufrufe, 0);
     }
 
@@ -665,7 +676,7 @@ mod tests {
         let mut ops = FakeKalenderOperationen::mit_kalender("ANDERER-KALENDER");
         let b = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops);
         assert_eq!(b.outcome, "not_sent");
-        assert_eq!(b.error_class.as_deref(), Some("calendar_not_found"));
+        assert_eq!(b.error_class.as_deref(), Some("target_not_found"));
         assert!(!b.send_attempted);
         assert_eq!(b.save_request_count, 0);
         assert_eq!(ops.save_aufrufe, 0);
@@ -719,7 +730,7 @@ mod tests {
         let b = execute_order_mit_operationen("kein json", JETZT, &mut ops);
         assert_eq!(b.outcome, "not_sent");
         assert_eq!(b.operation_id, "");
-        assert_eq!(b.error_class.as_deref(), Some("order_invalid"));
+        assert_eq!(b.error_class.as_deref(), Some("schema_mismatch"));
         assert_eq!(ops.save_aufrufe, 0);
     }
 
@@ -730,7 +741,7 @@ mod tests {
         roh["heimlich"] = serde_json::json!("wert");
         let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
         let b = execute_order_mit_operationen(&roh.to_string(), JETZT, &mut ops);
-        assert_eq!(b.error_class.as_deref(), Some("order_invalid"));
+        assert_eq!(b.error_class.as_deref(), Some("schema_mismatch"));
         assert_eq!(ops.save_aufrufe, 0);
     }
 
@@ -796,5 +807,62 @@ mod tests {
         let a = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops_a);
         let b = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops_b);
         assert_eq!(a, b);
+    }
+}
+
+#[cfg(test)]
+mod serververtrag_tests {
+    use super::tests::FakeKalenderOperationen;
+    use super::*;
+
+    const JETZT: i64 = 1_786_233_600; // 2026-08-09T00:00:00Z
+
+    fn serverauftrag(schema_version: u32) -> String {
+        let payload = serde_json::json!({
+            "command": "create", "expected_fingerprint": null,
+            "fields": {"ends_at_utc": "2036-08-10T08:00:00Z", "is_all_day": false,
+                        "location": null, "notes": null,
+                        "starts_at_utc": "2036-08-10T07:00:00Z",
+                        "title": "B3-Abnahmetermin"},
+            "provider_target": {"event_identifier": null,
+                                 "provider_calendar_id": "CAL-1"}});
+        serde_json::json!({
+            "schema_version": schema_version,
+            "operation_id": "op-server", "mutation_id": "m-server",
+            "claim_token": "token",
+            "operation_type": "create",
+            "payload_digest": payload_digest(&payload),
+            "preview_digest": "0".repeat(64),
+            "canonical_payload": payload,
+            // Exakt die Serverform vom 2026-08-09: +00:00 statt Z.
+            "issued_at": "2026-08-09T12:01:57+00:00",
+            "expires_at": "2099-08-09T12:11:57+00:00",
+            "provider_target": {"event_identifier": null,
+                                 "provider_calendar_id": "CAL-1"},
+            "expected_fingerprint": null})
+        .to_string()
+    }
+
+    /// Schärfungstest der B3-Reparatur: ein Auftrag EXAKT in der Form, die
+    /// der Python-Server real sendet (inkl. `schema_version` und
+    /// `+00:00`-Zeitstempeln), passiert die Validierung. Genau diese Form
+    /// wurde am 2026-08-09 mit `order_invalid` abgewiesen.
+    #[test]
+    fn ein_echter_serverauftrag_passiert_die_validierung() {
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-1");
+        let b = execute_order_mit_operationen(&serverauftrag(1), JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied", "{:?}", b.error_class);
+        assert_eq!(ops.save_aufrufe, 1);
+    }
+
+    /// Gegentest: eine fremde Vertragsversion faellt weiterhin — beweisbar
+    /// vor jeder Uebergabe (Save-Zaehler bleibt null), mit kanonischer Klasse.
+    #[test]
+    fn eine_fremde_schemaversion_faellt_vor_dem_speichern() {
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-1");
+        let b = execute_order_mit_operationen(&serverauftrag(2), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("schema_mismatch"));
+        assert_eq!(ops.save_aufrufe, 0);
     }
 }
