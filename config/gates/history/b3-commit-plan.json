@@ -24,11 +24,15 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 8,
+  "max_commits": 9,
   "plan_change": {
-    "actual": 8,
+    "actual": 9,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
+    "fourth_change": {
+      "decided_by": "commit plan rule for live-found functional defects, applied to a pre-live mechanical finding",
+      "reason": "P3 pre-live check against the productive mirror showed both B3-created livetest events reading an out-of-vocabulary raw availability value although no marking was ever set (natural state of a B3-created event on this platform). The initial probe rule (everything except busy/notSupported counts as marked) would have false-blocked the acceptance delete. The rule is sharpened to the explicitly set markings free/tentative/unavailable — a populated property, not a raw-value accident. Own functional commit; no amend."
+    },
     "reason": "Stage 1 CREATE failed before any mutation (proven: real sync, zero events in the target calendar, backup untouched). Root cause mechanically shown with the real server-issued order run through the native validation path. Third occurrence of the two-independent-contract-halves class (after status-vs-bridge-check and the all-day instant contract) — recorded as a pattern finding, not built into a rule in this block (F1). Own functional commit; no amend.",
     "second_change": {
       "decided_by": "owner decision (Option 2) after the anchored live finding",
@@ -79,6 +83,11 @@
       "message": "test(calendar): finalize b3 write-path evidence, acceptance and handoff",
       "position": 8,
       "purpose": "purely determinative: gate evidence of the five phases, PII-poor live evidence of all three stages, backup digest proof, acceptance and handoff"
+    },
+    {
+      "message": "fix(calendar): only explicitly marked availability blocks the delete",
+      "position": 9,
+      "purpose": "functional repair from the pre-live mechanical finding: the availability flag of the delete-safety probe counts only explicitly set markings (free/tentative/unavailable); busy, notSupported and out-of-vocabulary raw values are not a populated property"
     }
   ],
   "push_status": "not_performed_owner_action",

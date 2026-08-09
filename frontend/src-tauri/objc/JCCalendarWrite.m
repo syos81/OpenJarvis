@@ -353,13 +353,18 @@ int32_t jc_calendar_write_delete_probe(const char *event_identifier,
     NSUInteger wecker = event.hasAlarms ? event.alarms.count : 0;
     BOOL geoOrt = event.structuredLocation != nil
         && event.structuredLocation.geoLocation != nil;
-    // Verfügbarkeit: busy (0) ist der EventKit-Standardwert eines schlichten
-    // Events, notSupported (-1) heisst „der Kalender kennt das Konzept
-    // nicht" — alles andere (free/tentative/unavailable) ist eine belegte,
-    // nicht wiederherstellbare Markierung.
+    // Verfügbarkeit: als BELEGT gilt ausschliesslich eine ausdrücklich
+    // gesetzte Markierung (free/tentative/unavailable). busy ist der
+    // EventKit-Standard, notSupported heisst „der Kalender kennt das
+    // Konzept nicht" — und ein Rohwert ausserhalb des Enums ist der
+    // mechanisch belegte Naturzustand eines B3-erzeugten Events auf dieser
+    // Plattform (Vorbefund 2026-08-09: beide Livetest-Events lesen
+    // availability ausserhalb des Vokabulars, ohne dass je jemand eine
+    // Markierung gesetzt hätte) — keine belegte Eigenschaft, kein Block.
     BOOL verfuegbarkeitMarkiert =
-        event.availability != EKEventAvailabilityBusy
-        && event.availability != EKEventAvailabilityNotSupported;
+        event.availability == EKEventAvailabilityFree
+        || event.availability == EKEventAvailabilityTentative
+        || event.availability == EKEventAvailabilityUnavailable;
     NSDictionary *dict = @{
         @"event_identifier": event.eventIdentifier ?: [NSNull null],
         @"provider_calendar_id": event.calendar.calendarIdentifier ?: [NSNull null],

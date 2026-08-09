@@ -120,7 +120,13 @@ ELIGIBILITY_SCHEMA_VERSION = 1
 #:  - structured_location_geo EKStructuredLocation.geoLocation (mehr als der
 #:                            B3-Ortstext)
 #:  - birthday_link           EKEvent.birthdayContactIdentifier
-#:  - availability_marked     EKEvent.availability ∉ {busy, notSupported}
+#:  - availability_marked     EKEvent.availability ∈ {free, tentative,
+#:                            unavailable} — ausschliesslich die AUSDRÜCKLICH
+#:                            gesetzten Markierungen; busy (Standard),
+#:                            notSupported und außervokabulare Rohwerte (der
+#:                            belegte Naturzustand eines B3-erzeugten Events
+#:                            auf dieser Plattform) sind keine belegte
+#:                            Eigenschaft
 #:  - participation_status    EKEvent.status ≠ none
 #:
 #: Anhänge (Attachments) haben im öffentlichen macOS-EventKit-Vertrag keine
