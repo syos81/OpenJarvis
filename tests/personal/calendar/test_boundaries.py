@@ -95,11 +95,22 @@ def test_die_api_bietet_keinen_schreibenden_endpunkt():
     schreibend = {p for p, m in pfade
                   if any(x in m for x in ("PUT", "PATCH", "DELETE"))}
     assert not schreibend, schreibend
-    # Die drei POST-Routen sind Handlungen, aber keine Provider-Mutationen.
+    # Die POST-Routen sind Handlungen, aber keine Provider-Schreibaufrufe:
+    # auch der Mutationskanal (B3 P1) sendet nichts — er bereitet vor, bindet
+    # Freigaben, gibt genau einen Auftrag heraus und bewertet den Bericht.
+    # Die Menge bleibt geschlossen: eine neue Route ist eine bewusste
+    # Vertragserweiterung, kein Nebeneffekt.
     posts = {p for p, m in pfade if "POST" in m}
-    assert posts == {"/v1/personal/calendar/bridge/check",
-                     "/v1/personal/calendar/authorization",
-                     "/v1/personal/calendar/sync"}
+    assert posts == {
+        "/v1/personal/calendar/bridge/check",
+        "/v1/personal/calendar/authorization",
+        "/v1/personal/calendar/sync",
+        "/v1/personal/calendar/mutations",
+        "/v1/personal/calendar/mutations/{mutation_id}/approve",
+        "/v1/personal/calendar/mutations/{mutation_id}/cancel",
+        "/v1/personal/calendar/mutations/{mutation_id}/claim-app-execution",
+        "/v1/personal/calendar/mutations/{mutation_id}/settle-app-execution",
+    }
 
 
 # ── Berechtigung nur auf Nutzeraktion ────────────────────────────────────────

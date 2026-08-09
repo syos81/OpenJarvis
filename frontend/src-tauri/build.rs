@@ -25,6 +25,17 @@ fn main() {
             .compile("jc_contacts_create");
         println!("cargo:rerun-if-changed=objc/JCContactsCreate.m");
         println!("cargo:rerun-if-changed=objc/JCContactsCreate.h");
+        // Kalender-Schreibadapter (Block B3, P1 create): derselbe Schnitt wie
+        // beim Kontakte-Create — der eine EventKit-Save lebt im App-Prozess
+        // mit TCC-Grant, der Lese-Sidecar bleibt reiner Leser.
+        cc::Build::new()
+            .file("objc/JCCalendarWrite.m")
+            .flag("-fobjc-arc")
+            .flag("-fmodules")
+            .compile("jc_calendar_write");
+        println!("cargo:rerun-if-changed=objc/JCCalendarWrite.m");
+        println!("cargo:rerun-if-changed=objc/JCCalendarWrite.h");
+        println!("cargo:rustc-link-lib=framework=EventKit");
         println!("cargo:rustc-link-lib=framework=Contacts");
         println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=framework=Foundation");

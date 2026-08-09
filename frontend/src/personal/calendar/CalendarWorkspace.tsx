@@ -7,6 +7,12 @@
 //  · KEIN Auto-Sync. Der Mount und jeder Ansichtswechsel LESEN nur den
 //    gespeicherten Bestand. Synchronisiert wird ausschliesslich auf Klick.
 //  · Kein Timer, kein Poller, kein Intervall.
+//  · Betrieb: lesend PLUS einzelfreigegebene Mutationen — normativ DEC-069 —
+//    Kalenderschreiben produktiv zugelassen: einzelfreigegebene Mutationen
+//    über den getrennten Schreibpfad
+//    (docs/governance/decisions/DEC-069-kalenderschreiben-einzelfreigabe.md).
+//    Geschrieben wird ausschliesslich über das Terminformular mit
+//    ausdrücklicher Einzelfreigabe; nichts schreibt von selbst.
 //  · Die Oberfläche zeigt, welchen Zeitraum sie kennt. Ein Kalender, der so
 //    tut, als kenne er alles, lügt.
 //  · Sichtbarkeitsfilter sind reine Anzeige und werden nirgends gespeichert.
@@ -22,6 +28,7 @@ import {
   CalendarSidebar, JahresRaster, MonatsRaster, TagesListe, TerminDetail,
   ZeitRaster,
 } from './panes';
+import { TerminFormular } from './TerminFormular';
 import { PanelLeft } from 'lucide-react';
 import { PaneDivider } from '../contacts/workspace/PaneDivider';
 
@@ -94,6 +101,9 @@ export function CalendarWorkspace() {
   const [suche, setSuche] = useState('');
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; art: 'ok' | 'warnung' | 'fehler' } | null>(null);
+  // B3 P1: das CREATE-Formular. Es öffnet nur auf Klick und schreibt nur
+  // nach ausdrücklicher Einzelfreigabe (DEC-069, siehe Kopfkommentar).
+  const [formularOffen, setFormularOffen] = useState(false);
   const rasterRef = useRef<HTMLDivElement>(null);
 
   const raster = useMemo(() => baueRaster(modus, anker, zone, wochenstart),
@@ -277,7 +287,18 @@ export function CalendarWorkspace() {
                  gridTemplateColumns: '1fr auto 1fr',
                  borderBottom: '1px solid var(--pjk-line)',
                  paddingRight: 'var(--pjk-toolbar-reserve)' }}>
-        <div className="justify-self-start">
+        <div className="justify-self-start flex items-center gap-2">
+          {/* B3 P1: der Einstieg in den Schreibpfad — nur sichtbar, wenn
+              lesbarer Bestand UND Bridge da sind. Der Klick öffnet nur das
+              Formular; geschrieben wird erst nach der Einzelfreigabe. */}
+          {darfLesen && bridgeDa && (
+            <button type="button" aria-label="Neuen Termin anlegen"
+              onClick={() => setFormularOffen(true)}
+              className="text-xs px-2 py-1 rounded"
+              style={{ border: '1px solid var(--pjk-line)' }}>
+              Neuer Termin
+            </button>
+          )}
           <button type="button"
             aria-label={sidebarVersteckt
               ? 'Kalenderliste einblenden' : 'Kalenderliste ausblenden'}
@@ -448,6 +469,20 @@ export function CalendarWorkspace() {
           )}
         </div>
       </div>
+
+      {/* ── B3 P1: das CREATE-Formular mit Freigabefluss ── */}
+      {formularOffen && (
+        <TerminFormular kalender={kalender} zone={zone}
+          vorbelegterTag={gewaehlterTag ?? heuteTag}
+          aufSchliessen={() => setFormularOffen(false)}
+          aufErfolg={() => {
+            // Kein Auto-Sync: nach dem Settle ist der gespeicherte Bestand
+            // serverseitig nachgeführt — Neu-LESEN genügt. „Aktualisieren"
+            // bleibt der einzige Weg zum Provider-Sync.
+            setMeldung({ text: 'Termin angelegt.', art: 'ok' });
+            void laden(raster.fensterStartUtc, raster.fensterEndeUtc);
+          }} />
+      )}
     </div>
   );
 }

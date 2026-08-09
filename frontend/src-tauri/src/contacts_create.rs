@@ -228,7 +228,7 @@ pub fn write_release_erlaubt(pfad: &std::path::Path, operation: &str, jetzt_unix
 /// Bewusst eigenhändig statt per Zeitbibliothek: Es geht um genau ein
 /// Format, das der Kern schreibt, und eine zusätzliche Abhängigkeit für
 /// vierzig Zeilen wäre die teurere Entscheidung.
-fn unix_aus_iso8601(wert: &str) -> Option<i64> {
+pub(crate) fn unix_aus_iso8601(wert: &str) -> Option<i64> {
     let bytes = wert.as_bytes();
     if bytes.len() < 19 || bytes[4] != b'-' || bytes[7] != b'-' || bytes[10] != b'T' {
         return None;

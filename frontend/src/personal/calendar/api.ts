@@ -4,8 +4,12 @@
 // eines zweiten Transportwegs. Es gibt keinen direkten Provider- oder
 // Sidecar-Aufruf aus dem Frontend.
 //
-// v1 liest. Es gibt hier keine Funktion, die einen Termin anlegen, ändern oder
-// löschen könnte — und das ist keine Auslassung, sondern der Vertrag.
+// Diese Datei liest. Es gibt hier keine Funktion, die einen Termin anlegen,
+// ändern oder löschen könnte — und das ist keine Auslassung, sondern der
+// Vertrag: der Schreibpfad lebt getrennt in `mutationsApi.ts` (normativ
+// DEC-069 — Kalenderschreiben produktiv zugelassen: einzelfreigegebene
+// Mutationen über den getrennten Schreibpfad,
+// docs/governance/decisions/DEC-069-kalenderschreiben-einzelfreigabe.md).
 
 import { getBase, authHeaders } from '../../lib/api';
 

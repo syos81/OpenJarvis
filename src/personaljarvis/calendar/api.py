@@ -2,8 +2,10 @@
 
 **Was diese Routen strukturell nicht können:**
 
-* Keine Route schreibt in den Provider. v1 kennt keine Mutation — es gibt hier
-  keinen Endpunkt, der einen Termin anlegen, ändern oder löschen könnte.
+* Keine Route schreibt in den Provider. Auch der Mutationskanal unter
+  `/mutations` sendet nichts: das Backend bereitet vor, bindet Freigaben,
+  gibt genau einen Ausführungsauftrag heraus und bewertet den Bericht —
+  der Providerkontakt liegt im App-Prozess (B3, Claim-Settle wie Kontakte).
 * Keine Route fragt selbsttätig eine Berechtigung an. Der TCC-Dialog läuft
   ausschliesslich über `POST …/authorization`, und nur mit ausdrücklicher
   Bestätigung im Rumpf.
@@ -18,7 +20,7 @@ Teilnehmer erscheinen **nie** in einer Fehlermeldung.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -31,6 +33,18 @@ from personaljarvis.calendar.domain import (
     SyncWindow,
 )
 from personaljarvis.calendar.lifecycle import CalendarModule
+from personaljarvis.calendar.mutations.contracts import (
+    CalendarExecutionContractError,
+    InvalidMutationFields,
+    parse_execution_report,
+)
+from personaljarvis.calendar.mutations.service import (
+    CalendarMutationError,
+    CalendarMutationService,
+    CalendarNotFound,
+    MutationNotFound,
+    PositionNotEnabled,
+)
 from personaljarvis.calendar.repositories import (
     CalendarRepository,
     EventRepository,
@@ -57,6 +71,50 @@ class SyncRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     past_days: int = Field(default=DEFAULT_WINDOW_PAST_DAYS, ge=0, le=3650)
     future_days: int = Field(default=DEFAULT_WINDOW_FUTURE_DAYS, ge=1, le=3650)
+
+
+class PrepareMutationIn(BaseModel):
+    """Die Vorbereitung einer Mutation. `update`/`delete` sind im Schema
+    zulässig, damit die Verweigerung `position_not_enabled` **typisiert**
+    zurückkommt statt als generischer Validierungsfehler."""
+
+    model_config = ConfigDict(extra="forbid")
+    command: Literal["create", "update", "delete"]
+    provider_calendar_id: str = Field(min_length=1, max_length=512)
+    fields: dict[str, Any]
+
+
+class DecisionIn(BaseModel):
+    """Der entscheidende Mensch. Nicht-menschliche Ursprünge weist der
+    Freigabekern ab — hier ist das Feld nur Transport."""
+
+    model_config = ConfigDict(extra="forbid")
+    decision_actor: str = Field(min_length=1, max_length=128)
+
+
+class SettleMutationIn(BaseModel):
+    """Der Bericht aus dem App-Prozess plus seine Claim-Bindung. Der Bericht
+    wird unverändert durchgereicht und serverseitig fail-closed geprüft."""
+
+    model_config = ConfigDict(extra="forbid")
+    report: dict[str, Any]
+    claim_token: str = Field(min_length=1, max_length=256)
+
+
+def _mutation_http_error(exc: CalendarMutationError) -> HTTPException:
+    """Ein Mutationsfehler als HTTP-Antwort — Typ statt Text, nie ein
+    Termininhalt in der Meldung."""
+    if isinstance(exc, (MutationNotFound, CalendarNotFound)):
+        status = 404
+    elif isinstance(exc, PositionNotEnabled):
+        status = 403
+    else:
+        # backup_missing, calendar_not_writable, mutation_not_executable,
+        # already_settled, settle_conflict: der Aufruf ist wohlgeformt, der
+        # Zustand erlaubt ihn nicht.
+        status = 409
+    return HTTPException(status_code=status, detail={
+        "reason_code": exc.reason_code, "message": str(exc)})
 
 
 def _window(past_days: int, future_days: int) -> SyncWindow:
@@ -213,6 +271,105 @@ def create_calendar_router(module: CalendarModule) -> APIRouter:
                 for r in report.results
             ],
             "error": report.error,
+        }
+
+    # ── Mutationen (B3 P1): Claim-Settle-Kanal, klar getrennt ───────────────
+    mutations = CalendarMutationService(module.connection_factory)
+
+    @router.post("/mutations")
+    def prepare_mutation(body: PrepareMutationIn) -> dict[str, Any]:
+        """Bereitet **eine** Mutation vor. Es wird nichts gesendet.
+
+        P1 kennt ausschliesslich `create`; `update`/`delete` verweigern
+        typisiert mit `position_not_enabled` — keine stille Teilfunktion.
+        """
+        try:
+            if body.command == "create":
+                vorgang = mutations.prepare_create(
+                    body.provider_calendar_id, body.fields)
+            elif body.command == "update":
+                # P1: verweigert typisiert mit `position_not_enabled`.
+                vorgang = mutations.prepare_update("", body.fields)
+            else:
+                vorgang = mutations.prepare_delete("")
+        except InvalidMutationFields as exc:
+            raise HTTPException(status_code=400, detail={
+                "reason_code": exc.reason_code,
+                "message": str(exc)}) from exc
+        except CalendarMutationError as exc:
+            raise _mutation_http_error(exc) from exc
+        return {
+            "mutation_id": vorgang.mutation_id,
+            "approval_id": vorgang.approval_id,
+            "state": vorgang.state,
+            "payload_digest": vorgang.payload_digest,
+            "preview": vorgang.preview,
+            "preview_digest": vorgang.preview_digest,
+        }
+
+    @router.get("/mutations/{mutation_id}")
+    def get_mutation(mutation_id: str) -> dict[str, Any]:
+        """Zustand und Vorschau eines Vorgangs. Reine Projektion."""
+        try:
+            return mutations.get(mutation_id)
+        except CalendarMutationError as exc:
+            raise _mutation_http_error(exc) from exc
+
+    @router.post("/mutations/{mutation_id}/approve")
+    def approve_mutation(mutation_id: str, body: DecisionIn) -> dict[str, Any]:
+        """Menschliche Freigabe. Verbraucht wird sie erst beim Claim."""
+        try:
+            state = mutations.approve(mutation_id,
+                                      decision_actor=body.decision_actor)
+        except CalendarMutationError as exc:
+            raise _mutation_http_error(exc) from exc
+        return {"mutation_id": mutation_id, "state": state}
+
+    @router.post("/mutations/{mutation_id}/cancel")
+    def cancel_mutation(mutation_id: str, body: DecisionIn) -> dict[str, Any]:
+        """Bricht aus `prepared`/`approved` ab — es wurde nichts gesendet."""
+        try:
+            state = mutations.cancel(mutation_id,
+                                     decision_actor=body.decision_actor)
+        except CalendarMutationError as exc:
+            raise _mutation_http_error(exc) from exc
+        return {"mutation_id": mutation_id, "state": state}
+
+    @router.post("/mutations/{mutation_id}/claim-app-execution")
+    def claim_app_execution(mutation_id: str) -> dict[str, Any]:
+        """Beansprucht **einen** Ausführungsversuch und gibt den Auftrag aus.
+
+        Höchstens einmal je Vorgang: ein zweiter Aufruf bekommt nie erneut
+        einen Rohtoken, sondern einen typisierten Konflikt.
+        """
+        try:
+            auftrag = mutations.claim(mutation_id)
+        except CalendarMutationError as exc:
+            raise _mutation_http_error(exc) from exc
+        return auftrag.as_dict()
+
+    @router.post("/mutations/{mutation_id}/settle-app-execution")
+    def settle_app_execution(mutation_id: str,
+                             body: SettleMutationIn) -> dict[str, Any]:
+        """Nimmt genau einen Bericht entgegen — idempotent, ohne
+        Providerkontakt. Digest und Bewertung sind serverseitig."""
+        try:
+            bericht = parse_execution_report(body.report)
+        except CalendarExecutionContractError as exc:
+            raise HTTPException(status_code=422, detail={
+                "reason_code": exc.error_class,
+                "message": str(exc)}) from exc
+        try:
+            ergebnis = mutations.settle(mutation_id, bericht,
+                                        claim_token=body.claim_token)
+        except CalendarMutationError as exc:
+            raise _mutation_http_error(exc) from exc
+        return {
+            "mutation_id": ergebnis.mutation_id,
+            "state": ergebnis.state,
+            "outcome": ergebnis.outcome,
+            "idempotent": ergebnis.idempotent,
+            "error_class": ergebnis.error_class,
         }
 
     return router

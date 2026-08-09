@@ -1,4 +1,5 @@
 mod backend_shutdown;
+pub mod calendar_write;
 mod contacts_authorization;
 pub mod contacts_create;
 pub mod contacts_execution;
@@ -1851,6 +1852,48 @@ fn personal_contacts_execute_mutation(order_json: String) -> serde_json::Value {
     }
     wert
 }
+/// Führt einen Kalender-ExecutionOrder im App-Prozess aus (Block B3, P1).
+///
+/// Derselbe Sicherheitsstil wie beim Kontakte-Kanal: Das Command validiert
+/// den Auftrag vollständig, rechnet den Payload-Digest **nach** und ruft erst
+/// dann den echten EventKit-Pfad. P1 schaltet ausschliesslich `create` frei;
+/// jeder andere Operationstyp endet als `not_sent / operation_not_enabled`,
+/// beweisbar vor jeder Übergabe.
+///
+/// Genau ein Command je Claim: Ein zweiter Aufruf mit derselben
+/// `operation_id` bekommt das gemerkte Ergebnis, ohne den nativen Pfad
+/// erneut zu betreten.
+#[tauri::command]
+fn personal_calendar_execute_mutation(order_json: String) -> serde_json::Value {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    static GEDAECHTNIS: OnceLock<Mutex<HashMap<String, serde_json::Value>>> =
+        OnceLock::new();
+    let speicher = GEDAECHTNIS.get_or_init(|| Mutex::new(HashMap::new()));
+
+    let kennung: Option<String> = serde_json::from_str::<serde_json::Value>(&order_json)
+        .ok()
+        .and_then(|w| w.get("operation_id").and_then(|k| k.as_str()).map(str::to_string));
+
+    if let Some(id) = kennung.as_ref() {
+        if let Ok(gemerkt) = speicher.lock() {
+            if let Some(vorher) = gemerkt.get(id) {
+                return vorher.clone();
+            }
+        }
+    }
+
+    let bericht = calendar_write::execute_order(&order_json);
+    let wert = serde_json::to_value(&bericht).unwrap_or(serde_json::Value::Null);
+    if let Some(id) = kennung {
+        if let Ok(mut gemerkt) = speicher.lock() {
+            gemerkt.insert(id, wert.clone());
+        }
+    }
+    wert
+}
+
 /// Reads the Contacts authorization status. Shows no dialog.
 ///
 /// The sidecar can read this too, and the Contacts page still does so through
@@ -3235,6 +3278,7 @@ pub fn run() {
             personal_contacts_authorization_status,
             personal_contacts_request_authorization,
             personal_contacts_execute_mutation,
+            personal_calendar_execute_mutation,
         ])
         .build(tauri::generate_context!())
         .expect("error while building OpenJarvis Desktop")
