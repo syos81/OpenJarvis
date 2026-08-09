@@ -163,6 +163,78 @@ describe('Öffnen und Vorbelegung', () => {
   });
 });
 
+describe('Zeitraum — Dauererhalt (B3 P1)', () => {
+  /** Aktueller Wert eines gelabelten Feldes. */
+  const wert = (label: string) =>
+    (screen.getByLabelText(label) as HTMLInputElement).value;
+
+  it('verschiebt mit dem Startdatum das Enddatum — Dauer exakt erhalten', async () => {
+    await oeffneFormular();
+    // Vorbelegt: 12.08. 09:00–10:00.
+    fireEvent.change(screen.getByLabelText('Datum Beginn'),
+                     { target: { value: '2026-08-15' } });
+    expect(wert('Datum Beginn')).toBe('2026-08-15');
+    expect(wert('Datum Ende')).toBe('2026-08-15');
+    expect(wert('Uhrzeit Beginn')).toBe('09:00');
+    expect(wert('Uhrzeit Ende')).toBe('10:00');
+  });
+
+  it('verschiebt mit der Startzeit die Endzeit', async () => {
+    await oeffneFormular();
+    fireEvent.change(screen.getByLabelText('Uhrzeit Beginn'),
+                     { target: { value: '14:30' } });
+    expect(wert('Uhrzeit Beginn')).toBe('14:30');
+    expect(wert('Uhrzeit Ende')).toBe('15:30');
+    expect(wert('Datum Ende')).toBe('2026-08-12');
+  });
+
+  it('wandert ueber Mitternacht auf den Folgetag', async () => {
+    await oeffneFormular();
+    // 1h Dauer ab 23:30 endet 00:30 am Folgetag.
+    fireEvent.change(screen.getByLabelText('Uhrzeit Beginn'),
+                     { target: { value: '23:30' } });
+    expect(wert('Uhrzeit Ende')).toBe('00:30');
+    expect(wert('Datum Ende')).toBe('2026-08-13');
+  });
+
+  it('erhaelt ganztaegig die Tagesdifferenz', async () => {
+    await oeffneFormular();
+    fireEvent.click(screen.getByLabelText('Ganztägig'));
+    fireEvent.change(screen.getByLabelText('Datum Ende'),
+                     { target: { value: '2026-08-14' } });  // 2 Tage Differenz
+    fireEvent.change(screen.getByLabelText('Datum Beginn'),
+                     { target: { value: '2026-08-20' } });
+    expect(wert('Datum Ende')).toBe('2026-08-22');
+  });
+
+  it('laesst eine bewusste Ende-Aenderung bestehen — keine Rueckstellung', async () => {
+    await oeffneFormular();
+    fireEvent.change(screen.getByLabelText('Uhrzeit Beginn'),
+                     { target: { value: '14:30' } });
+    // Bewusst laengeres Ende: nur DIESES Feld aendert sich.
+    fireEvent.change(screen.getByLabelText('Uhrzeit Ende'),
+                     { target: { value: '18:00' } });
+    expect(wert('Uhrzeit Ende')).toBe('18:00');
+    expect(wert('Uhrzeit Beginn')).toBe('14:30');
+    expect(wert('Datum Ende')).toBe('2026-08-12');
+  });
+
+  it('sendet nach einer Startverschiebung weiterhin dieselbe Zone', async () => {
+    const vor = vi.spyOn(mApi, 'bereiteVor').mockResolvedValue(VORGANG);
+    await oeffneFormular();
+    fireEvent.change(screen.getByLabelText('Datum Beginn'),
+                     { target: { value: '2026-08-15' } });
+    await zurVorschau();
+    // Der Zeitzonenanker bleibt die Plattformzone — die Verschiebung
+    // aendert Instants, nie die Zone (time_zone-Regression).
+    expect(vor).toHaveBeenCalledWith('cal-1', expect.objectContaining({
+      starts_at_utc: '2026-08-15T07:00:00Z',
+      ends_at_utc: '2026-08-15T08:00:00Z',
+      time_zone: 'Europe/Berlin',
+    }));
+  });
+});
+
 describe('Vorbereitung', () => {
   it('sendet die lokale Zeit als UTC-Instant in Sekundenpraezision', async () => {
     const vor = vi.spyOn(mApi, 'bereiteVor').mockResolvedValue(VORGANG);

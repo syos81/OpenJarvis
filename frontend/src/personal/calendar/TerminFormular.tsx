@@ -153,6 +153,36 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
   const [vorgang, setVorgang] = useState<VorbereiteterVorgang | null>(null);
   const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
 
+  /**
+   * Dauererhalt: ein neuer Beginn schiebt das Ende automatisch um die
+   * BISHERIGE Dauer mit — Enddatum UND Endzeit, über Mitternacht hinweg.
+   * Direkte Ende-Änderungen (setDatumEnde/setZeitEnde an den Feldern)
+   * bleiben bewusst unangetastet: keine Rückstellung auf die alte Dauer.
+   */
+  const setzeBeginn = (neuesDatum: string, neueZeit: string) => {
+    if (ganztaegig) {
+      // Ganztägig zählt in Kalendertagen: die Tagesdifferenz bleibt erhalten.
+      const diffTage = Math.round(
+        (Date.parse(`${datumEnde}T00:00:00Z`)
+          - Date.parse(`${datumStart}T00:00:00Z`)) / 86_400_000);
+      setDatumStart(neuesDatum);
+      setZeitStart(neueZeit);
+      if (Number.isFinite(diffTage)) setDatumEnde(plusTage(neuesDatum, diffTage));
+      return;
+    }
+    // Dauer aus den AKTUELLEN vier Feldern — als Instants in der Prop-Zone,
+    // damit DST-Tage nicht eine erfundene Stunde einschleppen.
+    const dauerMs = Date.parse(lokaleUhrzeitUtc(datumEnde, zeitEnde, zone))
+      - Date.parse(lokaleUhrzeitUtc(datumStart, zeitStart, zone));
+    setDatumStart(neuesDatum);
+    setZeitStart(neueZeit);
+    const beginn = Date.parse(lokaleUhrzeitUtc(neuesDatum, neueZeit, zone));
+    if (!Number.isFinite(dauerMs) || !Number.isFinite(beginn)) return;
+    const ende = new Date(beginn + dauerMs).toISOString();
+    setDatumEnde(lokalerTag(ende, zone));
+    setZeitEnde(uhrzeit(ende, zone));
+  };
+
   const zurVorschau = async () => {
     setFehler(null);
     if (kalenderId === '') {
@@ -319,14 +349,14 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
               <label className="text-[11px] flex flex-col gap-1 flex-1">
                 Datum Beginn
                 <input type="date" value={datumStart} aria-label="Datum Beginn"
-                  onChange={(e) => setDatumStart(e.target.value)}
+                  onChange={(e) => setzeBeginn(e.target.value, zeitStart)}
                   className="text-xs px-2 py-1 rounded" style={FELD_STIL} />
               </label>
               {!ganztaegig && (
                 <label className="text-[11px] flex flex-col gap-1">
                   Uhrzeit Beginn
                   <input type="time" value={zeitStart} aria-label="Uhrzeit Beginn"
-                    onChange={(e) => setZeitStart(e.target.value)}
+                    onChange={(e) => setzeBeginn(datumStart, e.target.value)}
                     className="text-xs px-2 py-1 rounded" style={FELD_STIL} />
                 </label>
               )}

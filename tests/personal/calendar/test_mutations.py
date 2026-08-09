@@ -21,6 +21,7 @@ from personaljarvis.calendar.mutations.contracts import (
     ExecutionReportV1,
     InvalidMutationFields,
     fingerprint_of,
+    validate_fields,
 )
 from personaljarvis.calendar.mutations.service import (
     AlreadySettled,
@@ -139,6 +140,15 @@ class TestPrepare:
         with pytest.raises(InvalidMutationFields):
             dienst.prepare_create(KALENDER, {
                 **FELDER, "ends_at_utc": "2026-08-12T09:00:00Z"})
+
+    def test_validate_fields_ende_gleich_beginn_faellt(self):
+        # Direkt an der autoritativen Regel (ends > starts), ohne UI.
+        with pytest.raises(InvalidMutationFields):
+            validate_fields({**FELDER, "ends_at_utc": FELDER["starts_at_utc"]})
+
+    def test_validate_fields_ende_vor_beginn_faellt(self):
+        with pytest.raises(InvalidMutationFields):
+            validate_fields({**FELDER, "ends_at_utc": "2026-08-12T08:00:00Z"})
 
     def test_nicht_schreibbarer_kalender_faellt(self, dienst, factory):
         _kalender_anlegen(factory, "cal-ro", writable=False)
