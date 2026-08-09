@@ -14,8 +14,8 @@
 process.env.TZ = 'Europe/Berlin';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { KalenderZeile, ModulStatus } from './api';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { KalenderZeile, ModulStatus, Termin } from './api';
 import * as api from './api';
 import * as mApi from './mutationsApi';
 import { CalendarWorkspace } from './CalendarWorkspace';
@@ -48,16 +48,33 @@ const STATUS: ModulStatus = {
   detail: '', default_window: { past_days: 90, future_days: 365 },
 };
 
-function mockApi() {
+function mockApi(termine: Termin[] = []) {
   vi.spyOn(api, 'ladeStatus').mockResolvedValue(STATUS);
   vi.spyOn(api, 'pruefeBridge').mockResolvedValue({
     bridge_available: true, authorization_status: 'full_access', detail: '' });
   vi.spyOn(api, 'ladeKalender').mockResolvedValue(
     { calendars: KALENDER, count: KALENDER.length });
   vi.spyOn(api, 'ladeTermine').mockImplementation(async (von, bis) => ({
-    events: [], count: 0, window: { start_utc: von, end_utc: bis },
+    events: termine, count: termine.length,
+    window: { start_utc: von, end_utc: bis },
     truncated: false,
   }));
+}
+
+/** Ein bestehender Termin des Bestands — 10:00–11:00 Berlin am 12.08. */
+function bestandsTermin(over: Partial<Termin> = {}): Termin {
+  return {
+    id: 'e1', calendar_id: 'k1', title: 'Zahnarzt', notes: null,
+    location: null, url: null,
+    starts_at_utc: '2026-08-12T08:00:00Z', ends_at_utc: '2026-08-12T09:00:00Z',
+    time_zone: 'Europe/Berlin', is_all_day: false, status: 'confirmed',
+    availability: 'busy', recurrence_rule: null, is_detached: false,
+    occurrence_start_utc: null, has_alarms: false, alarms: [],
+    has_attendees: false, attendees: [],
+    calendar_name: 'Privat', calendar_color: '#3366cc',
+    calendar_is_writable: true,
+    provider_calendar_id: 'cal-1', provider_event_id: 'EK-EVENT-1', ...over,
+  };
 }
 
 const VORGANG: mApi.VorbereiteterVorgang = {
@@ -407,5 +424,224 @@ describe('Anlegen — der Claim-Settle-Kanal', () => {
     // Kein erfundener Erfolg im Workspace, kein Sync.
     expect(screen.queryByTestId('kalender-meldung')).toBeNull();
     expect(sync).not.toHaveBeenCalled();
+  });
+});
+
+// ── B3 P2: Bearbeiten mit Delta-Semantik ────────────────────────────────────
+
+const VORGANG_UPDATE: mApi.VorbereiteterVorgang = {
+  mutation_id: 'm2', approval_id: 'a2', state: 'prepared',
+  payload_digest: 'p'.repeat(64),
+  preview: {
+    command: 'update', calendar_display_name: 'Privat', title: 'Zahnarzt',
+    starts_at_utc: '2026-08-12T08:00:00Z', ends_at_utc: '2026-08-12T09:00:00Z',
+    is_all_day: false, location: null, time_zone: 'Europe/Berlin',
+    changes: { title: { from: 'Zahnarzt', to: 'Kieferorthopäde' } },
+  },
+  preview_digest: 'q'.repeat(64),
+};
+
+/** Öffnet das Detail des Bestandstermins und dann die Update-Maske. */
+async function oeffneBearbeiten(termin: Termin = bestandsTermin()) {
+  mockApi([termin]);
+  render(<CalendarWorkspace />);
+  await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
+  fireEvent.click(screen.getAllByTestId('kalender-termin')[0]!);
+  fireEvent.click(screen.getByTestId('termin-bearbeiten'));
+  expect(screen.getByRole('dialog', { name: 'Termin bearbeiten' })).toBeTruthy();
+}
+
+describe('Bearbeiten — Sichtbarkeit und Verweigerung', () => {
+  async function zeigeDetail(termin: Termin) {
+    mockApi([termin]);
+    render(<CalendarWorkspace />);
+    await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
+    fireEvent.click(screen.getAllByTestId('kalender-termin')[0]!);
+  }
+
+  it('zeigt „Bearbeiten" fuer einen schreibbaren einfachen Termin', async () => {
+    await zeigeDetail(bestandsTermin());
+    expect(screen.getByTestId('termin-bearbeiten')).toBeTruthy();
+    expect(screen.queryByTestId('termin-nicht-bearbeitbar')).toBeNull();
+  });
+
+  it.each([
+    ['Teilnehmern', { has_attendees: true }],
+    ['Serie', { recurrence_rule: { frequency: 'weekly' } }],
+    ['Weckern', { has_alarms: true }],
+    ['abgeloester Instanz', { is_detached: true }],
+  ] as const)('verweigert sichtbar bei %s', async (_name, over) => {
+    await zeigeDetail(bestandsTermin(over as Partial<Termin>));
+    expect(screen.queryByTestId('termin-bearbeiten')).toBeNull();
+    expect(screen.getByTestId('termin-nicht-bearbeitbar').textContent)
+      .toContain('Eigenschaften, die Jarvis nicht verlustfrei bearbeiten kann');
+  });
+
+  it('bietet bei nicht schreibbarem Kalender keinen Bearbeiten-Knopf', async () => {
+    await zeigeDetail(bestandsTermin({ calendar_is_writable: false }));
+    expect(screen.queryByTestId('termin-bearbeiten')).toBeNull();
+    expect(screen.queryByTestId('termin-nicht-bearbeitbar')).toBeNull();
+  });
+});
+
+describe('Bearbeiten — Entwurf und Delta', () => {
+  it('belegt die Maske aus dem Termin vor', async () => {
+    await oeffneBearbeiten();
+    expect((screen.getByLabelText('Titel') as HTMLInputElement).value)
+      .toBe('Zahnarzt');
+    // 08:00Z/09:00Z sind 10:00/11:00 Berlin.
+    expect((screen.getByLabelText('Datum Beginn') as HTMLInputElement).value)
+      .toBe('2026-08-12');
+    expect((screen.getByLabelText('Uhrzeit Beginn') as HTMLInputElement).value)
+      .toBe('10:00');
+    expect((screen.getByLabelText('Uhrzeit Ende') as HTMLInputElement).value)
+      .toBe('11:00');
+    // Das Ziel steht fest: kein Kalenderwechsel im Update — die Maske
+    // zeigt den Kalender nur als Text, nie als Auswahl.
+    const dialog = screen.getByRole('dialog', { name: 'Termin bearbeiten' });
+    expect(within(dialog).queryByLabelText('Kalender')).toBeNull();
+    expect(dialog.textContent).toContain('Kalender: Privat');
+  });
+
+  it('sendet NUR die geaenderten Felder als changes', async () => {
+    const vor = vi.spyOn(mApi, 'bereiteUpdateVor')
+      .mockResolvedValue(VORGANG_UPDATE);
+    await oeffneBearbeiten();
+    fireEvent.change(screen.getByLabelText('Titel'),
+                     { target: { value: 'Kieferorthopäde' } });
+    fireEvent.click(screen.getByText('Weiter zur Vorschau'));
+    await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
+    // GENAU das Delta — kein Feld „zur Sicherheit" mitgesendet.
+    expect(vor).toHaveBeenCalledWith('cal-1', 'EK-EVENT-1',
+                                     { title: 'Kieferorthopäde' });
+  });
+
+  it('meldet ein leeres Delta ohne jeden Serverkontakt', async () => {
+    const vor = vi.spyOn(mApi, 'bereiteUpdateVor');
+    await oeffneBearbeiten();
+    fireEvent.click(screen.getByText('Weiter zur Vorschau'));
+    await waitFor(() => expect(screen.getByTestId('termin-fehler')).toBeTruthy());
+    expect(screen.getByTestId('termin-fehler').textContent)
+      .toContain('Keine Änderung');
+    expect(vor).not.toHaveBeenCalled();
+  });
+
+  it('nutzt bei Startverschiebung den Dauererhalt — Zone bleibt unangetastet', async () => {
+    const vor = vi.spyOn(mApi, 'bereiteUpdateVor')
+      .mockResolvedValue(VORGANG_UPDATE);
+    await oeffneBearbeiten();
+    // 10:00 → 14:30 lokal: der Dauererhalt schiebt das Ende auf 15:30.
+    fireEvent.change(screen.getByLabelText('Uhrzeit Beginn'),
+                     { target: { value: '14:30' } });
+    expect((screen.getByLabelText('Uhrzeit Ende') as HTMLInputElement).value)
+      .toBe('15:30');
+    fireEvent.click(screen.getByText('Weiter zur Vorschau'));
+    await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
+    // NUR die Instants reisen; die Zone des Termins bleibt unberuehrt
+    // (Floating bliebe Floating, ein Anker bleibt ein Anker).
+    expect(vor).toHaveBeenCalledWith('cal-1', 'EK-EVENT-1', {
+      starts_at_utc: '2026-08-12T12:30:00Z',
+      ends_at_utc: '2026-08-12T13:30:00Z',
+    });
+  });
+});
+
+describe('Bearbeiten — Vorschau und Freigabefluss', () => {
+  it('zeigt das SERVER-Delta alt → neu mit genau einem Freigabeknopf', async () => {
+    vi.spyOn(mApi, 'bereiteUpdateVor').mockResolvedValue(VORGANG_UPDATE);
+    await oeffneBearbeiten();
+    fireEvent.change(screen.getByLabelText('Titel'),
+                     { target: { value: 'Kieferorthopäde' } });
+    fireEvent.click(screen.getByText('Weiter zur Vorschau'));
+    await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
+    const delta = screen.getByTestId('termin-aenderungen');
+    expect(delta.textContent).toContain('Titel');
+    expect(delta.textContent).toContain('Zahnarzt');
+    expect(delta.textContent).toContain('Kieferorthopäde');
+    expect(delta.textContent).toContain('→');
+    expect(screen.getAllByRole('button', { name: 'Änderung freigeben' }).length)
+      .toBe(1);
+    expect(screen.queryByRole('button', { name: 'Anlegen' })).toBeNull();
+  });
+
+  it('laeuft exakt approve → claim → execute → settle und meldet Erfolg', async () => {
+    const reihenfolge: string[] = [];
+    vi.spyOn(mApi, 'bereiteUpdateVor').mockResolvedValue(VORGANG_UPDATE);
+    const sync = vi.spyOn(api, 'synchronisiere');
+    vi.spyOn(mApi, 'gibFrei').mockImplementation(async () => {
+      reihenfolge.push('approve');
+      return { mutation_id: 'm2', state: 'approved' };
+    });
+    const auftrag: mApi.KalenderExecutionOrder = {
+      ...AUFTRAG, mutation_id: 'm2', operation_type: 'update',
+      provider_target: { provider_calendar_id: 'cal-1',
+                         event_identifier: 'EK-EVENT-1' },
+      expected_fingerprint: 'f'.repeat(64),
+    };
+    vi.spyOn(mApi, 'beanspruche').mockImplementation(async () => {
+      reihenfolge.push('claim');
+      return auftrag;
+    });
+    const ausfuehren = vi.spyOn(mApi, 'fuehreAus').mockImplementation(async () => {
+      reihenfolge.push('execute');
+      return bericht({ mutation_id: 'm2', operation_type: 'update',
+                       fingerprint_checked: true, fingerprint_matched: true,
+                       provider_identifier: 'EK-EVENT-1' });
+    });
+    vi.spyOn(mApi, 'schliesseAb').mockImplementation(async () => {
+      reihenfolge.push('settle');
+      return { mutation_id: 'm2', state: 'succeeded', outcome: 'succeeded',
+               idempotent: false, error_class: null };
+    });
+
+    await oeffneBearbeiten();
+    fireEvent.change(screen.getByLabelText('Titel'),
+                     { target: { value: 'Kieferorthopäde' } });
+    fireEvent.click(screen.getByText('Weiter zur Vorschau'));
+    await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Änderung freigeben' }));
+    await waitFor(() => expect(screen.getByTestId('termin-ergebnis')).toBeTruthy());
+
+    expect(reihenfolge).toEqual(['approve', 'claim', 'execute', 'settle']);
+    expect(ausfuehren).toHaveBeenCalledWith(JSON.stringify(auftrag));
+    expect(screen.getByTestId('termin-ergebnis').textContent)
+      .toContain('Termin aktualisiert.');
+    await waitFor(() => expect(
+      screen.getByTestId('kalender-meldung').textContent)
+      .toContain('Letzte Aktion: Termin aktualisiert.'));
+    // Im gesamten Fluss laeuft KEIN Provider-Sync.
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  it('meldet einen revision_conflict ehrlich und ohne Erfolg', async () => {
+    vi.spyOn(mApi, 'bereiteUpdateVor').mockResolvedValue(VORGANG_UPDATE);
+    vi.spyOn(mApi, 'gibFrei')
+      .mockResolvedValue({ mutation_id: 'm2', state: 'approved' });
+    vi.spyOn(mApi, 'beanspruche').mockResolvedValue(
+      { ...AUFTRAG, mutation_id: 'm2', operation_type: 'update' });
+    vi.spyOn(mApi, 'fuehreAus').mockResolvedValue(bericht({
+      mutation_id: 'm2', operation_type: 'update', outcome: 'not_sent',
+      send_attempted: false, save_request_count: 0,
+      readback_status: 'not_checked', provider_identifier: null,
+      fingerprint_checked: true, fingerprint_matched: false,
+      error_class: 'revision_conflict', provider_completed_at: null,
+    }));
+    vi.spyOn(mApi, 'schliesseAb').mockResolvedValue({
+      mutation_id: 'm2', state: 'failed_before_send', outcome: 'failed',
+      idempotent: false, error_class: 'revision_conflict',
+    });
+
+    await oeffneBearbeiten();
+    fireEvent.change(screen.getByLabelText('Titel'),
+                     { target: { value: 'Kieferorthopäde' } });
+    fireEvent.click(screen.getByText('Weiter zur Vorschau'));
+    await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Änderung freigeben' }));
+    await waitFor(() => expect(screen.getByTestId('termin-ergebnis')).toBeTruthy());
+
+    const text = screen.getByTestId('termin-ergebnis').textContent ?? '';
+    expect(text).toContain('zwischenzeitlich anderweitig geändert');
+    expect(text).toContain('nichts gesendet');
+    expect(text).not.toContain('Termin aktualisiert.');
   });
 });

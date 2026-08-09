@@ -42,6 +42,7 @@ from personaljarvis.calendar.mutations.service import (
     CalendarMutationError,
     CalendarMutationService,
     CalendarNotFound,
+    EventNotFound,
     MutationNotFound,
     PositionNotEnabled,
 )
@@ -74,14 +75,20 @@ class SyncRequest(BaseModel):
 
 
 class PrepareMutationIn(BaseModel):
-    """Die Vorbereitung einer Mutation. `update`/`delete` sind im Schema
-    zulässig, damit die Verweigerung `position_not_enabled` **typisiert**
-    zurückkommt statt als generischer Validierungsfehler."""
+    """Die Vorbereitung einer Mutation. `delete` ist im Schema zulässig,
+    damit die Verweigerung `position_not_enabled` **typisiert** zurückkommt
+    statt als generischer Validierungsfehler.
+
+    `create` trägt `fields` (alle sieben), `update` trägt `event_identifier`
+    plus `changes` (NUR die zu ändernden Felder — Delta, kein Full Replace).
+    """
 
     model_config = ConfigDict(extra="forbid")
     command: Literal["create", "update", "delete"]
     provider_calendar_id: str = Field(min_length=1, max_length=512)
-    fields: dict[str, Any]
+    fields: dict[str, Any] | None = None
+    event_identifier: str | None = Field(default=None, max_length=512)
+    changes: dict[str, Any] | None = None
 
 
 class DecisionIn(BaseModel):
@@ -104,7 +111,7 @@ class SettleMutationIn(BaseModel):
 def _mutation_http_error(exc: CalendarMutationError) -> HTTPException:
     """Ein Mutationsfehler als HTTP-Antwort — Typ statt Text, nie ein
     Termininhalt in der Meldung."""
-    if isinstance(exc, (MutationNotFound, CalendarNotFound)):
+    if isinstance(exc, (MutationNotFound, CalendarNotFound, EventNotFound)):
         status = 404
     elif isinstance(exc, PositionNotEnabled):
         status = 403
@@ -280,16 +287,19 @@ def create_calendar_router(module: CalendarModule) -> APIRouter:
     def prepare_mutation(body: PrepareMutationIn) -> dict[str, Any]:
         """Bereitet **eine** Mutation vor. Es wird nichts gesendet.
 
-        P1 kennt ausschliesslich `create`; `update`/`delete` verweigern
+        P2 kennt `create` und `update` (Delta); `delete` verweigert
         typisiert mit `position_not_enabled` — keine stille Teilfunktion.
         """
         try:
             if body.command == "create":
                 vorgang = mutations.prepare_create(
-                    body.provider_calendar_id, body.fields)
+                    body.provider_calendar_id, body.fields or {})
             elif body.command == "update":
-                # P1: verweigert typisiert mit `position_not_enabled`.
-                vorgang = mutations.prepare_update("", body.fields)
+                # Delta-Update: fehlende Kennung oder fehlendes/leeres Delta
+                # fallen im Dienst typisiert als `invalid_fields`.
+                vorgang = mutations.prepare_update(
+                    body.provider_calendar_id, body.event_identifier or "",
+                    body.changes if body.changes is not None else {})
             else:
                 vorgang = mutations.prepare_delete("")
         except InvalidMutationFields as exc:

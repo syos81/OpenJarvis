@@ -573,7 +573,19 @@ export function TagesListe({ tag, termine, zone, aufAuswahl }: {
   );
 }
 
-export function TerminDetail({ termin, zone }: { termin: Termin | null; zone: string }) {
+/** Ob Jarvis diesen Termin verlustfrei bearbeiten kann: er trägt dann
+ *  ausschliesslich die sieben B3-Felder — Teilnehmer, Serien, Wecker und
+ *  abgelöste Instanzen liegen ausserhalb des Delta-Vertrags. */
+export function istVerlustfreiBearbeitbar(t: Termin): boolean {
+  return !t.has_attendees && !t.has_alarms && t.recurrence_rule === null
+    && !t.is_detached;
+}
+
+export function TerminDetail({ termin, zone, aufBearbeiten }: {
+  termin: Termin | null; zone: string;
+  /** B3 P2: öffnet die Update-Maske. Ohne Callback gibt es keinen Knopf. */
+  aufBearbeiten?: (t: Termin) => void;
+}) {
   if (termin === null) {
     return (
       <aside className="h-full p-4 text-xs" style={{
@@ -689,14 +701,31 @@ export function TerminDetail({ termin, zone }: { termin: Termin | null; zone: st
         </div>
       </dl>
 
-      {/* Der ehrliche Abschluss: was diese Ansicht kann und was nicht. */}
-      <p className="mt-4 pt-2 text-[10px] leading-relaxed"
+      {/* Der ehrliche Abschluss: was diese Ansicht kann und was nicht.
+          B3 P2: Bearbeiten nur, wenn der Kalender beschreibbar ist UND der
+          Termin ausschliesslich die B3-Felder trägt — sonst wird sichtbar
+          verweigert statt still verstümmelt. */}
+      <div className="mt-4 pt-2 text-[10px] leading-relaxed"
         style={{ color: 'var(--pjk-ink-dim)',
                  borderTop: '1px solid var(--pjk-line-soft)' }}>
-        {termin.calendar_is_writable
-          ? 'Bearbeiten ist in dieser Fassung noch nicht enthalten.'
-          : 'Dieser Kalender ist beim Anbieter nicht beschreibbar — auch später wird er hier nicht bearbeitbar.'}
-      </p>
+        {!termin.calendar_is_writable ? (
+          <p>Dieser Kalender ist beim Anbieter nicht beschreibbar — auch
+            später wird er hier nicht bearbeitbar.</p>
+        ) : !istVerlustfreiBearbeitbar(termin) ? (
+          <p data-testid="termin-nicht-bearbeitbar">
+            Dieser Termin trägt Eigenschaften, die Jarvis nicht verlustfrei
+            bearbeiten kann.
+          </p>
+        ) : aufBearbeiten !== undefined ? (
+          <button type="button" data-testid="termin-bearbeiten"
+            onClick={() => aufBearbeiten(termin)}
+            className="text-xs px-2 py-1 rounded"
+            style={{ border: '1px solid var(--pjk-line)',
+                     color: 'var(--pjk-ink)' }}>
+            Bearbeiten
+          </button>
+        ) : null}
+      </div>
     </aside>
   );
 }

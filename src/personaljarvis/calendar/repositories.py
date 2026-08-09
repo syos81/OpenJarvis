@@ -353,8 +353,12 @@ class EventRepository:
             "e.starts_at_utc, e.ends_at_utc, e.time_zone, e.is_all_day, e.status, "
             "e.availability, e.recurrence_rule_raw, e.is_detached, "
             "e.occurrence_start_utc, e.has_alarms, e.alarms_raw, e.has_attendees, "
-            "c.display_name, c.color, c.is_writable "
+            "c.display_name, c.color, c.is_writable, "
+            # Providerbindung fuer den Schreibpfad (B3 P2): ein Update
+            # adressiert seinen Termin ueber genau diese beiden Kennungen.
+            "c.provider_calendar_id, x.provider_event_id "
             "FROM events e JOIN calendars c ON c.id = e.calendar_id "
+            "JOIN event_external_ids x ON x.event_id = e.id "
             "WHERE c.workspace_id = ? AND e.is_tombstone = 0 AND c.is_tombstone = 0 "
             "AND e.starts_at_utc < ? AND e.ends_at_utc > ?" + clause +
             " ORDER BY e.starts_at_utc, e.id LIMIT ?",
@@ -371,6 +375,7 @@ class EventRepository:
                 "alarms": _loads(r[16]) or [], "has_attendees": bool(r[17]),
                 "calendar_name": r[18], "calendar_color": r[19],
                 "calendar_is_writable": bool(r[20]),
+                "provider_calendar_id": r[21], "provider_event_id": r[22],
                 "attendees": self._attendees(r[0]),
             }
             for r in rows

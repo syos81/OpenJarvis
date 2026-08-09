@@ -165,6 +165,175 @@ int32_t jc_calendar_write_save(const char *fields_json,
     return JCCalendarSaveSaved;
 }
 
+int32_t jc_calendar_write_update(const char *changes_json,
+                                 const char *event_identifier,
+                                 char *out_identifier, int32_t identifier_capacity,
+                                 char *out_error, int32_t error_capacity) {
+    if (out_identifier != NULL && identifier_capacity > 0) { out_identifier[0] = '\0'; }
+    if (out_error != NULL && error_capacity > 0) { out_error[0] = '\0'; }
+
+    NSString *json = JCCalString(changes_json);
+    NSString *eventIdent = JCCalString(event_identifier);
+    if (json.length == 0 || eventIdent.length == 0) {
+        JCCalCopy(out_error, error_capacity, @"empty_input");
+        return JCCalendarSaveFailedBeforeSave;
+    }
+    NSError *parseError = nil;
+    id parsed = [NSJSONSerialization
+        JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding]
+                   options:0
+                     error:&parseError];
+    if (![parsed isKindOfClass:[NSDictionary class]]) {
+        JCCalCopy(out_error, error_capacity, @"changes_not_an_object");
+        return JCCalendarSaveFailedBeforeSave;
+    }
+    NSDictionary *aenderungen = (NSDictionary *)parsed;
+    if (aenderungen.count == 0) {
+        // Doppelte Sicherung: Rust weist ein leeres Delta bereits ab.
+        JCCalCopy(out_error, error_capacity, @"empty_changes");
+        return JCCalendarSaveFailedBeforeSave;
+    }
+
+    // Alle Vorprüfungen VOR dem Laden mutierbarer Objekte: Daten parsen …
+    NSISO8601DateFormatter *formatter = JCCalFormatter();
+    NSDate *start = nil;
+    NSDate *ende = nil;
+    if (aenderungen[@"starts_at_utc"] != nil) {
+        NSString *text = JCCalOptionalString(aenderungen, @"starts_at_utc");
+        start = text != nil ? [formatter dateFromString:text] : nil;
+        if (start == nil) {
+            JCCalCopy(out_error, error_capacity, @"unparseable_dates");
+            return JCCalendarSaveFailedBeforeSave;
+        }
+    }
+    if (aenderungen[@"ends_at_utc"] != nil) {
+        NSString *text = JCCalOptionalString(aenderungen, @"ends_at_utc");
+        ende = text != nil ? [formatter dateFromString:text] : nil;
+        if (ende == nil) {
+            JCCalCopy(out_error, error_capacity, @"unparseable_dates");
+            return JCCalendarSaveFailedBeforeSave;
+        }
+    }
+    // … und die Zone auflösen (ein unbekannter Name fällt VOR dem Save;
+    // `null` heisst bewusst schwebend, timeZone nil).
+    NSTimeZone *zone = nil;
+    BOOL zoneSchwebend = NO;
+    if (aenderungen[@"time_zone"] != nil) {
+        NSString *zonenName = JCCalOptionalString(aenderungen, @"time_zone");
+        if (zonenName != nil) {
+            zone = [NSTimeZone timeZoneWithName:zonenName];
+            if (zone == nil) {
+                JCCalCopy(out_error, error_capacity, @"unknown_time_zone");
+                return JCCalendarSaveFailedBeforeSave;
+            }
+        } else {
+            zoneSchwebend = YES;
+        }
+    }
+
+    // Das BESTEHENDE Event laden — kein Rekonstruieren aus dem Modell.
+    EKEventStore *store = [[EKEventStore alloc] init];
+    EKEvent *event = [store eventWithIdentifier:eventIdent];
+    if (event == nil) {
+        JCCalCopy(out_error, error_capacity, @"event_vanished_before_save");
+        return JCCalendarSaveFailedBeforeSave;
+    }
+
+    // AUSSCHLIESSLICH die enthaltenen Schlüssel setzen. Das NSDictionary
+    // ist der Marker: `aenderungen[key] != nil` heisst „dieses Feld ändern";
+    // `NSNull` darin heisst „auf nil setzen".
+    if (aenderungen[@"title"] != nil) {
+        event.title = JCCalOptionalString(aenderungen, @"title");
+    }
+    if (aenderungen[@"location"] != nil) {
+        event.location = JCCalOptionalString(aenderungen, @"location");
+    }
+    if (aenderungen[@"notes"] != nil) {
+        event.notes = JCCalOptionalString(aenderungen, @"notes");
+    }
+    if (start != nil) {
+        event.startDate = start;
+    }
+    if (ende != nil) {
+        event.endDate = ende;
+    }
+    if (aenderungen[@"is_all_day"] != nil
+        && [aenderungen[@"is_all_day"] isKindOfClass:[NSNumber class]]) {
+        event.allDay = [aenderungen[@"is_all_day"] boolValue];
+    }
+    if (zone != nil) {
+        event.timeZone = zone;
+    } else if (zoneSchwebend) {
+        event.timeZone = nil;
+    }
+
+    NSError *saveError = nil;
+    BOOL gespeichert = NO;
+    @try {
+        // Genau EIN Save, span thisEvent, sofortiger Commit — wie der Create.
+        gespeichert = [store saveEvent:event span:EKSpanThisEvent commit:YES
+                                 error:&saveError];
+    } @catch (NSException *ausnahme) {
+        JCCalCopy(out_error, error_capacity,
+                  [NSString stringWithFormat:@"exception:%@", ausnahme.name]);
+        return JCCalendarSaveFailedInSave;
+    }
+    if (!gespeichert) {
+        NSString *beschreibung = saveError != nil
+            ? [NSString stringWithFormat:@"%@:%ld", saveError.domain,
+                                         (long)saveError.code]
+            : @"save_returned_no";
+        JCCalCopy(out_error, error_capacity, beschreibung);
+        return JCCalendarSaveFailedInSave;
+    }
+    NSString *kennung = event.eventIdentifier;
+    if (kennung.length == 0) {
+        JCCalCopy(out_error, error_capacity, @"identifier_missing_after_save");
+        return JCCalendarSaveFailedInSave;
+    }
+    JCCalCopy(out_identifier, identifier_capacity, kennung);
+    return JCCalendarSaveSaved;
+}
+
+int32_t jc_calendar_write_read_fingerprint_fields(const char *event_identifier,
+                                                  char *out_json,
+                                                  int32_t json_capacity) {
+    if (out_json != NULL && json_capacity > 0) { out_json[0] = '\0'; }
+    NSString *ident = JCCalString(event_identifier);
+    if (ident.length == 0) { return 0; }
+
+    // Frischer Store — der Vorher-Beleg kommt aus der Datenbank, nicht aus
+    // irgendeinem Objektcache.
+    EKEventStore *store = [[EKEventStore alloc] init];
+    EKEvent *event = [store eventWithIdentifier:ident];
+    if (event == nil) { return 0; }
+
+    NSISO8601DateFormatter *formatter = JCCalFormatter();
+    // Exakt die Fingerprint-Feldmenge: sieben Vertragsfelder plus Identität.
+    NSDictionary *dict = @{
+        @"title": event.title ?: [NSNull null],
+        @"starts_at_utc": event.startDate != nil
+            ? [formatter stringFromDate:event.startDate] : [NSNull null],
+        @"ends_at_utc": event.endDate != nil
+            ? [formatter stringFromDate:event.endDate] : [NSNull null],
+        @"is_all_day": @(event.allDay),
+        @"location": event.location ?: [NSNull null],
+        @"notes": event.notes ?: [NSNull null],
+        @"time_zone": event.timeZone.name ?: [NSNull null],
+        @"provider_calendar_id": event.calendar.calendarIdentifier ?: [NSNull null],
+        @"event_identifier": event.eventIdentifier ?: [NSNull null],
+    };
+    NSError *jsonError = nil;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:dict options:0
+                                                     error:&jsonError];
+    if (data == nil) { return 0; }
+    NSString *json = [[NSString alloc] initWithData:data
+                                           encoding:NSUTF8StringEncoding];
+    if (json == nil) { return 0; }
+    JCCalCopy(out_json, json_capacity, json);
+    return 1;
+}
+
 int32_t jc_calendar_write_read_event(const char *event_identifier,
                                      char *out_json, int32_t json_capacity) {
     if (out_json != NULL && json_capacity > 0) { out_json[0] = '\0'; }

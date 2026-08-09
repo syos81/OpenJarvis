@@ -38,13 +38,17 @@ __all__ = [
     "READBACK_STATUSES",
     "ERROR_CLASSES",
     "FIELD_NAMES",
+    "PREIMAGE_FIELD_NAMES",
     "MAX_ORDER_BYTES",
     "MAX_REPORT_BYTES",
     "CalendarExecutionContractError",
     "InvalidMutationFields",
     "validate_fields",
+    "validate_changes",
     "fingerprint_of",
+    "preimage_fingerprint_of",
     "canonical_create_payload",
+    "canonical_update_payload",
     "ExecutionOrderV1",
     "ExecutionReportV1",
     "parse_execution_report",
@@ -70,6 +74,20 @@ READBACK_STATUSES: tuple[str, ...] = (
 FIELD_NAMES: tuple[str, ...] = (
     "title", "starts_at_utc", "ends_at_utc", "is_all_day", "location", "notes",
     "time_zone",
+)
+
+#: Der kanonische Feldsatz des Preimage-Fingerprints (B3 P2, verbindliche
+#: Eigentümerentscheidung): der VOLLSTÄNDIGE stabile Read-Zustand, den beide
+#: Seiten sehen können. Das sind exakt die sieben Vertragsfelder plus die
+#: Event- und Kalenderidentität — die Felder, die der produktive Read-Vertrag
+#: (events + event_external_ids) liefert UND die der native Leser über
+#: EventKit frisch nachlesen kann. Bewusst NICHT enthalten: flüchtige Werte
+#: wie `last_seen_at`, Row-IDs oder Providerzeitstempel, die bei einem Resync
+#: wechseln, ohne dass sich der Termin geändert hätte. Rust bindet über
+#: `fingerprint_of` in calendar_write.rs DIESELBE Feldmenge; ein Paritätstest
+#: pinnt den Digest beidseitig.
+PREIMAGE_FIELD_NAMES: tuple[str, ...] = (
+    *FIELD_NAMES, "provider_calendar_id", "event_identifier",
 )
 
 #: Größenlimits, wortgleich mit dem Kontakte-Kanal. Darüber ist fail-closed.
@@ -176,6 +194,49 @@ def validate_fields(fields: object) -> dict[str, Any]:
     return ergebnis
 
 
+def validate_changes(changes: object) -> dict[str, Any]:
+    """Prüft ein Update-Delta — NUR die zu ändernden Felder, nie alle sieben.
+
+    Die Semantik ist die Eigentümerentscheidung zu B3 P2: Nicht-ändern heisst
+    **weglassen**; `null` ist bei `title`/`location`/`notes`/`time_zone` ein
+    fachlicher Wert (löschen bzw. schwebend), nie ein Platzhalter. Ein leeres
+    Delta ist INVALID — ein Update ohne Änderung existiert nicht. Unbekannte
+    Felder fallen fail-closed. `ends > starts` wird hier bewusst NICHT
+    geprüft: das entscheidet erst der zusammengeführte Zustand aus Preimage
+    und Delta (`prepare_update`).
+    """
+    if not isinstance(changes, dict):
+        raise InvalidMutationFields("changes ist kein Objekt")
+    if not changes:
+        raise InvalidMutationFields(
+            "changes ist leer — ein Update ohne Änderung existiert nicht")
+    unbekannt = sorted(set(changes) - set(FIELD_NAMES))
+    if unbekannt:
+        raise InvalidMutationFields(
+            f"Unbekannte Felder: {', '.join(unbekannt)}")
+
+    ergebnis: dict[str, Any] = {}
+    for name in ("starts_at_utc", "ends_at_utc"):
+        if name in changes:
+            ergebnis[name] = _pruefe_zeitpunkt(changes[name], name)
+    if "is_all_day" in changes:
+        if not isinstance(changes["is_all_day"], bool):
+            raise InvalidMutationFields("is_all_day ist kein Wahrheitswert")
+        ergebnis["is_all_day"] = changes["is_all_day"]
+    if "time_zone" in changes:
+        # Der Schlüssel IST hier die Änderungsabsicht; die Wertprüfung ist
+        # dieselbe wie beim Create (IANA-Name oder bewusst schwebend).
+        ergebnis["time_zone"] = _pruefe_zeitzone(
+            {"time_zone": changes["time_zone"]})
+    for name in ("title", "location", "notes"):
+        if name in changes:
+            wert = changes[name]
+            if wert is not None and not isinstance(wert, str):
+                raise InvalidMutationFields(f"{name} ist weder Text noch null")
+            ergebnis[name] = wert
+    return ergebnis
+
+
 def fingerprint_of(fields: dict[str, Any], provider_calendar_id: str) -> str:
     """Deterministischer Fingerprint eines Terminzustands.
 
@@ -197,6 +258,31 @@ def fingerprint_of(fields: dict[str, Any], provider_calendar_id: str) -> str:
     })
 
 
+def preimage_fingerprint_of(event: dict[str, Any]) -> str:
+    """Deterministischer Fingerprint des VOLLSTÄNDIGEN stabilen Read-Zustands.
+
+    Erwartet exakt die Schlüssel aus `PREIMAGE_FIELD_NAMES` — nicht mehr und
+    nicht weniger. Ein fehlender Schlüssel wird NIE still mit `null`
+    gleichgesetzt: fehlend ist ein Aufruffehler, `null` ist ein Zustand
+    (kein Titel, schwebende Zone). Der Digest läuft über `digest_of`, also
+    dieselbe kanonische Serialisierung (sortierte Schlüssel, kompakte
+    Trenner), die auch Rust in `calendar_write.rs::fingerprint_of`
+    nachrechnet — EINE Feldmenge, EINE Sortierung, zwei Implementierungen,
+    ein Paritätstest.
+    """
+    if not isinstance(event, dict):
+        raise InvalidMutationFields("Preimage ist kein Objekt")
+    fehlend = sorted(set(PREIMAGE_FIELD_NAMES) - set(event))
+    if fehlend:
+        raise InvalidMutationFields(
+            f"Preimage-Felder fehlen: {', '.join(fehlend)}")
+    unbekannt = sorted(set(event) - set(PREIMAGE_FIELD_NAMES))
+    if unbekannt:
+        raise InvalidMutationFields(
+            f"Unbekannte Preimage-Felder: {', '.join(unbekannt)}")
+    return digest_of({name: event[name] for name in PREIMAGE_FIELD_NAMES})
+
+
 def canonical_create_payload(fields: dict[str, Any],
                              provider_calendar_id: str) -> dict[str, Any]:
     """Die kanonische Nutzlast eines `create` — genau das Objekt, das der
@@ -209,6 +295,28 @@ def canonical_create_payload(fields: dict[str, Any],
             "event_identifier": None,
         },
         "expected_fingerprint": None,
+    }
+
+
+def canonical_update_payload(changes: dict[str, Any],
+                             provider_calendar_id: str,
+                             event_identifier: str,
+                             expected_fingerprint: str) -> dict[str, Any]:
+    """Die kanonische Nutzlast eines `update` — DELTA, kein Full Replace.
+
+    `changes` trägt ausschliesslich die zu ändernden Felder;
+    `expected_fingerprint` bindet den beim Vorbereiten gesehenen
+    VOLLSTÄNDIGEN Vorzustand. Der `payload_digest` deckt beides — wer nach
+    der Freigabe auch nur ein Feld anfasst, bricht den Digest.
+    """
+    return {
+        "command": "update",
+        "changes": dict(changes),
+        "provider_target": {
+            "provider_calendar_id": provider_calendar_id,
+            "event_identifier": event_identifier,
+        },
+        "expected_fingerprint": expected_fingerprint,
     }
 
 

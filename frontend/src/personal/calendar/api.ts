@@ -94,6 +94,10 @@ export interface Termin {
   calendar_name: string;
   calendar_color: string | null;
   calendar_is_writable: boolean;
+  /** Providerbindung für den Schreibpfad (B3 P2): ein Update adressiert
+   *  seinen Termin über genau diese beiden Kennungen. */
+  provider_calendar_id: string;
+  provider_event_id: string;
 }
 
 export interface TerminFenster {

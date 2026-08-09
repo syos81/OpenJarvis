@@ -49,8 +49,11 @@ from personaljarvis.calendar.mutations.contracts import (
     FIELD_NAMES,
     InvalidMutationFields,
     canonical_create_payload,
+    canonical_update_payload,
     fingerprint_of,
+    preimage_fingerprint_of,
     report_digest,
+    validate_changes,
     validate_fields,
 )
 from personaljarvis.calendar.repositories import EventRepository
@@ -77,6 +80,7 @@ __all__ = [
     "CalendarMutationError",
     "MutationNotFound",
     "CalendarNotFound",
+    "EventNotFound",
     "CalendarNotWritable",
     "MutationNotExecutable",
     "AlreadySettled",
@@ -96,9 +100,10 @@ SUBJECT_TYPE = "calendar.mutation"
 #: Lebensdauer eines Claims — wortgleich mit dem Kontakte-Kanal (ADR-0026 §3).
 CLAIM_TTL_SECONDS = 600
 
-#: Positionsstufe B3 P1: ausschliesslich `create`. Diese Konstante ist die
-#: **eine** Stelle, an der eine spätere Position weitere Kommandos freischaltet.
-ENABLED_COMMANDS: frozenset[str] = frozenset({"create"})
+#: Positionsstufe B3 P2: `create` und `update`. Diese Konstante ist die
+#: **eine** Stelle, an der eine spätere Position weitere Kommandos
+#: freischaltet — `delete` bleibt `position_not_enabled` (P3).
+ENABLED_COMMANDS: frozenset[str] = frozenset({"create", "update"})
 
 #: Ablageort des Backup-Nachweises. PII-arm: Zähler und Digests, keine Termine.
 BACKUP_PROOF_PATH = (Path.home() / ".openjarvis" / "personal" / "backups"
@@ -119,6 +124,13 @@ class MutationNotFound(CalendarMutationError):
 
 class CalendarNotFound(CalendarMutationError):
     reason_code = "calendar_not_found"
+
+
+class EventNotFound(CalendarMutationError):
+    """Der zu ändernde Termin existiert nicht (mehr) im produktiven Bestand.
+    Ohne Preimage gibt es kein Update — erfunden wird nichts."""
+
+    reason_code = "event_not_found"
 
 
 class CalendarNotWritable(CalendarMutationError):
@@ -365,14 +377,153 @@ class CalendarMutationService:
                 payload_digest=payload_digest, preview=preview,
                 preview_digest=preview_digest)
 
-    def prepare_update(self, event_identifier: str,
-                       fields: dict[str, Any], **_: Any) -> None:
-        """P2-Vertragsstelle. In P1 ausdrücklich verweigert — keine stille
-        Teilimplementierung."""
-        if "update" not in ENABLED_COMMANDS:
+    def prepare_update(self, provider_calendar_id: str, event_identifier: str,
+                       changes: dict[str, Any], *,
+                       actor: str = "lukas",
+                       initiation_context: str = "user_direct",
+                       correlation_id: str | None = None,
+                       ) -> PreparedCalendarMutation:
+        """Bereitet ein DELTA-Update vor (B3 P2, Eigentümerentscheidung).
+
+        Kein Full Replace: `changes` trägt ausschliesslich die zu ändernden
+        der sieben Vertragsfelder. Das Event wird aus dem **produktiven**
+        Bestand (events + event_external_ids) geladen; sein vollständiger
+        stabiler Read-Zustand wird als `preimage_json` festgehalten und als
+        `expected_fingerprint` in den Auftrag gebunden — der native Pfad
+        liest vor der Mutation frisch nach und verweigert bei Abweichung
+        (`revision_conflict`), bevor irgendetwas gespeichert wird.
+        """
+        if "update" not in ENABLED_COMMANDS:  # pragma: no cover - Konstante
             raise PositionNotEnabled(
                 "'update' ist in dieser Position nicht freigeschaltet")
-        raise NotImplementedError  # pragma: no cover - erst ab P2 erreichbar
+        if not isinstance(provider_calendar_id, str) or not provider_calendar_id:
+            raise InvalidMutationFields(
+                "provider_calendar_id ist keine brauchbare Kennung")
+        if not isinstance(event_identifier, str) or not event_identifier:
+            raise InvalidMutationFields(
+                "event_identifier ist keine brauchbare Kennung")
+        delta = validate_changes(changes)
+
+        mutation_id = str(uuid.uuid4())
+        with self._uow() as uow:
+            kalender = uow.execute(
+                "SELECT id, display_name, is_writable FROM calendars "
+                "WHERE provider_calendar_id = ? AND is_tombstone = 0",
+                (provider_calendar_id,)).fetchone()
+            if kalender is None:
+                raise CalendarNotFound("Zielkalender existiert nicht im Bestand")
+            if not kalender["is_writable"]:
+                raise CalendarNotWritable(
+                    "Zielkalender ist laut Provider nicht beschreibbar")
+
+            termin = uow.execute(
+                "SELECT e.title, e.starts_at_utc, e.ends_at_utc, "
+                "e.is_all_day, e.location, e.notes, e.time_zone "
+                "FROM event_external_ids x JOIN events e ON e.id = x.event_id "
+                "WHERE x.provider_calendar_id = ? AND x.provider_event_id = ? "
+                "AND e.is_tombstone = 0",
+                (provider_calendar_id, event_identifier)).fetchone()
+            if termin is None:
+                raise EventNotFound(
+                    "Der zu ändernde Termin existiert nicht im Bestand")
+
+            # Der Vorzustand — exakt die Feldmenge, die auch der native Pfad
+            # frisch nachlesen kann (sieben Felder plus Identität). SQLite
+            # liefert 0/1; der Fingerprint verlangt echte Wahrheitswerte.
+            preimage: dict[str, Any] = {
+                "title": termin["title"],
+                "starts_at_utc": termin["starts_at_utc"],
+                "ends_at_utc": termin["ends_at_utc"],
+                "is_all_day": bool(termin["is_all_day"]),
+                "location": termin["location"],
+                "notes": termin["notes"],
+                "time_zone": termin["time_zone"],
+                "provider_calendar_id": provider_calendar_id,
+                "event_identifier": event_identifier,
+            }
+            # Der ZUSAMMENGEFÜHRTE Zustand muss ein gültiger Termin sein —
+            # erst hier ist `ends > starts` entscheidbar (z. B. bewusste
+            # Ende-Änderung ohne Beginn im Delta). Die normalisierten Werte
+            # der geänderten Felder kommen aus derselben Prüfung wie beim
+            # Create — eine Wahrheit, keine zweite Validierung.
+            zusammen = validate_fields({
+                **{name: preimage[name] for name in FIELD_NAMES}, **delta})
+            delta = {name: zusammen[name] for name in delta}
+            expected_fingerprint = preimage_fingerprint_of(preimage)
+
+            payload = canonical_update_payload(
+                delta, provider_calendar_id, event_identifier,
+                expected_fingerprint)
+            payload_digest = digest_of(payload)
+            # Die Vorschau ist das Delta, das der Mensch freigibt: je Feld
+            # aktueller Wert → neuer Wert, plus die Identität des Termins
+            # (Kalendername, Titel, Datum/Zeit) — freigegeben wird, was man
+            # **sieht**, nicht ein Digest.
+            preview = {
+                "command": "update",
+                "calendar_display_name": kalender["display_name"],
+                "title": preimage["title"],
+                "starts_at_utc": preimage["starts_at_utc"],
+                "ends_at_utc": preimage["ends_at_utc"],
+                "is_all_day": preimage["is_all_day"],
+                "location": preimage["location"],
+                "time_zone": preimage["time_zone"],
+                "changes": {
+                    name: {"from": preimage[name], "to": delta[name]}
+                    for name in FIELD_NAMES if name in delta
+                },
+            }
+            preview_digest = digest_of(preview)
+
+            approval_id = str(uuid.uuid4())
+            ApprovalStore(uow).request(
+                approval_id=approval_id, module=MODULE,
+                subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                risk_class="R1", initiation_context=initiation_context,
+                actor=actor, correlation_id=correlation_id or mutation_id,
+                payload_digest=payload_digest, preview_digest=preview_digest,
+                ttl_seconds=self._ttl)
+
+            outbox = ExternalActionOutbox(uow).enqueue(
+                module=MODULE, operation="update", subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id, approval_id=approval_id,
+                idempotency_key=mutation_id, payload_digest=payload_digest)
+
+            jetzt = utc_now()
+            uow.execute(
+                "INSERT INTO calendar_mutations (mutation_id, command, state, "
+                "payload_json, payload_digest, preview_json, preview_digest, "
+                "approval_id, outbox_id, target_provider_calendar_id, "
+                "event_identifier, base_fingerprint, preimage_json, "
+                "created_at, attempt_count) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (mutation_id, "update", "prepared",
+                 json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 payload_digest,
+                 json.dumps(preview, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 preview_digest, approval_id, outbox.outbox_id,
+                 provider_calendar_id, event_identifier, expected_fingerprint,
+                 json.dumps(preimage, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 jetzt, 0))
+
+            audit = AuditTrail(uow, module=MODULE)
+            audit.record(AuditStage.MUTATION_PREPARED,
+                         subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                         facts={"command": "update",
+                                "payloadDigest": payload_digest,
+                                "baseFingerprint": expected_fingerprint})
+            audit.record(AuditStage.APPROVAL_REQUESTED,
+                         subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                         facts={"approvalId": approval_id,
+                                "previewDigest": preview_digest})
+
+            return PreparedCalendarMutation(
+                mutation_id=mutation_id, approval_id=approval_id,
+                outbox_id=outbox.outbox_id, state="prepared",
+                payload_digest=payload_digest, preview=preview,
+                preview_digest=preview_digest)
 
     def prepare_delete(self, event_identifier: str, **_: Any) -> None:
         """P3-Vertragsstelle. In P1 ausdrücklich verweigert."""
@@ -599,19 +750,28 @@ class CalendarMutationService:
                  jetzt if ziel in TERMINAL else None, mutation_id))
 
             # Die Providerwahrheit festschreiben — nur wenn sie belegt ist.
-            # Die rohe Kennung IST die Rücknahmeinformation eines create:
-            # ohne sie gäbe es keinen Weg zurück zu diesem Termin.
+            # Die Rücknahmeinformation ist je Kommando eine andere: nach
+            # einem create ist die rohe Kennung der Weg zurück; nach einem
+            # update sind es die B3-editierbaren Felder des festgehaltenen
+            # Vorzustands — das Delta rückwärts.
             if ziel == "provider_applied_pending_reconcile" \
                     and bericht.provider_identifier:
+                if zeile["command"] == "update":
+                    preimage = json.loads(zeile["preimage_json"])
+                    hinweis = {"undo": "update",
+                               "preimage": {name: preimage.get(name)
+                                            for name in FIELD_NAMES}}
+                else:
+                    hinweis = {"undo": "delete",
+                               "event_identifier": bericht.provider_identifier}
                 uow.execute(
                     "UPDATE calendar_mutations SET event_identifier = ?, "
                     "readback_digest = ?, rollback_hint_json = ? "
                     "WHERE mutation_id = ?",
                     (bericht.provider_identifier,
                      self._readback_digest(bericht, zeile),
-                     json.dumps({"undo": "delete",
-                                 "event_identifier": bericht.provider_identifier},
-                                sort_keys=True, separators=(",", ":")),
+                     json.dumps(hinweis, sort_keys=True,
+                                separators=(",", ":"), ensure_ascii=False),
                      mutation_id))
 
             audit = AuditTrail(uow, module=MODULE)

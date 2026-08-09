@@ -1,4 +1,4 @@
-// Kalender-Schreibadapter im App-Prozess (Block B3, Position P1: create).
+// Kalender-Schreibadapter im App-Prozess (Block B3, P1: create · P2: update).
 //
 // Der Aufbau folgt dem belegten Kontakte-Schreibpfad (contacts_execution.rs /
 // contacts_create.rs): erst die vollständige Auftragsprüfung mit
@@ -11,8 +11,17 @@
 // Operationen sind injizierbar, und der Testbeleg dafür ist ein Zähler auf
 // der Fake-Save-Operation, der bei jeder Abweisung null bleiben muss.
 //
-// P1 schaltet ausschliesslich `create` frei. Jeder andere Operationstyp
-// endet beweisbar vor jeder Übergabe als `not_sent / operation_not_enabled`.
+// P2-Update ist DELTA, kein Full Replace (verbindliche Eigentümerentscheidung):
+// VOR der Mutation wird das Event frisch gelesen und der VOLLSTÄNDIGE stabile
+// Read-Fingerprint gebildet — exakt dieselbe Feldmenge und Kanonisierung wie
+// `preimage_fingerprint_of` auf der Python-Seite (ein Paritätspin hält beide
+// Seiten zusammen). Weicht er vom gebundenen `expected_fingerprint` ab, endet
+// der Auftrag beweisbar vor jeder Übergabe als `not_sent / revision_conflict`.
+// Bei Identität werden AUSSCHLIESSLICH die Delta-Felder gesetzt — nie wird
+// ein Event aus dem Jarvis-Modell rekonstruiert.
+//
+// `delete` bleibt gesperrt: jeder fremde Operationstyp endet beweisbar vor
+// jeder Übergabe als `not_sent / capability_denied`.
 
 use serde::{Deserialize, Serialize};
 
@@ -98,6 +107,34 @@ pub struct ReadbackEvent {
     #[serde(deserialize_with = "pflicht_option")]
     pub time_zone: Option<String>,
     pub provider_calendar_id: String,
+}
+
+/// Der VOLLSTÄNDIGE stabile Read-Zustand eines Events, wie ihn der frische
+/// EventKit-Leser sieht: die sieben Vertragsfelder plus Event- und
+/// Kalenderidentität. Exakt DIESE Feldmenge bindet auch die Python-Seite
+/// (`PREIMAGE_FIELD_NAMES` in contracts.py) — eine Funktion je Seite,
+/// dieselbe Kanonisierung, ein Paritätspin im Test.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FingerprintFelder {
+    pub title: Option<String>,
+    pub starts_at_utc: String,
+    pub ends_at_utc: String,
+    pub is_all_day: bool,
+    pub location: Option<String>,
+    pub notes: Option<String>,
+    /// `null` = schwebend; der Schlüssel ist Pflicht — wie überall im Kanal.
+    #[serde(deserialize_with = "pflicht_option")]
+    pub time_zone: Option<String>,
+    pub provider_calendar_id: String,
+    pub event_identifier: String,
+}
+
+/// Fingerprint des vollständigen stabilen Read-Zustands — dieselbe
+/// kanonische Serialisierung (sortierte Schlüssel, kompakte Trenner) wie
+/// `digest_of` im Python-Kern, über `payload_digest` nachgerechnet.
+pub fn fingerprint_of(felder: &FingerprintFelder) -> String {
+    payload_digest(&serde_json::to_value(felder).expect("Felder sind serialisierbar"))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -190,6 +227,18 @@ pub trait KalenderOperationen {
         provider_calendar_id: &str,
     ) -> Result<String, SpeicherFehler>;
     fn lese_event(&mut self, event_identifier: &str) -> Option<ReadbackEvent>;
+    /// Liest den VOLLSTÄNDIGEN stabilen Fingerprint-Zustand eines Events
+    /// frisch (eigener Store) — der Vorher-Beleg eines Updates.
+    fn lese_fingerprint_felder(&mut self, event_identifier: &str)
+        -> Option<FingerprintFelder>;
+    /// Setzt AUSSCHLIESSLICH die im Delta enthaltenen Felder auf dem
+    /// bestehenden Event und speichert genau einmal (span thisEvent).
+    /// KEIN Rekonstruieren aus dem Jarvis-Modell.
+    fn aktualisiere_event(
+        &mut self,
+        event_identifier: &str,
+        changes: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<String, SpeicherFehler>;
 }
 
 // ── Auftragsprüfung: vor jeder Ausführung, vollständig ─────────────────────
@@ -203,6 +252,70 @@ fn ist_vertrags_utc(wert: &str) -> bool {
     wert.len() == 20 && wert.ends_with('Z') && unix_aus_iso8601(wert).is_some()
 }
 
+/// Die sieben Vertragsfeldnamen — die einzigen, die ein Update-Delta
+/// tragen darf.
+const DELTA_FELD_NAMEN: [&str; 7] = [
+    "title", "starts_at_utc", "ends_at_utc", "is_all_day", "location",
+    "notes", "time_zone",
+];
+
+/// Der geprüfte Inhalt eines Auftrags: Create trägt den vollen Feldsatz,
+/// Update das Delta samt Ziel und gebundenem Vorzustands-Fingerprint.
+enum Auftragsinhalt {
+    Create(EventFelder),
+    Update {
+        changes: serde_json::Map<String, serde_json::Value>,
+        event_identifier: String,
+        expected_fingerprint: String,
+    },
+}
+
+/// Prüft ein Update-Delta fail-closed: nicht leer, nur Vertragsfelder,
+/// typrichtige Werte. `null` ist bei `title`/`location`/`notes`/`time_zone`
+/// ein fachlicher Wert (löschen bzw. schwebend) — Nicht-ändern heisst
+/// weglassen. Sind BEIDE Zeitpunkte im Delta, muss das Ende nach dem
+/// Beginn liegen; ein halbes Zeitpaar prüft erst der Ablauf gegen den
+/// frisch gelesenen Zustand.
+fn pruefe_changes(
+    wert: &serde_json::Value,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let map = wert.as_object()?;
+    if map.is_empty() {
+        return None;
+    }
+    for (schluessel, w) in map {
+        if !DELTA_FELD_NAMEN.contains(&schluessel.as_str()) {
+            return None;
+        }
+        match schluessel.as_str() {
+            "starts_at_utc" | "ends_at_utc" => {
+                if !w.as_str().map_or(false, ist_vertrags_utc) {
+                    return None;
+                }
+            }
+            "is_all_day" => {
+                if !w.is_boolean() {
+                    return None;
+                }
+            }
+            _ => {
+                if !(w.is_null() || w.is_string()) {
+                    return None;
+                }
+            }
+        }
+    }
+    if let (Some(starts), Some(ends)) = (
+        map.get("starts_at_utc").and_then(|w| w.as_str()),
+        map.get("ends_at_utc").and_then(|w| w.as_str()),
+    ) {
+        if ends <= starts {
+            return None;
+        }
+    }
+    Some(map.clone())
+}
+
 /// Prüft den Auftrag vollständig, **bevor** irgendetwas geschieht.
 ///
 /// Reihenfolge: Pflichtfelder, Digestformat, Operationstyp, Ablauf,
@@ -211,7 +324,7 @@ fn ist_vertrags_utc(wert: &str) -> bool {
 fn pruefe_order(
     roh: &str,
     jetzt_unix: i64,
-) -> Result<(CalendarExecutionOrder, EventFelder), CalendarExecutionReportV1> {
+) -> Result<(CalendarExecutionOrder, Auftragsinhalt), CalendarExecutionReportV1> {
     if roh.len() > MAX_ORDER_BYTES {
         return Err(CalendarExecutionReportV1::ungebunden("schema_mismatch"));
     }
@@ -229,12 +342,12 @@ fn pruefe_order(
     if !ist_hex64(&order.payload_digest) || !ist_hex64(&order.preview_digest) {
         return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     }
-    // P1 schaltet genau `create` frei — alles andere ist keine Formfrage,
-    // sondern eine nicht erteilte Freigabe.
+    // P2 schaltet `create` und `update` frei — `delete` und alles Fremde ist
+    // keine Formfrage, sondern eine nicht erteilte Freigabe.
     if order.schema_version != 1 {
         return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     }
-    if order.operation_type != "create" {
+    if order.operation_type != "create" && order.operation_type != "update" {
         return Err(CalendarExecutionReportV1::not_sent(
             &order,
             "capability_denied",
@@ -254,25 +367,75 @@ fn pruefe_order(
             "digest_mismatch",
         ));
     }
-    // Payloadform: `command` muss zur freigegebenen Operation passen, die
-    // Felder müssen dem Vertrag entsprechen, die Daten dem einen UTC-Format.
-    if order.canonical_payload.get("command").and_then(|w| w.as_str()) != Some("create") {
+    // Payloadform: `command` muss zur freigegebenen Operation passen.
+    if order.canonical_payload.get("command").and_then(|w| w.as_str())
+        != Some(order.operation_type.as_str())
+    {
         return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
     }
-    let Some(felder_roh) = order.canonical_payload.get("fields") else {
+
+    if order.operation_type == "create" {
+        let Some(felder_roh) = order.canonical_payload.get("fields") else {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        };
+        let Ok(felder) = serde_json::from_value::<EventFelder>(felder_roh.clone()) else {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        };
+        if !ist_vertrags_utc(&felder.starts_at_utc) || !ist_vertrags_utc(&felder.ends_at_utc) {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        }
+        // Ein Create adressiert nie ein bestehendes Event.
+        if order.provider_target.event_identifier.is_some() {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        }
+        return Ok((order, Auftragsinhalt::Create(felder)));
+    }
+
+    // Update: Delta prüfen, Ziel und Vorzustands-Fingerprint aus dem
+    // DIGEST-GEDECKTEN Payload lesen — die Order-Felder müssen dazu passen.
+    let Some(changes) = order
+        .canonical_payload
+        .get("changes")
+        .and_then(pruefe_changes)
+    else {
         return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
     };
-    let Ok(felder) = serde_json::from_value::<EventFelder>(felder_roh.clone()) else {
+    let ziel = order.canonical_payload.get("provider_target");
+    let Some(event_identifier) = ziel
+        .and_then(|z| z.get("event_identifier"))
+        .and_then(|w| w.as_str())
+        .filter(|k| !k.is_empty())
+        .map(str::to_string)
+    else {
         return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
     };
-    if !ist_vertrags_utc(&felder.starts_at_utc) || !ist_vertrags_utc(&felder.ends_at_utc) {
+    let payload_kalender = ziel
+        .and_then(|z| z.get("provider_calendar_id"))
+        .and_then(|w| w.as_str())
+        .unwrap_or_default();
+    if payload_kalender.is_empty()
+        || payload_kalender != order.provider_target.provider_calendar_id
+        || order.provider_target.event_identifier.as_deref() != Some(event_identifier.as_str())
+    {
         return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
     }
-    // Ein Create adressiert nie ein bestehendes Event.
-    if order.provider_target.event_identifier.is_some() {
+    let Some(expected_fingerprint) = order
+        .canonical_payload
+        .get("expected_fingerprint")
+        .and_then(|w| w.as_str())
+        .filter(|f| ist_hex64(f))
+        .map(str::to_string)
+    else {
         return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
-    }
-    Ok((order, felder))
+    };
+    Ok((
+        order,
+        Auftragsinhalt::Update {
+            changes,
+            event_identifier,
+            expected_fingerprint,
+        },
+    ))
 }
 
 /// `YYYY-MM-DDTHH:MM:SSZ` aus Unix-Sekunden — Gegenstück zu
@@ -308,7 +471,7 @@ pub fn execute_order_mit_operationen(
     jetzt_unix: i64,
     ops: &mut dyn KalenderOperationen,
 ) -> CalendarExecutionReportV1 {
-    let (order, felder) = match pruefe_order(roh, jetzt_unix) {
+    let (order, inhalt) = match pruefe_order(roh, jetzt_unix) {
         Ok(paar) => paar,
         Err(bericht) => return bericht,
     };
@@ -325,7 +488,48 @@ pub fn execute_order_mit_operationen(
     }
 
     let mut bericht = CalendarExecutionReportV1::not_sent(&order, "provider_save_error");
-    match ops.speichere_event(&felder, &kalender_id) {
+
+    let speicher_ergebnis = match inhalt {
+        Auftragsinhalt::Create(felder) => ops.speichere_event(&felder, &kalender_id),
+        Auftragsinhalt::Update {
+            changes,
+            event_identifier,
+            expected_fingerprint,
+        } => {
+            // VOR der Mutation: das Event frisch lesen und den VOLLSTÄNDIGEN
+            // stabilen Read-Fingerprint bilden. Ohne lesbaren Vorzustand
+            // gibt es keinen Vergleich und damit keinen Save.
+            let Some(vorher) = ops.lese_fingerprint_felder(&event_identifier) else {
+                return CalendarExecutionReportV1::not_sent(&order, "target_not_found");
+            };
+            bericht.fingerprint_checked = true;
+            if fingerprint_of(&vorher) != expected_fingerprint {
+                // Der Termin ist nicht mehr der, den der Mensch freigegeben
+                // hat — beweisbar nichts übergeben, Save-Zähler bleibt null.
+                bericht.fingerprint_matched = Some(false);
+                bericht.error_class = Some("revision_conflict".into());
+                return bericht;
+            }
+            bericht.fingerprint_matched = Some(true);
+            // Halbes Zeitpaar im Delta: erst der ZUSAMMENGEFÜHRTE Zustand
+            // aus frischem Vorzustand und Delta ist prüfbar.
+            let starts = changes
+                .get("starts_at_utc")
+                .and_then(|w| w.as_str())
+                .unwrap_or(&vorher.starts_at_utc);
+            let ends = changes
+                .get("ends_at_utc")
+                .and_then(|w| w.as_str())
+                .unwrap_or(&vorher.ends_at_utc);
+            if ends <= starts {
+                bericht.error_class = Some("invalid_payload".into());
+                return bericht;
+            }
+            ops.aktualisiere_event(&event_identifier, &changes)
+        }
+    };
+
+    match speicher_ergebnis {
         Err(fehler) if fehler.vor_save => {
             // Beweisbar nichts übergeben: der Fehler lag vor dem Save.
             // Ein vom Shim abgewiesener Zeitzonenname ist ein Payload-
@@ -401,6 +605,19 @@ mod nativ {
             error_capacity: i32,
         ) -> i32;
         fn jc_calendar_write_read_event(
+            event_identifier: *const c_char,
+            out_json: *mut c_char,
+            json_capacity: i32,
+        ) -> i32;
+        fn jc_calendar_write_update(
+            changes_json: *const c_char,
+            event_identifier: *const c_char,
+            out_identifier: *mut c_char,
+            identifier_capacity: i32,
+            out_error: *mut c_char,
+            error_capacity: i32,
+        ) -> i32;
+        fn jc_calendar_write_read_fingerprint_fields(
             event_identifier: *const c_char,
             out_json: *mut c_char,
             json_capacity: i32,
@@ -490,6 +707,66 @@ mod nativ {
             }
             serde_json::from_str(&puffer_zu_string(&json)).ok()
         }
+
+        fn lese_fingerprint_felder(
+            &mut self,
+            event_identifier: &str,
+        ) -> Option<FingerprintFelder> {
+            let kennung = CString::new(event_identifier).ok()?;
+            let mut json = [0 as c_char; READBACK_CAPACITY];
+            let gelesen = unsafe {
+                jc_calendar_write_read_fingerprint_fields(
+                    kennung.as_ptr(),
+                    json.as_mut_ptr(),
+                    READBACK_CAPACITY as i32,
+                )
+            };
+            if gelesen != 1 {
+                return None;
+            }
+            serde_json::from_str(&puffer_zu_string(&json)).ok()
+        }
+
+        fn aktualisiere_event(
+            &mut self,
+            event_identifier: &str,
+            changes: &serde_json::Map<String, serde_json::Value>,
+        ) -> Result<String, SpeicherFehler> {
+            let vor_save = |beschreibung: &str| SpeicherFehler {
+                vor_save: true,
+                beschreibung: beschreibung.into(),
+            };
+            let json = serde_json::to_string(changes)
+                .map_err(|_| vor_save("changes_unserializable"))?;
+            let c_json =
+                CString::new(json).map_err(|_| vor_save("changes_unserializable"))?;
+            let c_kennung = CString::new(event_identifier)
+                .map_err(|_| vor_save("event_identifier_invalid"))?;
+
+            let mut kennung = [0 as c_char; IDENTIFIER_CAPACITY];
+            let mut fehler = [0 as c_char; ERROR_CAPACITY];
+            let code = unsafe {
+                jc_calendar_write_update(
+                    c_json.as_ptr(),
+                    c_kennung.as_ptr(),
+                    kennung.as_mut_ptr(),
+                    IDENTIFIER_CAPACITY as i32,
+                    fehler.as_mut_ptr(),
+                    ERROR_CAPACITY as i32,
+                )
+            };
+            match code {
+                SAVE_SAVED => Ok(puffer_zu_string(&kennung)),
+                SAVE_FAILED_BEFORE_SAVE => Err(SpeicherFehler {
+                    vor_save: true,
+                    beschreibung: puffer_zu_string(&fehler),
+                }),
+                _ => Err(SpeicherFehler {
+                    vor_save: false,
+                    beschreibung: puffer_zu_string(&fehler),
+                }),
+            }
+        }
     }
 }
 
@@ -522,6 +799,16 @@ pub(crate) mod tests {
     /// Fester Zeitpunkt statt Wanduhr: 2026-08-09T00:00:00Z.
     const JETZT: i64 = 1_786_233_600;
 
+    /// Ein bestehendes Event im Fake-Store. `extra_eigenschaft` modelliert
+    /// eine native Eigenschaft AUSSERHALB der sieben Vertragsfelder (etwa
+    /// eine URL oder einen Alarm): sie muss ein Delta-Update unangetastet
+    /// überleben — der Beleg, dass nichts rekonstruiert wird.
+    #[derive(Clone)]
+    pub(crate) struct FakeEvent {
+        pub(crate) felder: FingerprintFelder,
+        pub(crate) extra_eigenschaft: Option<String>,
+    }
+
     /// Fake-Anbindung mit Zählern: Der Beleg, dass eine abgewiesene Order
     /// EventKit nie erreicht, ist `save_aufrufe == 0` — nicht eine Behauptung.
     pub(crate) struct FakeKalenderOperationen {
@@ -531,6 +818,7 @@ pub(crate) mod tests {
         save_fehler: Option<SpeicherFehler>,
         readback_verfuegbar: bool,
         gespeichert: Option<(EventFelder, String)>,
+        pub(crate) bestehend: Option<FakeEvent>,
     }
 
     impl FakeKalenderOperationen {
@@ -542,7 +830,20 @@ pub(crate) mod tests {
                 save_fehler: None,
                 readback_verfuegbar: true,
                 gespeichert: None,
+                bestehend: None,
             }
+        }
+
+        pub(crate) fn mit_bestehendem_event(
+            kalender: &str,
+            felder: FingerprintFelder,
+        ) -> Self {
+            let mut ops = Self::mit_kalender(kalender);
+            ops.bestehend = Some(FakeEvent {
+                felder,
+                extra_eigenschaft: Some("nativer-alarm".into()),
+            });
+            ops
         }
     }
 
@@ -575,10 +876,29 @@ pub(crate) mod tests {
             Ok(format!("fake-event-{}", &sha256_hex(&inhalt)[..16]))
         }
 
-        fn lese_event(&mut self, _event_identifier: &str) -> Option<ReadbackEvent> {
+        fn lese_event(&mut self, event_identifier: &str) -> Option<ReadbackEvent> {
             self.lese_aufrufe += 1;
             if !self.readback_verfuegbar {
                 return None;
+            }
+            // Erst der bestehende Bestand (Update-Pfad), dann das frisch
+            // Gespeicherte (Create-Pfad) — wie ein frischer Store.
+            if let Some(ev) = self
+                .bestehend
+                .as_ref()
+                .filter(|ev| ev.felder.event_identifier == event_identifier)
+            {
+                let f = &ev.felder;
+                return Some(ReadbackEvent {
+                    title: f.title.clone(),
+                    starts_at_utc: f.starts_at_utc.clone(),
+                    ends_at_utc: f.ends_at_utc.clone(),
+                    is_all_day: f.is_all_day,
+                    location: f.location.clone(),
+                    notes: f.notes.clone(),
+                    time_zone: f.time_zone.clone(),
+                    provider_calendar_id: f.provider_calendar_id.clone(),
+                });
             }
             let (felder, kalender) = self.gespeichert.as_ref()?;
             Some(ReadbackEvent {
@@ -592,6 +912,57 @@ pub(crate) mod tests {
                 time_zone: felder.time_zone.clone(),
                 provider_calendar_id: kalender.clone(),
             })
+        }
+
+        fn lese_fingerprint_felder(
+            &mut self,
+            event_identifier: &str,
+        ) -> Option<FingerprintFelder> {
+            self.bestehend
+                .as_ref()
+                .filter(|ev| ev.felder.event_identifier == event_identifier)
+                .map(|ev| ev.felder.clone())
+        }
+
+        fn aktualisiere_event(
+            &mut self,
+            event_identifier: &str,
+            changes: &serde_json::Map<String, serde_json::Value>,
+        ) -> Result<String, SpeicherFehler> {
+            self.save_aufrufe += 1;
+            if let Some(fehler) = self.save_fehler.take() {
+                return Err(fehler);
+            }
+            let Some(ev) = self
+                .bestehend
+                .as_mut()
+                .filter(|ev| ev.felder.event_identifier == event_identifier)
+            else {
+                return Err(SpeicherFehler {
+                    vor_save: true,
+                    beschreibung: "event_vanished_before_save".into(),
+                });
+            };
+            let text = |w: &serde_json::Value| w.as_str().map(str::to_string);
+            // AUSSCHLIESSLICH die enthaltenen Schlüssel — wie der Shim.
+            for (schluessel, wert) in changes {
+                match schluessel.as_str() {
+                    "title" => ev.felder.title = text(wert),
+                    "location" => ev.felder.location = text(wert),
+                    "notes" => ev.felder.notes = text(wert),
+                    "time_zone" => ev.felder.time_zone = text(wert),
+                    "starts_at_utc" => {
+                        ev.felder.starts_at_utc = text(wert).unwrap()
+                    }
+                    "ends_at_utc" => ev.felder.ends_at_utc = text(wert).unwrap(),
+                    "is_all_day" => {
+                        ev.felder.is_all_day = wert.as_bool().unwrap()
+                    }
+                    _ => unreachable!("pruefe_changes lässt nur Vertragsfelder durch"),
+                }
+            }
+            // `extra_eigenschaft` wird BEWUSST nicht angefasst.
+            Ok(ev.felder.event_identifier.clone())
         }
     }
 
@@ -736,11 +1107,23 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn update_ist_in_p1_nicht_freigeschaltet() {
+    fn delete_bleibt_nicht_freigeschaltet() {
+        // P2 schaltet `update` frei; `delete` bleibt eine nicht erteilte
+        // Freigabe — beweisbar vor jeder Übergabe.
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
+        let b = execute_order_mit_operationen(&auftrag("delete", payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("capability_denied"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_update_auftrag_mit_create_payload_faellt() {
+        // `command` muss zur freigegebenen Operation passen.
         let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
         let b = execute_order_mit_operationen(&auftrag("update", payload()), JETZT, &mut ops);
         assert_eq!(b.outcome, "not_sent");
-        assert_eq!(b.error_class.as_deref(), Some("capability_denied"));
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
         assert_eq!(ops.save_aufrufe, 0);
     }
 
@@ -892,6 +1275,324 @@ pub(crate) mod tests {
         let a = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops_a);
         let b = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops_b);
         assert_eq!(a, b);
+    }
+
+    // ── Update: Delta-Semantik (B3 P2) ─────────────────────────────────────
+
+    /// Der Vorzustand des Fake-Events — wortgleich mit `PREIMAGE` in
+    /// tests/personal/calendar/test_mutations.py (Paritätspin).
+    pub(crate) fn preimage_felder() -> FingerprintFelder {
+        FingerprintFelder {
+            title: Some("Zahnarzt".into()),
+            starts_at_utc: "2026-08-12T09:00:00Z".into(),
+            ends_at_utc: "2026-08-12T10:00:00Z".into(),
+            is_all_day: false,
+            location: None,
+            notes: None,
+            time_zone: Some("Europe/Berlin".into()),
+            provider_calendar_id: "cal-1".into(),
+            event_identifier: "EK-EVENT-1".into(),
+        }
+    }
+
+    /// Der beidseitig gepinnte Fingerprint desselben synthetischen Zustands —
+    /// die Python-Seite pinnt DIESELBE Konstante (`PREIMAGE_FINGERPRINT_PIN`).
+    const PREIMAGE_FINGERPRINT_PIN: &str =
+        "a6394e8dd0a8804bb41c6ab1ca6b7840b568c1bd6901f3f21db8a5622cb198b1";
+
+    fn update_payload(changes: serde_json::Value) -> serde_json::Value {
+        serde_json::json!({
+            "command": "update",
+            "changes": changes,
+            "provider_target": {
+                "provider_calendar_id": "cal-1",
+                "event_identifier": "EK-EVENT-1"
+            },
+            "expected_fingerprint": fingerprint_of(&preimage_felder())
+        })
+    }
+
+    fn update_auftrag(payload: serde_json::Value) -> String {
+        serde_json::json!({
+            "operation_id": "2".repeat(36),
+            "mutation_id": "3".repeat(36),
+            "claim_token": "c".repeat(64),
+            "operation_type": "update",
+            "payload_digest": payload_digest(&payload),
+            "preview_digest": "d".repeat(64),
+            "canonical_payload": payload.clone(),
+            "issued_at": "2026-08-09T00:00:00Z",
+            "expires_at": "2026-08-09T00:10:00Z",
+            "provider_target": payload["provider_target"].clone(),
+            "expected_fingerprint": payload["expected_fingerprint"].clone()
+        })
+        .to_string()
+    }
+
+    fn update_ops() -> FakeKalenderOperationen {
+        FakeKalenderOperationen::mit_bestehendem_event("cal-1", preimage_felder())
+    }
+
+    #[test]
+    fn der_fingerprint_pin_stimmt_mit_der_python_seite_ueberein() {
+        // Weicht diese Rechnung ab, sprechen Rust und Python verschiedene
+        // Kanonisierungen — und der Preimage-Vergleich wäre wertlos.
+        assert_eq!(fingerprint_of(&preimage_felder()), PREIMAGE_FINGERPRINT_PIN);
+    }
+
+    #[test]
+    fn ein_titel_delta_aendert_nur_den_titel() {
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(
+            serde_json::json!({"title": "Kieferorthopäde"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied", "{:?}", b.error_class);
+        assert_eq!(b.readback_status, "confirmed");
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(ops.save_aufrufe, 1);
+        assert!(b.fingerprint_checked);
+        assert_eq!(b.fingerprint_matched, Some(true));
+        assert_eq!(b.provider_identifier.as_deref(), Some("EK-EVENT-1"));
+        let ev = ops.bestehend.as_ref().unwrap();
+        assert_eq!(ev.felder.title.as_deref(), Some("Kieferorthopäde"));
+        // Nicht-Delta-Felder bleiben UNVERÄNDERT.
+        assert_eq!(ev.felder.starts_at_utc, "2026-08-12T09:00:00Z");
+        assert_eq!(ev.felder.ends_at_utc, "2026-08-12T10:00:00Z");
+        assert_eq!(ev.felder.time_zone.as_deref(), Some("Europe/Berlin"));
+        assert!(!ev.felder.is_all_day);
+        assert_eq!(ev.felder.location, None);
+        // Der Read-back zeigt den GELESENEN Endzustand.
+        let gelesen = b.readback_event.expect("Read-back fehlt");
+        assert_eq!(gelesen.title.as_deref(), Some("Kieferorthopäde"));
+        assert_eq!(gelesen.starts_at_utc, "2026-08-12T09:00:00Z");
+        assert_eq!(gelesen.provider_calendar_id, "cal-1");
+    }
+
+    #[test]
+    fn eine_native_zusatzeigenschaft_ueberlebt_das_delta() {
+        // Der Kern der Delta-Entscheidung: was ausserhalb der sieben Felder
+        // liegt, wird weder gelesen noch geschrieben noch rekonstruiert.
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(serde_json::json!({"title": "Neu"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied");
+        assert_eq!(
+            ops.bestehend.as_ref().unwrap().extra_eigenschaft.as_deref(),
+            Some("nativer-alarm")
+        );
+    }
+
+    #[test]
+    fn ein_leeres_delta_faellt_vor_dem_save() {
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(serde_json::json!({})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_unbekanntes_delta_feld_faellt_vor_dem_save() {
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(
+            serde_json::json!({"title": "Neu", "url": "https://x.invalid"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_extern_geaendertes_delta_feld_ist_revision_conflict() {
+        // Der Titel wurde extern geändert, das Delta will genau ihn ändern.
+        let mut ops = update_ops();
+        ops.bestehend.as_mut().unwrap().felder.title = Some("Extern geändert".into());
+        let roh = update_auftrag(update_payload(serde_json::json!({"title": "Neu"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert!(!b.send_attempted);
+        assert_eq!(b.save_request_count, 0);
+        assert_eq!(ops.save_aufrufe, 0);
+        assert!(b.fingerprint_checked);
+        assert_eq!(b.fingerprint_matched, Some(false));
+        assert_eq!(b.error_class.as_deref(), Some("revision_conflict"));
+    }
+
+    #[test]
+    fn ein_extern_geaendertes_nicht_delta_feld_ist_ebenfalls_conflict() {
+        // Der Fingerprint deckt den VOLLSTÄNDIGEN Zustand: auch ein Feld,
+        // das das Delta gar nicht anfasst (Ort), bricht den Vergleich.
+        let mut ops = update_ops();
+        ops.bestehend.as_mut().unwrap().felder.location = Some("Anderswo".into());
+        let roh = update_auftrag(update_payload(serde_json::json!({"title": "Neu"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("revision_conflict"));
+        assert_eq!(b.fingerprint_matched, Some(false));
+        assert_eq!(ops.save_aufrufe, 0);
+        // Der Bestand blieb unangetastet.
+        assert_eq!(
+            ops.bestehend.as_ref().unwrap().felder.title.as_deref(),
+            Some("Zahnarzt")
+        );
+    }
+
+    #[test]
+    fn ein_identischer_vorzustand_laesst_das_update_laufen() {
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(
+            serde_json::json!({"location": "Raum 2"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied");
+        assert_eq!(b.fingerprint_matched, Some(true));
+        assert_eq!(
+            ops.bestehend.as_ref().unwrap().felder.location.as_deref(),
+            Some("Raum 2")
+        );
+    }
+
+    #[test]
+    fn ein_manipuliertes_update_payload_erreicht_den_save_nie() {
+        // Nach der Freigabe angefasst: der Digest bricht, beweisbar vor
+        // jeder Übergabe — der Fake-Zähler ist der Beleg (R9).
+        let mut roh: serde_json::Value = serde_json::from_str(&update_auftrag(
+            update_payload(serde_json::json!({"title": "Neu"})))).unwrap();
+        roh["canonical_payload"]["changes"]["title"] =
+            serde_json::json!("Heimlich anders");
+        let mut ops = update_ops();
+        let b = execute_order_mit_operationen(&roh.to_string(), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("digest_mismatch"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn eine_zeitverschiebung_erhaelt_die_zone() {
+        // Offline-Zeitverschiebung: starts+ends aus dem Dauererhalt; die
+        // Zone ist NICHT im Delta und bleibt exakt die alte.
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(serde_json::json!({
+            "starts_at_utc": "2026-08-12T11:00:00Z",
+            "ends_at_utc": "2026-08-12T12:00:00Z"
+        })));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied");
+        let ev = ops.bestehend.as_ref().unwrap();
+        assert_eq!(ev.felder.starts_at_utc, "2026-08-12T11:00:00Z");
+        assert_eq!(ev.felder.ends_at_utc, "2026-08-12T12:00:00Z");
+        assert!(ev.felder.ends_at_utc > ev.felder.starts_at_utc);
+        assert_eq!(ev.felder.time_zone.as_deref(), Some("Europe/Berlin"));
+    }
+
+    #[test]
+    fn eine_bewusste_ende_aenderung_ist_moeglich() {
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(
+            serde_json::json!({"ends_at_utc": "2026-08-12T11:30:00Z"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied");
+        let ev = ops.bestehend.as_ref().unwrap();
+        assert_eq!(ev.felder.ends_at_utc, "2026-08-12T11:30:00Z");
+        assert_eq!(ev.felder.starts_at_utc, "2026-08-12T09:00:00Z");
+    }
+
+    #[test]
+    fn ein_zusammengefuehrtes_ende_vor_dem_beginn_faellt() {
+        // Nur das Ende im Delta, aber vor dem BESTEHENDEN Beginn: erst der
+        // frisch gelesene Zustand macht das prüfbar — und es fällt vor
+        // dem Save.
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(
+            serde_json::json!({"ends_at_utc": "2026-08-12T08:00:00Z"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(b.fingerprint_matched, Some(true));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn floating_bleibt_floating() {
+        // Vorzustand schwebend (time_zone null); das Delta fasst die Zone
+        // nicht an — sie bleibt null, kein Layer erfindet eine.
+        let mut felder = preimage_felder();
+        felder.time_zone = None;
+        let expected = fingerprint_of(&felder);
+        let mut ops =
+            FakeKalenderOperationen::mit_bestehendem_event("cal-1", felder);
+        let mut payload = update_payload(serde_json::json!({"title": "Neu"}));
+        payload["expected_fingerprint"] = serde_json::json!(expected);
+        let b = execute_order_mit_operationen(
+            &update_auftrag(payload), JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied", "{:?}", b.error_class);
+        assert_eq!(ops.bestehend.as_ref().unwrap().felder.time_zone, None);
+        assert_eq!(b.readback_event.expect("Read-back fehlt").time_zone, None);
+    }
+
+    #[test]
+    fn null_ist_ein_fachlicher_wert_im_delta() {
+        // `{"title": null}` löscht den Titel — Nicht-ändern wäre Weglassen.
+        let mut ops = update_ops();
+        let roh = update_auftrag(update_payload(serde_json::json!({"title": null})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied");
+        assert_eq!(ops.bestehend.as_ref().unwrap().felder.title, None);
+    }
+
+    #[test]
+    fn ein_update_ohne_eventkennung_faellt() {
+        let mut payload = update_payload(serde_json::json!({"title": "Neu"}));
+        payload["provider_target"]["event_identifier"] = serde_json::Value::Null;
+        let mut roh: serde_json::Value =
+            serde_json::from_str(&update_auftrag(payload)).unwrap();
+        roh["provider_target"]["event_identifier"] = serde_json::Value::Null;
+        let mut ops = update_ops();
+        let b = execute_order_mit_operationen(&roh.to_string(), JETZT, &mut ops);
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_update_ohne_expected_fingerprint_faellt() {
+        let mut payload = update_payload(serde_json::json!({"title": "Neu"}));
+        payload["expected_fingerprint"] = serde_json::Value::Null;
+        let mut ops = update_ops();
+        let b = execute_order_mit_operationen(
+            &update_auftrag(payload), JETZT, &mut ops);
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_nicht_lesbares_event_ist_target_not_found() {
+        // Kein Bestand unter der Kennung: ohne Vorzustand kein Vergleich,
+        // ohne Vergleich kein Save.
+        let mut ops = FakeKalenderOperationen::mit_kalender("cal-1");
+        let roh = update_auftrag(update_payload(serde_json::json!({"title": "Neu"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("target_not_found"));
+        assert!(!b.fingerprint_checked);
+        assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_update_fehler_im_save_ist_ungewiss() {
+        // Nach übergebenem Save gibt es keinen zweiten Versuch — der
+        // Ausgang ist ungewiss, die Fingerprint-Aussage bleibt stehen.
+        let mut ops = update_ops();
+        ops.save_fehler = Some(SpeicherFehler {
+            vor_save: false,
+            beschreibung: "EKErrorDomain:11".into(),
+        });
+        let roh = update_auftrag(update_payload(serde_json::json!({"title": "Neu"})));
+        let b = execute_order_mit_operationen(&roh, JETZT, &mut ops);
+        assert_eq!(b.outcome, "unknown");
+        assert!(b.send_attempted);
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(b.fingerprint_matched, Some(true));
+        assert_eq!(b.error_class.as_deref(), Some("provider_save_error"));
     }
 }
 

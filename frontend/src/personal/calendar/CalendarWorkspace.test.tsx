@@ -49,7 +49,8 @@ function termin(over: Partial<Termin> = {}): Termin {
     occurrence_start_utc: null, has_alarms: false, alarms: [],
     has_attendees: false, attendees: [],
     calendar_name: 'Privat', calendar_color: '#3366cc',
-    calendar_is_writable: true, ...over,
+    calendar_is_writable: true,
+    provider_calendar_id: 'cal-1', provider_event_id: 'ev-1', ...over,
   };
 }
 

@@ -68,7 +68,7 @@
     {
       "message": "feat(calendar): update real events with state-bound approval",
       "position": 6,
-      "purpose": "functional P2 UPDATE: preimage, delta preview, fingerprint-bound approval, conflict abort, live update with halt"
+      "purpose": "functional P2 UPDATE with DELTA semantics (owner decision: no full replace): changes carry only the fields to alter, the approval binds event identity, the full stable 9-field preimage fingerprint (pinned byte-identical on both sides) and the delta digest; the native path re-reads freshly, aborts on any bound change as revision_conflict without a save, and applies only the approved keys to the existing EKEvent — an extra native property provably survives"
     },
     {
       "message": "feat(calendar): delete with mandatory re-read and preserved preimage",

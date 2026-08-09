@@ -16,11 +16,13 @@ from dataclasses import replace
 import pytest
 
 from personaljarvis.base.db.unit_of_work import UnitOfWork
-from personaljarvis.calendar.domain import CanonicalCalendar
+from personaljarvis.calendar.domain import CanonicalCalendar, CanonicalEvent
 from personaljarvis.calendar.mutations.contracts import (
     ExecutionReportV1,
     InvalidMutationFields,
     fingerprint_of,
+    preimage_fingerprint_of,
+    validate_changes,
     validate_fields,
 )
 from personaljarvis.calendar.mutations.service import (
@@ -29,12 +31,16 @@ from personaljarvis.calendar.mutations.service import (
     CalendarMutationService,
     CalendarNotFound,
     CalendarNotWritable,
+    EventNotFound,
     MutationNotExecutable,
     PositionNotEnabled,
     SettleConflict,
     backup_probe_from_path,
 )
-from personaljarvis.calendar.repositories import CalendarRepository
+from personaljarvis.calendar.repositories import (
+    CalendarRepository,
+    EventRepository,
+)
 
 from .conftest import PROVIDER_ACCOUNT, WORKSPACE
 
@@ -52,16 +58,48 @@ FELDER = {
 
 READBACK = {**FELDER, "provider_calendar_id": KALENDER}
 
+EVENT_ID = "EK-EVENT-1"
 
-def _kalender_anlegen(factory, provider_id=KALENDER, *, writable=True) -> None:
+#: Der Vorzustand des Bestandstermins als Preimage-Feldsatz — die eine
+#: kanonische Feldmenge des Fingerprints (sieben Felder plus Identität).
+PREIMAGE = {**FELDER, "provider_calendar_id": KALENDER,
+            "event_identifier": EVENT_ID}
+
+#: Paritätspin: derselbe synthetische Zustand ist in calendar_write.rs als
+#: Konstante gepinnt. Weicht eine Seite ab, rechnen Python und Rust
+#: verschiedene Fingerprints — und genau das soll dieser Pin verraten.
+PREIMAGE_FINGERPRINT_PIN = (
+    "a6394e8dd0a8804bb41c6ab1ca6b7840b568c1bd6901f3f21db8a5622cb198b1")
+
+
+def _kalender_anlegen(factory, provider_id=KALENDER, *, writable=True) -> str:
     with UnitOfWork(factory) as uow:
-        CalendarRepository(uow).upsert_seen(
+        kalender_id, _ = CalendarRepository(uow).upsert_seen(
             CanonicalCalendar(
                 id="", workspace_id=WORKSPACE,
                 provider_account_id=PROVIDER_ACCOUNT,
                 provider_calendar_id=provider_id, display_name="Privat",
                 calendar_type="calDAV", is_writable=writable),
             seen_at="2026-08-09T00:00:00Z")
+    return kalender_id
+
+
+def _termin_anlegen(factory, kalender_id, provider_event_id=EVENT_ID,
+                    **abweichungen) -> None:
+    """Seedet einen Bestandstermin (events + event_external_ids)."""
+    felder = {**FELDER, **abweichungen}
+    with UnitOfWork(factory) as uow:
+        EventRepository(uow).upsert_seen(
+            CanonicalEvent(
+                id="", calendar_id=kalender_id,
+                provider_event_id=provider_event_id,
+                provider_calendar_id=KALENDER,
+                starts_at_utc=felder["starts_at_utc"],
+                ends_at_utc=felder["ends_at_utc"],
+                title=felder["title"], notes=felder["notes"],
+                location=felder["location"], time_zone=felder["time_zone"],
+                is_all_day=felder["is_all_day"]),
+            PROVIDER_ACCOUNT, "2026-08-09T00:00:00Z")
 
 
 @pytest.fixture
@@ -159,9 +197,8 @@ class TestPrepare:
         with pytest.raises(CalendarNotFound):
             dienst.prepare_create("cal-fremd", dict(FELDER))
 
-    def test_update_und_delete_sind_nicht_freigeschaltet(self, dienst):
-        with pytest.raises(PositionNotEnabled):
-            dienst.prepare_update("EK-EVENT-1", dict(FELDER))
+    def test_delete_bleibt_nicht_freigeschaltet(self, dienst):
+        # P2 schaltet `update` frei; `delete` bleibt position_not_enabled.
         with pytest.raises(PositionNotEnabled):
             dienst.prepare_delete("EK-EVENT-1")
 
@@ -339,6 +376,276 @@ class TestSettle:
                 "SELECT COUNT(*) AS n FROM event_external_ids "
                 "WHERE provider_event_id = ?", ("EK-EVENT-1",)).fetchone()
         assert anzahl["n"] == 0
+
+
+@pytest.fixture
+def update_dienst(factory) -> CalendarMutationService:
+    kalender_id = _kalender_anlegen(factory)
+    _termin_anlegen(factory, kalender_id)
+    return CalendarMutationService(factory, backup_probe=lambda: True)
+
+
+def _update_bericht(auftrag, readback, **abweichungen) -> ExecutionReportV1:
+    basis = ExecutionReportV1(
+        operation_id=auftrag.operation_id,
+        mutation_id=auftrag.mutation_id,
+        operation_type="update",
+        outcome="applied",
+        send_attempted=True,
+        save_request_count=1,
+        readback_status="confirmed",
+        readback_event=readback,
+        provider_identifier=EVENT_ID,
+        fingerprint_checked=True,
+        fingerprint_matched=True,
+        provider_completed_at="2026-08-09T12:00:00Z",
+    )
+    return replace(basis, **abweichungen)
+
+
+# ── Update: Delta-Semantik (B3 P2) ──────────────────────────────────────────
+class TestPrepareUpdate:
+    def test_titel_delta_traegt_nur_den_titel(self, update_dienst, factory):
+        vorgang = update_dienst.prepare_update(
+            KALENDER, EVENT_ID, {"title": "Kieferorthopäde"})
+        zeile = _mutation_row(factory, vorgang.mutation_id)
+        assert zeile["state"] == "prepared"
+        assert zeile["command"] == "update"
+        payload = json.loads(zeile["payload_json"])
+        # DELTA, kein Full Replace: genau das eine Feld reist.
+        assert payload["command"] == "update"
+        assert payload["changes"] == {"title": "Kieferorthopäde"}
+        assert payload["provider_target"] == {
+            "provider_calendar_id": KALENDER, "event_identifier": EVENT_ID}
+        # Der Vorzustand ist gebunden und festgehalten.
+        assert payload["expected_fingerprint"] \
+            == preimage_fingerprint_of(PREIMAGE)
+        assert zeile["base_fingerprint"] == payload["expected_fingerprint"]
+        assert json.loads(zeile["preimage_json"]) == PREIMAGE
+        assert zeile["event_identifier"] == EVENT_ID
+        # Die Vorschau zeigt alt → neu je Feld plus Identität.
+        assert vorgang.preview["command"] == "update"
+        assert vorgang.preview["calendar_display_name"] == "Privat"
+        assert vorgang.preview["title"] == "Zahnarzt"
+        assert vorgang.preview["changes"] == {
+            "title": {"from": "Zahnarzt", "to": "Kieferorthopäde"}}
+
+    def test_leeres_delta_faellt(self, update_dienst):
+        with pytest.raises(InvalidMutationFields):
+            update_dienst.prepare_update(KALENDER, EVENT_ID, {})
+
+    def test_unbekanntes_delta_feld_faellt(self, update_dienst):
+        with pytest.raises(InvalidMutationFields):
+            update_dienst.prepare_update(
+                KALENDER, EVENT_ID, {"farbe": "rot"})
+        with pytest.raises(InvalidMutationFields):
+            update_dienst.prepare_update(
+                KALENDER, EVENT_ID,
+                {"title": "ok", "url": "https://x.invalid"})
+
+    def test_null_ist_fachlicher_wert_nicht_platzhalter(self, update_dienst):
+        # `{"title": null}` heisst „Titel löschen" — gültig. Nicht-ändern
+        # heisst weglassen, nie null senden.
+        vorgang = update_dienst.prepare_update(
+            KALENDER, EVENT_ID, {"title": None})
+        assert vorgang.preview["changes"] == {
+            "title": {"from": "Zahnarzt", "to": None}}
+
+    def test_unbekannter_termin_faellt(self, update_dienst):
+        with pytest.raises(EventNotFound):
+            update_dienst.prepare_update(
+                KALENDER, "EK-FREMD", {"title": "x"})
+
+    def test_leerer_event_identifier_faellt(self, update_dienst):
+        with pytest.raises(InvalidMutationFields):
+            update_dienst.prepare_update(KALENDER, "", {"title": "x"})
+
+    def test_nicht_schreibbarer_kalender_faellt(self, factory):
+        kalender_id = _kalender_anlegen(factory, writable=False)
+        _termin_anlegen(factory, kalender_id)
+        dienst = CalendarMutationService(factory, backup_probe=lambda: True)
+        with pytest.raises(CalendarNotWritable):
+            dienst.prepare_update(KALENDER, EVENT_ID, {"title": "x"})
+
+    def test_zeitverschiebung_mit_dauererhalt(self, update_dienst):
+        # Offline-Zeitverschiebung: starts+ends aus dem Dauererhalt reisen
+        # als Delta; die Zone bleibt UNBERÜHRT (kein time_zone im Delta).
+        vorgang = update_dienst.prepare_update(KALENDER, EVENT_ID, {
+            "starts_at_utc": "2026-08-12T11:00:00Z",
+            "ends_at_utc": "2026-08-12T12:00:00Z"})
+        aenderungen = vorgang.preview["changes"]
+        assert set(aenderungen) == {"starts_at_utc", "ends_at_utc"}
+        assert "time_zone" not in aenderungen
+
+    def test_bewusste_ende_aenderung_ist_moeglich(self, update_dienst):
+        vorgang = update_dienst.prepare_update(
+            KALENDER, EVENT_ID, {"ends_at_utc": "2026-08-12T11:30:00Z"})
+        assert vorgang.preview["changes"] == {"ends_at_utc": {
+            "from": "2026-08-12T10:00:00Z", "to": "2026-08-12T11:30:00Z"}}
+
+    def test_zusammengefuehrtes_ende_vor_beginn_faellt(self, update_dienst):
+        # Nur das Ende geändert, aber vor den BESTEHENDEN Beginn gelegt:
+        # der zusammengeführte Zustand ist ungültig.
+        with pytest.raises(InvalidMutationFields):
+            update_dienst.prepare_update(
+                KALENDER, EVENT_ID,
+                {"ends_at_utc": "2026-08-12T08:00:00Z"})
+
+
+class TestPreimageFingerprint:
+    def test_pin_stimmt_mit_der_rust_seite_ueberein(self):
+        # Paritätspin: dieselben Werte stehen in calendar_write.rs.
+        assert preimage_fingerprint_of(PREIMAGE) == PREIMAGE_FINGERPRINT_PIN
+
+    def test_fehlend_wird_nie_still_null(self):
+        ohne = {k: v for k, v in PREIMAGE.items() if k != "location"}
+        with pytest.raises(InvalidMutationFields):
+            preimage_fingerprint_of(ohne)
+        # Der Gegenbeweis: MIT explizitem null ist es ein gültiger Zustand.
+        assert preimage_fingerprint_of({**ohne, "location": None}) \
+            == PREIMAGE_FINGERPRINT_PIN
+
+    def test_unbekanntes_feld_faellt(self):
+        with pytest.raises(InvalidMutationFields):
+            preimage_fingerprint_of({**PREIMAGE, "last_seen_at": "x"})
+
+    def test_jedes_feld_aendert_den_fingerprint(self):
+        basis = preimage_fingerprint_of(PREIMAGE)
+        for feld, wert in [("title", "Anders"), ("location", "Raum 2"),
+                           ("notes", "n"), ("is_all_day", True),
+                           ("time_zone", None),
+                           ("starts_at_utc", "2026-08-12T09:30:00Z"),
+                           ("provider_calendar_id", "cal-2"),
+                           ("event_identifier", "EK-EVENT-2")]:
+            assert preimage_fingerprint_of({**PREIMAGE, feld: wert}) \
+                != basis, feld
+
+    def test_validate_changes_normalisiert_nur_das_delta(self):
+        assert validate_changes({"title": "Neu"}) == {"title": "Neu"}
+        with pytest.raises(InvalidMutationFields):
+            validate_changes({"time_zone": "Mars/Olympus_Mons"})
+        with pytest.raises(InvalidMutationFields):
+            validate_changes({"is_all_day": "ja"})
+        with pytest.raises(InvalidMutationFields):
+            validate_changes("kein objekt")
+
+
+class TestUpdateAusfuehrung:
+    def _vorbereitet(self, dienst, changes) -> str:
+        vorgang = dienst.prepare_update(KALENDER, EVENT_ID, changes)
+        dienst.approve(vorgang.mutation_id, decision_actor="lukas")
+        return vorgang.mutation_id
+
+    def test_claim_traegt_fingerprint_und_zielkennung(self, update_dienst):
+        mutation_id = self._vorbereitet(update_dienst, {"title": "Neu"})
+        auftrag = update_dienst.claim(mutation_id)
+        assert auftrag.operation_type == "update"
+        assert auftrag.payload_digest_matches()
+        assert auftrag.expected_fingerprint \
+            == preimage_fingerprint_of(PREIMAGE)
+        assert auftrag.provider_target == {
+            "provider_calendar_id": KALENDER, "event_identifier": EVENT_ID}
+
+    def test_titel_update_erhaelt_alle_anderen_felder(self, update_dienst,
+                                                      factory):
+        # Der Titel ändert sich; start/ende/zone/ganztags/Kalender bleiben —
+        # belegt über den GELESENEN Zustand im Spiegel, nicht behauptet.
+        mutation_id = self._vorbereitet(update_dienst,
+                                        {"title": "Kieferorthopäde"})
+        auftrag = update_dienst.claim(mutation_id)
+        readback = {**FELDER, "title": "Kieferorthopäde",
+                    "provider_calendar_id": KALENDER}
+        ergebnis = update_dienst.settle(
+            mutation_id, _update_bericht(auftrag, readback),
+            claim_token=auftrag.claim_token)
+        assert ergebnis.state == "succeeded"
+
+        zeile = _mutation_row(factory, mutation_id)
+        # Rücknahmeinformation eines update: das Delta rückwärts — die
+        # B3-editierbaren Felder des Vorzustands.
+        assert json.loads(zeile["rollback_hint_json"]) == {
+            "undo": "update", "preimage": FELDER}
+        assert zeile["event_identifier"] == EVENT_ID
+
+        with UnitOfWork(factory) as uow:
+            termin = uow.execute(
+                "SELECT e.title, e.starts_at_utc, e.ends_at_utc, "
+                "e.is_all_day, e.time_zone, e.location, e.notes "
+                "FROM events e JOIN event_external_ids x ON x.event_id = e.id "
+                "WHERE x.provider_event_id = ?", (EVENT_ID,)).fetchone()
+        assert termin["title"] == "Kieferorthopäde"
+        assert termin["starts_at_utc"] == FELDER["starts_at_utc"]
+        assert termin["ends_at_utc"] == FELDER["ends_at_utc"]
+        assert termin["is_all_day"] == 0
+        assert termin["time_zone"] == "Europe/Berlin"
+        assert termin["location"] is None
+        # Es bleibt DERSELBE Termin — kein zweiter entstand.
+        with UnitOfWork(factory) as uow:
+            anzahl = uow.execute(
+                "SELECT COUNT(*) AS n FROM events WHERE is_tombstone = 0"
+            ).fetchone()
+        assert anzahl["n"] == 1
+
+    def test_revision_conflict_bleibt_failed_before_send(self, update_dienst,
+                                                         factory):
+        # Der native Pfad hat den frischen Zustand gelesen, der Fingerprint
+        # wich ab: beweisbar nichts gesendet, Klasse revision_conflict.
+        mutation_id = self._vorbereitet(update_dienst, {"title": "Neu"})
+        auftrag = update_dienst.claim(mutation_id)
+        bericht = _update_bericht(
+            auftrag, None, outcome="not_sent", send_attempted=False,
+            save_request_count=0, readback_status="not_checked",
+            provider_identifier=None, fingerprint_checked=True,
+            fingerprint_matched=False, error_class="revision_conflict",
+            provider_completed_at=None)
+        ergebnis = update_dienst.settle(mutation_id, bericht,
+                                        claim_token=auftrag.claim_token)
+        assert ergebnis.state == "failed_before_send"
+        zeile = _mutation_row(factory, mutation_id)
+        assert zeile["last_error_code"] == "revision_conflict"
+        # Der Bestandstermin blieb unangetastet.
+        with UnitOfWork(factory) as uow:
+            termin = uow.execute(
+                "SELECT e.title FROM events e "
+                "JOIN event_external_ids x ON x.event_id = e.id "
+                "WHERE x.provider_event_id = ?", (EVENT_ID,)).fetchone()
+        assert termin["title"] == "Zahnarzt"
+
+    def test_manipulierter_payload_nach_freigabe_faellt(self, update_dienst,
+                                                        factory):
+        mutation_id = self._vorbereitet(update_dienst, {"title": "Neu"})
+        with UnitOfWork(factory) as uow:
+            uow.execute(
+                "UPDATE calendar_mutations SET payload_digest = ? "
+                "WHERE mutation_id = ?", ("0" * 64, mutation_id))
+        with pytest.raises(MutationNotExecutable):
+            update_dienst.claim(mutation_id)
+
+    def test_floating_bleibt_floating(self, factory):
+        # Ein schwebender Termin (time_zone null) bekommt einen neuen Titel —
+        # die Schwebe bleibt, kein Layer erfindet eine Zone.
+        kalender_id = _kalender_anlegen(factory)
+        _termin_anlegen(factory, kalender_id, time_zone=None)
+        dienst = CalendarMutationService(factory, backup_probe=lambda: True)
+        vorgang = dienst.prepare_update(KALENDER, EVENT_ID, {"title": "Neu"})
+        assert json.loads(
+            _mutation_row(factory, vorgang.mutation_id)["preimage_json"]
+        )["time_zone"] is None
+        dienst.approve(vorgang.mutation_id, decision_actor="lukas")
+        auftrag = dienst.claim(vorgang.mutation_id)
+        readback = {**FELDER, "title": "Neu", "time_zone": None,
+                    "provider_calendar_id": KALENDER}
+        ergebnis = dienst.settle(
+            vorgang.mutation_id, _update_bericht(auftrag, readback),
+            claim_token=auftrag.claim_token)
+        assert ergebnis.state == "succeeded"
+        with UnitOfWork(factory) as uow:
+            termin = uow.execute(
+                "SELECT e.time_zone, e.title FROM events e "
+                "JOIN event_external_ids x ON x.event_id = e.id "
+                "WHERE x.provider_event_id = ?", (EVENT_ID,)).fetchone()
+        assert termin["title"] == "Neu"
+        assert termin["time_zone"] is None
 
 
 class TestZeitzone:

@@ -1,4 +1,5 @@
-// Die minimale CREATE-Maske des Kalenders (B3 P1) — zwei Schritte.
+// Die minimale Terminmaske des Kalenders (B3 P1: create · P2: update) —
+// zwei Schritte.
 //
 // ENTWURF: die sieben Vertragsfelder, sonst nichts. VORSCHAU: ausschliesslich
 // die vom SERVER gelieferte Vorschau — freigegeben wird, was man sieht — mit
@@ -7,16 +8,24 @@
 // einzelfreigegebene Mutationen über den getrennten Schreibpfad
 // (docs/governance/decisions/DEC-069-kalenderschreiben-einzelfreigabe.md).
 //
-// Der Ablauf nach „Anlegen" ist der Claim-Settle-Kanal des Kontaktmoduls:
+// UPDATE-Modus (B3 P2, Delta-Semantik): die Maske wird aus dem Termin
+// vorbelegt; beim Absenden reisen AUSSCHLIESSLICH die geänderten Felder als
+// `changes`. Die Vorschau zeigt je Feld alt → neu; der eine Freigabeknopf
+// heisst „Änderung freigeben". Die Startverschiebung nutzt denselben
+// Dauererhalt wie der Create.
+//
+// Der Ablauf nach der Freigabe ist der Claim-Settle-Kanal des Kontaktmoduls:
 // approve → claim → App-Prozess (höchstens einmal) → settle. Kein Sync.
 
 import { useMemo, useState } from 'react';
 import './tokens.css';
-import type { KalenderZeile } from './api';
+import type { KalenderZeile, Termin } from './api';
 import {
-  type KalenderExecutionReport, type VorbereiteterVorgang,
+  type KalenderExecutionReport, type TerminAenderungen, type TerminFelder,
+  type VorbereiteterVorgang,
   MutationsFehler,
-  beanspruche, bereiteVor, bricheAb, fuehreAus, gibFrei, schliesseAb,
+  beanspruche, bereiteUpdateVor, bereiteVor, bricheAb, fuehreAus, gibFrei,
+  schliesseAb,
 } from './mutationsApi';
 import {
   lokaleMitternachtUtc, lokalerTag, plusTage, systemZeitzone, uhrzeit,
@@ -112,6 +121,29 @@ interface Ergebnis {
   text: string;
 }
 
+/** Die sieben Vertragsfelder — die Diff-Grundlage des Update-Modus. */
+const VERTRAGSFELDER: readonly (keyof TerminFelder)[] = [
+  'title', 'starts_at_utc', 'ends_at_utc', 'is_all_day', 'location', 'notes',
+  'time_zone',
+];
+
+const FELD_LABELS: Record<string, string> = {
+  title: 'Titel', starts_at_utc: 'Beginn', ends_at_utc: 'Ende',
+  is_all_day: 'Ganztägig', location: 'Ort', notes: 'Notiz',
+  time_zone: 'Zeitzone',
+};
+
+/** Anzeigewert eines Delta-Feldes — Zeiten lokal aufgelöst, `null` ehrlich. */
+function wertText(feld: string, wert: unknown, zone: string): string {
+  if (wert === null || wert === undefined) return '—';
+  if (typeof wert === 'boolean') return wert ? 'ja' : 'nein';
+  if ((feld === 'starts_at_utc' || feld === 'ends_at_utc')
+      && typeof wert === 'string') {
+    return `${lokalerTag(wert, zone)} ${uhrzeit(wert, zone)}`;
+  }
+  return String(wert);
+}
+
 const FELD_STIL = {
   border: '1px solid var(--pjk-line)',
   background: 'var(--pjk-surface-2)',
@@ -123,32 +155,48 @@ export interface TerminFormularProps {
   zone: string;
   /** Vorbelegter lokaler Tag (gewählter Tag oder heute). */
   vorbelegterTag: string;
+  /** B3 P2: liegt hier ein Termin, arbeitet die Maske im UPDATE-Modus —
+   *  Vorbelegung aus dem Termin, beim Absenden NUR die geänderten Felder. */
+  bearbeite?: Termin | null;
   aufSchliessen: () => void;
   /** Nur nach BELEGTEM Erfolg — der Workspace liest den Bestand dann neu. */
   aufErfolg: () => void;
 }
 
-export function TerminFormular({ kalender, zone, vorbelegterTag,
+export function TerminFormular({ kalender, zone, vorbelegterTag, bearbeite,
                                  aufSchliessen, aufErfolg }: TerminFormularProps) {
   // Nur beschreibbare Kalender sind wählbar — Provider-Wahrheit, die
   // Oberfläche überstimmt sie nie (P-6).
   const beschreibbar = useMemo(
     () => kalender.filter((k) => k.is_writable), [kalender]);
+  const update = bearbeite ?? null;
 
   const [schritt, setSchritt] = useState<Schritt>('entwurf');
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
-  const [titel, setTitel] = useState('');
+  const [titel, setTitel] = useState(update?.title ?? '');
   const [kalenderId, setKalenderId] = useState(
-    beschreibbar[0]?.provider_calendar_id ?? '');
-  const [datumStart, setDatumStart] = useState(vorbelegterTag);
-  const [zeitStart, setZeitStart] = useState('09:00');
-  const [datumEnde, setDatumEnde] = useState(vorbelegterTag);
-  const [zeitEnde, setZeitEnde] = useState('10:00');
-  const [ganztaegig, setGanztaegig] = useState(false);
-  const [ort, setOrt] = useState('');
-  const [notiz, setNotiz] = useState('');
+    update !== null ? update.provider_calendar_id
+                    : beschreibbar[0]?.provider_calendar_id ?? '');
+  const [datumStart, setDatumStart] = useState(
+    () => update !== null
+      ? lokalerTag(update.starts_at_utc, zone) : vorbelegterTag);
+  const [zeitStart, setZeitStart] = useState(
+    () => update !== null && !update.is_all_day
+      ? uhrzeit(update.starts_at_utc, zone) : '09:00');
+  const [datumEnde, setDatumEnde] = useState(
+    () => update === null ? vorbelegterTag
+      // Exklusives Ende: der letzte Tag eines Ganztagstermins ist der
+      // Vortag des End-Instants — wie in der Vorschau-Zeitzeile.
+      : update.is_all_day ? plusTage(lokalerTag(update.ends_at_utc, zone), -1)
+        : lokalerTag(update.ends_at_utc, zone));
+  const [zeitEnde, setZeitEnde] = useState(
+    () => update !== null && !update.is_all_day
+      ? uhrzeit(update.ends_at_utc, zone) : '10:00');
+  const [ganztaegig, setGanztaegig] = useState(update?.is_all_day ?? false);
+  const [ort, setOrt] = useState(update?.location ?? '');
+  const [notiz, setNotiz] = useState(update?.notes ?? '');
 
   const [vorgang, setVorgang] = useState<VorbereiteterVorgang | null>(null);
   const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
@@ -201,21 +249,43 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
       setFehler('Das Ende muss nach dem Beginn liegen.');
       return;
     }
+    const kandidat: TerminFelder = {
+      title: titel.trim() === '' ? null : titel.trim(),
+      starts_at_utc: starts,
+      ends_at_utc: ends,
+      is_all_day: ganztaegig,
+      location: ort.trim() === '' ? null : ort.trim(),
+      notes: notiz.trim() === '' ? null : notiz.trim(),
+      // Der Zeitzonenanker: beim CREATE mechanisch aus der Plattformquelle
+      // (`systemZeitzone()`), nie hart codiert; ganztägig sendet `null`
+      // (der Bestand trägt Ganztagstermine schwebend, m0009). Beim UPDATE
+      // bleibt der Anker DES TERMINS unangetastet — eine Zeitverschiebung
+      // ändert Instants, nie die Zone, und Floating bleibt Floating.
+      time_zone: ganztaegig ? null
+        : update !== null ? update.time_zone : systemZeitzone(),
+    };
     setLaeuft(true);
     try {
-      const v = await bereiteVor(kalenderId, {
-        title: titel.trim() === '' ? null : titel.trim(),
-        starts_at_utc: starts,
-        ends_at_utc: ends,
-        is_all_day: ganztaegig,
-        location: ort.trim() === '' ? null : ort.trim(),
-        notes: notiz.trim() === '' ? null : notiz.trim(),
-        // Der Zeitzonenanker kommt mechanisch aus der Plattformquelle
-        // (`systemZeitzone()`), nie hart codiert. Ganztägig sendet `null`:
-        // der Bestand trägt Ganztagstermine schwebend (events.time_zone
-        // ist dort NULL, m0009) — das ist die ehrliche Semantik.
-        time_zone: ganztaegig ? null : systemZeitzone(),
-      });
+      let v: VorbereiteterVorgang;
+      if (update !== null) {
+        // DELTA, kein Full Replace: nur die tatsächlich geänderten Felder
+        // reisen. Nicht-ändern heisst weglassen — nie null senden.
+        const aenderungen: TerminAenderungen = {};
+        for (const feld of VERTRAGSFELDER) {
+          if (kandidat[feld] !== update[feld]) {
+            (aenderungen as Record<string, unknown>)[feld] = kandidat[feld];
+          }
+        }
+        if (Object.keys(aenderungen).length === 0) {
+          setFehler('Keine Änderung erkannt — es gibt nichts freizugeben.');
+          setLaeuft(false);
+          return;
+        }
+        v = await bereiteUpdateVor(update.provider_calendar_id,
+                                   update.provider_event_id, aenderungen);
+      } else {
+        v = await bereiteVor(kalenderId, kandidat);
+      }
       setVorgang(v);
       setSchritt('vorschau');
     } catch (e) {
@@ -271,20 +341,28 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
       if (settle.state === 'succeeded') {
         // Nach dem Settle ist die Termintabelle serverseitig nachgeführt —
         // ein einfaches Neuladen des Bestands genügt.
-        setErgebnis({ ok: true, text: 'Termin angelegt.' });
+        setErgebnis({ ok: true, text: update !== null
+          ? 'Termin aktualisiert.' : 'Termin angelegt.' });
         aufErfolg();
       } else if (settle.state === 'provider_applied_pending_reconcile') {
         setErgebnis({
           ok: true,
-          text: 'Termin beim Provider angelegt — der lokale Bestand wird '
-            + 'beim nächsten Abgleich nachgeführt.',
+          text: (update !== null
+            ? 'Änderung beim Provider gespeichert'
+            : 'Termin beim Provider angelegt')
+            + ' — der lokale Bestand wird beim nächsten Abgleich nachgeführt.',
         });
       } else {
         const klasse = settle.error_class ?? bericht.error_class ?? 'unbekannt';
         setErgebnis({
           ok: false,
           text: settle.state === 'failed_before_send'
-            ? `Nicht angelegt (${klasse}) — es wurde nichts gesendet.`
+            ? klasse === 'revision_conflict'
+              ? 'Nicht geändert — der Termin wurde zwischenzeitlich '
+                + 'anderweitig geändert. Es wurde nichts gesendet; bitte '
+                + 'aktualisieren und erneut bearbeiten.'
+              : `Nicht ${update !== null ? 'geändert' : 'angelegt'} `
+                + `(${klasse}) — es wurde nichts gesendet.`
             : `Ausgang ungewiss (${klasse}) — bitte den Kalender prüfen.`,
         });
       }
@@ -303,12 +381,15 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
     <div className="fixed inset-0 z-50 flex items-center justify-center"
       data-testid="termin-formular-overlay"
       style={{ background: 'rgba(0, 0, 0, 0.35)' }}>
-      <div role="dialog" aria-modal="true" aria-label="Neuer Termin"
+      <div role="dialog" aria-modal="true"
+        aria-label={update !== null ? 'Termin bearbeiten' : 'Neuer Termin'}
         className="rounded p-4 flex flex-col gap-3 overflow-y-auto"
         style={{ background: 'var(--pjk-surface)', color: 'var(--pjk-ink)',
                  border: '1px solid var(--pjk-line)',
                  width: 380, maxWidth: '92%', maxHeight: '85%' }}>
-        <h2 className="text-sm font-semibold">Neuer Termin</h2>
+        <h2 className="text-sm font-semibold">
+          {update !== null ? 'Termin bearbeiten' : 'Neuer Termin'}
+        </h2>
 
         {schritt === 'entwurf' && (
           <form data-testid="termin-entwurf" className="flex flex-col gap-2"
@@ -320,19 +401,27 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
                 className="text-xs px-2 py-1 rounded" style={FELD_STIL} />
             </label>
 
-            <label className="text-[11px] flex flex-col gap-1">
-              Kalender
-              <select value={kalenderId} aria-label="Kalender"
-                onChange={(e) => setKalenderId(e.target.value)}
-                className="text-xs px-2 py-1 rounded" style={FELD_STIL}>
-                {beschreibbar.map((k) => (
-                  <option key={k.id} value={k.provider_calendar_id}>
-                    {k.display_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {beschreibbar.length === 0 && (
+            {update !== null ? (
+              // Das Ziel eines Updates steht fest: DERSELBE Termin in
+              // DEMSELBEN Kalender — ein Kalenderwechsel ist kein Update.
+              <p className="text-[11px]" style={{ color: 'var(--pjk-ink-dim)' }}>
+                Kalender: {update.calendar_name}
+              </p>
+            ) : (
+              <label className="text-[11px] flex flex-col gap-1">
+                Kalender
+                <select value={kalenderId} aria-label="Kalender"
+                  onChange={(e) => setKalenderId(e.target.value)}
+                  className="text-xs px-2 py-1 rounded" style={FELD_STIL}>
+                  {beschreibbar.map((k) => (
+                    <option key={k.id} value={k.provider_calendar_id}>
+                      {k.display_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {update === null && beschreibbar.length === 0 && (
               <p className="text-[11px]" style={{ color: 'var(--color-error)' }}>
                 Kein Kalender ist laut Provider beschreibbar.
               </p>
@@ -404,10 +493,13 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
                 style={{ border: '1px solid var(--pjk-line)' }}>
                 Abbrechen
               </button>
-              <button type="submit" disabled={laeuft || beschreibbar.length === 0}
+              <button type="submit"
+                disabled={laeuft || (update === null && beschreibbar.length === 0)}
                 className="text-xs px-2 py-1 rounded"
                 style={{ border: '1px solid var(--pjk-line)',
-                         opacity: laeuft || beschreibbar.length === 0 ? 0.5 : 1 }}>
+                         opacity: laeuft
+                           || (update === null && beschreibbar.length === 0)
+                           ? 0.5 : 1 }}>
                 {laeuft ? 'Läuft …' : 'Weiter zur Vorschau'}
               </button>
             </div>
@@ -455,6 +547,30 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
               )}
             </dl>
 
+            {/* UPDATE: das SERVER-gebaute Delta — je Feld alt → neu.
+                Freigegeben wird genau diese Änderung, nichts anderes. */}
+            {p.command === 'update' && p.changes !== undefined && (
+              <div data-testid="termin-aenderungen" className="text-[11px]">
+                <p className="font-medium" style={{ color: 'var(--pjk-ink-dim)' }}>
+                  Änderungen
+                </p>
+                <ul className="space-y-1">
+                  {Object.entries(p.changes).map(([feld, delta]) => (
+                    <li key={feld}>
+                      {FELD_LABELS[feld] ?? feld}:{' '}
+                      <span style={{ color: 'var(--pjk-ink-dim)' }}>
+                        {wertText(feld, delta.from, zone)}
+                      </span>
+                      {' → '}
+                      <span className="font-medium">
+                        {wertText(feld, delta.to, zone)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {fehler !== null && (
               <p role="alert" data-testid="termin-fehler" className="text-[11px]"
                 style={{ color: 'var(--color-error)' }}>{fehler}</p>
@@ -472,7 +588,8 @@ export function TerminFormular({ kalender, zone, vorbelegterTag,
                 style={{ background: 'var(--pjk-auswahl)',
                          color: 'var(--pjk-auswahl-text)',
                          opacity: laeuft ? 0.5 : 1 }}>
-                {laeuft ? 'Läuft …' : 'Anlegen'}
+                {laeuft ? 'Läuft …'
+                  : update !== null ? 'Änderung freigeben' : 'Anlegen'}
               </button>
             </div>
           </div>

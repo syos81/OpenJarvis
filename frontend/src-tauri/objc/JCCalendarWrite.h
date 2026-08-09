@@ -58,4 +58,25 @@ int32_t jc_calendar_write_save(const char *fields_json,
 int32_t jc_calendar_write_read_event(const char *event_identifier,
                                      char *out_json, int32_t json_capacity);
 
+/// B3 P2 (Delta-Update): setzt AUSSCHLIESSLICH die in `changes_json`
+/// enthaltenen Schlüssel auf dem bestehenden Event und setzt genau einen
+/// `saveEvent:span:error:` (span thisEvent) ab. Das Wörterbuch selbst ist
+/// der Marker, welche Felder gesetzt werden: ein fehlender Schlüssel bleibt
+/// unangetastet, `null` ist der fachliche Wert (Titel/Ort/Notiz löschen,
+/// Zone schwebend). Es wird NIE ein Event aus dem Jarvis-Modell
+/// rekonstruiert — geladen wird das bestehende über `eventWithIdentifier:`.
+int32_t jc_calendar_write_update(const char *changes_json,
+                                 const char *event_identifier,
+                                 char *out_identifier, int32_t identifier_capacity,
+                                 char *out_error, int32_t error_capacity);
+
+/// B3 P2: liest die Fingerprint-Feldmenge eines Events aus einem
+/// **frischen** `EKEventStore` — die sieben Vertragsfelder plus
+/// `provider_calendar_id` und `event_identifier`. Exakt die Feldmenge, die
+/// Rust (`fingerprint_of`) und Python (`preimage_fingerprint_of`) binden.
+/// 1 = gelesen (`out_json` gefüllt), 0 = nicht lesbar.
+int32_t jc_calendar_write_read_fingerprint_fields(const char *event_identifier,
+                                                  char *out_json,
+                                                  int32_t json_capacity);
+
 #endif

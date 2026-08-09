@@ -26,6 +26,11 @@ export interface TerminFelder {
   time_zone: string | null;
 }
 
+/** Ein Update-Delta: NUR die zu ändernden der sieben Felder. Nicht-ändern
+ *  heisst weglassen — `null` ist ein fachlicher Wert (löschen/schwebend),
+ *  nie ein Platzhalter. */
+export type TerminAenderungen = Partial<TerminFelder>;
+
 /** Die Vorschau, wie der SERVER sie gebaut hat. Freigegeben wird, was man
  *  sieht — deshalb zeigt die Oberfläche ausschliesslich diese Werte. */
 export interface MutationsVorschau {
@@ -38,6 +43,8 @@ export interface MutationsVorschau {
   location: string | null;
   /** Der Zeitzonenanker, den der SERVER validiert hat; `null` = schwebend. */
   time_zone: string | null;
+  /** Nur bei `update`: das SERVER-gebaute Delta — je Feld alt → neu. */
+  changes?: Record<string, { from: unknown; to: unknown }>;
 }
 
 export interface VorbereiteterVorgang {
@@ -139,6 +146,24 @@ export function bereiteVor(providerCalendarId: string,
       command: 'create',
       provider_calendar_id: providerCalendarId,
       fields: felder,
+    }),
+  });
+}
+
+/** Bereitet EIN Delta-Update vor (B3 P2). Es wird nichts gesendet; der
+ * Server lädt den Vorzustand aus dem produktiven Bestand und bindet ihn
+ * als Fingerprint in den Auftrag. */
+export function bereiteUpdateVor(providerCalendarId: string,
+                                 eventIdentifier: string,
+                                 aenderungen: TerminAenderungen,
+): Promise<VorbereiteterVorgang> {
+  return hole('/mutations', {
+    method: 'POST',
+    body: JSON.stringify({
+      command: 'update',
+      provider_calendar_id: providerCalendarId,
+      event_identifier: eventIdentifier,
+      changes: aenderungen,
     }),
   });
 }

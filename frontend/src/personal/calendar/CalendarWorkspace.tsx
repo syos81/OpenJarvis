@@ -104,6 +104,9 @@ export function CalendarWorkspace() {
   // B3 P1: das CREATE-Formular. Es öffnet nur auf Klick und schreibt nur
   // nach ausdrücklicher Einzelfreigabe (DEC-069, siehe Kopfkommentar).
   const [formularOffen, setFormularOffen] = useState(false);
+  // B3 P2: der Termin in Bearbeitung. Öffnet die Update-Maske; geschrieben
+  // wird auch hier nur nach ausdrücklicher Einzelfreigabe.
+  const [bearbeiteTermin, setBearbeiteTermin] = useState<Termin | null>(null);
   const rasterRef = useRef<HTMLDivElement>(null);
 
   const raster = useMemo(() => baueRaster(modus, anker, zone, wochenstart),
@@ -460,7 +463,9 @@ export function CalendarWorkspace() {
 
         <div className="min-w-0">
           {ausgewaehlt !== null ? (
-            <TerminDetail termin={ausgewaehlt} zone={zone} />
+            <TerminDetail termin={ausgewaehlt} zone={zone}
+              aufBearbeiten={darfLesen && bridgeDa
+                ? (t) => setBearbeiteTermin(t) : undefined} />
           ) : (
             <TagesListe tag={gewaehlterTag}
               termine={gewaehlterTag !== null
@@ -480,6 +485,21 @@ export function CalendarWorkspace() {
             // serverseitig nachgeführt — Neu-LESEN genügt. „Aktualisieren"
             // bleibt der einzige Weg zum Provider-Sync.
             setMeldung({ text: 'Termin angelegt.', art: 'ok' });
+            void laden(raster.fensterStartUtc, raster.fensterEndeUtc);
+          }} />
+      )}
+
+      {/* ── B3 P2: die UPDATE-Maske (Delta) mit Freigabefluss ── */}
+      {bearbeiteTermin !== null && (
+        <TerminFormular kalender={kalender} zone={zone}
+          vorbelegterTag={gewaehlterTag ?? heuteTag}
+          bearbeite={bearbeiteTermin}
+          aufSchliessen={() => setBearbeiteTermin(null)}
+          aufErfolg={() => {
+            setMeldung({ text: 'Termin aktualisiert.', art: 'ok' });
+            // Das Detail zeigt sonst den VERALTETEN Termin — schliessen
+            // und den nachgeführten Bestand neu lesen.
+            setAusgewaehlt(null);
             void laden(raster.fensterStartUtc, raster.fensterEndeUtc);
           }} />
       )}
