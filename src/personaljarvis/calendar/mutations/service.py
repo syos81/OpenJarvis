@@ -49,11 +49,15 @@ from personaljarvis.calendar.mutations.contracts import (
     FIELD_NAMES,
     InvalidMutationFields,
     canonical_create_payload,
+    canonical_delete_payload,
     canonical_update_payload,
+    eligibility_digest_of,
     fingerprint_of,
     preimage_fingerprint_of,
     report_digest,
+    restore_preimage_of,
     validate_changes,
+    validate_eligibility_probe,
     validate_fields,
 )
 from personaljarvis.calendar.repositories import EventRepository
@@ -87,6 +91,7 @@ __all__ = [
     "SettleConflict",
     "PositionNotEnabled",
     "BackupMissing",
+    "DeleteNotEligible",
     "UnzulaessigerUebergang",
     "pruefe_uebergang",
     "PreparedCalendarMutation",
@@ -100,10 +105,9 @@ SUBJECT_TYPE = "calendar.mutation"
 #: Lebensdauer eines Claims — wortgleich mit dem Kontakte-Kanal (ADR-0026 §3).
 CLAIM_TTL_SECONDS = 600
 
-#: Positionsstufe B3 P2: `create` und `update`. Diese Konstante ist die
-#: **eine** Stelle, an der eine spätere Position weitere Kommandos
-#: freischaltet — `delete` bleibt `position_not_enabled` (P3).
-ENABLED_COMMANDS: frozenset[str] = frozenset({"create", "update"})
+#: Positionsstufe B3 P3: `create`, `update` und `delete`. Diese Konstante
+#: ist die **eine** Stelle, an der eine Position Kommandos freischaltet.
+ENABLED_COMMANDS: frozenset[str] = frozenset({"create", "update", "delete"})
 
 #: Ablageort des Backup-Nachweises. PII-arm: Zähler und Digests, keine Termine.
 BACKUP_PROOF_PATH = (Path.home() / ".openjarvis" / "personal" / "backups"
@@ -159,6 +163,16 @@ class PositionNotEnabled(CalendarMutationError):
 
 class BackupMissing(CalendarMutationError):
     reason_code = "backup_missing"
+
+
+class DeleteNotEligible(CalendarMutationError):
+    """Der Termin trägt eine belegte, semantisch relevante Eigenschaft
+    ausserhalb des wiederherstellbaren B3-Vertrags (B3 P3, Grundregel:
+    blocked — nicht warnen und trotzdem löschen). Es entsteht KEINE
+    Mutation, KEINE Freigabe, KEIN Outbox-Eintrag. Die Meldung nennt nur
+    Flagnamen, nie Inhalte."""
+
+    reason_code = "delete_not_eligible"
 
 
 # ── Zustandsautomat ────────────────────────────────────────────────────────
@@ -525,12 +539,174 @@ class CalendarMutationService:
                 payload_digest=payload_digest, preview=preview,
                 preview_digest=preview_digest)
 
-    def prepare_delete(self, event_identifier: str, **_: Any) -> None:
-        """P3-Vertragsstelle. In P1 ausdrücklich verweigert."""
-        if "delete" not in ENABLED_COMMANDS:
+    def prepare_delete(self, provider_calendar_id: str, event_identifier: str,
+                       eligibility_probe: dict[str, Any], *,
+                       actor: str = "lukas",
+                       initiation_context: str = "user_direct",
+                       correlation_id: str | None = None,
+                       ) -> PreparedCalendarMutation:
+        """Bereitet einen Delete vor (B3 P3) — oder blockiert VOR jeder
+        Mutation.
+
+        Drei getrennte Nachweise werden hier gebunden (verbindliche
+        Eigentümerentscheidung):
+
+        1. `expected_fingerprint` — der vollständige stabile Read-Zustand
+           (neun Felder) aus dem produktiven Bestand.
+        2. `eligibility_digest` — die am NATIVEN Event erhobene
+           Delete-Safety-Probe. Sie kommt vom App-Prozess durch die
+           Oberfläche; gerade DESHALB rechnet der native Pfad sie vor dem
+           Execute neu und vergleicht den Digest — eine manipulierte Probe
+           bricht dort, nicht hier. Jede belegte unsupported Eigenschaft
+           blockiert hier fail-closed: keine Mutation, keine Freigabe.
+        3. `restore_preimage_digest` — das Restore-Artefakt. Es wird hier
+           tatsächlich erzeugt, gegen den Create-Vertrag validiert und in
+           `rollback_hint_json` abgelegt, BEVOR irgendetwas gelöscht wird.
+        """
+        if "delete" not in ENABLED_COMMANDS:  # pragma: no cover - Konstante
             raise PositionNotEnabled(
                 "'delete' ist in dieser Position nicht freigeschaltet")
-        raise NotImplementedError  # pragma: no cover - erst ab P3 erreichbar
+        if not isinstance(provider_calendar_id, str) or not provider_calendar_id:
+            raise InvalidMutationFields(
+                "provider_calendar_id ist keine brauchbare Kennung")
+        if not isinstance(event_identifier, str) or not event_identifier:
+            raise InvalidMutationFields(
+                "event_identifier ist keine brauchbare Kennung")
+        probe = validate_eligibility_probe(eligibility_probe)
+        # Die Probe muss GENAU dieses Ziel vermessen haben — eine Probe eines
+        # anderen Events bindet nichts.
+        if probe["event_identifier"] != event_identifier \
+                or probe["provider_calendar_id"] != provider_calendar_id:
+            raise InvalidMutationFields(
+                "Die Eligibility-Probe gehört zu einem anderen Ziel")
+        if not probe["eligible"]:
+            # Grundregel: blocked, nicht warnen-und-löschen. Nur Flagnamen.
+            raise DeleteNotEligible(
+                "Nicht verlustfrei wiederherstellbar: "
+                + ", ".join(probe["unsupported_feature_flags"]))
+
+        mutation_id = str(uuid.uuid4())
+        with self._uow() as uow:
+            kalender = uow.execute(
+                "SELECT id, display_name, is_writable FROM calendars "
+                "WHERE provider_calendar_id = ? AND is_tombstone = 0",
+                (provider_calendar_id,)).fetchone()
+            if kalender is None:
+                raise CalendarNotFound("Zielkalender existiert nicht im Bestand")
+            if not kalender["is_writable"]:
+                raise CalendarNotWritable(
+                    "Zielkalender ist laut Provider nicht beschreibbar")
+
+            termin = uow.execute(
+                "SELECT e.title, e.starts_at_utc, e.ends_at_utc, "
+                "e.is_all_day, e.location, e.notes, e.time_zone "
+                "FROM event_external_ids x JOIN events e ON e.id = x.event_id "
+                "WHERE x.provider_calendar_id = ? AND x.provider_event_id = ? "
+                "AND e.is_tombstone = 0",
+                (provider_calendar_id, event_identifier)).fetchone()
+            if termin is None:
+                raise EventNotFound(
+                    "Der zu löschende Termin existiert nicht im Bestand")
+
+            preimage: dict[str, Any] = {
+                "title": termin["title"],
+                "starts_at_utc": termin["starts_at_utc"],
+                "ends_at_utc": termin["ends_at_utc"],
+                "is_all_day": bool(termin["is_all_day"]),
+                "location": termin["location"],
+                "notes": termin["notes"],
+                "time_zone": termin["time_zone"],
+                "provider_calendar_id": provider_calendar_id,
+                "event_identifier": event_identifier,
+            }
+            expected_fingerprint = preimage_fingerprint_of(preimage)
+            eligibility_digest = eligibility_digest_of(probe)
+            # Das Restore-Artefakt entsteht JETZT — validiert gegen den
+            # Create-Vertrag. Fällt es, gibt es keinen Delete-Vorgang.
+            restore = restore_preimage_of(preimage)
+            restore_digest = digest_of(restore)
+
+            payload = canonical_delete_payload(
+                provider_calendar_id, event_identifier, expected_fingerprint,
+                eligibility_digest, restore_digest)
+            payload_digest = digest_of(payload)
+            # Die Vorschau ist, was der Mensch freigibt: die verständliche
+            # Terminidentität, der Hinweis auf die Löschung, die belegte
+            # Wiederherstellbarkeit und das vorhandene Restore-Artefakt.
+            preview = {
+                "command": "delete",
+                "calendar_display_name": kalender["display_name"],
+                "title": preimage["title"],
+                "starts_at_utc": preimage["starts_at_utc"],
+                "ends_at_utc": preimage["ends_at_utc"],
+                "is_all_day": preimage["is_all_day"],
+                "location": preimage["location"],
+                "time_zone": preimage["time_zone"],
+                "deletion": {
+                    "eligible": True,
+                    "unsupported_feature_flags": [],
+                    "restore_preimage_present": True,
+                },
+            }
+            preview_digest = digest_of(preview)
+
+            approval_id = str(uuid.uuid4())
+            ApprovalStore(uow).request(
+                approval_id=approval_id, module=MODULE,
+                subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                risk_class="R1", initiation_context=initiation_context,
+                actor=actor, correlation_id=correlation_id or mutation_id,
+                payload_digest=payload_digest, preview_digest=preview_digest,
+                ttl_seconds=self._ttl)
+
+            outbox = ExternalActionOutbox(uow).enqueue(
+                module=MODULE, operation="delete", subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id, approval_id=approval_id,
+                idempotency_key=mutation_id, payload_digest=payload_digest)
+
+            jetzt = utc_now()
+            uow.execute(
+                "INSERT INTO calendar_mutations (mutation_id, command, state, "
+                "payload_json, payload_digest, preview_json, preview_digest, "
+                "approval_id, outbox_id, target_provider_calendar_id, "
+                "event_identifier, base_fingerprint, preimage_json, "
+                "rollback_hint_json, created_at, attempt_count) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (mutation_id, "delete", "prepared",
+                 json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 payload_digest,
+                 json.dumps(preview, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 preview_digest, approval_id, outbox.outbox_id,
+                 provider_calendar_id, event_identifier, expected_fingerprint,
+                 json.dumps(preimage, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 # Das Restore-Artefakt liegt VOR der Löschung in der Zeile.
+                 json.dumps({"undo": "create", "restore_preimage": restore,
+                             "restore_preimage_digest": restore_digest},
+                            sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False),
+                 jetzt, 0))
+
+            audit = AuditTrail(uow, module=MODULE)
+            audit.record(AuditStage.MUTATION_PREPARED,
+                         subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                         facts={"command": "delete",
+                                "payloadDigest": payload_digest,
+                                "baseFingerprint": expected_fingerprint,
+                                "eligibilityDigest": eligibility_digest,
+                                "restorePreimageDigest": restore_digest})
+            audit.record(AuditStage.APPROVAL_REQUESTED,
+                         subject_type=SUBJECT_TYPE, subject_id=mutation_id,
+                         facts={"approvalId": approval_id,
+                                "previewDigest": preview_digest})
+
+            return PreparedCalendarMutation(
+                mutation_id=mutation_id, approval_id=approval_id,
+                outbox_id=outbox.outbox_id, state="prepared",
+                payload_digest=payload_digest, preview=preview,
+                preview_digest=preview_digest)
 
     # ── 2. Entscheiden ──────────────────────────────────────────────────────
     def approve(self, mutation_id: str, *, decision_actor: str) -> str:
@@ -753,7 +929,9 @@ class CalendarMutationService:
             # Die Rücknahmeinformation ist je Kommando eine andere: nach
             # einem create ist die rohe Kennung der Weg zurück; nach einem
             # update sind es die B3-editierbaren Felder des festgehaltenen
-            # Vorzustands — das Delta rückwärts.
+            # Vorzustands — das Delta rückwärts; nach einem delete ist es das
+            # beim Vorbereiten erzeugte Restore-Artefakt (deterministisch
+            # aus dem Preimage nachgerechnet — dieselbe Wahrheit).
             if ziel == "provider_applied_pending_reconcile" \
                     and bericht.provider_identifier:
                 if zeile["command"] == "update":
@@ -761,6 +939,11 @@ class CalendarMutationService:
                     hinweis = {"undo": "update",
                                "preimage": {name: preimage.get(name)
                                             for name in FIELD_NAMES}}
+                elif zeile["command"] == "delete":
+                    preimage = json.loads(zeile["preimage_json"])
+                    restore = restore_preimage_of(preimage)
+                    hinweis = {"undo": "create", "restore_preimage": restore,
+                               "restore_preimage_digest": digest_of(restore)}
                 else:
                     hinweis = {"undo": "delete",
                                "event_identifier": bericht.provider_identifier}
@@ -884,6 +1067,9 @@ class CalendarMutationService:
         """
         if not bericht.provider_identifier:
             return
+        if bericht.operation_type == "delete":
+            self._spiegel_tombstone(mutation_id, bericht)
+            return
         gelesen = self._readback_lesen(bericht)
         if gelesen is None:
             return
@@ -926,3 +1112,34 @@ class CalendarMutationService:
                 AuditStage.MUTATION_COMPLETED, subject_type=SUBJECT_TYPE,
                 subject_id=mutation_id,
                 facts={"outcome": "succeeded", "localMirrorUpdated": True})
+
+    def _spiegel_tombstone(self, mutation_id: str,
+                           bericht: ExecutionReportV1) -> None:
+        """Führt den Spiegel nach einem provider-bestätigten Delete nach.
+
+        Nur `absent_confirmed` zählt: eine leere Zielsuche allein ist KEIN
+        Beweis — der Bericht muss die Abwesenheit über den gezielten
+        Read-back bestätigt haben, sonst bleibt der Vorgang in der
+        Zwischenlage und ein späterer Abgleich liest.
+        """
+        if bericht.readback_status != "absent_confirmed":
+            return
+        jetzt = utc_now()
+        with self._uow() as uow:
+            zeile = self._require(uow, mutation_id)
+            if zeile["state"] != "provider_applied_pending_reconcile":
+                return
+            getroffen = EventRepository(uow).tombstone_confirmed_deleted(
+                zeile["target_provider_calendar_id"],
+                bericht.provider_identifier, jetzt)
+            pruefe_uebergang(zeile["state"], "succeeded")
+            uow.execute(
+                "UPDATE calendar_mutations SET state = 'succeeded', "
+                "outcome = 'succeeded', completed_at = ? WHERE mutation_id = ?",
+                (jetzt, mutation_id))
+            AuditTrail(uow, module=MODULE).record(
+                AuditStage.MUTATION_COMPLETED, subject_type=SUBJECT_TYPE,
+                subject_id=mutation_id,
+                # Ehrlich: ob der Spiegel eine lebende Zeile getroffen hat.
+                facts={"outcome": "succeeded",
+                       "localMirrorUpdated": bool(getroffen)})

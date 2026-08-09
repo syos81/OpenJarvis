@@ -334,6 +334,100 @@ int32_t jc_calendar_write_read_fingerprint_fields(const char *event_identifier,
     return 1;
 }
 
+int32_t jc_calendar_write_delete_probe(const char *event_identifier,
+                                       char *out_json, int32_t json_capacity) {
+    if (out_json != NULL && json_capacity > 0) { out_json[0] = '\0'; }
+    NSString *ident = JCCalString(event_identifier);
+    if (ident.length == 0) { return 0; }
+
+    // Frischer Store — die Probe misst den Datenbankstand, keinen Cache.
+    EKEventStore *store = [[EKEventStore alloc] init];
+    EKEvent *event = [store eventWithIdentifier:ident];
+    if (event == nil) { return 0; }
+
+    // Rohe Fakten, KEINE Inhalte: kein Teilnehmername, keine URL, kein
+    // Ortstext verlässt diese Funktion. Die Bewertung übernimmt Rust.
+    NSUInteger serien = event.hasRecurrenceRules
+        ? event.recurrenceRules.count : 0;
+    NSUInteger teilnehmer = event.hasAttendees ? event.attendees.count : 0;
+    NSUInteger wecker = event.hasAlarms ? event.alarms.count : 0;
+    BOOL geoOrt = event.structuredLocation != nil
+        && event.structuredLocation.geoLocation != nil;
+    // Verfügbarkeit: busy (0) ist der EventKit-Standardwert eines schlichten
+    // Events, notSupported (-1) heisst „der Kalender kennt das Konzept
+    // nicht" — alles andere (free/tentative/unavailable) ist eine belegte,
+    // nicht wiederherstellbare Markierung.
+    BOOL verfuegbarkeitMarkiert =
+        event.availability != EKEventAvailabilityBusy
+        && event.availability != EKEventAvailabilityNotSupported;
+    NSDictionary *dict = @{
+        @"event_identifier": event.eventIdentifier ?: [NSNull null],
+        @"provider_calendar_id": event.calendar.calendarIdentifier ?: [NSNull null],
+        @"has_recurrence_rules": @(event.hasRecurrenceRules),
+        @"recurrence_rule_count": @(serien),
+        @"is_detached": @(event.isDetached),
+        @"has_attendees": @(event.hasAttendees),
+        @"attendee_count": @(teilnehmer),
+        @"has_organizer": @(event.organizer != nil),
+        @"has_alarms": @(event.hasAlarms),
+        @"alarm_count": @(wecker),
+        @"has_url": @(event.URL != nil),
+        @"has_structured_location_geo": @(geoOrt),
+        @"has_birthday_link": @(event.birthdayContactIdentifier != nil),
+        @"availability_marked": @(verfuegbarkeitMarkiert),
+        @"has_participation_status": @(event.status != EKEventStatusNone),
+    };
+    NSError *jsonError = nil;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:dict options:0
+                                                     error:&jsonError];
+    if (data == nil) { return 0; }
+    NSString *json = [[NSString alloc] initWithData:data
+                                           encoding:NSUTF8StringEncoding];
+    if (json == nil) { return 0; }
+    JCCalCopy(out_json, json_capacity, json);
+    return 1;
+}
+
+int32_t jc_calendar_write_delete(const char *event_identifier,
+                                 char *out_error, int32_t error_capacity) {
+    if (out_error != NULL && error_capacity > 0) { out_error[0] = '\0'; }
+    NSString *ident = JCCalString(event_identifier);
+    if (ident.length == 0) {
+        JCCalCopy(out_error, error_capacity, @"empty_input");
+        return JCCalendarSaveFailedBeforeSave;
+    }
+
+    EKEventStore *store = [[EKEventStore alloc] init];
+    EKEvent *event = [store eventWithIdentifier:ident];
+    if (event == nil) {
+        JCCalCopy(out_error, error_capacity, @"event_vanished_before_delete");
+        return JCCalendarSaveFailedBeforeSave;
+    }
+
+    NSError *removeError = nil;
+    BOOL entfernt = NO;
+    @try {
+        // Genau EIN Remove, span thisEvent, sofortiger Commit. Wirft
+        // EventKit hier, ist der Auftrag übergeben — der Ausgang ist
+        // ungewiss, nie ein zweiter Versuch.
+        entfernt = [store removeEvent:event span:EKSpanThisEvent commit:YES
+                                error:&removeError];
+    } @catch (NSException *ausnahme) {
+        JCCalCopy(out_error, error_capacity,
+                  [NSString stringWithFormat:@"exception:%@", ausnahme.name]);
+        return JCCalendarSaveFailedInSave;
+    }
+    if (!entfernt) {
+        NSString *beschreibung = removeError != nil
+            ? [NSString stringWithFormat:@"%@:%ld", removeError.domain,
+                                         (long)removeError.code]
+            : @"remove_returned_no";
+        JCCalCopy(out_error, error_capacity, beschreibung);
+        return JCCalendarSaveFailedInSave;
+    }
+    return JCCalendarSaveSaved;
+}
+
 int32_t jc_calendar_write_read_event(const char *event_identifier,
                                      char *out_json, int32_t json_capacity) {
     if (out_json != NULL && json_capacity > 0) { out_json[0] = '\0'; }

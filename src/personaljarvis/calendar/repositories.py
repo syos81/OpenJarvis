@@ -283,6 +283,32 @@ class EventRepository:
                  at, at),
             )
 
+    def tombstone_confirmed_deleted(self, provider_calendar_id: str,
+                                    provider_event_id: str, at: str) -> bool:
+        """Setzt den Spiegel eines provider-bestätigt gelöschten Termins auf
+        Tombstone (B3 P3).
+
+        Kein Fenster, keine Ableitung: die Bestätigung kam aus dem gezielten
+        Read-back der Delete-Mutation (`absent_confirmed`), nicht aus einer
+        Fensterbeobachtung — deshalb entsteht hier bewusst KEIN Eintrag in
+        `event_tombstones` (das ist das Sync-Ableitungsartefakt mit
+        Fensterpflicht). Liefert `True`, wenn eine lebende Zeile getroffen
+        wurde.
+        """
+        con = self._uow.connection
+        row = con.execute(
+            "SELECT e.id FROM events e "
+            "JOIN event_external_ids x ON x.event_id = e.id "
+            "WHERE x.provider_calendar_id = ? AND x.provider_event_id = ? "
+            "AND e.is_tombstone = 0",
+            (provider_calendar_id, provider_event_id)).fetchone()
+        if row is None:
+            return False
+        con.execute(
+            "UPDATE events SET is_tombstone = 1, deleted_at = ?, "
+            "updated_at = ? WHERE id = ?", (at, at, row["id"]))
+        return True
+
     def tombstone_absent_in_window(
         self, *, provider_account_id: str, provider_calendar_id: str,
         calendar_id: str, window: SyncWindow, seen_provider_ids: Iterable[str],

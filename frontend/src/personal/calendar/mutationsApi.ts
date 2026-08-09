@@ -45,6 +45,26 @@ export interface MutationsVorschau {
   time_zone: string | null;
   /** Nur bei `update`: das SERVER-gebaute Delta — je Feld alt → neu. */
   changes?: Record<string, { from: unknown; to: unknown }>;
+  /** Nur bei `delete` (B3 P3): die SERVER-geprüfte Löschlage — belegte
+   *  Wiederherstellbarkeit und vorhandenes Restore-Artefakt. */
+  deletion?: {
+    eligible: boolean;
+    unsupported_feature_flags: string[];
+    restore_preimage_present: boolean;
+  };
+}
+
+/** Die am NATIVEN Event erhobene Delete-Safety-Probe (B3 P3) — PII-arm:
+ *  Flags, Zähler, Identitäten; nie ein Inhalt. Sie reist unverändert zum
+ *  Server (der ihren Digest in die Freigabe bindet); der App-Prozess
+ *  rechnet sie unmittelbar vor dem Execute neu. */
+export interface LoeschProbe {
+  schema_version: number;
+  event_identifier: string;
+  provider_calendar_id: string;
+  eligible: boolean;
+  unsupported_feature_flags: string[];
+  counts: Record<string, number>;
 }
 
 export interface VorbereiteterVorgang {
@@ -166,6 +186,42 @@ export function bereiteUpdateVor(providerCalendarId: string,
       changes: aenderungen,
     }),
   });
+}
+
+/** Bereitet EINEN Delete vor (B3 P3). Es wird nichts gesendet; der Server
+ * bindet Vorzustands-Fingerprint, Eligibility-Digest und Restore-Artefakt
+ * in die Freigabe — oder blockiert typisiert (`delete_not_eligible`). */
+export function bereiteLoeschenVor(providerCalendarId: string,
+                                   eventIdentifier: string,
+                                   probe: LoeschProbe,
+): Promise<VorbereiteterVorgang> {
+  return hole('/mutations', {
+    method: 'POST',
+    body: JSON.stringify({
+      command: 'delete',
+      provider_calendar_id: providerCalendarId,
+      event_identifier: eventIdentifier,
+      eligibility_probe: probe,
+    }),
+  });
+}
+
+/**
+ * Erhebt die READ-ONLY Delete-Safety-Probe am nativen Event (App-Prozess).
+ *
+ * `null` heisst ehrlich: nicht erhebbar (keine Autorisierung oder Event
+ * nicht lesbar) — dann gibt es keinen Löschweg. Ausserhalb von Tauri gibt
+ * es keinen App-Prozess; das ist ein Fehler, kein stiller Ersatzweg.
+ */
+export async function erhebeLoeschProbe(eventIdentifier: string,
+): Promise<LoeschProbe | null> {
+  if (!isTauri()) {
+    throw new Error('app_process_unavailable');
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  const wert = await invoke<LoeschProbe | null>(
+    'personal_calendar_delete_probe', { eventIdentifier });
+  return wert ?? null;
 }
 
 /** Menschliche Freigabe. Verbraucht wird sie erst beim Claim. */

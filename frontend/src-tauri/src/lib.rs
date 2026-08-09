@@ -1894,6 +1894,17 @@ fn personal_calendar_execute_mutation(order_json: String) -> serde_json::Value {
     wert
 }
 
+/// Erhebt die READ-ONLY Delete-Safety-Probe am nativen Event (B3 P3).
+///
+/// Liefert die KANONISCHE, PII-arme Probe (eligible, Flags, Zähler) oder
+/// `null`, wenn der Prozess nicht autorisiert ist oder das Event nicht
+/// lesbar. Führt NIE eine Mutation aus — die Bewertung bindet der Server,
+/// und der Ausführungspfad rechnet sie unmittelbar vor dem Execute neu.
+#[tauri::command]
+fn personal_calendar_delete_probe(event_identifier: String) -> serde_json::Value {
+    calendar_write::delete_probe(&event_identifier).unwrap_or(serde_json::Value::Null)
+}
+
 /// Reads the Contacts authorization status. Shows no dialog.
 ///
 /// The sidecar can read this too, and the Contacts page still does so through
@@ -3279,6 +3290,7 @@ pub fn run() {
             personal_contacts_request_authorization,
             personal_contacts_execute_mutation,
             personal_calendar_execute_mutation,
+            personal_calendar_delete_probe,
         ])
         .build(tauri::generate_context!())
         .expect("error while building OpenJarvis Desktop")

@@ -646,7 +646,7 @@
   },
   "feature_lineage": {
     "lineage_file": "config/gates/features/b3-calendar-write.lineage.json",
-    "own_expected": 10,
+    "own_expected": 16,
     "own_prefix": "B3-",
     "predecessor_file": "config/gates/features/b2-month-parity.lineage.json"
   },

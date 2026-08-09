@@ -20,8 +20,17 @@
 // Bei Identität werden AUSSCHLIESSLICH die Delta-Felder gesetzt — nie wird
 // ein Event aus dem Jarvis-Modell rekonstruiert.
 //
-// `delete` bleibt gesperrt: jeder fremde Operationstyp endet beweisbar vor
-// jeder Übergabe als `not_sent / capability_denied`.
+// P3-Delete trägt DREI getrennte, freigabegebundene Nachweise (verbindliche
+// Eigentümerentscheidung): den vollständigen stabilen Read-Fingerprint
+// (Konfliktbindung), den Digest der Delete-Safety-Probe (Eligibility als
+// Allowlist: jede belegte, nicht verlustfrei wiederherstellbare Eigenschaft
+// blockiert) und den Digest des Restore-Artefakts. Unmittelbar vor dem
+// Remove wird alles drei aus dem FRISCHEN Zustand nachgerechnet; jede
+// Abweichung endet beweisbar vor der Löschung — der Testbeleg ist der
+// Delete-Zähler der Fake-Operationen, der null bleiben muss.
+//
+// Jeder fremde Operationstyp endet weiterhin beweisbar vor jeder Übergabe
+// als `not_sent / capability_denied`.
 
 use serde::{Deserialize, Serialize};
 
@@ -137,6 +146,117 @@ pub fn fingerprint_of(felder: &FingerprintFelder) -> String {
     payload_digest(&serde_json::to_value(felder).expect("Felder sind serialisierbar"))
 }
 
+// ── Delete-Safety-Probe (B3 P3) ─────────────────────────────────────────────
+
+/// Vertragsversion der Probe — muss mit `ELIGIBILITY_SCHEMA_VERSION` der
+/// Python-Seite übereinstimmen (Paritätspin im Test).
+pub const ELIGIBILITY_SCHEMA_VERSION: u32 = 1;
+
+/// Die ROHEN, PII-armen Fakten des Shims über die am nativen Event belegten
+/// Eigenschaften ausserhalb des wiederherstellbaren B3-Vertrags. Nur
+/// Wahrheitswerte und Zähler — nie ein Inhalt. Abgeleitet aus dem real
+/// verwendeten EventKit-Vertrag (EKEvent/EKCalendarItem, macOS-SDK);
+/// Attachments haben dort keine öffentliche lesbare Eigenschaft und werden
+/// deshalb nicht behauptet (dokumentierte Vertragsgrenze).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RohProbe {
+    pub event_identifier: String,
+    pub provider_calendar_id: String,
+    pub has_recurrence_rules: bool,
+    pub recurrence_rule_count: u32,
+    pub is_detached: bool,
+    pub has_attendees: bool,
+    pub attendee_count: u32,
+    pub has_organizer: bool,
+    pub has_alarms: bool,
+    pub alarm_count: u32,
+    pub has_url: bool,
+    pub has_structured_location_geo: bool,
+    pub has_birthday_link: bool,
+    pub availability_marked: bool,
+    pub has_participation_status: bool,
+}
+
+/// Übersetzt die rohen Fakten in die KANONISCHE Probe — exakt das Objekt,
+/// das die Python-Seite (`validate_eligibility_probe`) bindet: sortierte,
+/// eindeutige Flags aus der geschlossenen Menge, immer alle drei Zähler,
+/// `eligible` IST die Abwesenheit jedes Flags.
+pub fn kanonische_probe(roh: &RohProbe) -> serde_json::Value {
+    let mut flags: Vec<&str> = Vec::new();
+    // Alphabetische Reihenfolge = sortierte Liste, wortgleich mit
+    // `ELIGIBILITY_FLAG_NAMES` in contracts.py.
+    if roh.has_alarms || roh.alarm_count > 0 {
+        flags.push("alarms");
+    }
+    if roh.has_attendees || roh.attendee_count > 0 {
+        flags.push("attendees");
+    }
+    if roh.availability_marked {
+        flags.push("availability_marked");
+    }
+    if roh.has_birthday_link {
+        flags.push("birthday_link");
+    }
+    if roh.is_detached {
+        flags.push("detached_occurrence");
+    }
+    if roh.has_organizer {
+        flags.push("organizer");
+    }
+    if roh.has_participation_status {
+        flags.push("participation_status");
+    }
+    if roh.has_recurrence_rules || roh.recurrence_rule_count > 0 {
+        flags.push("recurrence_rules");
+    }
+    if roh.has_structured_location_geo {
+        flags.push("structured_location_geo");
+    }
+    if roh.has_url {
+        flags.push("url");
+    }
+    serde_json::json!({
+        "schema_version": ELIGIBILITY_SCHEMA_VERSION,
+        "event_identifier": roh.event_identifier,
+        "provider_calendar_id": roh.provider_calendar_id,
+        "eligible": flags.is_empty(),
+        "unsupported_feature_flags": flags,
+        "counts": {
+            "alarms": roh.alarm_count,
+            "attendees": roh.attendee_count,
+            "recurrence_rules": roh.recurrence_rule_count,
+        },
+    })
+}
+
+/// Digest der kanonischen Probe — dieselbe Kanonisierung wie der
+/// Payload-Digest; die Python-Seite rechnet über `eligibility_digest_of`
+/// DENSELBEN Wert (Paritätspin im Test).
+pub fn eligibility_digest_of(probe: &serde_json::Value) -> String {
+    payload_digest(probe)
+}
+
+/// Das Restore-Artefakt aus dem frisch gelesenen Zustand: die sieben
+/// Vertragsfelder plus Zielkalender — exakt die Form, die die Python-Seite
+/// (`restore_preimage_of`) beim Vorbereiten gebunden hat. Der Digest-
+/// Vergleich unmittelbar vor dem Remove ist die erneute
+/// Wiederherstellbarkeitsprüfung der Eigentümerentscheidung.
+pub fn restore_preimage_of(felder: &FingerprintFelder) -> serde_json::Value {
+    serde_json::json!({
+        "fields": {
+            "title": felder.title,
+            "starts_at_utc": felder.starts_at_utc,
+            "ends_at_utc": felder.ends_at_utc,
+            "is_all_day": felder.is_all_day,
+            "location": felder.location,
+            "notes": felder.notes,
+            "time_zone": felder.time_zone,
+        },
+        "provider_calendar_id": felder.provider_calendar_id,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CalendarExecutionReportV1 {
@@ -239,6 +359,13 @@ pub trait KalenderOperationen {
         event_identifier: &str,
         changes: &serde_json::Map<String, serde_json::Value>,
     ) -> Result<String, SpeicherFehler>;
+    /// Erhebt die READ-ONLY Delete-Safety-Probe am nativen Event —
+    /// rohe, PII-arme Fakten, nie eine Mutation.
+    fn delete_probe(&mut self, event_identifier: &str) -> Option<RohProbe>;
+    /// Löscht GENAU EIN Event (span thisEvent, sofortiger Commit).
+    /// Kein Fallback, kein zweiter Versuch.
+    fn loesche_event(&mut self, event_identifier: &str)
+        -> Result<(), SpeicherFehler>;
 }
 
 // ── Auftragsprüfung: vor jeder Ausführung, vollständig ─────────────────────
@@ -260,13 +387,20 @@ const DELTA_FELD_NAMEN: [&str; 7] = [
 ];
 
 /// Der geprüfte Inhalt eines Auftrags: Create trägt den vollen Feldsatz,
-/// Update das Delta samt Ziel und gebundenem Vorzustands-Fingerprint.
+/// Update das Delta samt Ziel und gebundenem Vorzustands-Fingerprint,
+/// Delete die drei getrennten Nachweise der Freigabe (P3).
 enum Auftragsinhalt {
     Create(EventFelder),
     Update {
         changes: serde_json::Map<String, serde_json::Value>,
         event_identifier: String,
         expected_fingerprint: String,
+    },
+    Delete {
+        event_identifier: String,
+        expected_fingerprint: String,
+        eligibility_digest: String,
+        restore_preimage_digest: String,
     },
 }
 
@@ -342,12 +476,15 @@ fn pruefe_order(
     if !ist_hex64(&order.payload_digest) || !ist_hex64(&order.preview_digest) {
         return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     }
-    // P2 schaltet `create` und `update` frei — `delete` und alles Fremde ist
+    // P3 schaltet `create`, `update` und `delete` frei — alles Fremde ist
     // keine Formfrage, sondern eine nicht erteilte Freigabe.
     if order.schema_version != 1 {
         return Err(CalendarExecutionReportV1::not_sent(&order, "schema_mismatch"));
     }
-    if order.operation_type != "create" && order.operation_type != "update" {
+    if order.operation_type != "create"
+        && order.operation_type != "update"
+        && order.operation_type != "delete"
+    {
         return Err(CalendarExecutionReportV1::not_sent(
             &order,
             "capability_denied",
@@ -391,15 +528,8 @@ fn pruefe_order(
         return Ok((order, Auftragsinhalt::Create(felder)));
     }
 
-    // Update: Delta prüfen, Ziel und Vorzustands-Fingerprint aus dem
+    // Update/Delete: Ziel und Vorzustands-Fingerprint aus dem
     // DIGEST-GEDECKTEN Payload lesen — die Order-Felder müssen dazu passen.
-    let Some(changes) = order
-        .canonical_payload
-        .get("changes")
-        .and_then(pruefe_changes)
-    else {
-        return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
-    };
     let ziel = order.canonical_payload.get("provider_target");
     let Some(event_identifier) = ziel
         .and_then(|z| z.get("event_identifier"))
@@ -425,6 +555,49 @@ fn pruefe_order(
         .and_then(|w| w.as_str())
         .filter(|f| ist_hex64(f))
         .map(str::to_string)
+    else {
+        return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+    };
+
+    if order.operation_type == "delete" {
+        // Delete: kein Feldsatz, kein Delta — dafür die BEIDEN weiteren
+        // freigabegebundenen Nachweise. Ein Delete-Payload, der trotzdem
+        // `fields` oder `changes` trägt, ist kein Vertragspayload.
+        if order.canonical_payload.get("fields").is_some()
+            || order.canonical_payload.get("changes").is_some()
+        {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        }
+        let digest_feld = |name: &str| {
+            order
+                .canonical_payload
+                .get(name)
+                .and_then(|w| w.as_str())
+                .filter(|f| ist_hex64(f))
+                .map(str::to_string)
+        };
+        let Some(eligibility_digest) = digest_feld("eligibility_digest") else {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        };
+        let Some(restore_preimage_digest) = digest_feld("restore_preimage_digest")
+        else {
+            return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
+        };
+        return Ok((
+            order,
+            Auftragsinhalt::Delete {
+                event_identifier,
+                expected_fingerprint,
+                eligibility_digest,
+                restore_preimage_digest,
+            },
+        ));
+    }
+
+    let Some(changes) = order
+        .canonical_payload
+        .get("changes")
+        .and_then(pruefe_changes)
     else {
         return Err(CalendarExecutionReportV1::not_sent(&order, "invalid_payload"));
     };
@@ -487,10 +660,31 @@ pub fn execute_order_mit_operationen(
         }
     }
 
+    // Delete hat einen EIGENEN Ablauf: drei Nachweise vor der Übergabe,
+    // Read-back auf ABWESENHEIT statt Anwesenheit.
+    if let Auftragsinhalt::Delete {
+        event_identifier,
+        expected_fingerprint,
+        eligibility_digest,
+        restore_preimage_digest,
+    } = inhalt
+    {
+        return fuehre_delete_aus(
+            &order,
+            ops,
+            jetzt_unix,
+            &event_identifier,
+            &expected_fingerprint,
+            &eligibility_digest,
+            &restore_preimage_digest,
+        );
+    }
+
     let mut bericht = CalendarExecutionReportV1::not_sent(&order, "provider_save_error");
 
     let speicher_ergebnis = match inhalt {
         Auftragsinhalt::Create(felder) => ops.speichere_event(&felder, &kalender_id),
+        Auftragsinhalt::Delete { .. } => unreachable!("oben behandelt"),
         Auftragsinhalt::Update {
             changes,
             event_identifier,
@@ -577,6 +771,113 @@ pub fn execute_order_mit_operationen(
     }
 }
 
+/// Der Delete-Ablauf (B3 P3): unmittelbar vor dem Remove wird der gesamte
+/// gebundene Zustand aus dem FRISCHEN Event nachgerechnet — Fingerprint,
+/// Eligibility-Digest, Restore-Digest. Jede Abweichung endet beweisbar vor
+/// der Löschung (`not_sent`, Delete-Zähler bleibt null). Nach dem Remove
+/// zählt nur die BESTÄTIGTE Abwesenheit als Erfolg: ein weiterhin lesbares
+/// Event macht den Ausgang ungewiss, nie „applied".
+#[allow(clippy::too_many_arguments)]
+fn fuehre_delete_aus(
+    order: &CalendarExecutionOrder,
+    ops: &mut dyn KalenderOperationen,
+    jetzt_unix: i64,
+    event_identifier: &str,
+    expected_fingerprint: &str,
+    eligibility_digest: &str,
+    restore_preimage_digest: &str,
+) -> CalendarExecutionReportV1 {
+    let mut bericht = CalendarExecutionReportV1::not_sent(order, "provider_save_error");
+    bericht.operation_type = "delete".into();
+
+    // 1. Konfliktbindung: den vollständigen stabilen Read-Zustand frisch
+    //    lesen und gegen den freigegebenen Fingerprint halten.
+    let Some(vorher) = ops.lese_fingerprint_felder(event_identifier) else {
+        return CalendarExecutionReportV1::not_sent(order, "target_not_found");
+    };
+    bericht.fingerprint_checked = true;
+    if fingerprint_of(&vorher) != expected_fingerprint {
+        bericht.fingerprint_matched = Some(false);
+        bericht.error_class = Some("revision_conflict".into());
+        return bericht;
+    }
+    bericht.fingerprint_matched = Some(true);
+
+    // 2. Eligibility: die Probe ERNEUT am nativen Event erheben. Eine
+    //    belegte unsupported Eigenschaft blockiert (Allowlist-Grundregel);
+    //    ein abweichender Digest heisst: der Zustand ist nicht mehr der
+    //    freigegebene.
+    let Some(roh) = ops.delete_probe(event_identifier) else {
+        return CalendarExecutionReportV1::not_sent(order, "target_not_found");
+    };
+    if roh.event_identifier != event_identifier
+        || roh.provider_calendar_id != vorher.provider_calendar_id
+    {
+        bericht.error_class = Some("revision_conflict".into());
+        return bericht;
+    }
+    let probe = kanonische_probe(&roh);
+    if probe.get("eligible").and_then(|w| w.as_bool()) != Some(true) {
+        bericht.error_class = Some("unsupported_field".into());
+        return bericht;
+    }
+    if eligibility_digest_of(&probe) != eligibility_digest {
+        bericht.error_class = Some("revision_conflict".into());
+        return bericht;
+    }
+
+    // 3. Wiederherstellbarkeit erneut: das Restore-Artefakt aus dem
+    //    frischen Zustand nachrechnen — es muss exakt das gebundene sein
+    //    und ein gültiger Create-Kandidat bleiben.
+    if vorher.ends_at_utc <= vorher.starts_at_utc {
+        bericht.error_class = Some("invalid_payload".into());
+        return bericht;
+    }
+    if payload_digest(&restore_preimage_of(&vorher)) != restore_preimage_digest {
+        bericht.error_class = Some("revision_conflict".into());
+        return bericht;
+    }
+
+    // 4. Genau EIN Remove — oder gar nichts.
+    match ops.loesche_event(event_identifier) {
+        Err(fehler) if fehler.vor_save => {
+            bericht.error_digest = Some(sha256_hex(&fehler.beschreibung));
+            bericht
+        }
+        Err(fehler) => {
+            bericht.outcome = "unknown".into();
+            bericht.send_attempted = true;
+            bericht.save_request_count = 1;
+            bericht.readback_status = "unavailable".into();
+            bericht.error_digest = Some(sha256_hex(&fehler.beschreibung));
+            bericht
+        }
+        Ok(()) => {
+            bericht.send_attempted = true;
+            bericht.save_request_count = 1;
+            bericht.provider_identifier = Some(event_identifier.to_string());
+            bericht.provider_completed_at = Some(iso8601_utc_aus_unix(jetzt_unix));
+            match ops.lese_event(event_identifier) {
+                None => {
+                    // Die gezielte Nachlese bestätigt die Abwesenheit —
+                    // erst DAS ist der Erfolgsbeleg eines Deletes.
+                    bericht.outcome = "applied".into();
+                    bericht.readback_status = "absent_confirmed".into();
+                    bericht.error_class = None;
+                }
+                Some(_) => {
+                    // Entfernt gemeldet, aber weiterhin lesbar: ehrlich
+                    // ungewiss — der Read-back hat die Anwesenheit gesehen.
+                    bericht.outcome = "unknown".into();
+                    bericht.readback_status = "confirmed".into();
+                    bericht.error_class = Some("readback_failed".into());
+                }
+            }
+            bericht
+        }
+    }
+}
+
 // ── Echte Operationen: der Objective-C-Shim ────────────────────────────────
 
 #[cfg(target_os = "macos")]
@@ -621,6 +922,16 @@ mod nativ {
             event_identifier: *const c_char,
             out_json: *mut c_char,
             json_capacity: i32,
+        ) -> i32;
+        fn jc_calendar_write_delete_probe(
+            event_identifier: *const c_char,
+            out_json: *mut c_char,
+            json_capacity: i32,
+        ) -> i32;
+        fn jc_calendar_write_delete(
+            event_identifier: *const c_char,
+            out_error: *mut c_char,
+            error_capacity: i32,
         ) -> i32;
     }
 
@@ -767,6 +1078,79 @@ mod nativ {
                 }),
             }
         }
+
+        fn delete_probe(&mut self, event_identifier: &str) -> Option<RohProbe> {
+            let kennung = CString::new(event_identifier).ok()?;
+            let mut json = [0 as c_char; READBACK_CAPACITY];
+            let gelesen = unsafe {
+                jc_calendar_write_delete_probe(
+                    kennung.as_ptr(),
+                    json.as_mut_ptr(),
+                    READBACK_CAPACITY as i32,
+                )
+            };
+            if gelesen != 1 {
+                return None;
+            }
+            serde_json::from_str(&puffer_zu_string(&json)).ok()
+        }
+
+        fn loesche_event(&mut self, event_identifier: &str)
+            -> Result<(), SpeicherFehler>
+        {
+            let vor_save = |beschreibung: &str| SpeicherFehler {
+                vor_save: true,
+                beschreibung: beschreibung.into(),
+            };
+            let c_kennung = CString::new(event_identifier)
+                .map_err(|_| vor_save("event_identifier_invalid"))?;
+            let mut fehler = [0 as c_char; ERROR_CAPACITY];
+            let code = unsafe {
+                jc_calendar_write_delete(
+                    c_kennung.as_ptr(),
+                    fehler.as_mut_ptr(),
+                    ERROR_CAPACITY as i32,
+                )
+            };
+            match code {
+                SAVE_SAVED => Ok(()),
+                SAVE_FAILED_BEFORE_SAVE => Err(SpeicherFehler {
+                    vor_save: true,
+                    beschreibung: puffer_zu_string(&fehler),
+                }),
+                _ => Err(SpeicherFehler {
+                    vor_save: false,
+                    beschreibung: puffer_zu_string(&fehler),
+                }),
+            }
+        }
+    }
+
+    /// Erhebt die Delete-Safety-Probe am nativen Event und liefert die
+    /// KANONISCHE Form (für Oberfläche und Server). Read-only; `None`,
+    /// wenn der Prozess nicht autorisiert ist oder das Event nicht lesbar.
+    pub fn delete_probe_kanonisch(event_identifier: &str) -> Option<serde_json::Value> {
+        if unsafe { jc_calendar_write_authorized() } != 1 {
+            return None;
+        }
+        let mut ops = EchteKalenderOperationen;
+        let roh = ops.delete_probe(event_identifier)?;
+        Some(kanonische_probe(&roh))
+    }
+}
+
+/// Die READ-ONLY Delete-Safety-Probe für das Tauri-Kommando: kanonische
+/// Probe des nativen Events oder `None`. Nicht-macOS-Ziele haben keinen
+/// Kalenderzugriff — ehrlich `None`, kein Ersatzweg.
+pub fn delete_probe(event_identifier: &str) -> Option<serde_json::Value> {
+    #[cfg(target_os = "macos")]
+    {
+        nativ::delete_probe_kanonisch(event_identifier)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = event_identifier;
+        None
     }
 }
 
@@ -810,15 +1194,23 @@ pub(crate) mod tests {
     }
 
     /// Fake-Anbindung mit Zählern: Der Beleg, dass eine abgewiesene Order
-    /// EventKit nie erreicht, ist `save_aufrufe == 0` — nicht eine Behauptung.
+    /// EventKit nie erreicht, ist `save_aufrufe == 0` (bzw. für P3
+    /// `delete_aufrufe == 0`) — nicht eine Behauptung.
     pub(crate) struct FakeKalenderOperationen {
         vorhandene_kalender: Vec<String>,
         pub(crate) save_aufrufe: u32,
+        pub(crate) delete_aufrufe: u32,
         lese_aufrufe: u32,
         save_fehler: Option<SpeicherFehler>,
+        delete_fehler: Option<SpeicherFehler>,
+        /// Simuliert einen Remove, der Erfolg meldet, ohne zu wirken: der
+        /// Bestand bleibt lesbar — der Read-back muss das ehrlich zeigen.
+        delete_wirkt_nicht: bool,
         readback_verfuegbar: bool,
         gespeichert: Option<(EventFelder, String)>,
         pub(crate) bestehend: Option<FakeEvent>,
+        /// Die Probe, die der Fake am Event „erhebt" (P3).
+        pub(crate) probe: Option<RohProbe>,
     }
 
     impl FakeKalenderOperationen {
@@ -826,11 +1218,15 @@ pub(crate) mod tests {
             Self {
                 vorhandene_kalender: vec![kennung.to_string()],
                 save_aufrufe: 0,
+                delete_aufrufe: 0,
                 lese_aufrufe: 0,
                 save_fehler: None,
+                delete_fehler: None,
+                delete_wirkt_nicht: false,
                 readback_verfuegbar: true,
                 gespeichert: None,
                 bestehend: None,
+                probe: None,
             }
         }
 
@@ -963,6 +1359,36 @@ pub(crate) mod tests {
             }
             // `extra_eigenschaft` wird BEWUSST nicht angefasst.
             Ok(ev.felder.event_identifier.clone())
+        }
+
+        fn delete_probe(&mut self, event_identifier: &str) -> Option<RohProbe> {
+            self.probe
+                .as_ref()
+                .filter(|p| p.event_identifier == event_identifier)
+                .cloned()
+        }
+
+        fn loesche_event(&mut self, event_identifier: &str)
+            -> Result<(), SpeicherFehler>
+        {
+            self.delete_aufrufe += 1;
+            if let Some(fehler) = self.delete_fehler.take() {
+                return Err(fehler);
+            }
+            let vorhanden = self
+                .bestehend
+                .as_ref()
+                .is_some_and(|ev| ev.felder.event_identifier == event_identifier);
+            if !vorhanden {
+                return Err(SpeicherFehler {
+                    vor_save: true,
+                    beschreibung: "event_vanished_before_delete".into(),
+                });
+            }
+            if !self.delete_wirkt_nicht {
+                self.bestehend = None;
+            }
+            Ok(())
         }
     }
 
@@ -1107,14 +1533,26 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn delete_bleibt_nicht_freigeschaltet() {
-        // P2 schaltet `update` frei; `delete` bleibt eine nicht erteilte
-        // Freigabe — beweisbar vor jeder Übergabe.
+    fn ein_fremder_operationstyp_bleibt_capability_denied() {
+        // P3 schaltet `delete` frei; alles ausserhalb der drei Kommandos
+        // bleibt eine nicht erteilte Freigabe — beweisbar vor jeder Übergabe.
         let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
-        let b = execute_order_mit_operationen(&auftrag("delete", payload()), JETZT, &mut ops);
+        let b = execute_order_mit_operationen(&auftrag("move", payload()), JETZT, &mut ops);
         assert_eq!(b.outcome, "not_sent");
         assert_eq!(b.error_class.as_deref(), Some("capability_denied"));
         assert_eq!(ops.save_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_delete_auftrag_mit_create_payload_faellt() {
+        // Ein Delete-Payload trägt keinen Feldsatz: `fields` im Payload
+        // ist kein Vertragspayload — beweisbar vor jeder Übergabe.
+        let mut ops = FakeKalenderOperationen::mit_kalender("CAL-TEST");
+        let b = execute_order_mit_operationen(&auftrag("delete", payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.save_aufrufe, 0);
+        assert_eq!(ops.delete_aufrufe, 0);
     }
 
     #[test]
@@ -1593,6 +2031,373 @@ pub(crate) mod tests {
         assert_eq!(b.save_request_count, 1);
         assert_eq!(b.fingerprint_matched, Some(true));
         assert_eq!(b.error_class.as_deref(), Some("provider_save_error"));
+    }
+
+    // ── Delete: drei Nachweise, Allowlist-Eligibility (B3 P3) ──────────────
+
+    /// Eine Probe ohne jede belegte unsupported Eigenschaft — der
+    /// Ausgangszustand des synthetischen Bestandsevents.
+    pub(crate) fn unauffaellige_probe() -> RohProbe {
+        RohProbe {
+            event_identifier: "EK-EVENT-1".into(),
+            provider_calendar_id: "cal-1".into(),
+            has_recurrence_rules: false,
+            recurrence_rule_count: 0,
+            is_detached: false,
+            has_attendees: false,
+            attendee_count: 0,
+            has_organizer: false,
+            has_alarms: false,
+            alarm_count: 0,
+            has_url: false,
+            has_structured_location_geo: false,
+            has_birthday_link: false,
+            availability_marked: false,
+            has_participation_status: false,
+        }
+    }
+
+    /// Beidseitig gepinnte Digests desselben synthetischen Zustands — die
+    /// Python-Seite pinnt DIESELBEN Konstanten. Weicht eine Seite ab,
+    /// rechnen Rust und Python verschiedene Kanonisierungen, und die
+    /// Approval-Bindung des Deletes wäre wertlos.
+    const ELIGIBILITY_DIGEST_PIN: &str =
+        "d5b92ebce7a158d4213ffe8b946c4f5f93c91917fd37756478d5b4cad4261f33";
+    const RESTORE_PREIMAGE_DIGEST_PIN: &str =
+        "a33587d4e03bba7fd50481a7b386440e229dc9762cb65b022739e6210978ab09";
+
+    fn delete_payload() -> serde_json::Value {
+        let vorher = preimage_felder();
+        serde_json::json!({
+            "command": "delete",
+            "provider_target": {
+                "provider_calendar_id": "cal-1",
+                "event_identifier": "EK-EVENT-1"
+            },
+            "expected_fingerprint": fingerprint_of(&vorher),
+            "eligibility_digest":
+                eligibility_digest_of(&kanonische_probe(&unauffaellige_probe())),
+            "restore_preimage_digest":
+                payload_digest(&restore_preimage_of(&vorher)),
+        })
+    }
+
+    fn delete_auftrag(payload: serde_json::Value) -> String {
+        serde_json::json!({
+            "operation_id": "4".repeat(36),
+            "mutation_id": "5".repeat(36),
+            "claim_token": "e".repeat(64),
+            "operation_type": "delete",
+            "payload_digest": payload_digest(&payload),
+            "preview_digest": "f".repeat(64),
+            "canonical_payload": payload.clone(),
+            "issued_at": "2026-08-09T00:00:00Z",
+            "expires_at": "2026-08-09T00:10:00Z",
+            "provider_target": payload["provider_target"].clone(),
+            "expected_fingerprint": payload["expected_fingerprint"].clone()
+        })
+        .to_string()
+    }
+
+    fn delete_ops() -> FakeKalenderOperationen {
+        let mut ops =
+            FakeKalenderOperationen::mit_bestehendem_event("cal-1", preimage_felder());
+        ops.probe = Some(unauffaellige_probe());
+        ops
+    }
+
+    #[test]
+    fn die_delete_digest_pins_stimmen_mit_der_python_seite_ueberein() {
+        assert_eq!(
+            eligibility_digest_of(&kanonische_probe(&unauffaellige_probe())),
+            ELIGIBILITY_DIGEST_PIN
+        );
+        assert_eq!(
+            payload_digest(&restore_preimage_of(&preimage_felder())),
+            RESTORE_PREIMAGE_DIGEST_PIN
+        );
+    }
+
+    #[test]
+    fn ein_einfacher_unterstuetzter_event_wird_geloescht_und_abwesend_bestaetigt() {
+        // Fixture A: eligible, Freigabe vorhanden — der Delete erreicht den
+        // nativen Remove genau einmal, der Read-back bestätigt ABWESENHEIT.
+        let mut ops = delete_ops();
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "applied", "{:?}", b.error_class);
+        assert_eq!(b.readback_status, "absent_confirmed");
+        assert!(b.send_attempted);
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(ops.delete_aufrufe, 1);
+        assert_eq!(ops.save_aufrufe, 0);
+        assert!(b.fingerprint_checked);
+        assert_eq!(b.fingerprint_matched, Some(true));
+        assert_eq!(b.provider_identifier.as_deref(), Some("EK-EVENT-1"));
+        assert_eq!(b.readback_event, None);
+        assert_eq!(b.error_class, None);
+        assert!(ops.bestehend.is_none(), "der Bestand wurde entfernt");
+    }
+
+    /// R9-Helfer: erst BELEGEN, dass die unsupported Eigenschaft an der
+    /// Probe tatsächlich gesetzt ist, dann blocked erwarten — und der
+    /// Beleg, dass der native Delete nie erreicht wurde, ist der Zähler.
+    fn blocked_wegen(probe: RohProbe, erwartete_flags: &[&str]) {
+        let kanonisch = kanonische_probe(&probe);
+        let flags: Vec<String> = kanonisch["unsupported_feature_flags"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|w| w.as_str().unwrap().to_string())
+            .collect();
+        for flag in erwartete_flags {
+            assert!(
+                flags.iter().any(|f| f == flag),
+                "R9: Eigenschaft {flag} ist an der Fixture nicht belegt"
+            );
+        }
+        assert_eq!(kanonisch["eligible"], serde_json::json!(false));
+
+        let mut ops = delete_ops();
+        ops.probe = Some(probe);
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert!(!b.send_attempted);
+        assert_eq!(b.save_request_count, 0);
+        assert_eq!(b.error_class.as_deref(), Some("unsupported_field"));
+        assert_eq!(ops.delete_aufrufe, 0, "nativer Delete wurde erreicht");
+        assert!(ops.bestehend.is_some(), "der Bestand blieb unangetastet");
+    }
+
+    #[test]
+    fn ein_event_mit_wiederholungsregel_ist_blocked() {
+        // Fixture B.
+        let mut probe = unauffaellige_probe();
+        probe.has_recurrence_rules = true;
+        probe.recurrence_rule_count = 1;
+        blocked_wegen(probe, &["recurrence_rules"]);
+    }
+
+    #[test]
+    fn ein_event_mit_teilnehmersemantik_ist_blocked() {
+        // Fixture C: Teilnehmer, Organisator und Teilnahmestatus — die
+        // volle Einladungssemantik.
+        let mut probe = unauffaellige_probe();
+        probe.has_attendees = true;
+        probe.attendee_count = 2;
+        probe.has_organizer = true;
+        probe.has_participation_status = true;
+        blocked_wegen(probe, &["attendees", "organizer", "participation_status"]);
+    }
+
+    #[test]
+    fn ein_event_mit_wecker_ist_blocked() {
+        // Fixture D: Wecker sind im B3-Restore nicht verlustfrei.
+        let mut probe = unauffaellige_probe();
+        probe.has_alarms = true;
+        probe.alarm_count = 1;
+        blocked_wegen(probe, &["alarms"]);
+    }
+
+    #[test]
+    fn ein_event_mit_url_ist_blocked() {
+        // Fixture E: verfügbare, nicht unterstützte Semantik (URL).
+        let mut probe = unauffaellige_probe();
+        probe.has_url = true;
+        blocked_wegen(probe, &["url"]);
+    }
+
+    #[test]
+    fn ein_event_mit_geo_ort_ist_blocked() {
+        // Fixture E': strukturierter Ort mit Geokoordinate — mehr als der
+        // B3-Ortstext wiederherstellen kann.
+        let mut probe = unauffaellige_probe();
+        probe.has_structured_location_geo = true;
+        blocked_wegen(probe, &["structured_location_geo"]);
+    }
+
+    #[test]
+    fn eine_kombination_unsupported_eigenschaften_ist_blocked() {
+        // Fixture F.
+        let mut probe = unauffaellige_probe();
+        probe.has_recurrence_rules = true;
+        probe.recurrence_rule_count = 2;
+        probe.has_attendees = true;
+        probe.attendee_count = 5;
+        probe.has_alarms = true;
+        probe.alarm_count = 1;
+        probe.availability_marked = true;
+        blocked_wegen(
+            probe,
+            &["alarms", "attendees", "availability_marked", "recurrence_rules"],
+        );
+    }
+
+    #[test]
+    fn eine_zwischen_freigabe_und_execute_geaenderte_eligibility_blockt() {
+        // Fixture G: die Freigabe band einen eligible Zustand; unmittelbar
+        // vor dem Execute zeigt die frische Probe eine URL. Blocked — und
+        // der native Delete wurde nachweislich nicht erreicht.
+        let mut probe = unauffaellige_probe();
+        probe.has_url = true;
+        let mut ops = delete_ops();
+        ops.probe = Some(probe);
+        // Der Auftrag trägt den Digest des URSPRÜNGLICH eligible Zustands.
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("unsupported_field"));
+        assert_eq!(ops.delete_aufrufe, 0);
+        assert!(ops.bestehend.is_some());
+    }
+
+    #[test]
+    fn ein_abweichender_eligibility_digest_ist_revision_conflict() {
+        // Fixture G': die Probe ist eligible, aber NICHT der Zustand, den
+        // die Freigabe band (hier: Digest einer fremden Eventidentität im
+        // Payload). Kein Delete, Approval-Bindung bricht sichtbar.
+        let mut fremde = unauffaellige_probe();
+        fremde.event_identifier = "EK-ANDERES-EVENT".into();
+        let mut payload = delete_payload();
+        payload["eligibility_digest"] = serde_json::json!(
+            eligibility_digest_of(&kanonische_probe(&fremde)));
+        let mut ops = delete_ops();
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(payload), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("revision_conflict"));
+        assert_eq!(b.fingerprint_matched, Some(true));
+        assert_eq!(ops.delete_aufrufe, 0);
+        assert!(ops.bestehend.is_some());
+    }
+
+    #[test]
+    fn ein_zwischen_freigabe_und_execute_geaendertes_feld_ist_revision_conflict() {
+        // Fixture H: ein unterstütztes Feld (Titel) wurde extern geändert —
+        // der 9-Feld-Fingerprint bricht, bevor irgendetwas übergeben wird.
+        let mut ops = delete_ops();
+        ops.bestehend.as_mut().unwrap().felder.title = Some("Extern geändert".into());
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert!(b.fingerprint_checked);
+        assert_eq!(b.fingerprint_matched, Some(false));
+        assert_eq!(b.error_class.as_deref(), Some("revision_conflict"));
+        assert_eq!(ops.delete_aufrufe, 0);
+        assert!(ops.bestehend.is_some());
+    }
+
+    #[test]
+    fn ein_abweichender_restore_digest_ist_revision_conflict() {
+        // Die Wiederherstellbarkeitsprüfung unmittelbar vor dem Execute:
+        // das gebundene Restore-Artefakt muss aus dem frischen Zustand
+        // exakt nachrechenbar sein.
+        let mut anderes = preimage_felder();
+        anderes.title = Some("Anderer Termin".into());
+        let mut payload = delete_payload();
+        payload["restore_preimage_digest"] = serde_json::json!(
+            payload_digest(&restore_preimage_of(&anderes)));
+        let mut ops = delete_ops();
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(payload), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("revision_conflict"));
+        assert_eq!(ops.delete_aufrufe, 0);
+        assert!(ops.bestehend.is_some());
+    }
+
+    #[test]
+    fn ein_nicht_lesbares_delete_ziel_ist_target_not_found() {
+        let mut ops = FakeKalenderOperationen::mit_kalender("cal-1");
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("target_not_found"));
+        assert_eq!(ops.delete_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_delete_ohne_probe_ist_target_not_found() {
+        // Der Bestand ist lesbar, aber die Probe nicht erhebbar — ohne
+        // frische Eligibility-Messung gibt es keinen Delete.
+        let mut ops =
+            FakeKalenderOperationen::mit_bestehendem_event("cal-1", preimage_felder());
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("target_not_found"));
+        assert_eq!(ops.delete_aufrufe, 0);
+        assert!(ops.bestehend.is_some());
+    }
+
+    #[test]
+    fn ein_delete_fehler_im_remove_ist_ungewiss() {
+        let mut ops = delete_ops();
+        ops.delete_fehler = Some(SpeicherFehler {
+            vor_save: false,
+            beschreibung: "EKErrorDomain:11".into(),
+        });
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "unknown");
+        assert!(b.send_attempted);
+        assert_eq!(b.save_request_count, 1);
+        assert_eq!(b.readback_status, "unavailable");
+        assert_eq!(b.error_class.as_deref(), Some("provider_save_error"));
+    }
+
+    #[test]
+    fn ein_nach_dem_remove_weiter_lesbares_event_ist_kein_applied() {
+        // R10-Geist für den Delete: eine leere Zielsuche wäre kein Beweis —
+        // und ein VOLLES Ziel erst recht keiner. Meldet der Store Erfolg,
+        // aber das Event bleibt lesbar, ist der Ausgang ehrlich ungewiss.
+        let mut ops = delete_ops();
+        ops.delete_wirkt_nicht = true;
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(delete_payload()), JETZT, &mut ops);
+        assert_eq!(b.outcome, "unknown");
+        assert_eq!(b.readback_status, "confirmed");
+        assert_eq!(b.error_class.as_deref(), Some("readback_failed"));
+        assert_eq!(b.save_request_count, 1);
+    }
+
+    #[test]
+    fn ein_manipulierter_delete_payload_erreicht_den_remove_nie() {
+        // R9: Nach der Freigabe angefasst — der Digest bricht, der Zähler
+        // ist der Beleg.
+        let mut roh: serde_json::Value = serde_json::from_str(
+            &delete_auftrag(delete_payload())).unwrap();
+        roh["canonical_payload"]["provider_target"]["event_identifier"] =
+            serde_json::json!("EK-HEIMLICH-ANDERES");
+        let mut ops = delete_ops();
+        let b = execute_order_mit_operationen(&roh.to_string(), JETZT, &mut ops);
+        assert_eq!(b.outcome, "not_sent");
+        assert_eq!(b.error_class.as_deref(), Some("digest_mismatch"));
+        assert_eq!(ops.delete_aufrufe, 0);
+        assert!(ops.bestehend.is_some());
+    }
+
+    #[test]
+    fn ein_delete_ohne_eligibility_digest_faellt() {
+        let mut payload = delete_payload();
+        payload.as_object_mut().unwrap().remove("eligibility_digest");
+        let mut ops = delete_ops();
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(payload), JETZT, &mut ops);
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.delete_aufrufe, 0);
+    }
+
+    #[test]
+    fn ein_delete_ohne_restore_digest_faellt() {
+        let mut payload = delete_payload();
+        payload.as_object_mut().unwrap().remove("restore_preimage_digest");
+        let mut ops = delete_ops();
+        let b = execute_order_mit_operationen(
+            &delete_auftrag(payload), JETZT, &mut ops);
+        assert_eq!(b.error_class.as_deref(), Some("invalid_payload"));
+        assert_eq!(ops.delete_aufrufe, 0);
     }
 }
 

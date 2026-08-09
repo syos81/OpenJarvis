@@ -3202,6 +3202,72 @@
         "ref": "scripts/b3-calendar-backup.py",
         "type": "file"
       }
+    },
+    {
+      "current_location": "src/personaljarvis/calendar/mutations/service.py",
+      "description": "Delete-Eligibility als Allowlist am nativen Event: jede belegte, nicht verlustfrei wiederherstellbare Eigenschaft blockiert VOR jeder Mutation (delete_not_eligible, keine Freigabe, kein Outbox-Eintrag).",
+      "feature_id": "B3-011",
+      "required": true,
+      "status": "pass",
+      "verification": {
+        "ref": "tests/personal/calendar/test_mutations.py::TestPrepareDelete",
+        "type": "test"
+      }
+    },
+    {
+      "current_location": "frontend/src-tauri/src/calendar_write.rs",
+      "description": "Die Delete-Freigabe bindet drei getrennte Nachweise (9-Feld-Fingerprint, Eligibility-Digest, Restore-Preimage-Digest); unmittelbar vor dem Execute wird alles aus dem frischen Zustand nachgerechnet, jede Abweichung bricht vor der Loeschung ab.",
+      "feature_id": "B3-012",
+      "required": true,
+      "status": "pass",
+      "verification": {
+        "ref": "frontend/src-tauri/src/calendar_write.rs::fuehre_delete_aus",
+        "type": "test"
+      }
+    },
+    {
+      "current_location": "frontend/src-tauri/src/calendar_write.rs",
+      "description": "Negativfixtures (Serie, Teilnehmer, Wecker, URL, Kombination, Eligibility-/Feldwechsel zwischen Freigabe und Execute) belegen mechanisch, dass der native Delete nicht erreicht wurde (delete_aufrufe == 0); R9: die unsupported Eigenschaft ist zuerst an der Fixture belegt.",
+      "feature_id": "B3-013",
+      "required": true,
+      "status": "pass",
+      "verification": {
+        "ref": "frontend/src-tauri/src/calendar_write.rs::blocked_wegen",
+        "type": "test"
+      }
+    },
+    {
+      "current_location": "src/personaljarvis/calendar/mutations/contracts.py",
+      "description": "Restore-Preimage offline belegt: aus dem vor der Loeschung erzeugten Artefakt erzeugt der bestehende Create-Pfad einen fachlich aequivalenten Termin (zeitgebunden, floating, zonenverankert, ganztaegig); Digest-Paritaetspins halten Python und Rust zusammen.",
+      "feature_id": "B3-014",
+      "required": true,
+      "status": "pass",
+      "verification": {
+        "ref": "tests/personal/calendar/test_mutations.py::TestRestoreOffline",
+        "type": "test"
+      }
+    },
+    {
+      "current_location": "src/personaljarvis/calendar/mutations/service.py",
+      "description": "Delete-Erfolg nur ueber absent_confirmed des gezielten Read-backs; der lokale Spiegel wird als Tombstone nachgefuehrt; ein leerer oder nicht verfuegbarer Read-back bleibt Zwischenlage (R10).",
+      "feature_id": "B3-015",
+      "required": true,
+      "status": "pass",
+      "verification": {
+        "ref": "tests/personal/calendar/test_mutations.py::TestDeleteSettle",
+        "type": "test"
+      }
+    },
+    {
+      "current_location": "frontend/src/personal/calendar/TerminLoeschen.tsx",
+      "description": "Der Loesch-Dialog verweigert sichtbar bei nicht-eligible Probe (der Server wird nie erreicht), zeigt die Server-Vorschau mit Loeschhinweis und Wiederherstellbarkeit und traegt genau einen Freigabeknopf; Abbrechen mutiert nie.",
+      "feature_id": "B3-016",
+      "required": true,
+      "status": "pass",
+      "verification": {
+        "ref": "frontend/src/personal/calendar/TerminLoeschen.test.tsx",
+        "type": "file"
+      }
     }
   ],
   "predecessor_artifact_id": "block-b2-month-parity",

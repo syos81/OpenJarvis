@@ -80,7 +80,11 @@ class PrepareMutationIn(BaseModel):
     statt als generischer Validierungsfehler.
 
     `create` trägt `fields` (alle sieben), `update` trägt `event_identifier`
-    plus `changes` (NUR die zu ändernden Felder — Delta, kein Full Replace).
+    plus `changes` (NUR die zu ändernden Felder — Delta, kein Full Replace),
+    `delete` trägt `event_identifier` plus `eligibility_probe` — die am
+    nativen Event erhobene Delete-Safety-Probe (B3 P3). Der Server prüft sie
+    fail-closed und bindet ihren Digest in die Freigabe; der App-Prozess
+    rechnet sie unmittelbar vor dem Execute neu.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -89,6 +93,7 @@ class PrepareMutationIn(BaseModel):
     fields: dict[str, Any] | None = None
     event_identifier: str | None = Field(default=None, max_length=512)
     changes: dict[str, Any] | None = None
+    eligibility_probe: dict[str, Any] | None = None
 
 
 class DecisionIn(BaseModel):
@@ -287,8 +292,10 @@ def create_calendar_router(module: CalendarModule) -> APIRouter:
     def prepare_mutation(body: PrepareMutationIn) -> dict[str, Any]:
         """Bereitet **eine** Mutation vor. Es wird nichts gesendet.
 
-        P2 kennt `create` und `update` (Delta); `delete` verweigert
-        typisiert mit `position_not_enabled` — keine stille Teilfunktion.
+        P3 kennt `create`, `update` (Delta) und `delete` — letzterer nur mit
+        gültiger, am nativen Event erhobener Eligibility-Probe; eine belegte
+        unsupported Eigenschaft blockiert typisiert VOR jeder Mutation
+        (`delete_not_eligible`).
         """
         try:
             if body.command == "create":
@@ -301,7 +308,10 @@ def create_calendar_router(module: CalendarModule) -> APIRouter:
                     body.provider_calendar_id, body.event_identifier or "",
                     body.changes if body.changes is not None else {})
             else:
-                vorgang = mutations.prepare_delete("")
+                vorgang = mutations.prepare_delete(
+                    body.provider_calendar_id, body.event_identifier or "",
+                    body.eligibility_probe
+                    if body.eligibility_probe is not None else {})
         except InvalidMutationFields as exc:
             raise HTTPException(status_code=400, detail={
                 "reason_code": exc.reason_code,

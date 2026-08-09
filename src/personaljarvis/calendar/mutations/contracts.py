@@ -33,22 +33,30 @@ from personaljarvis.base.digest import canonical_json, digest_of
 
 __all__ = [
     "EXECUTION_SCHEMA_VERSION",
+    "ELIGIBILITY_SCHEMA_VERSION",
     "COMMANDS",
     "REPORT_OUTCOMES",
     "READBACK_STATUSES",
     "ERROR_CLASSES",
     "FIELD_NAMES",
     "PREIMAGE_FIELD_NAMES",
+    "ELIGIBILITY_FLAG_NAMES",
+    "ELIGIBILITY_COUNT_NAMES",
     "MAX_ORDER_BYTES",
     "MAX_REPORT_BYTES",
     "CalendarExecutionContractError",
     "InvalidMutationFields",
     "validate_fields",
     "validate_changes",
+    "validate_eligibility_probe",
     "fingerprint_of",
     "preimage_fingerprint_of",
+    "eligibility_digest_of",
+    "restore_preimage_of",
+    "restore_preimage_digest_of",
     "canonical_create_payload",
     "canonical_update_payload",
+    "canonical_delete_payload",
     "ExecutionOrderV1",
     "ExecutionReportV1",
     "parse_execution_report",
@@ -88,6 +96,45 @@ FIELD_NAMES: tuple[str, ...] = (
 #: pinnt den Digest beidseitig.
 PREIMAGE_FIELD_NAMES: tuple[str, ...] = (
     *FIELD_NAMES, "provider_calendar_id", "event_identifier",
+)
+
+#: Vertragsversion der Delete-Safety-Probe (B3 P3). Eigene Version, weil die
+#: Probe ein eigener, beidseitig gerechneter Vertrag ist: der App-Prozess
+#: erhebt sie am nativen Event, der Server bindet ihren Digest in die
+#: Freigabe, und unmittelbar vor dem Execute rechnet der native Pfad sie neu.
+ELIGIBILITY_SCHEMA_VERSION = 1
+
+#: Die geschlossene Menge der Eigenschaften, die B3 beim Restore NICHT
+#: verlustfrei wiederherstellen kann — abgeleitet aus dem real verwendeten
+#: EventKit-Vertrag (EKEvent/EKCalendarItem, macOS-SDK), nicht aus einer
+#: Vermutung. Jede belegte Eigenschaft dieser Liste blockiert den Delete
+#: VOR jeder Mutation (Allowlist-Prinzip: nur was nachweislich frei von
+#: diesen Eigenschaften ist, gilt als eligible).
+#:
+#:  - recurrence_rules        EKEvent.hasRecurrenceRules / recurrenceRules
+#:  - detached_occurrence     EKEvent.isDetached (abgelöste Serieninstanz)
+#:  - attendees               EKCalendarItem.hasAttendees / attendees
+#:  - organizer               EKEvent.organizer (Einladungssemantik)
+#:  - alarms                  EKCalendarItem.hasAlarms / alarms
+#:  - url                     EKCalendarItem.URL
+#:  - structured_location_geo EKStructuredLocation.geoLocation (mehr als der
+#:                            B3-Ortstext)
+#:  - birthday_link           EKEvent.birthdayContactIdentifier
+#:  - availability_marked     EKEvent.availability ∉ {busy, notSupported}
+#:  - participation_status    EKEvent.status ≠ none
+#:
+#: Anhänge (Attachments) haben im öffentlichen macOS-EventKit-Vertrag keine
+#: lesbare Eigenschaft; sie sind deshalb nicht prüfbar und werden hier nicht
+#: behauptet — das ist eine dokumentierte Vertragsgrenze, keine Freigabe.
+ELIGIBILITY_FLAG_NAMES: tuple[str, ...] = (
+    "alarms", "attendees", "availability_marked", "birthday_link",
+    "detached_occurrence", "organizer", "participation_status",
+    "recurrence_rules", "structured_location_geo", "url",
+)
+
+#: Deterministische Zähler der Probe — IMMER alle drei Schlüssel, auch bei 0.
+ELIGIBILITY_COUNT_NAMES: tuple[str, ...] = (
+    "alarms", "attendees", "recurrence_rules",
 )
 
 #: Größenlimits, wortgleich mit dem Kontakte-Kanal. Darüber ist fail-closed.
@@ -237,6 +284,106 @@ def validate_changes(changes: object) -> dict[str, Any]:
     return ergebnis
 
 
+def validate_eligibility_probe(probe: object) -> dict[str, Any]:
+    """Prüft eine Delete-Safety-Probe fail-closed und normalisiert sie.
+
+    Die Probe ist PII-arm per Vertrag: Flags, Zähler und Identitäten — nie
+    ein Teilnehmer, eine Notiz, ein Anhang oder eine URL als Inhalt. Ein
+    unbekannter Schlüssel, ein unbekanntes Flag, ein fehlender Zähler oder
+    ein `eligible`, das den Flags widerspricht, fällt — geraten wird nichts.
+    Das Ergebnis ist exakt das kanonische Objekt, das `eligibility_digest_of`
+    deckt und das der native Pfad vor dem Execute neu rechnet.
+    """
+    if not isinstance(probe, dict):
+        raise InvalidMutationFields("Eligibility-Probe ist kein Objekt")
+    erlaubt = {"schema_version", "event_identifier", "provider_calendar_id",
+               "eligible", "unsupported_feature_flags", "counts"}
+    unbekannt = sorted(set(probe) - erlaubt)
+    if unbekannt:
+        raise InvalidMutationFields(
+            f"Unbekannte Probe-Felder: {', '.join(unbekannt)}")
+    fehlend = sorted(erlaubt - set(probe))
+    if fehlend:
+        raise InvalidMutationFields(
+            f"Probe-Felder fehlen: {', '.join(fehlend)}")
+    if probe["schema_version"] != ELIGIBILITY_SCHEMA_VERSION:
+        raise InvalidMutationFields("Fremde Probe-Schemaversion")
+    for name in ("event_identifier", "provider_calendar_id"):
+        if not isinstance(probe[name], str) or not probe[name] \
+                or len(probe[name]) > 512:
+            raise InvalidMutationFields(
+                f"{name} der Probe ist keine brauchbare Kennung")
+    flags = probe["unsupported_feature_flags"]
+    if not isinstance(flags, list) \
+            or any(not isinstance(f, str) for f in flags) \
+            or sorted(set(flags)) != flags:
+        raise InvalidMutationFields(
+            "unsupported_feature_flags ist keine sortierte, eindeutige Liste")
+    fremd = sorted(set(flags) - set(ELIGIBILITY_FLAG_NAMES))
+    if fremd:
+        raise InvalidMutationFields(
+            f"Unbekannte Eligibility-Flags: {', '.join(fremd)}")
+    counts = probe["counts"]
+    if not isinstance(counts, dict) \
+            or sorted(counts) != sorted(ELIGIBILITY_COUNT_NAMES):
+        raise InvalidMutationFields(
+            "counts trägt nicht exakt die vertraglichen Zähler")
+    for name in ELIGIBILITY_COUNT_NAMES:
+        wert = counts[name]
+        if not isinstance(wert, int) or isinstance(wert, bool) or wert < 0:
+            raise InvalidMutationFields(f"counts.{name} ist keine Zahl ≥ 0")
+    eligible = probe["eligible"]
+    if not isinstance(eligible, bool):
+        raise InvalidMutationFields("eligible ist kein Wahrheitswert")
+    # Die Grundregel als Vertragsinvariante: eligible IST die Abwesenheit
+    # jedes Flags — nie eine davon unabhängige Behauptung.
+    if eligible != (len(flags) == 0):
+        raise InvalidMutationFields(
+            "Widerspruch: eligible passt nicht zu den Flags")
+    return {
+        "schema_version": ELIGIBILITY_SCHEMA_VERSION,
+        "event_identifier": probe["event_identifier"],
+        "provider_calendar_id": probe["provider_calendar_id"],
+        "eligible": eligible,
+        "unsupported_feature_flags": list(flags),
+        "counts": {name: counts[name] for name in ELIGIBILITY_COUNT_NAMES},
+    }
+
+
+def eligibility_digest_of(probe: dict[str, Any]) -> str:
+    """Digest der kanonischen Probe — dieselbe Serialisierung wie überall
+    (`digest_of`), von Rust in `calendar_write.rs` nachgerechnet und per
+    Paritätspin festgehalten."""
+    return digest_of(validate_eligibility_probe(probe))
+
+
+def restore_preimage_of(preimage: dict[str, Any]) -> dict[str, Any]:
+    """Das Restore-Artefakt eines Deletes: alle von B3 verlustfrei
+    wiederherstellbaren Felder plus Zielkalender.
+
+    Erwartet den vollständigen Preimage-Feldsatz (`PREIMAGE_FIELD_NAMES`).
+    Die sieben Felder laufen durch DIESELBE Prüfung wie ein Create
+    (`validate_fields`) — mechanisch belegt ist damit, dass der bestehende
+    Create-Pfad aus genau diesem Artefakt einen fachlich äquivalenten Termin
+    erzeugen kann. Was diese Prüfung nicht besteht, ist nicht
+    wiederherstellbar — und damit nicht löschbar.
+    """
+    # Identität und Vollständigkeit wie beim Fingerprint — eine Wahrheit.
+    preimage_fingerprint_of(preimage)
+    felder = validate_fields({name: preimage[name] for name in FIELD_NAMES})
+    return {
+        "fields": {name: felder[name] for name in FIELD_NAMES},
+        "provider_calendar_id": preimage["provider_calendar_id"],
+    }
+
+
+def restore_preimage_digest_of(preimage: dict[str, Any]) -> str:
+    """Digest des Restore-Artefakts — gebunden in Freigabe und Auftrag,
+    vom nativen Pfad vor dem Execute aus dem frisch gelesenen Zustand
+    nachgerechnet (Paritätspin)."""
+    return digest_of(restore_preimage_of(preimage))
+
+
 def fingerprint_of(fields: dict[str, Any], provider_calendar_id: str) -> str:
     """Deterministischer Fingerprint eines Terminzustands.
 
@@ -317,6 +464,32 @@ def canonical_update_payload(changes: dict[str, Any],
             "event_identifier": event_identifier,
         },
         "expected_fingerprint": expected_fingerprint,
+    }
+
+
+def canonical_delete_payload(provider_calendar_id: str,
+                             event_identifier: str,
+                             expected_fingerprint: str,
+                             eligibility_digest: str,
+                             restore_preimage_digest: str) -> dict[str, Any]:
+    """Die kanonische Nutzlast eines `delete` (B3 P3).
+
+    Kein Feldsatz, kein Delta — dafür DREI getrennte Nachweise, die die
+    Freigabe bindet: der vollständige stabile Vorzustand
+    (`expected_fingerprint`), die Delete-Safety-Probe (`eligibility_digest`)
+    und das Restore-Artefakt (`restore_preimage_digest`). Der native Pfad
+    rechnet vor dem Execute alle drei aus dem frischen Zustand nach; jede
+    Abweichung endet beweisbar vor der Löschung.
+    """
+    return {
+        "command": "delete",
+        "provider_target": {
+            "provider_calendar_id": provider_calendar_id,
+            "event_identifier": event_identifier,
+        },
+        "expected_fingerprint": expected_fingerprint,
+        "eligibility_digest": eligibility_digest,
+        "restore_preimage_digest": restore_preimage_digest,
     }
 
 

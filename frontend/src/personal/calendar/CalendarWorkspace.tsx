@@ -29,6 +29,7 @@ import {
   ZeitRaster,
 } from './panes';
 import { TerminFormular } from './TerminFormular';
+import { TerminLoeschen } from './TerminLoeschen';
 import { PanelLeft } from 'lucide-react';
 import { PaneDivider } from '../contacts/workspace/PaneDivider';
 
@@ -107,6 +108,7 @@ export function CalendarWorkspace() {
   // B3 P2: der Termin in Bearbeitung. Öffnet die Update-Maske; geschrieben
   // wird auch hier nur nach ausdrücklicher Einzelfreigabe.
   const [bearbeiteTermin, setBearbeiteTermin] = useState<Termin | null>(null);
+  const [loescheTermin, setLoescheTermin] = useState<Termin | null>(null);
   const rasterRef = useRef<HTMLDivElement>(null);
 
   const raster = useMemo(() => baueRaster(modus, anker, zone, wochenstart),
@@ -465,7 +467,9 @@ export function CalendarWorkspace() {
           {ausgewaehlt !== null ? (
             <TerminDetail termin={ausgewaehlt} zone={zone}
               aufBearbeiten={darfLesen && bridgeDa
-                ? (t) => setBearbeiteTermin(t) : undefined} />
+                ? (t) => setBearbeiteTermin(t) : undefined}
+              aufLoeschen={darfLesen && bridgeDa
+                ? (t) => setLoescheTermin(t) : undefined} />
           ) : (
             <TagesListe tag={gewaehlterTag}
               termine={gewaehlterTag !== null
@@ -485,6 +489,19 @@ export function CalendarWorkspace() {
             // serverseitig nachgeführt — Neu-LESEN genügt. „Aktualisieren"
             // bleibt der einzige Weg zum Provider-Sync.
             setMeldung({ text: 'Termin angelegt.', art: 'ok' });
+            void laden(raster.fensterStartUtc, raster.fensterEndeUtc);
+          }} />
+      )}
+
+      {/* ── B3 P3: der LÖSCH-Dialog mit Probe und Freigabefluss ── */}
+      {loescheTermin !== null && (
+        <TerminLoeschen termin={loescheTermin} zone={zone}
+          aufSchliessen={() => setLoescheTermin(null)}
+          aufErfolg={() => {
+            setMeldung({ text: 'Termin gelöscht.', art: 'ok' });
+            // Das Detail zeigt sonst den GELÖSCHTEN Termin — schliessen
+            // und den nachgeführten Bestand neu lesen.
+            setAusgewaehlt(null);
             void laden(raster.fensterStartUtc, raster.fensterEndeUtc);
           }} />
       )}

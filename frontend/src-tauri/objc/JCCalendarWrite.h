@@ -79,4 +79,21 @@ int32_t jc_calendar_write_read_fingerprint_fields(const char *event_identifier,
                                                   char *out_json,
                                                   int32_t json_capacity);
 
+/// B3 P3: die READ-ONLY Delete-Safety-Probe — rohe, PII-arme Fakten über
+/// die am nativen Event tatsächlich belegten Eigenschaften AUSSERHALB des
+/// wiederherstellbaren B3-Vertrags (Serienregeln, Teilnehmer, Organisator,
+/// Wecker, URL, Geo-Ort, Geburtstagsbindung, Verfügbarkeit, Status).
+/// KEINE Inhalte: nur Wahrheitswerte und Zähler. Führt NIE eine Mutation
+/// aus; die Bewertung (eligible, Flags, Digest) rechnet Rust.
+/// 1 = gelesen (`out_json` gefüllt), 0 = nicht lesbar.
+int32_t jc_calendar_write_delete_probe(const char *event_identifier,
+                                       char *out_json, int32_t json_capacity);
+
+/// B3 P3: löscht GENAU EIN Event über `removeEvent:span:error:`
+/// (span thisEvent, sofortiger Commit). Kein Fallback, kein zweiter
+/// Versuch. Die Trennlinie ist dieselbe wie beim Save: alles < Saved ist
+/// beweisbar VOR der Übergabe gescheitert.
+int32_t jc_calendar_write_delete(const char *event_identifier,
+                                 char *out_error, int32_t error_capacity);
+
 #endif

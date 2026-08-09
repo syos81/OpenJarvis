@@ -581,10 +581,14 @@ export function istVerlustfreiBearbeitbar(t: Termin): boolean {
     && !t.is_detached;
 }
 
-export function TerminDetail({ termin, zone, aufBearbeiten }: {
+export function TerminDetail({ termin, zone, aufBearbeiten, aufLoeschen }: {
   termin: Termin | null; zone: string;
   /** B3 P2: öffnet die Update-Maske. Ohne Callback gibt es keinen Knopf. */
   aufBearbeiten?: (t: Termin) => void;
+  /** B3 P3: öffnet den Lösch-Dialog. Die verbindliche Entscheidung trifft
+   *  die native Delete-Safety-Probe im Dialog — dieser Knopf ist nur der
+   *  Einstieg und erscheint unter denselben sichtbaren Voraussetzungen. */
+  aufLoeschen?: (t: Termin) => void;
 }) {
   if (termin === null) {
     return (
@@ -716,15 +720,28 @@ export function TerminDetail({ termin, zone, aufBearbeiten }: {
             Dieser Termin trägt Eigenschaften, die Jarvis nicht verlustfrei
             bearbeiten kann.
           </p>
-        ) : aufBearbeiten !== undefined ? (
-          <button type="button" data-testid="termin-bearbeiten"
-            onClick={() => aufBearbeiten(termin)}
-            className="text-xs px-2 py-1 rounded"
-            style={{ border: '1px solid var(--pjk-line)',
-                     color: 'var(--pjk-ink)' }}>
-            Bearbeiten
-          </button>
-        ) : null}
+        ) : (
+          <div className="flex gap-2">
+            {aufBearbeiten !== undefined && (
+              <button type="button" data-testid="termin-bearbeiten"
+                onClick={() => aufBearbeiten(termin)}
+                className="text-xs px-2 py-1 rounded"
+                style={{ border: '1px solid var(--pjk-line)',
+                         color: 'var(--pjk-ink)' }}>
+                Bearbeiten
+              </button>
+            )}
+            {aufLoeschen !== undefined && (
+              <button type="button" data-testid="termin-loeschen"
+                onClick={() => aufLoeschen(termin)}
+                className="text-xs px-2 py-1 rounded"
+                style={{ border: '1px solid var(--color-error)',
+                         color: 'var(--color-error)' }}>
+                Löschen
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );
