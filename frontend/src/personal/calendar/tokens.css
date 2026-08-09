@@ -47,12 +47,15 @@
   --pjk-year-cell: 22px;
 
   /* ── Farben (aus den Jarvis-Basistokens abgeleitet) ─────────────────── */
+  /* B2-Korrektur zweifach: (1) die frueheren Ziele --color-bg-primary/
+     --color-text-primary existieren in index.css nicht — die Flaeche war
+     transparent und der App-Verlauf schien durch; jetzt die realen
+     Theme-Tokens. (2) `color-mix()` versteht die WKWebView dieses Intel-Mac
+     (WebKit 17613, Safari-15.6-Aera) NICHT — jede damit gebaute Farbe fiel
+     im gepackten Lauf stumm aus (unsichtbare Auswahl, fehlende Rasterlinien).
+     Deshalb ausschliesslich Tokens, die dort real aufloesen. */
   --pjk-line: var(--color-border);
-  --pjk-line-soft: color-mix(in srgb, var(--color-border) 55%, transparent);
-  /* B2: die frueheren Ziele --color-bg-primary/--color-text-primary
-     existieren in index.css nicht — die Flaeche war transparent und der
-     App-Hintergrundverlauf schien durch. Jetzt die realen Theme-Tokens,
-     hell wie dunkel. */
+  --pjk-line-soft: var(--color-border-subtle);
   --pjk-surface: var(--color-bg);
   --pjk-surface-2: var(--color-bg-secondary);
   --pjk-ink: var(--color-text);
@@ -60,16 +63,16 @@
   /* Heute wie die Referenz rot — ueber den vorhandenen semantischen roten
      Theme-Token, nicht ueber eine abgeschriebene Screenshot-Farbe. */
   --pjk-heute: var(--color-error, #d0342c);
-  /* Ausgewaehlter Tag: neutrale Systemflaeche, deutlich vom Heute-Rot
-     unterscheidbar. */
-  --pjk-auswahl: color-mix(in srgb, var(--color-text) 20%, transparent);
+  /* Ausgewaehlter Tag: neutraler grauer Kreis wie die Referenz, in beiden
+     Modi deutlich sichtbar und vom Heute-Rot unterscheidbar. */
+  --pjk-auswahl: var(--color-text-tertiary);
   /* Ausserhalb der Periode: gedämpft, aber lesbar. */
   --pjk-outside-opacity: 0.45;
   /* Kontrollierter Ersatz, wenn EventKit für einen Kalender keine Farbe
      liefert. Bewusst EIN neutraler Ton statt einer erfundenen Palette: eine
      zugeteilte Farbe sähe aus wie eine Eigenschaft des Kalenders und wäre doch
      geraten. Der Ersatz wird nie gespeichert. */
-  --pjk-color-fallback: color-mix(in srgb, var(--color-text-secondary) 60%, transparent);
+  --pjk-color-fallback: var(--color-text-tertiary);
 }
 
 /* Der Zustand „ausserhalb des geladenen Fensters" darf NIE aussehen wie

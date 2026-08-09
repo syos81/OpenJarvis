@@ -16,13 +16,19 @@ import { useCallback, useRef, useState } from 'react';
 
 const TASTATUR_SCHRITT = 16;
 
-export function PaneDivider({ label, wert, min, max, onChange }: {
+export function PaneDivider({ label, wert, min, max, onChange,
+                              richtung = 'links' }: {
   label: string;
   wert: number;
   min: number;
   max: number;
   onChange: (breite: number) => void;
+  /** B2: steuert der Trenner die LINKS oder die RECHTS liegende Spalte?
+      Bei `rechts` waechst die Spalte beim Ziehen nach links — die
+      Pfeiltasten folgen der Separatorbewegung, nicht dem Breitenwert. */
+  richtung?: 'links' | 'rechts';
 }) {
+  const faktor = richtung === 'rechts' ? -1 : 1;
   const start = useRef<{ x: number; breite: number } | null>(null);
   const [ziehtZu, setZiehtZu] = useState<number | null>(null);
 
@@ -63,7 +69,8 @@ export function PaneDivider({ label, wert, min, max, onChange }: {
         }}
         onPointerMove={(e) => {
           if (!start.current) return;
-          setZiehtZu(klemmen(start.current.breite + (e.clientX - start.current.x)));
+          setZiehtZu(klemmen(
+            start.current.breite + faktor * (e.clientX - start.current.x)));
         }}
         onPointerUp={(e) => {
           (e.target as HTMLElement).releasePointerCapture(e.pointerId);
@@ -76,10 +83,10 @@ export function PaneDivider({ label, wert, min, max, onChange }: {
         onKeyDown={(e) => {
           if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            onChange(klemmen(wert - TASTATUR_SCHRITT));
+            onChange(klemmen(wert - faktor * TASTATUR_SCHRITT));
           } else if (e.key === 'ArrowRight') {
             e.preventDefault();
-            onChange(klemmen(wert + TASTATUR_SCHRITT));
+            onChange(klemmen(wert + faktor * TASTATUR_SCHRITT));
           } else if (e.key === 'Home') {
             e.preventDefault();
             onChange(min);
@@ -98,7 +105,7 @@ export function PaneDivider({ label, wert, min, max, onChange }: {
             position: 'absolute',
             top: 0,
             bottom: 0,
-            left: `${ziehtZu - wert}px`,
+            left: `${(ziehtZu - wert) * faktor}px`,
             width: '2px',
             backgroundColor: 'var(--color-accent)',
             opacity: 0.7,

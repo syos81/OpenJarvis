@@ -509,7 +509,8 @@ describe('Referenzmerkmale der Monatsansicht (B2)', () => {
   it('rendert zeitgebundene Termine ohne Vollflaeche und ganztaegige als Balken', async () => {
     const zeitgebunden = termin();
     const ganztags: Termin = { ...termin(), id: 'evt-ganz', is_all_day: true,
-      starts_at_utc: '2026-08-13T00:00:00Z', ends_at_utc: '2026-08-14T00:00:00Z' };
+      // Realform: lokale Mitternacht als Instant (00:00 Berlin am 13.).
+      starts_at_utc: '2026-08-12T22:00:00Z', ends_at_utc: '2026-08-13T22:00:00Z' };
     mockApi({ termine: [zeitgebunden, ganztags] });
     render(<CalendarWorkspace />);
     await waitFor(() => expect(screen.getByTestId('kalender-workspace')).toBeTruthy());
@@ -518,5 +519,53 @@ describe('Referenzmerkmale der Monatsansicht (B2)', () => {
     const ganzChip = chips.find((c) => c.getAttribute('data-event-id') === 'evt-ganz')!;
     expect(zeitChip.style.background).toBe('transparent');
     expect(ganzChip.style.background).not.toBe('transparent');
+  });
+});
+
+describe('WebView-Vertraeglichkeit der Tokens (B2-Livebefund)', () => {
+  it('verwendet kein color-mix — die WKWebView dieses Intel-Mac loest es nicht auf', async () => {
+    // WebKit 17613 (Safari-15.6-Aera, macOS 12.7) kennt color-mix() nicht:
+    // jede damit gebaute Farbe fiel im gepackten Livelauf stumm aus —
+    // unsichtbare Tagesauswahl, fehlende Rasterlinien. Tokens der
+    // Kalenderflaeche muessen dort real aufloesen.
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const hier = dirname(fileURLToPath(import.meta.url));
+    const tokens = readFileSync(join(hier, 'tokens.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');   // Kommentare duerfen es erwaehnen
+    expect(tokens).not.toContain('color-mix');
+  });
+
+  it('markiert den gewaehlten Tag mit einer aufloesbaren, sichtbaren Flaeche', async () => {
+    await rendern();
+    const zelle = screen.getAllByTestId('kalender-tag')
+      .find((z) => z.getAttribute('data-date') === '2026-08-05')!;
+    fireEvent.click(zelle);
+    const nummer = zelle.querySelector('span')!;
+    expect(nummer.style.background).toBe('var(--pjk-auswahl)');
+    expect(nummer.style.color).toBe('rgb(255, 255, 255)');
+  });
+});
+
+describe('Drei Bereiche mit verschiebbaren Breiten (B2, Livebefund 4)', () => {
+  it('traegt zwei Spaltentrenner mit dem Kontakte-Muster', async () => {
+    await rendern();
+    expect(screen.getByRole('separator', { name: 'Kalenderliste anpassen' })).toBeTruthy();
+    expect(screen.getByRole('separator', { name: 'Termindetails anpassen' })).toBeTruthy();
+  });
+
+  it('aendert die Breite per Tastatur — rechts gespiegelt zur Separatorbewegung', async () => {
+    await rendern();
+    const links = screen.getByRole('separator', { name: 'Kalenderliste anpassen' });
+    const vorher = Number(links.getAttribute('aria-valuenow'));
+    fireEvent.keyDown(links, { key: 'ArrowRight' });
+    expect(Number(links.getAttribute('aria-valuenow'))).toBe(vorher + 16);
+
+    const rechts = screen.getByRole('separator', { name: 'Termindetails anpassen' });
+    const detailVorher = Number(rechts.getAttribute('aria-valuenow'));
+    // Separator nach links = Detailbereich waechst.
+    fireEvent.keyDown(rechts, { key: 'ArrowLeft' });
+    expect(Number(rechts.getAttribute('aria-valuenow'))).toBe(detailVorher + 16);
   });
 });

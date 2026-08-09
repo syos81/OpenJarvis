@@ -163,20 +163,20 @@ export interface Raster {
 /**
  * Die lokalen Tage, an denen ein Termin im Raster erscheint.
  *
- * Hier lag im alten Jarvis ein realer Fehler — ein eintägiger Termin erschien
- * an ZWEI Tagen. Die Ursache ist eine Vermischung zweier Zeit-Konventionen,
- * und sie gilt unverändert:
+ * ALLE Termine sind rohe Instants — auch die ganztägigen. Mechanisch belegt
+ * an der produktiven Datenbank (B2-Korrektur, 2026-08-09): EventKit liefert
+ * und der Sync speichert die lokale Mitternacht als Instant (Berlin:
+ * `…T22:00:00Z`), nicht als normalisierten UTC-Mitternachts-Anker. Die
+ * frühere String-Lesart (`slice(0, 10)`) stammte aus dem alten Jarvis und
+ * verschob jeden Ganztagstermin einer Zone östlich von UTC einen Tag nach
+ * hinten — im Livevergleich mit Apple Kalender als globale
+ * Ein-Tages-Verschiebung sichtbar.
  *
- *  · GANZTÄGIGE Termine sind bereits auf ihre lokalen Kalendertage normalisiert:
- *    der Datumsanteil IST der lokale Tag, verankert als UTC-Mitternacht, und
- *    das Ende ist EXKLUSIV. Sie müssen deshalb als Datums-STRINGS gelesen
- *    werden. Eine Zeitzonen-Umrechnung auf diese Mitternachts-Anker verschiebt
- *    das exklusive Ende in den Folgetag und zeichnet einen Tag zu viel.
- *
- *  · TERMINE MIT UHRZEIT sind rohe Instants und werden lokal aufgelöst, damit
- *    ein Abendtermin nicht in den UTC-Vortag rutscht. Das Ende ist ein
- *    Zeitpunkt, kein Tag: eine Sekunde zurück, damit ein Termin, der genau um
- *    Mitternacht endet, nicht schon den Folgetag markiert.
+ * Beide Terminarten werden deshalb lokal aufgelöst. Das Ende ist ein
+ * Zeitpunkt (bei ganztägigen der EXKLUSIVE Beginn des Folgetags): eine
+ * Sekunde zurück, damit ein Ende genau um Mitternacht nicht schon den
+ * Folgetag markiert — derselbe Griff verhindert auch den alten Verdacht
+ * „ein Tag zu viel" bei Ganztagsterminen.
  */
 export function termintage(
   termin: { readonly starts_at_utc: string; readonly ends_at_utc: string; readonly is_all_day: boolean },
@@ -193,13 +193,6 @@ export function termintage(
     }
     return out;
   };
-
-  if (termin.is_all_day) {
-    // Datums-Strings, Ende EXKLUSIV: letzter Tag = Ende minus ein Tag.
-    const start = termin.starts_at_utc.slice(0, 10);
-    const endeExklusiv = termin.ends_at_utc.slice(0, 10);
-    return lauf(start, endeExklusiv <= start ? start : plusTage(endeExklusiv, -1));
-  }
 
   const start = lokalerTag(termin.starts_at_utc, zone);
   const letzter = lokalerTag(

@@ -135,6 +135,30 @@
       "live_result": "pending",
       "proof": "both",
       "title": "gewaehlter Tag oeffnet die Tagesansicht"
+    },
+    {
+      "automated_evidence": "frontend/src/personal/calendar/raster.test.ts::ordnet einen ganztaegigen Berliner Termin dem richtigen lokalen Tag zu",
+      "feature_id": "B2-M18",
+      "live_note": "",
+      "live_result": "pending",
+      "proof": "both",
+      "title": "Termine erscheinen am richtigen lokalen Tag (Ganztags-Instant-Korrektur)"
+    },
+    {
+      "automated_evidence": "",
+      "feature_id": "B2-M19",
+      "live_note": "",
+      "live_result": "pending",
+      "proof": "live_owner",
+      "title": "deutlich sichtbare Zellgrenzen des Monatsrasters"
+    },
+    {
+      "automated_evidence": "frontend/src/personal/calendar/CalendarWorkspace.test.tsx::aendert die Breite per Tastatur — rechts gespiegelt zur Separatorbewegung",
+      "feature_id": "B2-M20",
+      "live_note": "",
+      "live_result": "pending",
+      "proof": "both",
+      "title": "drei Bereiche (Liste, Raster, Detail) mit verschiebbaren Breiten"
     }
   ],
   "kind": "b2_parity_matrix",

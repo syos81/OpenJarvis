@@ -206,18 +206,19 @@ describe('termintage', () => {
   });
 
   it('zeigt einen ganztägigen Termin an GENAU EINEM Tag', () => {
-    // Ende ist exklusiv: 12. bis 13. heisst der 12.
+    // Realform (B2-Korrektur): lokale Mitternacht als Instant, Ende exklusiv.
+    // 00:00 Berlin am 12. ist 22:00Z am 11.
     expect(termintage({
-      starts_at_utc: '2026-08-12T00:00:00Z',
-      ends_at_utc: '2026-08-13T00:00:00Z',
+      starts_at_utc: '2026-08-11T22:00:00Z',
+      ends_at_utc: '2026-08-12T22:00:00Z',
       is_all_day: true,
     }, BERLIN)).toEqual(['2026-08-12']);
   });
 
   it('spannt einen mehrtägigen ganztägigen Termin über alle Tage', () => {
     expect(termintage({
-      starts_at_utc: '2026-08-12T00:00:00Z',
-      ends_at_utc: '2026-08-15T00:00:00Z',
+      starts_at_utc: '2026-08-11T22:00:00Z',
+      ends_at_utc: '2026-08-14T22:00:00Z',
       is_all_day: true,
     }, BERLIN)).toEqual(['2026-08-12', '2026-08-13', '2026-08-14']);
   });
@@ -238,7 +239,7 @@ describe('termintage', () => {
     }, BERLIN)).toEqual(['2026-08-12', '2026-08-13']);
   });
 
-  it('rechnet Uhrzeit-Termine je Zone unterschiedlich, ganztägige nicht', () => {
+  it('rechnet Uhrzeit-Termine je Zone unterschiedlich', () => {
     const mitUhrzeit = {
       starts_at_utc: '2026-08-11T01:00:00Z',
       ends_at_utc: '2026-08-11T02:00:00Z',
@@ -246,15 +247,21 @@ describe('termintage', () => {
     };
     expect(termintage(mitUhrzeit, BERLIN)).toEqual(['2026-08-11']);
     expect(termintage(mitUhrzeit, NY)).toEqual(['2026-08-10']);
+  });
 
-    // Ganztägig ist zonenunabhängig — sonst verrutschte er beim Ortswechsel.
+  it('löst ganztägige Instants in der Anzeigezone auf (B2-Korrektur)', () => {
+    // Der frühere Test behauptete Zonenunabhängigkeit — das setzte
+    // normalisierte Datums-Anker voraus, die der reale Bestand nie hatte.
+    // Ein Berliner Ganztagstermin liegt als Berliner Mitternachts-Instant
+    // vor und löst sich in der Berliner Anzeige auf seinen Tag auf. Die
+    // bewusste Grenze: eine ANDERE Anzeigezone verschiebt ihn — sie ist im
+    // B2-Umfang identisch mit der Systemzone und im Handoff dokumentiert.
     const ganztags = {
-      starts_at_utc: '2026-08-11T00:00:00Z',
-      ends_at_utc: '2026-08-12T00:00:00Z',
+      starts_at_utc: '2026-08-10T22:00:00Z',
+      ends_at_utc: '2026-08-11T22:00:00Z',
       is_all_day: true,
     };
     expect(termintage(ganztags, BERLIN)).toEqual(['2026-08-11']);
-    expect(termintage(ganztags, NY)).toEqual(['2026-08-11']);
   });
 
   it('behandelt ein Ende vor dem Beginn ohne Endlosschleife', () => {
@@ -332,5 +339,40 @@ describe('Wochenbeginn ist Konfiguration, nie Konstante (B2)', () => {
     // de-DE: CLDR-Vorgabe Montag; en-US: Sonntag. Beide über dieselbe Quelle.
     expect(systemWochenstart('de-DE')).toBe(0);
     expect(systemWochenstart('en-US')).toBe(6);
+  });
+});
+
+describe('Ganztagstermine sind Instants, keine Datums-Strings (B2-Korrektur)', () => {
+  // Mechanisch belegt an der produktiven Datenbank (2026-08-09): EventKit
+  // liefert und der Sync speichert ganztaegige Termine als ROHE INSTANTS der
+  // lokalen Mitternacht (Berlin: …T22:00:00Z), nicht als normalisierte
+  // UTC-Mitternachts-Anker. Der alte String-Schnitt [:10] verschob deshalb
+  // JEDEN deutschen Ganztagstermin einen Tag zurueck — im Livevergleich mit
+  // Apple Kalender als globale Ein-Tages-Verschiebung sichtbar.
+  it('ordnet einen ganztaegigen Berliner Termin dem richtigen lokalen Tag zu', () => {
+    expect(termintage({
+      starts_at_utc: '2026-08-27T22:00:00Z',   // 00:00 Berlin am 28.
+      ends_at_utc: '2026-08-28T22:00:00Z',     // exklusiv: 00:00 am 29.
+      is_all_day: true,
+    }, BERLIN)).toEqual(['2026-08-28']);
+  });
+
+  it('spannt einen mehrtaegigen Ganztagstermin ueber genau seine Tage', () => {
+    // Gegentest zum alten Verdacht „ein Tag zu viel": das exklusive Ende
+    // minus eine Sekunde liegt im letzten enthaltenen Tag, nie im Folgetag.
+    expect(termintage({
+      starts_at_utc: '2026-08-27T22:00:00Z',
+      ends_at_utc: '2026-08-30T22:00:00Z',
+      is_all_day: true,
+    }, BERLIN)).toEqual(['2026-08-28', '2026-08-29', '2026-08-30']);
+  });
+
+  it('ordnet westliche Zonen genauso korrekt zu', () => {
+    // New York: 00:00 lokal am 28. ist 04:00Z desselben Tages.
+    expect(termintage({
+      starts_at_utc: '2026-08-28T04:00:00Z',
+      ends_at_utc: '2026-08-29T04:00:00Z',
+      is_all_day: true,
+    }, 'America/New_York')).toEqual(['2026-08-28']);
   });
 });

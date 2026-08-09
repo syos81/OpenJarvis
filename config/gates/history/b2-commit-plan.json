@@ -23,6 +23,12 @@
   },
   "kind": "commit_plan",
   "max_commits": 4,
+  "plan_change": {
+    "actual": 3,
+    "decided_by": "commit plan rule for owner-reported visible B2 deviations",
+    "declared_at_start": 2,
+    "reason": "The live comparison found a correctness defect (all-day events one day off; cause proven against the productive database, termintage byte-identical since the B1 close, so no B2 regression), a platform defect (color-mix unsupported in WebKit 17613 made selection and soft grid lines invisible) and one visible-deviation repair (cell borders). The resizable three-pane request was mechanically assessed: the contacts PaneDivider is a reusable, tested component and the takeover is small (one direction prop, two width states); the hideable-panes half does not exist in the contacts module either and stays a reported finding. Own functional commit; no amend."
+  },
   "planned_commits": [
     {
       "message": "feat(calendar): align the month view to the reference and add read-only day selection",
@@ -30,8 +36,13 @@
       "purpose": "functional: the month view aligned to the reference (neutral system surface, locale week start, day cells, event types, header, sidebar with mini month, read-only day selection into the day view), the B2 tests, the comparison matrix and the gate scaffold"
     },
     {
-      "message": "test(calendar): finalize b2 month-parity evidence, owner matrix and handoff",
+      "message": "fix(calendar): resolve all-day instants correctly and survive WebKit 15",
       "position": 2,
+      "purpose": "functional repair from the owner's live comparison: (a) the one-day shift of every all-day event — mechanically traced to raw local-midnight instants in the productive database meeting a string-slice reader that assumed normalized date anchors, a legacy defect predating B2 and proven unchanged since the B1 close; (b) invisible selection and washed-out grid lines — color-mix() is unsupported by this Mac's WebKit 17613, every such token silently failed in the packed app; (c) clearly visible cell borders; (d) the small takeover of the contacts PaneDivider for resizable three-pane widths"
+    },
+    {
+      "message": "test(calendar): finalize b2 month-parity evidence, owner matrix and handoff",
+      "position": 3,
       "purpose": "purely determinative: gate evidence of the five phases against the fixed functional commit, the owner-decided comparison matrix, remaining deviations and the handoff"
     }
   ],

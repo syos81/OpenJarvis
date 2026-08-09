@@ -21,6 +21,15 @@ import {
 import {
   CalendarSidebar, JahresRaster, MonatsRaster, TerminDetail, ZeitRaster,
 } from './panes';
+import { PaneDivider } from '../contacts/workspace/PaneDivider';
+
+/** Pixelwert eines Tokens — deterministischer Startwert, wie im Kontaktmodul. */
+function tokenPx(name: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback;
+  const roh = getComputedStyle(document.documentElement).getPropertyValue(name);
+  const wert = Number.parseInt(roh, 10);
+  return Number.isFinite(wert) ? wert : fallback;
+}
 import {
   RASTER_LABELS, RASTER_MODI, type RasterModus,
   baueRaster, heute, systemWochenstart, systemZeitzone, termintage,
@@ -49,6 +58,21 @@ export function CalendarWorkspace() {
   const [anker, setAnker] = useState(() => heute(zone));
   // B2: lesende Tagesauswahl. Reiner Ansichtszustand, keine Schreibsemantik.
   const [gewaehlterTag, setGewaehlterTag] = useState<string | null>(null);
+  // B2: verschiebbare Bereichsbreiten — dasselbe Muster wie das Kontaktmodul.
+  const grenzen = useMemo(() => ({
+    sidebar: {
+      start: tokenPx('--pjk-sidebar-width', 220),
+      min: tokenPx('--pjk-sidebar-min', 180),
+      max: tokenPx('--pjk-sidebar-max', 340),
+    },
+    detail: {
+      start: tokenPx('--pjk-detail-width', 320),
+      min: tokenPx('--pjk-detail-min', 260),
+      max: tokenPx('--pjk-detail-max', 480),
+    },
+  }), []);
+  const [sidebarBreite, setSidebarBreite] = useState(grenzen.sidebar.start);
+  const [detailBreite, setDetailBreite] = useState(grenzen.detail.start);
   const [status, setStatus] = useState<ModulStatus | null>(null);
   const [kalender, setKalender] = useState<KalenderZeile[]>([]);
   const [bestand, setBestand] = useState<Bestand>(LEER);
@@ -335,17 +359,22 @@ export function CalendarWorkspace() {
         </p>
       )}
 
-      {/* ── Drei Spalten ── */}
-      <div className="flex flex-1 min-h-0">
-        <div style={{ width: 'var(--pjk-sidebar-width)', flexShrink: 0 }}>
+      {/* ── Drei Bereiche: Liste · Raster · Detail, Breiten verschiebbar ── */}
+      <div className="grid flex-1 min-h-0"
+        style={{ gridTemplateColumns:
+          `${sidebarBreite}px auto minmax(var(--pjk-grid-min), 1fr) auto ${detailBreite}px` }}>
+        <div className="min-w-0">
           <CalendarSidebar kalender={kalender} versteckt={versteckt}
             aufAendern={umschalten} zone={zone}
             anker={anker} heuteTag={heuteTag} wochenstart={wochenstart}
             aufTag={(tag) => { setAnker(tag); setGewaehlterTag(tag); }} />
         </div>
 
-        <div ref={rasterRef} className="flex-1 min-w-0 flex flex-col"
-          style={{ minWidth: 'var(--pjk-grid-min)' }}>
+        <PaneDivider label="Kalenderliste anpassen" wert={sidebarBreite}
+          min={grenzen.sidebar.min} max={grenzen.sidebar.max}
+          onChange={setSidebarBreite} />
+
+        <div ref={rasterRef} className="min-w-0 flex flex-col">
           {/* B2: Monatstitel gross und deutlich links im Inhaltsbereich. */}
           <h1 className="flex-shrink-0 px-4 pt-3 pb-1 text-2xl font-bold truncate"
             style={{ color: 'var(--pjk-ink)' }}>{raster.titel}</h1>
@@ -375,7 +404,11 @@ export function CalendarWorkspace() {
           </div>
         </div>
 
-        <div style={{ width: 'var(--pjk-detail-width)', flexShrink: 0 }}>
+        <PaneDivider label="Termindetails anpassen" wert={detailBreite}
+          min={grenzen.detail.min} max={grenzen.detail.max}
+          onChange={setDetailBreite} richtung="rechts" />
+
+        <div className="min-w-0">
           <TerminDetail termin={ausgewaehlt} zone={zone} />
         </div>
       </div>

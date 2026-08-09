@@ -277,19 +277,20 @@ export function MonatsRaster(p: RasterProps) {
               onClick={() => aufTagAuswahl(d.tag)}
               className={`p-1 min-w-0 cursor-default ${bekannt ? '' : 'pjk-unbekannt'}`}
               style={{
-                borderRight: (i + 1) % 7 === 0 ? 'none' : '1px solid var(--pjk-line-soft)',
-                borderBottom: '1px solid var(--pjk-line-soft)',
+                // B2-Livebefund: klar sichtbare Zellgrenzen wie die Referenz.
+                borderRight: (i + 1) % 7 === 0 ? 'none' : '1px solid var(--pjk-line)',
+                borderBottom: '1px solid var(--pjk-line)',
                 opacity: d.inPeriode ? 1 : 'var(--pjk-outside-opacity)',
               }}>
               {/* B2, wie die Referenz: Tageszahl oben RECHTS; heute als roter
-                  gefuellter Kreis; der gewaehlte Tag als neutraler Kreis. */}
+                  gefuellter Kreis; der gewaehlte Tag als grauer Kreis. */}
               <div className="flex items-center justify-end mb-0.5">
                 <span className="inline-flex items-center justify-center text-[11px] font-medium tabular-nums"
                   style={{
                     minWidth: 'var(--pjk-daynumber-size)',
                     height: 'var(--pjk-daynumber-size)',
                     borderRadius: '50%',
-                    color: istHeute ? '#fff' : 'var(--pjk-ink)',
+                    color: istHeute || istGewaehlt ? '#fff' : 'var(--pjk-ink)',
                     background: istHeute ? 'var(--pjk-heute)'
                       : istGewaehlt ? 'var(--pjk-auswahl)' : 'transparent',
                     outline: istHeute && istGewaehlt
@@ -501,9 +502,11 @@ export function JahresRaster(p: RasterProps & { aufTag: (tag: string) => void })
 
 function zeitBeschreibung(t: Termin, zone: string): string {
   if (t.is_all_day) {
-    const start = t.starts_at_utc.slice(0, 10);
-    const endeExklusiv = t.ends_at_utc.slice(0, 10);
-    const letzter = endeExklusiv <= start ? start : plusTage(endeExklusiv, -1);
+    // Instants, kein String-Schnitt — dieselbe B2-Korrektur wie in
+    // `termintage`: die lokale Mitternacht liegt als roher Instant vor.
+    const tage = termintage(t, zone);
+    const start = tage[0] ?? lokalerTag(t.starts_at_utc, zone);
+    const letzter = tage[tage.length - 1] ?? start;
     return start === letzter ? `Ganztägig · ${start}`
                              : `Ganztägig · ${start} bis ${letzter}`;
   }
