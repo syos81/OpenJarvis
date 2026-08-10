@@ -1,0 +1,51 @@
+{
+  "backup_entry_count": 0,
+  "backup_sha256": "b9c42cbe3379d3c022c7b4c87da2fcc9f049c7787adbf6bd5a1678a6c65af1b0",
+  "functional_commit": "66e7e0f71ec28a60e444fff7bd88de7c061cffa0",
+  "kind": "b3_live_record",
+  "recorded_at_utc": "2026-08-10T16:50:40Z",
+  "schema_version": 1,
+  "stages": [
+    {
+      "approval_consumed": true,
+      "event_digest": "3a67f0156b38e53ae36592fd39509b57e65d69893d157abcf1f8df68633afd74",
+      "executed": true,
+      "fingerprint_checked": false,
+      "fingerprint_matched": null,
+      "notes": "Mutation 492e23d7, 2026-08-09T13:52:41Z bis 13:52:45Z, ein Claim, ein Versuch. Der Bericht ist digest-direkt rekonstruiert: aus dem Vorzustand der Folgemutation gebildeter Read-back-Zustand ergibt exakt den persistierten readback_digest UND den persistierten execution_report_digest, mit outcome applied und readback_status confirmed. Zweiter Create der Linie (der erste ist als b3-first-create-finding eingefroren).",
+      "outcome": "succeeded",
+      "owner_confirmed_apple": true,
+      "owner_confirmed_jarvis": true,
+      "readback_status": "confirmed",
+      "stage": "create"
+    },
+    {
+      "approval_consumed": true,
+      "event_digest": "3a67f0156b38e53ae36592fd39509b57e65d69893d157abcf1f8df68633afd74",
+      "executed": true,
+      "fingerprint_checked": true,
+      "fingerprint_matched": true,
+      "notes": "Mutation 6a1a8e52, 2026-08-09T16:44:03Z bis 16:44:14Z, Delta-Update mit gebundenem Neun-Feld-Vorzustand. Digest-direkt rekonstruiert: der Bericht mit fingerprint_checked=true, fingerprint_matched=true und readback_status=confirmed trifft den persistierten execution_report_digest; die Gegenprobe mit fingerprint_matched=false trifft ihn nicht. DIESELBE Eventidentitaet wie die Create-Stufe.",
+      "outcome": "succeeded",
+      "owner_confirmed_apple": true,
+      "owner_confirmed_jarvis": true,
+      "readback_status": "confirmed",
+      "stage": "update"
+    },
+    {
+      "approval_consumed": true,
+      "event_digest": "3a67f0156b38e53ae36592fd39509b57e65d69893d157abcf1f8df68633afd74",
+      "executed": true,
+      "fingerprint_checked": true,
+      "fingerprint_matched": true,
+      "notes": "Mutation 67eec882, 2026-08-10T16:36:26Z bis 16:36:29Z, ein Claim, ein Versuch, Freigabe von lukas um 16:36:28 verbraucht. Digest-direkt rekonstruiert: der Bericht mit fingerprint_checked=true, fingerprint_matched=true, readback_status=absent_confirmed trifft den persistierten execution_report_digest; die Gegenproben confirmed, unavailable, fingerprint_checked=false, fingerprint_matched=false und outcome=unknown treffen ihn nicht. Freigabe band drei Nachweise: expected_fingerprint 5ced3e38, eligibility_digest a5a6e51d (nachgerechnet gleich der Probe ohne belegte unsupported Eigenschaft), restore_preimage_digest 2257e3c4 (Restore-Artefakt vor der Loeschung erzeugt, gegen den Create-Vertrag validiert, in der Zeile erhalten). Aussagebereich: jarvis_origin_supported_event. OFFEN und bewusst nicht behauptet: ein gemeinsamer produktiver Lesenachweislauf nach der Loeschung liegt maschinell NICHT vor (letzter Sync 2026-08-09T20:49:55Z); die Abwesenheit des Ziels ist durch den gezielten nativen Read-back belegt, die Anwesenheit der positiven Kontrolle ausschliesslich durch die Eigentuemerbestaetigung in Jarvis und Apple Kalender.",
+      "outcome": "succeeded",
+      "owner_confirmed_apple": true,
+      "owner_confirmed_jarvis": true,
+      "readback_status": "absent_confirmed",
+      "stage": "delete"
+    }
+  ],
+  "statement": "PII-armer Live-Nachweis der B3-Schreibstufen: nur Zustaende, Digeste, Zeitpunkte und Eigentuemerbestaetigungen; keine Titel, Orte, Notizen, Teilnehmer oder sonstigen Kalenderinhalte. Alle drei Stufen sind gegen die produktive Datenbank re-derivierbar; die Berichtsaussagen sind ueber den serverseitig gerechneten execution_report_digest rekonstruiert, nicht behauptet. AUSSAGEBEREICH (wortwoertlich, verbindlich): DELETE des konkreten, durch B3 selbst erzeugten und innerhalb derselben B3-Mutationslinie gefuehrten Abnahmetermins ist live belegt. NICHT belegt: DELETE beliebiger Kalendertermine. Maschinenlesbar: jarvis_origin_supported_event. Die Herkunftskontinuitaet ist mechanisch belegt: dieselbe Eventidentitaet (event_digest 3a67f015) wurde durch die Create-Stufe erzeugt, durch die Update-Stufe geaendert und durch die Delete-Stufe geloescht.",
+  "target_calendar_digest": "f271b5bf31a2439d328580dd1fef17ada886006376722223be6e44382e4aa9a3"
+}
