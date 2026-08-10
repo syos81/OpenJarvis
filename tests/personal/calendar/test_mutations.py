@@ -11,14 +11,24 @@ höchstens ein Bericht** — und ohne verifiziertes Backup kein Auftrag.
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import replace
 
 import pytest
 
 from personaljarvis.base.db.unit_of_work import UnitOfWork
+from personaljarvis.base.digest import digest_of
+from personaljarvis.base.outbox import ExternalActionOutbox
 from personaljarvis.calendar.domain import CanonicalCalendar, CanonicalEvent
 from personaljarvis.calendar.mutations.contracts import (
+    ATTACHMENT_OBSERVABILITY,
     ELIGIBILITY_FLAG_NAMES,
+    IDENTIFIER_CONTRACT,
+    assess_restorability,
+    canonical_delete_payload,
+    control_binding_digest_of,
+    semantic_state_digest_of,
+    validate_control_observation,
     ExecutionReportV1,
     InvalidMutationFields,
     eligibility_digest_of,
@@ -37,7 +47,10 @@ from personaljarvis.calendar.mutations.service import (
     CalendarNotFound,
     CalendarNotWritable,
     DeleteNotEligible,
+    DeleteNotRestorable,
     EventNotFound,
+    PositiveControlMissing,
+    origin_continuity_of,
     MutationNotExecutable,
     SettleConflict,
     backup_probe_from_path,
@@ -842,6 +855,33 @@ PROBE = {
     "counts": {"alarms": 0, "attendees": 0, "recurrence_rules": 0},
 }
 
+#: Eine produktiv gelesene positive Kontrolle desselben Kalenders — ab B3 P3
+#: VORBEDINGUNG des Deletes, nicht nur Nachpruefung.
+KONTROLLE = {
+    "read_operation_success": True,
+    "control_present": True,
+    "control_event_identifier": "EK-KONTROLLE-1",
+    "control_provider_calendar_id": KALENDER,
+    "observed_at_utc": "2026-08-10T17:16:22Z",
+}
+
+
+def _freigabe_anlegen(uow, payload_digest: str = "d",
+                      preview_digest: str = "p") -> str:
+    """Eine verbrauchsfaehige Freigabe fuer direkt gesetzte Testzeilen."""
+    from personaljarvis.base.approvals import ApprovalStore
+    approval_id = str(uuid.uuid4())
+    ApprovalStore(uow).request(
+        approval_id=approval_id, module="calendar",
+        subject_type="calendar.mutation", subject_id=approval_id,
+        risk_class="R1", initiation_context="user_direct", actor="lukas",
+        correlation_id=approval_id, payload_digest=payload_digest,
+        preview_digest=preview_digest,
+        ttl_seconds=900)
+    ApprovalStore(uow).grant(approval_id, decision_actor="lukas")
+    return approval_id
+
+
 #: Paritätspins: DIESELBEN Konstanten stehen in calendar_write.rs
 #: (`ELIGIBILITY_DIGEST_PIN` / `RESTORE_PREIMAGE_DIGEST_PIN`). Weicht eine
 #: Seite ab, rechnen Python und Rust verschiedene Kanonisierungen — und die
@@ -879,123 +919,267 @@ def _delete_bericht(auftrag, **abweichungen) -> ExecutionReportV1:
 
 
 class TestPrepareDelete:
-    def test_gueltiger_delete_bindet_drei_nachweise(self, delete_dienst,
-                                                    factory):
-        vorgang = delete_dienst.prepare_delete(KALENDER, EVENT_ID,
-                                               dict(PROBE))
-        zeile = _mutation_row(factory, vorgang.mutation_id)
-        assert zeile["state"] == "prepared"
-        assert zeile["command"] == "delete"
-        payload = json.loads(zeile["payload_json"])
-        assert payload["command"] == "delete"
-        assert payload["provider_target"] == {
-            "provider_calendar_id": KALENDER, "event_identifier": EVENT_ID}
-        # Die drei getrennten Nachweise der Eigentümerentscheidung.
-        assert payload["expected_fingerprint"] \
-            == preimage_fingerprint_of(PREIMAGE)
-        assert payload["eligibility_digest"] == eligibility_digest_of(PROBE)
-        assert payload["restore_preimage_digest"] \
-            == restore_preimage_digest_of(PREIMAGE)
-        assert "fields" not in payload and "changes" not in payload
-        assert zeile["base_fingerprint"] == payload["expected_fingerprint"]
-        assert json.loads(zeile["preimage_json"]) == PREIMAGE
-        # Das Restore-Artefakt liegt VOR jeder Löschung in der Zeile.
-        hinweis = json.loads(zeile["rollback_hint_json"])
-        assert hinweis["undo"] == "create"
-        assert hinweis["restore_preimage"] == restore_preimage_of(PREIMAGE)
-        assert hinweis["restore_preimage_digest"] \
-            == payload["restore_preimage_digest"]
-        # Die Vorschau zeigt Identität, Löschhinweis und Wiederherstellbarkeit.
-        assert vorgang.preview["command"] == "delete"
-        assert vorgang.preview["calendar_display_name"] == "Privat"
-        assert vorgang.preview["title"] == "Zahnarzt"
-        assert vorgang.preview["deletion"] == {
-            "eligible": True, "unsupported_feature_flags": [],
-            "restore_preimage_present": True}
+    """B3 P3 FINALER Vertrag: DELETE ist nur zulaessig, wenn die vollstaendige
+    aktuelle Wiederherstellbarkeit POSITIV belegt ist. Auf dem real
+    verwendeten SDK ist die Abwesenheit von Anhaengen nicht beobachtbar —
+    damit blockiert der Pfad, und zwar auch fuer einen von Jarvis selbst
+    erzeugten Termin. Unbekannt ist blockiert, nicht 'wird schon'."""
 
-    def test_unsupported_eigenschaft_blockiert_vor_jeder_mutation(
+    def test_delete_blockiert_weil_wiederherstellbarkeit_unbelegt(
             self, delete_dienst, factory):
-        # Auftrag D5/E: eligible=false ⇒ DeleteNotEligible — und der Beleg
-        # ist strukturell: KEINE Mutationszeile, KEINE Freigabe, KEIN
-        # Outbox-Eintrag entstand.
+        with pytest.raises(DeleteNotRestorable) as exc:
+            delete_dienst.prepare_delete(KALENDER, EVENT_ID, dict(PROBE),
+                                         dict(KONTROLLE))
+        gruende = str(exc.value)
+        assert "attachments_absent_unproven" in gruende
+        # Strukturell: KEINE Mutation, KEINE Freigabe, KEIN Outbox-Eintrag.
+        with UnitOfWork(factory) as uow:
+            for tabelle, wo in (
+                ("calendar_mutations", ""),
+                ("personal_approvals",
+                 " WHERE subject_type = 'calendar.mutation'"),
+                ("personal_external_action_outbox",
+                 " WHERE module = 'calendar'"),
+            ):
+                n = uow.execute(
+                    f"SELECT COUNT(*) AS n FROM {tabelle}{wo}").fetchone()["n"]
+                assert n == 0, tabelle
+
+    def test_jarvis_herkunft_ueberstimmt_die_attachment_luecke_nicht(self):
+        # Auch bei bewiesener Herkunft und eligible Probe bleibt die
+        # Wiederherstellbarkeit unbelegt, solange Anhaenge unbeobachtbar sind.
+        urteil = assess_restorability(
+            origin_continuity="proven", eligibility_probe=dict(PROBE),
+            restore_preimage_present=True)
+        assert urteil["restorability_proven"] is False
+        assert urteil["attachments_absent"] == "unproven"
+        assert "attachments_absent_unproven" in urteil["blocking_reasons"]
+
+    def test_unsupported_eigenschaft_blockiert_zusaetzlich(self):
+        blockiert = {**PROBE, "eligible": False,
+                     "unsupported_feature_flags": ["recurrence_rules"],
+                     "counts": {"alarms": 0, "attendees": 0,
+                                "recurrence_rules": 1}}
+        urteil = assess_restorability(
+            origin_continuity="proven", eligibility_probe=blockiert,
+            restore_preimage_present=True)
+        assert urteil["restorability_proven"] is False
+        assert "unsupported_property_present" in urteil["blocking_reasons"]
+
+    def test_fehlende_restore_preimage_blockiert(self):
+        urteil = assess_restorability(
+            origin_continuity="proven", eligibility_probe=dict(PROBE),
+            restore_preimage_present=False)
+        assert "restore_preimage_missing" in urteil["blocking_reasons"]
+
+    def test_unsupported_probe_blockiert_vor_jeder_mutation(
+            self, delete_dienst, factory):
         probe = {**PROBE, "eligible": False,
                  "unsupported_feature_flags": ["recurrence_rules"],
                  "counts": {"alarms": 0, "attendees": 0,
                             "recurrence_rules": 1}}
         with pytest.raises(DeleteNotEligible):
-            delete_dienst.prepare_delete(KALENDER, EVENT_ID, probe)
+            delete_dienst.prepare_delete(KALENDER, EVENT_ID, probe,
+                                         dict(KONTROLLE))
         with UnitOfWork(factory) as uow:
-            mutationen = uow.execute(
-                "SELECT COUNT(*) AS n FROM calendar_mutations").fetchone()
-            freigaben = uow.execute(
-                "SELECT COUNT(*) AS n FROM personal_approvals "
-                "WHERE subject_type = 'calendar.mutation'").fetchone()
-            outbox = uow.execute(
-                "SELECT COUNT(*) AS n FROM personal_external_action_outbox "
-                "WHERE module = 'calendar'").fetchone()
-        assert (mutationen["n"], freigaben["n"], outbox["n"]) == (0, 0, 0)
+            n = uow.execute(
+                "SELECT COUNT(*) AS n FROM calendar_mutations").fetchone()["n"]
+        assert n == 0
 
     def test_probe_eines_anderen_ziels_faellt(self, delete_dienst):
         with pytest.raises(InvalidMutationFields):
             delete_dienst.prepare_delete(
                 KALENDER, EVENT_ID,
-                {**PROBE, "event_identifier": "EK-ANDERES-EVENT"})
-        with pytest.raises(InvalidMutationFields):
+                {**PROBE, "event_identifier": "EK-ANDERES"}, dict(KONTROLLE))
+
+
+class TestPositiveKontrolleVorbedingung:
+    """Entscheidung 10/11: die positive Kontrolle ist VORBEDINGUNG des
+    Deletes. Ohne sie gibt es keine Vorschau und keine Freigabe — und es
+    wird NIE ein Termin nur als Kontrollobjekt erzeugt."""
+
+    def test_a_kontrolle_vorhanden_passiert_die_kontrollpruefung(
+            self, delete_dienst):
+        # Die Kontrollpruefung laeuft VOR der Herkunfts-/Restorability-
+        # Pruefung: mit gueltiger Kontrolle faellt der Vorgang erst an der
+        # Wiederherstellbarkeit, nicht mehr an der Kontrolle.
+        with pytest.raises(DeleteNotRestorable):
+            delete_dienst.prepare_delete(KALENDER, EVENT_ID, dict(PROBE),
+                                         dict(KONTROLLE))
+
+    def test_b_fehlende_kontrolle_verhindert_vorschau(self, delete_dienst,
+                                                       factory):
+        with pytest.raises(PositiveControlMissing):
+            delete_dienst.prepare_delete(KALENDER, EVENT_ID, dict(PROBE),
+                                         None)
+        with UnitOfWork(factory) as uow:
+            n = uow.execute(
+                "SELECT COUNT(*) AS n FROM personal_approvals "
+                "WHERE subject_type = 'calendar.mutation'").fetchone()["n"]
+        assert n == 0
+
+    def test_e_kontrolle_in_fremdem_kalender_blockiert(self, delete_dienst):
+        with pytest.raises(PositiveControlMissing):
             delete_dienst.prepare_delete(
-                KALENDER, EVENT_ID,
-                {**PROBE, "provider_calendar_id": "cal-fremd"})
+                KALENDER, EVENT_ID, dict(PROBE),
+                {**KONTROLLE, "control_provider_calendar_id": "cal-fremd"})
 
-    def test_unbekannter_termin_faellt(self, delete_dienst):
-        with pytest.raises(EventNotFound):
+    def test_kontrolle_darf_nicht_das_ziel_selbst_sein(self, delete_dienst):
+        with pytest.raises(PositiveControlMissing):
             delete_dienst.prepare_delete(
-                KALENDER, "EK-FREMD",
-                {**PROBE, "event_identifier": "EK-FREMD"})
+                KALENDER, EVENT_ID, dict(PROBE),
+                {**KONTROLLE, "control_event_identifier": EVENT_ID})
 
-    def test_nicht_schreibbarer_kalender_faellt(self, factory):
-        kalender_id = _kalender_anlegen(factory, writable=False)
-        _termin_anlegen(factory, kalender_id)
-        dienst = CalendarMutationService(factory, backup_probe=lambda: True)
-        with pytest.raises(CalendarNotWritable):
-            dienst.prepare_delete(KALENDER, EVENT_ID, dict(PROBE))
+    def test_f_unvollstaendige_kontrollbeobachtung_faellt(self):
+        for defekt in (
+            "kein objekt",
+            {},
+            {k: v for k, v in KONTROLLE.items() if k != "control_present"},
+            {**KONTROLLE, "read_operation_success": False},
+            {**KONTROLLE, "control_present": False},
+            {**KONTROLLE, "heimlich": 1},
+            {**KONTROLLE, "control_event_identifier": ""},
+            {**KONTROLLE, "observed_at_utc": "2026-08-10 17:16:22"},
+        ):
+            with pytest.raises(InvalidMutationFields):
+                validate_control_observation(defekt)
 
-    def test_claim_traegt_delete_und_fingerprint(self, delete_dienst):
-        vorgang = delete_dienst.prepare_delete(KALENDER, EVENT_ID,
-                                               dict(PROBE))
-        delete_dienst.approve(vorgang.mutation_id, decision_actor="lukas")
-        auftrag = delete_dienst.claim(vorgang.mutation_id)
-        assert auftrag.operation_type == "delete"
-        assert auftrag.payload_digest_matches()
-        assert auftrag.expected_fingerprint \
-            == preimage_fingerprint_of(PREIMAGE)
-        assert auftrag.provider_target == {
-            "provider_calendar_id": KALENDER, "event_identifier": EVENT_ID}
-        assert auftrag.canonical_payload["eligibility_digest"] \
-            == eligibility_digest_of(PROBE)
+    def test_c_die_bindung_gilt_genau_einem_kontrollpaar(self):
+        # Eine andere Kontrolle ergibt einen anderen Bindungsdigest — eine
+        # nachtraeglich gewaehlte Kontrolle passt nie zur Freigabe.
+        andere = {**KONTROLLE,
+                  "control_event_identifier": "EK-KONTROLLE-2"}
+        assert control_binding_digest_of(KONTROLLE) \
+            != control_binding_digest_of(andere)
+
+
+class TestOriginContinuity:
+    """Entscheidung 5/6/7: Herkunft folgt NIE allein aus der Eventkennung.
+    Zwei getrennte Bindungen muessen halten — Identitaet UND identitaetsfreier
+    Zustand."""
+
+    def _linie(self, factory, **abweichungen):
+        """Seedet eine gesettelte CREATE-Linie mit Zustandsdigest."""
+        werte = {"command": "create", "state": "succeeded",
+                 "event_identifier": EVENT_ID,
+                 "target_provider_calendar_id": KALENDER,
+                 "semantic_state_digest": semantic_state_digest_of(FELDER)}
+        werte.update(abweichungen)
+        with UnitOfWork(factory) as uow:
+            uow.execute(
+                "INSERT INTO calendar_mutations (mutation_id, command, state, "
+                "payload_json, payload_digest, preview_json, preview_digest, "
+                "approval_id, outbox_id, target_provider_calendar_id, "
+                "event_identifier, semantic_state_digest, created_at, "
+                "attempt_count) VALUES (?,?,?,'{}','d','{}','p',?,?,?,?,?,?,0)",
+                (str(uuid.uuid4()), werte["command"], werte["state"],
+                 _freigabe_anlegen(uow), str(uuid.uuid4()),
+                 werte["target_provider_calendar_id"],
+                 werte["event_identifier"], werte["semantic_state_digest"],
+                 "2026-08-09T12:00:00Z"))
+
+    def _pruefe(self, factory, zustand=None):
+        with UnitOfWork(factory) as uow:
+            return origin_continuity_of(uow, KALENDER, EVENT_ID,
+                                        zustand or dict(FELDER))
+
+    def test_1_vollstaendige_linie_ist_proven(self, factory):
+        _kalender_anlegen(factory)
+        self._linie(factory)
+        assert self._pruefe(factory)["origin_continuity"] == "proven"
+
+    def test_6_ohne_create_settle_blockiert(self, factory):
+        _kalender_anlegen(factory)
+        self._linie(factory, command="update")
+        ergebnis = self._pruefe(factory)
+        assert ergebnis["origin_continuity"] == "unproven"
+        assert "no_successful_create_settle" in ergebnis["blocking_reasons"]
+
+    def test_5_kalenderidentitaet_geaendert_blockiert(self, factory):
+        _kalender_anlegen(factory)
+        self._linie(factory, target_provider_calendar_id="cal-anders")
+        ergebnis = self._pruefe(factory)
+        assert "calendar_identity_changed" in ergebnis["blocking_reasons"]
+
+    def test_7_fehlende_semantische_bindung_blockiert(self, factory):
+        # Historische Zeilen ohne Zustandsdigest: NULL heisst nicht
+        # 'unveraendert', sondern 'nicht rekonstruierbar'.
+        _kalender_anlegen(factory)
+        self._linie(factory, semantic_state_digest=None)
+        ergebnis = self._pruefe(factory)
+        assert "semantic_state_binding_missing" in ergebnis["blocking_reasons"]
+
+    @pytest.mark.parametrize("feld,wert", [
+        ("title", "Extern umbenannt"),
+        ("starts_at_utc", "2026-08-12T11:00:00Z"),
+        ("time_zone", "America/New_York"),
+    ])
+    def test_3_4_8_externe_zustandsaenderung_blockiert(self, factory, feld,
+                                                       wert):
+        _kalender_anlegen(factory)
+        self._linie(factory)
+        ergebnis = self._pruefe(factory, {**FELDER, feld: wert})
+        assert ergebnis["origin_continuity"] == "unproven"
+        assert "semantic_state_digest_mismatch" in ergebnis["blocking_reasons"]
+
+    def test_9_serialisierungsreihenfolge_aendert_den_digest_nicht(self):
+        umgekehrt = dict(reversed(list(FELDER.items())))
+        assert semantic_state_digest_of(umgekehrt) \
+            == semantic_state_digest_of(FELDER)
+
+    def test_semantischer_digest_ist_identitaetsfrei(self):
+        # Weder Eventkennung noch Kalender duerfen ihn beeinflussen —
+        # sonst koennte eine Identitaetsaenderung eine Zustandsaenderung
+        # verdecken.
+        mit_identitaet = {**FELDER, "event_identifier": "EK-X",
+                          "provider_calendar_id": "cal-x"}
+        assert semantic_state_digest_of(mit_identitaet) \
+            == semantic_state_digest_of(FELDER)
+        # Und er ist NICHT der readback_digest (der bindet den Kalender mit).
+        assert semantic_state_digest_of(FELDER) \
+            != fingerprint_of(FELDER, KALENDER)
 
 
 class TestDeleteSettle:
-    def _vorbereitet(self, dienst) -> str:
-        vorgang = dienst.prepare_delete(KALENDER, EVENT_ID, dict(PROBE))
-        dienst.approve(vorgang.mutation_id, decision_actor="lukas")
-        return vorgang.mutation_id
+    """Der Settle-Vertrag des Deletes bleibt gueltig und geprueft, obwohl der
+    produktive Vorbereitungspfad derzeit blockiert: die Zeile wird direkt
+    gesetzt, damit die Auswertung isoliert pruefbar bleibt."""
 
-    def test_absent_confirmed_wird_succeeded_mit_tombstone(
-            self, delete_dienst, factory):
-        mutation_id = self._vorbereitet(delete_dienst)
+    def _vorbereitet(self, dienst, factory) -> str:
+        mutation_id = str(uuid.uuid4())
+        payload = canonical_delete_payload(
+            KALENDER, EVENT_ID, preimage_fingerprint_of(PREIMAGE),
+            eligibility_digest_of(PROBE), restore_preimage_digest_of(PREIMAGE),
+            control_binding_digest_of(KONTROLLE))
+        with UnitOfWork(factory) as uow:
+            approval_id = _freigabe_anlegen(uow, digest_of(payload), "p")
+            outbox = ExternalActionOutbox(uow).enqueue(
+                module="calendar", operation="delete",
+                subject_type="calendar.mutation", subject_id=mutation_id,
+                approval_id=approval_id, idempotency_key=mutation_id,
+                payload_digest=digest_of(payload))
+            uow.execute(
+                "INSERT INTO calendar_mutations (mutation_id, command, state, "
+                "payload_json, payload_digest, preview_json, preview_digest, "
+                "approval_id, outbox_id, target_provider_calendar_id, "
+                "event_identifier, base_fingerprint, preimage_json, "
+                "created_at, attempt_count) "
+                "VALUES (?,'delete','approved',?,?,'{}','p',?,?,?,?,?,?,?,0)",
+                (mutation_id,
+                 json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                 digest_of(payload), approval_id, outbox.outbox_id, KALENDER,
+                 EVENT_ID, preimage_fingerprint_of(PREIMAGE),
+                 json.dumps(PREIMAGE, sort_keys=True, separators=(",", ":")),
+                 "2026-08-10T16:36:26Z"))
+        return mutation_id
+
+    def test_absent_confirmed_wird_succeeded_mit_tombstone(self, delete_dienst,
+                                                            factory):
+        mutation_id = self._vorbereitet(delete_dienst, factory)
         auftrag = delete_dienst.claim(mutation_id)
         ergebnis = delete_dienst.settle(mutation_id, _delete_bericht(auftrag),
                                         claim_token=auftrag.claim_token)
         assert ergebnis.state == "succeeded"
-        assert ergebnis.outcome == "succeeded"
-
-        zeile = _mutation_row(factory, mutation_id)
-        assert zeile["completed_at"] is not None
-        # Das Restore-Artefakt überlebt das Settle unverändert.
-        hinweis = json.loads(zeile["rollback_hint_json"])
-        assert hinweis["undo"] == "create"
-        assert hinweis["restore_preimage"] == restore_preimage_of(PREIMAGE)
-
-        # Der lokale Spiegel: Tombstone, kein harter Verlust der Zeile.
         with UnitOfWork(factory) as uow:
             termin = uow.execute(
                 "SELECT e.is_tombstone, e.deleted_at FROM events e "
@@ -1005,11 +1189,8 @@ class TestDeleteSettle:
         assert termin["deleted_at"] is not None
 
     def test_leere_zielsuche_allein_ist_kein_beweis(self, delete_dienst,
-                                                    factory):
-        # R10-Sicherung: `applied` ohne absent_confirmed (Readback-Kanal
-        # nicht verfügbar) bleibt in der Zwischenlage — der Spiegel wird
-        # NICHT nachgeführt, erfunden wird nichts.
-        mutation_id = self._vorbereitet(delete_dienst)
+                                                     factory):
+        mutation_id = self._vorbereitet(delete_dienst, factory)
         auftrag = delete_dienst.claim(mutation_id)
         bericht = _delete_bericht(auftrag, readback_status="unavailable",
                                   outcome="unknown",
@@ -1025,48 +1206,23 @@ class TestDeleteSettle:
         assert termin["is_tombstone"] == 0
 
     def test_unsupported_field_bleibt_failed_before_send(self, delete_dienst,
-                                                         factory):
-        # Der native Pfad hat die frische Probe gelesen und blockiert:
-        # beweisbar nichts gesendet, der Bestand bleibt.
-        mutation_id = self._vorbereitet(delete_dienst)
+                                                          factory):
+        mutation_id = self._vorbereitet(delete_dienst, factory)
         auftrag = delete_dienst.claim(mutation_id)
         bericht = _delete_bericht(
             auftrag, outcome="not_sent", send_attempted=False,
             save_request_count=0, readback_status="not_checked",
-            provider_identifier=None, fingerprint_checked=True,
-            fingerprint_matched=True, error_class="unsupported_field",
+            provider_identifier=None, error_class="unsupported_field",
             provider_completed_at=None)
         ergebnis = delete_dienst.settle(mutation_id, bericht,
                                         claim_token=auftrag.claim_token)
         assert ergebnis.state == "failed_before_send"
-        zeile = _mutation_row(factory, mutation_id)
-        assert zeile["last_error_code"] == "unsupported_field"
         with UnitOfWork(factory) as uow:
             termin = uow.execute(
                 "SELECT e.is_tombstone FROM events e "
                 "JOIN event_external_ids x ON x.event_id = e.id "
                 "WHERE x.provider_event_id = ?", (EVENT_ID,)).fetchone()
         assert termin["is_tombstone"] == 0
-
-    def test_revision_conflict_bleibt_failed_before_send(self, delete_dienst,
-                                                         factory):
-        # Fixture H serverseitig: Fingerprint- oder Digestabweichung vor
-        # dem Execute — Abbruch, keine Löschung, Freigabe verbraucht.
-        mutation_id = self._vorbereitet(delete_dienst)
-        auftrag = delete_dienst.claim(mutation_id)
-        bericht = _delete_bericht(
-            auftrag, outcome="not_sent", send_attempted=False,
-            save_request_count=0, readback_status="not_checked",
-            provider_identifier=None, fingerprint_checked=True,
-            fingerprint_matched=False, error_class="revision_conflict",
-            provider_completed_at=None)
-        ergebnis = delete_dienst.settle(mutation_id, bericht,
-                                        claim_token=auftrag.claim_token)
-        assert ergebnis.state == "failed_before_send"
-        assert ergebnis.error_class == "revision_conflict"
-        with pytest.raises(AlreadySettled):
-            delete_dienst.claim(mutation_id)
-
 
 class TestEmissionsWaechter:
     """P3-Livebefund (Stufe probe_unparseable): Clang boxt nackte

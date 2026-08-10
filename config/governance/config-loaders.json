@@ -75,6 +75,24 @@
       "reason": "The frozen first-create finding is read exclusively by its fail-closed loader, which enforces the closed key set so no calendar content can ride along."
     },
     {
+      "binding_id": "b3-live-record",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.runners.b3_checks:load_live_record",
+      "pattern": "config/gates/history/b3-live-record.json",
+      "reason": "The staged live record is read exclusively by its fail-closed loader, which enforces the stage order and the closed key sets so no calendar content can ride along."
+    },
+    {
+      "binding_id": "b3-p3a-correction",
+      "call_style": "path",
+      "expectation": "accepted",
+      "kind": "callable",
+      "loader": "tools.gates.runners.b3_checks:load_p3a_correction",
+      "pattern": "config/gates/history/b3-p3a-correction.json",
+      "reason": "The declaratory P3-A correction is read exclusively by its fail-closed loader, which enforces the closed key set, verifies the bound commit oid and keeps the historical gate status recorded."
+    },
+    {
       "binding_id": "baseline-errata",
       "call_style": "root_relative",
       "expectation": "accepted",
@@ -892,5 +910,5 @@
   "kind": "configuration_loader_binding",
   "rule": "R4",
   "schema_version": 1,
-  "statement": "Normative Quelle: DEC-059 \u2014 Schema vor Daten (docs/governance/decisions/DEC-059-schema-vor-daten.md). Dieses Dokument ist das Durchsetzungsartefakt: es bindet jede Datei unter den coverage_roots an genau einen akzeptierenden Leser; ein Bindungsfehler faellt den Block."
+  "statement": "Normative Quelle: DEC-059 — Schema vor Daten (docs/governance/decisions/DEC-059-schema-vor-daten.md). Dieses Dokument ist das Durchsetzungsartefakt: es bindet jede Datei unter den coverage_roots an genau einen akzeptierenden Leser; ein Bindungsfehler faellt den Block."
 }

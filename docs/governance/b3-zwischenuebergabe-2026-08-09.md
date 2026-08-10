@@ -101,8 +101,7 @@ Abendablauf am x86_64-Mac (Verifikation, dann ggf. Freigabe):
 - Geht NICHT: jede B3-Gatephase (Preflight: `unsupported_architecture`),
   Bundle-Bau fürs Abnahmeartefakt, jede Live-Stufe, jeder produktive
   Kalenderkontakt. Rohtestläufe am M2 sind Selbstkontrolle, nie Evidenz
-  (DEC-067 — Der Bericht ist Folge der Definition, nie ihre Schwester,
-  `docs/governance/decisions/DEC-067-bericht-als-folge.md`).
+  DEC-067 (spike/calendar-foundation-intel-2026-08-04, „Der Bericht ist Folge der Definition, nie ihre Schwester").
 
 ## §6 Bekannte Umgebungsbefunde (keine Repo-Defekte)
 
@@ -131,8 +130,7 @@ Abendablauf am x86_64-Mac (Verifikation, dann ggf. Freigabe):
   Probe; Zahlen bleiben als Wahrheitswerte unparsbar (Regressionspin).
 - Dialogoptik weiterhin aufgeschoben (F1).
 - Pushstatus: `not_performed_owner_action` — Eigentümerbefehl liegt der
-  Übergabe bei (DEC-068 — Eigentümergrenzen,
-  `docs/governance/decisions/DEC-068-eigentuemergrenzen.md`).
+  Übergabe bei DEC-068 (spike/calendar-foundation-intel-2026-08-04, „Eigentümergrenzen: abschließende Klassen der Eigentümerhandlungen").
 
 ## §8 Verbleibende echte Blocker
 

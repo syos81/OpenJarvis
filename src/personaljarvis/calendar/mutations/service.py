@@ -49,14 +49,18 @@ from personaljarvis.calendar.mutations.contracts import (
     FIELD_NAMES,
     InvalidMutationFields,
     canonical_create_payload,
+    assess_restorability,
     canonical_delete_payload,
     canonical_update_payload,
+    control_binding_digest_of,
     eligibility_digest_of,
     fingerprint_of,
     preimage_fingerprint_of,
     report_digest,
     restore_preimage_of,
+    semantic_state_digest_of,
     validate_changes,
+    validate_control_observation,
     validate_eligibility_probe,
     validate_fields,
 )
@@ -92,6 +96,9 @@ __all__ = [
     "PositionNotEnabled",
     "BackupMissing",
     "DeleteNotEligible",
+    "DeleteNotRestorable",
+    "PositiveControlMissing",
+    "origin_continuity_of",
     "UnzulaessigerUebergang",
     "pruefe_uebergang",
     "PreparedCalendarMutation",
@@ -165,6 +172,24 @@ class BackupMissing(CalendarMutationError):
     reason_code = "backup_missing"
 
 
+class DeleteNotRestorable(CalendarMutationError):
+    """Die vollständige aktuelle Wiederherstellbarkeit ist nicht POSITIV
+    belegt (B3 P3, Entscheidung 8: `no_known_blocker` ist verworfen,
+    Unbekannt ist blockiert). Die Meldung nennt ausschliesslich
+    geschlossene Blockadegründe, nie einen Inhalt."""
+
+    reason_code = "delete_not_restorable"
+
+
+class PositiveControlMissing(CalendarMutationError):
+    """Ohne produktiv gelesene, gebundene positive Kontrolle desselben
+    Kalenders gibt es keine Delete-Vorschau und keine Freigabe (B3 P3,
+    Entscheidung 10/11). Es wird NIE ein Termin nur als Kontrollobjekt
+    erzeugt."""
+
+    reason_code = "positive_control_missing"
+
+
 class DeleteNotEligible(CalendarMutationError):
     """Der Termin trägt eine belegte, semantisch relevante Eigenschaft
     ausserhalb des wiederherstellbaren B3-Vertrags (B3 P3, Grundregel:
@@ -234,6 +259,71 @@ def backup_probe_from_path(path: Path) -> Callable[[], bool]:
             return False
         return isinstance(daten, dict) and daten.get("verified") is True
     return probe
+
+
+# ── Herkunftskontinuität ───────────────────────────────────────────────────
+def origin_continuity_of(uow: UnitOfWork, provider_calendar_id: str,
+                         event_identifier: str,
+                         aktueller_zustand: dict[str, Any]) -> dict[str, Any]:
+    """Bestimmt die Herkunftskontinuität aus der PERSISTIERTEN B3-Linie.
+
+    `jarvis_origin` folgt niemals allein aus der Eventkennung (B3 P3,
+    Entscheidung 5): autoritativ ist ausschliesslich die lokale, erfolgreich
+    gesettelte CREATE-Linie. Zwei getrennte Bindungen müssen halten
+    (Entscheidung 6):
+
+    * IDENTITY_BINDING — dieselbe `provider_calendar_id` UND derselbe
+      `event_identifier` über die gesamte Linie.
+    * SEMANTIC_STATE_BINDING — der identitätsfreie Zustandsdigest des
+      aktuell beobachteten Zustands gegen den des letzten erfolgreichen
+      Settle. Weicht er ab, wurde extern geändert (Entscheidung 7):
+      kein Reclaim, keine Warnfreigabe, keine Wahrscheinlichkeit.
+
+    Fehlt ein notwendiges Bindeglied, ist das Ergebnis `unproven` — nie ein
+    heuristischer Ersatz. Insbesondere: der historisch persistierte
+    `readback_digest` bindet die Kalenderidentität mit und ist damit NICHT
+    der identitätsfreie Zustandsdigest; wo dieser fehlt, bleibt die
+    semantische Bindung unbeweisbar.
+    """
+    gruende: list[str] = []
+    zeilen = uow.execute(
+        "SELECT command, state, event_identifier, "
+        "target_provider_calendar_id, readback_digest, semantic_state_digest "
+        "FROM calendar_mutations WHERE event_identifier = ? "
+        "AND state = 'succeeded' ORDER BY created_at",
+        (event_identifier,)).fetchall()
+    linie = [dict(z) for z in zeilen]
+    if not any(z["command"] == "create" for z in linie):
+        gruende.append("no_successful_create_settle")
+    for z in linie:
+        if z["target_provider_calendar_id"] != provider_calendar_id:
+            gruende.append("calendar_identity_changed")
+            break
+    letzter = linie[-1] if linie else None
+    semantisch = letzter["semantic_state_digest"] if letzter else None
+    if semantisch is None:
+        # Kein identitätsfreier Zustandsdigest in der Linie: die semantische
+        # Bindung ist nicht rekonstruierbar (der vorhandene readback_digest
+        # bindet die Kalenderidentität mit).
+        gruende.append("semantic_state_binding_missing")
+    else:
+        try:
+            aktuell = semantic_state_digest_of(aktueller_zustand)
+        except InvalidMutationFields:
+            gruende.append("current_semantic_state_unreadable")
+        else:
+            if aktuell != semantisch:
+                gruende.append("semantic_state_digest_mismatch")
+    return {
+        "origin_continuity": "unproven" if gruende else "proven",
+        "blocking_reasons": sorted(set(gruende)),
+        "identity_binding": {
+            "provider_calendar_id": provider_calendar_id,
+            "event_identifier": event_identifier,
+            "settled_stages": [z["command"] for z in linie],
+        },
+        "semantic_state_digest": semantisch,
+    }
 
 
 # ── Ergebnisobjekte ────────────────────────────────────────────────────────
@@ -540,7 +630,8 @@ class CalendarMutationService:
                 preview_digest=preview_digest)
 
     def prepare_delete(self, provider_calendar_id: str, event_identifier: str,
-                       eligibility_probe: dict[str, Any], *,
+                       eligibility_probe: dict[str, Any],
+                       control_observation: dict[str, Any] | None = None, *,
                        actor: str = "lukas",
                        initiation_context: str = "user_direct",
                        correlation_id: str | None = None,
@@ -585,6 +676,21 @@ class CalendarMutationService:
                 "Nicht verlustfrei wiederherstellbar: "
                 + ", ".join(probe["unsupported_feature_flags"]))
 
+        # Positive Kontrolle als VORBEDINGUNG (Entscheidung 10/11): ohne
+        # produktiv gelesene, eigenständige Kontrolle desselben Kalenders
+        # gibt es keine Vorschau und keine Freigabe. Es wird NIE ein Termin
+        # nur als Kontrollobjekt erzeugt.
+        if control_observation is None:
+            raise PositiveControlMissing(
+                "Keine produktiv gelesene positive Kontrolle gebunden")
+        kontrolle = validate_control_observation(control_observation)
+        if kontrolle["control_provider_calendar_id"] != provider_calendar_id:
+            raise PositiveControlMissing(
+                "Die Kontrolle liegt nicht im Zielkalender")
+        if kontrolle["control_event_identifier"] == event_identifier:
+            raise PositiveControlMissing(
+                "Die Kontrolle ist das Ziel selbst")
+
         mutation_id = str(uuid.uuid4())
         with self._uow() as uow:
             kalender = uow.execute(
@@ -626,9 +732,24 @@ class CalendarMutationService:
             restore = restore_preimage_of(preimage)
             restore_digest = digest_of(restore)
 
+            # Herkunft und Wiederherstellbarkeit — POSITIV zu belegen, sonst
+            # blockiert (Entscheidung 5/8). `no_known_blocker` genügt nicht.
+            herkunft = origin_continuity_of(
+                uow, provider_calendar_id, event_identifier,
+                {name: preimage[name] for name in FIELD_NAMES})
+            urteil = assess_restorability(
+                origin_continuity=herkunft["origin_continuity"],
+                eligibility_probe=probe, restore_preimage_present=True)
+            if not urteil["restorability_proven"]:
+                raise DeleteNotRestorable(
+                    "Wiederherstellbarkeit nicht belegt: "
+                    + ", ".join(urteil["blocking_reasons"]
+                                + herkunft["blocking_reasons"]))
+
             payload = canonical_delete_payload(
                 provider_calendar_id, event_identifier, expected_fingerprint,
-                eligibility_digest, restore_digest)
+                eligibility_digest, restore_digest,
+                control_binding_digest_of(kontrolle))
             payload_digest = digest_of(payload)
             # Die Vorschau ist, was der Mensch freigibt: die verständliche
             # Terminidentität, der Hinweis auf die Löschung, die belegte
@@ -947,6 +1068,15 @@ class CalendarMutationService:
                 else:
                     hinweis = {"undo": "delete",
                                "event_identifier": bericht.provider_identifier}
+                # Der identitätsfreie Zustandsdigest entsteht aus dem
+                # GELESENEN Zustand — er ist die zweite, von der Identität
+                # unabhängige Herkunftsbindung (B3 P3).
+                gelesen = self._readback_lesen(bericht)
+                semantisch = (semantic_state_digest_of(gelesen[0])
+                              if gelesen is not None else None)
+                uow.execute(
+                    "UPDATE calendar_mutations SET semantic_state_digest = ? "
+                    "WHERE mutation_id = ?", (semantisch, mutation_id))
                 uow.execute(
                     "UPDATE calendar_mutations SET event_identifier = ?, "
                     "readback_digest = ?, rollback_hint_json = ? "

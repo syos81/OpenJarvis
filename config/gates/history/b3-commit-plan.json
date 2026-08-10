@@ -24,11 +24,15 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 14,
+  "max_commits": 15,
   "plan_change": {
-    "actual": 14,
+    "actual": 15,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
+    "eighth_change": {
+      "decided_by": "owner decision (binding, 2026-08-10): final delete contract correction",
+      "reason": "The owner ordered the final normative delete contract after the P3-A status was fixed to NOT_FINAL. Two SDK findings decide the outcome mechanically: the public EventKit contract of the real target SDK carries no attachment indicator at all, and no available provider identifier carries both a sufficient stability and a reuse-exclusion guarantee. Restorability therefore cannot be proven positively for any event, so generic delete is blocked rather than the contract weakened. The positive control becomes a precondition of the delete rather than a post check, origin continuity gets two separate bindings, and the declaratory P3-A correction is now actually consumed by the live gate."
+    },
     "fifth_change": {
       "decided_by": "commit plan rule for live-found functional defects",
       "reason": "P3-A live attempt aborted BEFORE any mutation: the delete dialog refused with the probe-unavailable message and no preview/approval was ever offered; nothing was deleted (owner-confirmed). Root finding of this commit: the probe channel collapsed three distinct failure stages (process not authorized, event not resolvable, probe emission unparseable) into one stageless null — same diagnosis-defect class as the 422-without-reason live finding. The repair adds the typed failure stage through Tauri command, transport and dialog, plus the previously missing contract pin for the real ObjC JSON emission parsing into the Rust probe (the fakes had injected structs and never exercised that leg). No eligibility loosening, no delete path without a fresh native probe, architecture untouched. The actual failing stage is determined by the next owner-run attempt; further repair follows the then-proven stage."
@@ -125,6 +129,11 @@
       "message": "test(calendar): correct the p3-a status, r10 closed by a joint read",
       "position": 14,
       "purpose": "declaratory correction: joint productive read after the delete (target absent, control present, read success, honestly later), pre_execute_eligibility historically_unproven, pl_b3_live_contract_valid false, p3a_final NOT_FINAL, cleanup deferred"
+    },
+    {
+      "message": "feat(calendar): final delete contract — proven restorability or blocked",
+      "position": 15,
+      "purpose": "normative: attachment observability and identifier contract derived from the real SDK, identity-free semantic state binding plus origin continuity, positive control as delete precondition, restorability proven or blocked, machine-effective P3-A correction with OID-validated commit binding"
     }
   ],
   "push_status": "not_performed_owner_action",

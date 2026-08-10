@@ -30,10 +30,16 @@
   },
   "kind": "b3_p3a_correction",
   "platform_live": {
+    "effective_platform_live_status": "not_pass",
+    "note": "Der bestehende Gate-Record bleibt unveraendert als historische Evidenz ueber das damalige Gate-Verhalten. Er ist KEIN gueltiger finaler B3-Pass: der Live-Checkvertrag erzwingt die positive Kontrolle des gemeinsamen produktiven Nachweislaufs nicht, und er erzwingt keine direkte Aussage ueber die Eligibility-Nachrechnung vor dem Execute.",
     "pl_b3_live_contract_valid": false,
     "pl_b3_live_original": "pass",
-    "note": "Der bestehende Gate-Record bleibt unveraendert als historische Evidenz ueber das damalige Gate-Verhalten. Er ist KEIN gueltiger finaler B3-Pass: der Live-Checkvertrag erzwingt die positive Kontrolle des gemeinsamen produktiven Nachweislaufs nicht, und er erzwingt keine direkte Aussage ueber die Eligibility-Nachrechnung vor dem Execute.",
-    "reason": "required_positive_control_not_enforced"
+    "reason": "required_positive_control_not_enforced",
+    "reasons": [
+      "historical_pre_execute_eligibility_unproven",
+      "historical_pre_preview_control_missing",
+      "historical_pre_execute_control_missing"
+    ]
   },
   "pre_execute_eligibility": {
     "classification": "historically_unproven",
@@ -53,12 +59,34 @@
   },
   "recorded_at_utc": "2026-08-10T17:20:00Z",
   "schema_version": 1,
-  "statement": "PII-armer, rein feststellender Korrekturvermerk zu P3-A: nur Zustaende, Digeste, Zeitpunkte und Klassifikationen; keine Kalenderinhalte. Er schreibt nichts um, sondern haelt fest, was der bestehende Live-Record und der damalige Gate-Lauf NICHT belegen. Diese Datei ist noch von keinem Gate erzwungen; ihre vertragliche Verankerung ist Gegenstand der ausstehenden Vertragskorrektur (restorability_proven, origin_continuity).",
+  "sdk_findings": {
+    "attachment_note": "Der gesamte oeffentliche EventKit-Headerbestand traegt weder Property noch Methode noch Flag oder Zaehler zu Anhaengen; der einzige Treffer auf 'attach' ist Fliesstext in der EKParticipant-Doku. Damit ist attachments_absent unbeweisbar und restorability_proven kann fuer kein Event true werden.",
+    "attachment_observability": "unavailable",
+    "generic_delete": "blocked",
+    "identifier_contract": {
+      "calendar_item_external_identifier": {
+        "stability": "changeable",
+        "uniqueness": "reuse_possible"
+      },
+      "calendar_item_identifier": {
+        "stability": "changeable",
+        "uniqueness": "insufficient_contract"
+      },
+      "event_identifier": {
+        "stability": "changeable",
+        "uniqueness": "insufficient_contract"
+      }
+    },
+    "sdk": "MacOSX13.1.sdk (x86_64-Ziel)"
+  },
+  "statement": "PII-armer, rein feststellender Korrekturvermerk zu P3-A: nur Zustaende, Digeste, Zeitpunkte und Klassifikationen; keine Kalenderinhalte. Er schreibt nichts um, sondern haelt fest, was der bestehende Live-Record und der damalige Gate-Lauf NICHT belegen. Diese Datei WIRD vom Live-Check konsumiert: pl-b3-live liest sie und laesst platform-live nicht mehr grün werden, solange pl_b3_live_contract_valid false ist oder die strukturierte Pflichtevidenz der Delete-Stufe fehlt. Ergaenzt am 2026-08-10 um die SDK-Befunde des finalen Vertrags und die beiden weiteren historischen Luecken (Control-Reads vor Preview und vor Execute).",
   "status": {
     "p3a_contract_evidence": "incomplete",
     "p3a_final": "NOT_FINAL",
     "p3a_live_effect": "proven",
     "p3a_owner_confirmation": "proven",
+    "p3a_pre_execute_control": "historically_missing",
+    "p3a_pre_preview_control": "historically_missing",
     "r10_status": "closed"
   }
 }

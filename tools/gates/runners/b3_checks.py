@@ -25,12 +25,17 @@ from tools.gates.runners import _report  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LIVE_RECORD = "config/gates/history/b3-live-record.json"
+#: Der wirksame Korrekturzustand. Der historische Record bleibt unveraendert
+#: als Evidenz ueber das damalige Gate-Verhalten; dieser Vermerk entscheidet
+#: den EFFEKTIVEN Status. Ein normaler Gatelauf konsumiert ihn.
+SUPERSESSION = "config/gates/history/b3-p3a-correction.json"
 BACKUP_PROOF = Path.home() / ".openjarvis" / "personal" / "backups" / "calendar" / "latest.json"
 STAGES = ("create", "update", "delete")
 STAGE_KEYS = {
     "stage", "executed", "approval_consumed", "outcome", "readback_status",
     "event_digest", "fingerprint_checked", "fingerprint_matched",
     "owner_confirmed_jarvis", "owner_confirmed_apple", "notes",
+    "contract_evidence",
 }
 RECORD_KEYS = {
     "schema_version", "kind", "statement", "recorded_at_utc",
@@ -44,6 +49,39 @@ FIRST_CREATE_FINDING_KEYS = {
     "schema_version", "statement", "store_time_zone", "stored_ends_at_utc",
     "stored_starts_at_utc", "visible_in_apple", "visible_in_jarvis",
 }
+
+
+#: Strukturierte Pflichtfelder der Delete-Stufe (B3 P3, finaler Vertrag).
+#: Freitext ersetzt keines davon; fehlt eines, ist platform-live != pass.
+DELETE_REQUIRED_EVIDENCE = (
+    "pre_preview_control_read_success", "pre_preview_control_present",
+    "pre_preview_control_identity_bound",
+    "fingerprint_matched", "eligibility_digest_matched",
+    "origin_continuity_proven", "restorability_proven",
+    "pre_execute_control_read_success", "pre_execute_control_present",
+    "pre_execute_control_identity_matched",
+    "pre_execute_control_calendar_matched",
+    "post_delete_read_operation_success", "post_delete_expected_calendar_read",
+    "post_delete_target_absent", "post_delete_control_present",
+    "post_delete_control_identity_matched",
+)
+
+
+def _commit_exists(oid):
+    """OID-Validierung fuer NEU geschriebene B3-Evidenzartefakte.
+
+    Nur ein vollstaendiges 40-stelliges Hex-OID, dessen Objekt existiert UND
+    ein Commit ist, gilt. Keine Kurz-OID als Integritaetsbindung, kein
+    Vervollstaendigen, kein Raten von Hexzeichen (B3-Befund vom 2026-08-10:
+    ein erfundener OID-Schwanz haette sonst als Bindung durchgehen koennen).
+    """
+    if not isinstance(oid, str) or not re.match(r"^[0-9a-f]{40}$", oid):
+        return False
+    completed = subprocess.run(  # noqa: S603 - fixed argv, read-only
+        ["git", "-C", str(REPO_ROOT), "cat-file", "-e", oid + "^{commit}"],
+        capture_output=True, text=True, timeout=60, check=False,
+    )
+    return completed.returncode == 0
 
 
 def _fail(identifier, code):
@@ -91,6 +129,36 @@ def load_first_create_finding(path):
     if not isinstance(field_set, list) or not field_set \
             or any(not isinstance(name, str) for name in field_set):
         raise ValueError("order_field_set must be a non-empty string list")
+    return document
+
+
+CORRECTION_KEYS = {
+    "cleanup", "corrects", "joint_productive_read", "kind", "platform_live",
+    "pre_execute_eligibility", "recorded_at_utc", "schema_version",
+    "sdk_findings", "statement", "status",
+}
+
+
+def load_p3a_correction(path):
+    """R4-Leser des feststellenden P3-A-Korrekturvermerks.
+
+    Fail-closed auf beiden Seiten des Schluesselsatzes: ein fehlender
+    Schluessel verbaerge eine festgehaltene Aussage, ein unbekannter koennte
+    Kalenderinhalt mitfuehren. Die Commitbindung wird mechanisch geprueft —
+    eine erfundene oder verkuerzte OID gilt nicht (Befund 2026-08-10).
+    """
+    document = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(document, dict) \
+            or document.get("kind") != "b3_p3a_correction":
+        raise ValueError("unknown correction")
+    if document.get("schema_version") != 1:
+        raise ValueError("unknown schema_version")
+    if set(document) != CORRECTION_KEYS:
+        raise ValueError("correction keys must match the closed key set")
+    if not _commit_exists(document.get("corrects", {}).get("commit")):
+        raise ValueError("corrects.commit is not a full existing commit oid")
+    if document.get("platform_live", {}).get("pl_b3_live_original") != "pass":
+        raise ValueError("historical gate status must stay recorded")
     return document
 
 
@@ -204,7 +272,40 @@ def mode_live(args):
             _report.BLOCKED, [_fail("stages", "stages_incomplete")],
             reason_code="stage_pending",
         )
+    # ── Finaler Delete-Vertrag (B3 P3) ────────────────────────────────────
+    # Der historische Record bleibt unveraendert; der EFFEKTIVE Status folgt
+    # dem Korrekturvermerk und den strukturierten Pflichtfeldern.
     diagnostics = [f"stages_executed={executed}"]
+    korrektur_pfad = REPO_ROOT / SUPERSESSION
+    if not korrektur_pfad.is_file():
+        return _report.emit(
+            _report.BLOCKED, [_fail(SUPERSESSION, "supersession_missing")],
+            reason_code="supersession_missing",
+        )
+    korrektur = json.loads(korrektur_pfad.read_text(encoding="utf-8"))
+    if korrektur.get("kind") != "b3_p3a_correction":
+        failures.append(_fail(SUPERSESSION, "supersession_unknown_kind"))
+    # R18: die Commitbindung des Korrekturartefakts wird mechanisch geprueft.
+    gebunden = korrektur.get("corrects", {}).get("commit", "")
+    if not _commit_exists(gebunden):
+        failures.append(_fail(SUPERSESSION, "correction_commit_invalid"))
+    if korrektur.get("platform_live", {}).get("pl_b3_live_contract_valid") \
+            is not True:
+        # Der Korrekturvermerk erklaert den historischen Pass fuer
+        # vertraglich ungueltig — das ist bindend, nicht kommentierend.
+        failures.append(_fail("pl_b3_live", "contract_invalid_by_correction"))
+    for stufe in record["stages"]:
+        if stufe["stage"] != "delete":
+            continue
+        evidenz = stufe.get("contract_evidence")
+        if not isinstance(evidenz, dict):
+            failures.append(_fail("delete", "structured_evidence_missing"))
+            break
+        for feld in DELETE_REQUIRED_EVIDENCE:
+            if evidenz.get(feld) is not True:
+                failures.append(_fail(f"delete:{feld}", "required_condition_unmet"))
+    diagnostics.append(
+        f"contract_valid={korrektur.get('platform_live', {}).get('pl_b3_live_contract_valid')}")
     return _report.emit(
         _report.PASSED if not failures else _report.FAILED, failures, diagnostics
     )

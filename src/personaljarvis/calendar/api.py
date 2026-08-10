@@ -40,6 +40,8 @@ from personaljarvis.calendar.mutations.contracts import (
 )
 from personaljarvis.calendar.mutations.service import (
     CalendarMutationError,
+    DeleteNotRestorable,
+    PositiveControlMissing,
     CalendarMutationService,
     CalendarNotFound,
     EventNotFound,
@@ -94,6 +96,7 @@ class PrepareMutationIn(BaseModel):
     event_identifier: str | None = Field(default=None, max_length=512)
     changes: dict[str, Any] | None = None
     eligibility_probe: dict[str, Any] | None = None
+    control_observation: dict[str, Any] | None = None
 
 
 class DecisionIn(BaseModel):
@@ -311,7 +314,8 @@ def create_calendar_router(module: CalendarModule) -> APIRouter:
                 vorgang = mutations.prepare_delete(
                     body.provider_calendar_id, body.event_identifier or "",
                     body.eligibility_probe
-                    if body.eligibility_probe is not None else {})
+                    if body.eligibility_probe is not None else {},
+                    body.control_observation)
         except InvalidMutationFields as exc:
             raise HTTPException(status_code=400, detail={
                 "reason_code": exc.reason_code,

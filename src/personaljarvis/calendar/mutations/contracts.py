@@ -49,6 +49,13 @@ __all__ = [
     "validate_fields",
     "validate_changes",
     "validate_eligibility_probe",
+    "validate_control_observation",
+    "control_binding_digest_of",
+    "semantic_state_digest_of",
+    "assess_restorability",
+    "ATTACHMENT_OBSERVABILITY",
+    "IDENTIFIER_CONTRACT",
+    "SEMANTIC_STATE_FIELD_NAMES",
     "fingerprint_of",
     "preimage_fingerprint_of",
     "eligibility_digest_of",
@@ -142,6 +149,64 @@ ELIGIBILITY_FLAG_NAMES: tuple[str, ...] = (
 ELIGIBILITY_COUNT_NAMES: tuple[str, ...] = (
     "alarms", "attendees", "recurrence_rules",
 )
+
+#: Beobachtbarkeit von Anhängen im REAL VERWENDETEN öffentlichen
+#: EventKit-Vertrag (MacOSX13.1.sdk auf dem x86_64-Ziel, mechanisch geprüft
+#: am 2026-08-10): Der gesamte Headerbestand des Frameworks — EKEvent,
+#: EKCalendarItem und alle übrigen öffentlichen Header — trägt WEDER eine
+#: Property NOCH eine Methode NOCH ein Flag oder einen Zähler zu Anhängen.
+#: Der einzige Treffer auf „attach" ist Fließtext in der Doku zu
+#: EKParticipant („a participant attached to an event") und damit kein
+#: API-Indikator. Private APIs, undokumentierte Reflection, direkte
+#: Datenbankinspektion und UI-Heuristik sind ausgeschlossen.
+#:
+#: Folge (verbindlich): Die ABWESENHEIT von Anhängen ist an einem realen
+#: Event nicht positiv belegbar. `attachments_absent` bleibt `unproven` —
+#: und aus fehlender Sichtbarkeit folgt NIE Abwesenheit.
+ATTACHMENT_OBSERVABILITY = "unavailable"
+
+#: Identitätsverträge der real gelesenen Provider-Identifier, wörtlich aus
+#: demselben SDK abgeleitet (nicht aus Erinnerung, nicht aus früheren
+#: Spike-Aussagen). Der produktive Leseweg liest alle drei; persistiert wird
+#: `eventIdentifier` als `provider_event_id` (Primärschlüsselanteil),
+#: daneben `calendarItemIdentifier` und `calendarItemExternalIdentifier`.
+#:
+#: * eventIdentifier — „if you change the calendar of an event, this ID will
+#:   likely change. It is currently also possible for the ID to change due to
+#:   a sync operation." ⇒ nicht stabil. Zur Wiederverwendung nach Löschung
+#:   sagt der Vertrag NICHTS ⇒ Ausschluss nicht belegt.
+#: * calendarItemIdentifier — „not sync-proof in that a full sync will lose
+#:   this identifier" ⇒ nicht stabil; keine Aussage zur Wiederverwendung.
+#: * calendarItemExternalIdentifier — stabiler über Geräte, aber der Vertrag
+#:   nennt ausdrücklich Fälle, in denen DOPPELTE Kopien mit derselben
+#:   Kennung in derselben Datenbank liegen (Import in mehrere Kalender,
+#:   geteilter Kalender plus Einladung, Delegation, mehrfach abonniert), und
+#:   er ist für alle Instanzen einer Serie GLEICH ⇒ Eindeutigkeit nicht
+#:   gegeben.
+#:
+#: Folge (verbindlich): KEIN verfügbarer Identifier trägt gleichzeitig einen
+#: ausreichenden Stabilitäts- UND Eindeutigkeitsvertrag. Eine Identität über
+#: die Zeit ist damit providerseitig nicht garantiert.
+IDENTIFIER_CONTRACT: dict[str, dict[str, str]] = {
+    "event_identifier": {
+        "stability": "changeable",
+        "uniqueness": "insufficient_contract",
+    },
+    "calendar_item_identifier": {
+        "stability": "changeable",
+        "uniqueness": "insufficient_contract",
+    },
+    "calendar_item_external_identifier": {
+        "stability": "changeable",
+        "uniqueness": "reuse_possible",
+    },
+}
+
+#: Der identitätsfreie fachliche Zustand (B3 P3, Entscheidung 6B): genau die
+#: sieben Vertragsfelder — OHNE `event_identifier` und OHNE
+#: `provider_calendar_id`. Bewusst getrennt vom `readback_digest`, der die
+#: Kalenderidentität mitbindet und deshalb NICHT identitätsfrei ist.
+SEMANTIC_STATE_FIELD_NAMES: tuple[str, ...] = FIELD_NAMES
 
 #: Größenlimits, wortgleich mit dem Kontakte-Kanal. Darüber ist fail-closed.
 MAX_ORDER_BYTES = 64 * 1024
@@ -473,11 +538,109 @@ def canonical_update_payload(changes: dict[str, Any],
     }
 
 
+def semantic_state_digest_of(fields: dict[str, Any]) -> str:
+    """Identitätsfreier Digest des fachlichen Zustands (B3 P3).
+
+    Deckt AUSSCHLIESSLICH die sieben Vertragsfelder. Er bindet bewusst weder
+    `event_identifier` noch `provider_calendar_id`: die Herkunftsprüfung
+    braucht eine Aussage über den ZUSTAND, die von der Identität unabhängig
+    ist — sonst könnte eine Identitätsänderung eine Zustandsänderung
+    verdecken (und umgekehrt). Eine reine Serialisierungs- oder
+    Feldreihenfolgeänderung ändert ihn nicht: `digest_of` sortiert
+    kanonisch.
+    """
+    fehlend = sorted(set(SEMANTIC_STATE_FIELD_NAMES) - set(fields))
+    if fehlend:
+        raise InvalidMutationFields(
+            f"Semantische Felder fehlen: {', '.join(fehlend)}")
+    return digest_of({name: fields[name] for name in SEMANTIC_STATE_FIELD_NAMES})
+
+
+def validate_control_observation(beobachtung: object) -> dict[str, Any]:
+    """Prüft eine produktive Beobachtung der positiven Kontrolle fail-closed.
+
+    Die positive Kontrolle ist ab B3 P3 VORBEDINGUNG des Deletes, nicht nur
+    Nachprüfung: ohne sie gibt es keine Vorschau und keine Freigabe. Die
+    Beobachtung ist PII-arm — Identität und Kalender, nie ein Inhalt.
+    """
+    if not isinstance(beobachtung, dict):
+        raise InvalidMutationFields("Kontrollbeobachtung ist kein Objekt")
+    erlaubt = {"read_operation_success", "control_present",
+               "control_event_identifier", "control_provider_calendar_id",
+               "observed_at_utc"}
+    unbekannt = sorted(set(beobachtung) - erlaubt)
+    if unbekannt:
+        raise InvalidMutationFields(
+            f"Unbekannte Kontrollfelder: {', '.join(unbekannt)}")
+    fehlend = sorted(erlaubt - set(beobachtung))
+    if fehlend:
+        raise InvalidMutationFields(
+            f"Kontrollfelder fehlen: {', '.join(fehlend)}")
+    for name in ("read_operation_success", "control_present"):
+        if beobachtung[name] is not True:
+            # Fail-closed: „nicht true" ist nie „vermutlich schon".
+            raise InvalidMutationFields(f"{name} ist nicht belegt true")
+    for name in ("control_event_identifier", "control_provider_calendar_id"):
+        if not isinstance(beobachtung[name], str) or not beobachtung[name] \
+                or len(beobachtung[name]) > 512:
+            raise InvalidMutationFields(
+                f"{name} ist keine brauchbare Kennung")
+    _pruefe_zeitpunkt(beobachtung["observed_at_utc"], "observed_at_utc")
+    return {name: beobachtung[name] for name in sorted(erlaubt)}
+
+
+def control_binding_digest_of(beobachtung: dict[str, Any]) -> str:
+    """Digest der gebundenen Kontrollidentität — die Freigabe gilt für genau
+    dieses Ziel-Kontroll-Paar, nie für ein später gewähltes anderes."""
+    geprueft = validate_control_observation(beobachtung)
+    return digest_of({
+        "control_event_identifier": geprueft["control_event_identifier"],
+        "control_provider_calendar_id":
+            geprueft["control_provider_calendar_id"],
+    })
+
+
+def assess_restorability(*, origin_continuity: str,
+                         eligibility_probe: dict[str, Any],
+                         restore_preimage_present: bool) -> dict[str, Any]:
+    """Die autoritative Wiederherstellbarkeitsaussage (B3 P3, Entscheidung 8).
+
+    `no_known_blocker` ist ausdrücklich VERWORFEN: `restorability_proven`
+    wird nur true, wenn die vollständige aktuelle Wiederherstellbarkeit
+    POSITIV belegt ist. Unbekannt ist blockiert.
+
+    Auf dem real verwendeten SDK ist die Abwesenheit von Anhängen nicht
+    beobachtbar (`ATTACHMENT_OBSERVABILITY == "unavailable"`); damit bleibt
+    `attachments_absent` unbeweisbar und `restorability_proven` kann derzeit
+    für KEIN Event true werden — auch nicht für einen von Jarvis selbst
+    erzeugten. Die Herkunft überstimmt diese Lücke ausdrücklich nicht.
+    """
+    gruende: list[str] = []
+    if ATTACHMENT_OBSERVABILITY == "unavailable":
+        gruende.append("attachments_absent_unproven")
+    if origin_continuity != "proven":
+        gruende.append("origin_continuity_unproven")
+    probe = validate_eligibility_probe(eligibility_probe)
+    if not probe["eligible"]:
+        gruende.append("unsupported_property_present")
+    if not restore_preimage_present:
+        gruende.append("restore_preimage_missing")
+    return {
+        "restorability_proven": not gruende,
+        "blocking_reasons": sorted(gruende),
+        "attachment_observability": ATTACHMENT_OBSERVABILITY,
+        "attachments_absent": "unproven"
+            if ATTACHMENT_OBSERVABILITY == "unavailable" else "proven",
+        "origin_continuity": origin_continuity,
+    }
+
+
 def canonical_delete_payload(provider_calendar_id: str,
                              event_identifier: str,
                              expected_fingerprint: str,
                              eligibility_digest: str,
-                             restore_preimage_digest: str) -> dict[str, Any]:
+                             restore_preimage_digest: str,
+                             control_binding_digest: str) -> dict[str, Any]:
     """Die kanonische Nutzlast eines `delete` (B3 P3).
 
     Kein Feldsatz, kein Delta — dafür DREI getrennte Nachweise, die die
@@ -496,6 +659,9 @@ def canonical_delete_payload(provider_calendar_id: str,
         "expected_fingerprint": expected_fingerprint,
         "eligibility_digest": eligibility_digest,
         "restore_preimage_digest": restore_preimage_digest,
+        # Die Freigabe gilt für genau DIESES Ziel-Kontroll-Paar; eine später
+        # gewählte andere Kontrolle braucht eine neue Vorschau (B3 P3).
+        "control_binding_digest": control_binding_digest,
     }
 
 
