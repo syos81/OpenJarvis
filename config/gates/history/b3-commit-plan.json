@@ -24,9 +24,9 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 15,
+  "max_commits": 16,
   "plan_change": {
-    "actual": 15,
+    "actual": 16,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
     "eighth_change": {
@@ -134,6 +134,11 @@
       "message": "feat(calendar): final delete contract — proven restorability or blocked",
       "position": 15,
       "purpose": "normative: attachment observability and identifier contract derived from the real SDK, identity-free semantic state binding plus origin continuity, positive control as delete precondition, restorability proven or blocked, machine-effective P3-A correction with OID-validated commit binding"
+    },
+    {
+      "message": "docs(governance): b3 x86_64 closing statement and m2 handoff",
+      "position": 16,
+      "purpose": "declaratory only: machine-readable x86_64 closing state (delete blocked by unproven restorability and origin contract, scoped to the reviewed Intel target), deferred pre-execute measurement persistence as a precondition of any future live delete, module-final blocked with the unchanged success criterion, and the read-only M2 SDK review as the next required observation with both outcomes left open"
     }
   ],
   "push_status": "not_performed_owner_action",
