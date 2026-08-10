@@ -1,0 +1,64 @@
+{
+  "cleanup": {
+    "cleanup_positive_control_available": false,
+    "decision": "deferred_no_positive_control",
+    "note": "Im Zielkalender lebt nach der Loeschung genau EIN Termin (der bisherige Kontrollevent, event_digest 9c35c652). Ein anderer geeigneter Kontrollevent existiert nicht. Es wurde und wird KEIN Termin nur als Kontrollobjekt erzeugt; der verbliebene Termin bleibt stehen."
+  },
+  "corrects": {
+    "commit": "742709fc148286a1b563f36d5449688ea25468bf",
+    "note": "Der bezeichnete Commit und der Live-Record werden NICHT umgeschrieben. Diese Datei ist rein feststellend und ergaenzt sie; keine historische Seiteneffekt-Evidenz wird verworfen.",
+    "record": "config/gates/history/b3-live-record.json"
+  },
+  "joint_productive_read": {
+    "control_event_digest": "9c35c6529d1507771cab2da97baf2db650b9f65d34f74ba686504bcf42c0de44",
+    "control_last_seen_at_utc": "2026-08-10T17:16:23Z",
+    "control_present": true,
+    "delete_completed_at_utc": "2026-08-10T16:36:29Z",
+    "delta_to_delete_seconds": 2393,
+    "expected_calendar_read": true,
+    "joint_productive_read_after_delete": true,
+    "joint_read_end_utc": "2026-08-10T17:16:47Z",
+    "joint_read_start_utc": "2026-08-10T17:16:22Z",
+    "mutation_performed": false,
+    "note": "EIN produktiver, nicht mutierender Lauf ueber den Provider-Lesepfad (Sync-Lauf 31a9be95 mit Fenster 2026-08-03T17:16:22Z bis 2026-08-17T17:16:22Z, outcome completed, 11 von 11 Kalendern vollstaendig, error null), anschliessend die Fensterlesung desselben Zustands. Zielkalender vollstaendig gelesen (complete=true, deletions_derivable=true) mit events_seen=1, unchanged=1, tombstoned=0. Die Fensterlesung 2026-08-10T00:00:00Z bis 2026-08-11T00:00:00Z lieferte count=1: ausschliesslich die positive Kontrolle. Entscheidend gegen den vakuierten Erfolg: last_seen_at der Kontrolle wurde durch DIESEN Lauf auf 2026-08-10T17:16:23Z fortgeschrieben, der Lesepfad liefert also nachweislich Ereignisse; der Zielevent blieb mit last_seen_at 2026-08-09T20:49:55Z unberuehrt.",
+    "read_operation_success": true,
+    "same_instant_as_delete": false,
+    "sync_run_id": "31a9be95-aa86-48c7-ac58-9f1857a0298c",
+    "target_absent": true,
+    "target_calendar_digest": "f271b5bf31a2439d328580dd1fef17ada886006376722223be6e44382e4aa9a3",
+    "target_event_digest": "3a67f0156b38e53ae36592fd39509b57e65d69893d157abcf1f8df68633afd74"
+  },
+  "kind": "b3_p3a_correction",
+  "platform_live": {
+    "pl_b3_live_contract_valid": false,
+    "pl_b3_live_original": "pass",
+    "note": "Der bestehende Gate-Record bleibt unveraendert als historische Evidenz ueber das damalige Gate-Verhalten. Er ist KEIN gueltiger finaler B3-Pass: der Live-Checkvertrag erzwingt die positive Kontrolle des gemeinsamen produktiven Nachweislaufs nicht, und er erzwingt keine direkte Aussage ueber die Eligibility-Nachrechnung vor dem Execute.",
+    "reason": "required_positive_control_not_enforced"
+  },
+  "pre_execute_eligibility": {
+    "classification": "historically_unproven",
+    "evidence_searched": [
+      "gate raw logs (.gate-runtime/raw-logs): keine Eintraege zum Zeitpunkt des Laufs, ausschliesslich Gatelaeufe",
+      "cli.log: letzte Aenderung lange vor dem Lauf, kein Treffer",
+      "produktive Datenbank: keine Tabelle, die eine Probe oder ihren Digest speichert",
+      "unified log des App-Prozesses im Minutenfenster des Laufs: leer",
+      "Quelltext des Adapters: keine Log- oder Persistenzemission auf dem Delete-Pfad",
+      "Berichtsvertrag CalendarExecutionReportV1: fuenfzehn Felder, keines traegt die Eligibility-Nachrechnung"
+    ],
+    "note": "Die Nachrechnung lief im App-Prozess unmittelbar vor dem Remove, hinterliess aber keinen beobachtbaren Messwert. Eine Ableitung aus dem spaeteren erfolgreichen Delete waere reine Inferenz und wird ausdruecklich NICHT als Nachweis gefuehrt. Es wird KEINE zweite reale Loeschung erzeugt, um diesen Evidenzmangel zu heilen; die Luecke gehoert in die ausstehende Vertragskorrektur.",
+    "observed_probe_call": false,
+    "observed_probe_result": false,
+    "reconstructible_digest": false,
+    "temporal_binding_immediately_before_execute": false
+  },
+  "recorded_at_utc": "2026-08-10T17:20:00Z",
+  "schema_version": 1,
+  "statement": "PII-armer, rein feststellender Korrekturvermerk zu P3-A: nur Zustaende, Digeste, Zeitpunkte und Klassifikationen; keine Kalenderinhalte. Er schreibt nichts um, sondern haelt fest, was der bestehende Live-Record und der damalige Gate-Lauf NICHT belegen. Diese Datei ist noch von keinem Gate erzwungen; ihre vertragliche Verankerung ist Gegenstand der ausstehenden Vertragskorrektur (restorability_proven, origin_continuity).",
+  "status": {
+    "p3a_contract_evidence": "incomplete",
+    "p3a_final": "NOT_FINAL",
+    "p3a_live_effect": "proven",
+    "p3a_owner_confirmation": "proven",
+    "r10_status": "closed"
+  }
+}

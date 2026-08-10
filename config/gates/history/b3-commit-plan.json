@@ -24,9 +24,9 @@
     "value": false
   },
   "kind": "commit_plan",
-  "max_commits": 13,
+  "max_commits": 14,
   "plan_change": {
-    "actual": 13,
+    "actual": 14,
     "decided_by": "commit plan rule for live-found functional defects",
     "declared_at_start": 5,
     "fifth_change": {
@@ -41,6 +41,10 @@
     "second_change": {
       "decided_by": "owner decision (Option 2) after the anchored live finding",
       "reason": "The created event lay floating in the store: the order never carried a zone (gap in the write contract, same class as the B2 all-day instant finding — instant without zone anchor), while the read model has always known time_zone. Repaired through every layer with the pair anchored/floating plus the missing-key negative and a cross-layer source guard; the first event is frozen as a historical finding, a second anchored acceptance event follows with its own approval. Own functional commit; no amend."
+    },
+    "seventh_change": {
+      "decided_by": "owner decision (binding, 2026-08-10): P3-A status corrected to NOT_FINAL",
+      "reason": "The owner fixed the status after the live delete: live effect and owner confirmation proven, contract evidence incomplete, therefore not a final pass. A mandatory condition does not become PASS by being mentioned as open in prose. This position adds one purely declaratory correction commit: it rewrites neither commit 742709f nor the live record, records the now-executed joint productive read (R10 closed, honestly later than the delete), classifies the pre-execute eligibility measurement as historically unproven after searching all raw evidence stores, and states that the original platform-live pass is historical gate evidence but not a valid final B3 pass."
     },
     "sixth_change": {
       "decided_by": "commit plan rule for live-found functional defects",
@@ -116,6 +120,11 @@
       "message": "test(calendar): record the p3-a live delete and its scope",
       "position": 13,
       "purpose": "evidence: the staged live record for create/update/delete re-derived from the productive database with digest-reconstructed report claims, the owner confirmations, and the binding scope statement jarvis_origin_supported_event; platform-live pass"
+    },
+    {
+      "message": "test(calendar): correct the p3-a status, r10 closed by a joint read",
+      "position": 14,
+      "purpose": "declaratory correction: joint productive read after the delete (target absent, control present, read success, honestly later), pre_execute_eligibility historically_unproven, pl_b3_live_contract_valid false, p3a_final NOT_FINAL, cleanup deferred"
     }
   ],
   "push_status": "not_performed_owner_action",
