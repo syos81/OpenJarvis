@@ -10,9 +10,16 @@ Verwandte DEC-Einträge: DEC-018, DEC-042, DEC-043
 
 # 19 — Definition of Done (vollständig abgeschlossenes Modul)
 
-Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche folgenden Kriterien erfüllt und nachgewiesen sind. Erst danach beginnt das nächste Modul (AV-2). Kein Kriterium darf durch Platzhalter, Mocks oder Scheinimplementierungen in produktiven Pfaden erfüllt werden (AV-3).
+> **Allgemeiner Blockabschluss: normativ ausschliesslich in
+> [`docs/governance/openjarvis-dauerregeln.md`](../governance/openjarvis-dauerregeln.md)
+> §15.** Dieses Dokument definiert den allgemeinen Abschluss eines normalen
+> Blocks nicht zweitens. Es führt die **fachlichen und modulspezifischen**
+> Anforderungen an ein vollständig abgeschlossenes Fachmodul; wo unten eine
+> allgemeine Prozesspflicht stand, steht heute der Verweis.
 
-**Auf macOS gilt zusätzlich durchgehend:** Jedes gerätebezogene Kriterium ist auf **beiden** gleichwertigen Zielarchitekturen (Apple Silicon arm64 und Intel x86_64, Mindestversion macOS 12.3) auf echter Hardware nachzuweisen. Ein Ergebnis der einen Architektur gilt niemals automatisch für die andere; Rosetta ersetzt keine native Abnahme (ADR-0018, DEC-042; Matrix in 15 §7).
+Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn die folgenden fachlichen Kriterien erfüllt und nachgewiesen sind. Kein Kriterium darf durch Platzhalter, Mocks oder Scheinimplementierungen in produktiven Pfaden erfüllt werden (AV-3). Ob ein weiteres Modul parallel läuft, richtet sich nach den Dauerregeln §2 und §20, nicht nach diesem Dokument.
+
+**Auf macOS gilt für gerätebezogene Kriterien:** Apple Silicon arm64 und Intel x86_64 bleiben gleichwertige native Releaseziele (Mindestversion macOS 12.3); ein Ergebnis der einen Architektur gilt niemals automatisch für die andere, und Rosetta ersetzt keine native Abnahme (ADR-0018, DEC-042). **Wann eine native Abnahme erneut verlangt wird, regeln die Dauerregeln §14** — nicht jede Änderung löst eine erneute Abnahme beider Architekturen aus.
 
 ## §1 Datenmodell
 
@@ -42,7 +49,7 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 ## §5 UI
 
 - Vollständiges, gekapseltes Modul-Frontend (14 §1–2): echte Navigationssichtbarkeit nur in erlaubten Zuständen, vollständiger Einrichtungsfluss falls `configuration_required` sichtbar sein soll, Status-/Fehlerflächen, keine leeren Menüpunkte.
-- Desktop-Abnahme (Entwicklungsbetrieb, gepackte App, App-Neustart) **je macOS-Zielarchitektur** bestanden (15 §1 Nr. 12, §7).
+- Desktop-Abnahme (Entwicklungsbetrieb, gepackte App, App-Neustart) bestanden (15 §1 Nr. 12, §7); je macOS-Zielarchitektur nach Massgabe der Dauerregeln §14. Für UI genügt zusätzlich die Eigentümer-Sichtprüfung, wenn keine automatisierbare Wahrheit fehlt (Dauerregeln §13).
 - Kontenverwaltungs-Slice für die Provider des Moduls (Bindings, Collections, Re-Auth).
 
 ## §6 Fehlerfälle
@@ -53,11 +60,11 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 
 - Alle einschlägigen Suiten aus 15 §1 grün (Unit, Contract, Integration, Migration, Security, Zustandsmaschinen, native macOS soweit betroffen, UI-E2E, Kill-Switch/Sperren soweit betroffen).
 - **Kontakte (Stand 2026-07-28):** Der Modulabschluss ist **gesperrt**. Die ausgefüllte Matrix in **15 §8** enthält in beiden Spalten `OPEN`-Zeilen; auf arm64 ist zusätzlich eine Zeile `NOT EXECUTABLE IN CURRENT ENVIRONMENT`, die bis zu ihrer Durchführung wie `OPEN` zählt. Der Beginn der produktiven Implementierung ist davon unberührt freigegeben (16 §4.1, ADR-0016 Punkt 8).
-- Die **Dual-Architektur-Abnahmematrix (15 §7)** ist in **beiden** Pflichtspalten vollständig bestanden und mit Architektur, macOS-Version, Swift-/SDK-Version, Zertifikat, Testbenutzer und Datum protokolliert. Spike-Ergebnisse gelten als technische Vor- bzw. Teilnachweise und ersetzen keine Matrixzeile.
+- Soweit die Dauerregeln §14 für den betroffenen plattformspezifischen Pfad eine native Abnahme verlangen, ist die zugehörige Zeile der Matrix (15 §7) bestanden und mit Architektur, macOS-Version, Swift-/SDK-Version, Zertifikat, gebundenem Abnahmescope und Datum protokolliert. Spike-Ergebnisse gelten als technische Vor- bzw. Teilnachweise und ersetzen keine Matrixzeile.
 
 ## §8 Betrieb und Daten­sicherheit
 
-- Moduldaten sind von der Snapshot-Registrierung erfasst; Restore-Roundtrip mit Moduldaten nachgewiesen (13) — auf macOS **je Zielarchitektur** (13 §7, 15 §7).
+- Moduldaten sind von der Snapshot-Registrierung erfasst; der Recovery-Nachweis folgt der Definition von `restore_path_verified` in den Dauerregeln §3 (13, 13 §7). Ein isolierter zerstörungsfreier Roundtrip wird verwendet, wenn er verfügbar ist; andernfalls treten enger Mutationsscope, Baseline-/Nachkontrolle und Änderungs-Freeze an seine Stelle. Plattformwiederholung nach Dauerregeln §14.
 - Scheduler-/Automation-Anteile idempotent re-registrierbar (04 §2 SchedulerPort).
 
 ## §9 Dokumentation und Register
@@ -68,5 +75,5 @@ Ein Fachmodul gilt erst dann als **vollständig abgeschlossen**, wenn sämtliche
 
 ## §10 Abschluss
 
-- Live-Abnahme-Protokoll durch den Eigentümer bestätigt. Erst mit dieser Bestätigung gilt das Modul als abgeschlossen.
-- **Auf macOS ist der Abschluss zusätzlich an das vollständige Bestehen beider Spalten der Dual-Architektur-Abnahmematrix gebunden** (15 §7, ADR-0018). Module, deren Abnahme nur auf einer Architektur vorliegt, gelten als **nicht** abgeschlossen — auch rückwirkend.
+- Live-Abnahme-Protokoll durch den Eigentümer bestätigt, soweit die Funktion nach Dauerregeln §13 überhaupt eine Live-Abnahme verlangt. Erst mit dieser Bestätigung gilt das Modul als abgeschlossen.
+- Auf macOS gilt für die native Plattformabnahme die Auslöseregel der Dauerregeln §14 (geänderter plattformspezifischer Pfad, nicht mehr übertragbare frühere Abnahme, anstehender Release-Smoke). Eine pauschale Wiederholung beider Spalten nach jedem Block ist nicht mehr verbindlich; die Matrix (15 §7) bleibt das Format für die dann tatsächlich verlangten Zeilen.

@@ -27,7 +27,15 @@ Verwandte DEC-Einträge: DEC-009, DEC-018, DEC-034, DEC-038, DEC-042, DEC-043
 
 ## §2 Quality-Gates
 
-Pflicht vor Modul-Abschluss (mit 19 verzahnt): alle für das Modul einschlägigen Suiten aus §1 grün; Contract-Suiten für jeden neuen Adapter/Port; Migrationstests bei jedem Schemaeintrag; Security-Tests bei jeder neuen Capability-Operation; **auf macOS zusätzlich die vollständig bestandene Dual-Architektur-Abnahmematrix (§7)**. Die Test-Infrastruktur selbst folgt der Materialisierungsregel (AV-33): Gates entstehen mit dem ersten Modul, das sie braucht — bis dahin gilt manuelle Review gegen die Traceability-Matrix.
+> **Allgemeiner Prüfumfang: normativ ausschliesslich in
+> [`docs/governance/openjarvis-dauerregeln.md`](../governance/openjarvis-dauerregeln.md)
+> §12 (Testregel), §13 (Live-Abnahme), §14 (Plattformen) und §15 (minimaler
+> Blockabschluss).** Dieses Dokument normiert den allgemeinen Prüfumfang nicht
+> zweitens. Es führt die konkreten Testarten, modulbezogenen Prüfpunkte und
+> die technischen Anforderungen; deren Auslösung richtet sich nach den
+> Dauerregeln.
+
+Vor Modul-Abschluss (mit 19 verzahnt): alle für das Modul einschlägigen Suiten aus §1 grün; Contract-Suiten für jeden neuen Adapter/Port; Migrationstests bei jedem Schemaeintrag; Security-Tests bei jeder neuen Capability-Operation. Der Umfang folgt dem Risikoprinzip der Dauerregeln §1 und §12 — es gibt keine Volltestpflicht bei jeder Änderung, keinen obligatorischen `module-final`-Schritt und keinen obligatorischen Fünf-Phasen-Lauf. Ob zusätzlich eine native Plattformabnahme nach §7 verlangt wird, entscheidet die Auslöseregel der Dauerregeln §14. Die Test-Infrastruktur selbst folgt der Materialisierungsregel (AV-33): Gates entstehen mit dem ersten Modul, das sie braucht — bis dahin gilt manuelle Review gegen die Traceability-Matrix.
 
 ## §3 Prüfmechanik für Architekturtreue
 
@@ -58,7 +66,16 @@ Die Node-Zusatz-Bridges (WhatsApp-Baileys, Claude-Code-Runner) sind **nicht unte
 
 ## §7 Dual-Architektur-Abnahmematrix (macOS)
 
-Verbindliche Struktur der macOS-Abnahme je Modul (ADR-0018, DEC-042). Die Matrix trägt **zwei Pflichtspalten** — Apple Silicon arm64 und Intel x86_64. **Ein Gesamt-PASS existiert ausschließlich, wenn beide Spalten vollständig bestanden sind; ein Ergebnis der einen Architektur gilt niemals automatisch für die andere.**
+Struktur und Format der macOS-Abnahme je Modul (ADR-0018, DEC-042). Die Matrix trägt zwei Spalten — Apple Silicon arm64 und Intel x86_64. **Ein Ergebnis der einen Architektur gilt niemals automatisch für die andere.**
+
+**Wann eine Spalte überhaupt zu erbringen ist, regeln die Dauerregeln §14**
+([`docs/governance/openjarvis-dauerregeln.md`](../governance/openjarvis-dauerregeln.md)):
+nur bei geändertem plattformspezifischem Pfad, bei nicht mehr übertragbarer
+früherer Abnahme oder bei anstehendem Release-Smoke. Ein unveränderter, bereits
+akzeptierter nativer Pfad wird nicht nach jedem anderen Block erneut geprüft;
+Release-Smokes dürfen gebündelt werden. Die frühere pauschale Regel „Gesamt-PASS
+nur bei zwei vollständig bestandenen Spalten nach jeder Änderung" ist damit als
+allgemeine Prozessnorm abgelöst.
 
 Pflichtzeilen (soweit für das Modul einschlägig): nativer Build der Zielarchitektur · P0-Reachability der Native Bridge · Protokoll-/Contract-Suite · Ad-hoc-signiertes Artefakt · zertifikatssigniertes Artefakt · TCC-Erteilung und -Persistenz über Rebuild, Versions-Bump, Verschieben und Quarantäne · CRUD · Feldabdeckung · Delta-/Change-History-Pfad · Voll-Diff-Fallback · vereinheitlichte Datensätze · Desktop-Entwicklungsbetrieb · Betrieb aus der gepackten App · App-Neustart · Backup-/Restore-Roundtrip · vollständige Live-Abnahme gegen einen echten Provider-Account.
 
@@ -66,7 +83,7 @@ Regeln:
 
 1. **Echte Hardware.** Geräteabhängige Zeilen (TCC, Codesigning, Bereitstellung des nativen Codes, Store-Zugriffe, gepackte App, Backup/Restore, Live-Abnahme) sind auf physischer Hardware der jeweiligen Architektur zu erbringen.
 2. **Kein Rosetta-Ersatz.** Rosetta 2 übersetzt ausschließlich x86_64 → arm64; der umgekehrte Weg existiert nicht. Ein unter Rosetta auf Apple Silicon ausgeführter x86_64-Build ersetzt daher **keine** Prüfung auf echter Intel-Hardware, und die arm64-Abnahme ist auf Intel-Hardware technisch unmöglich. Rosetta darf in keiner Zeile als bestandener Nachweis geführt werden.
-3. **Evidenzangabe.** Jede Zeile trägt Architektur, macOS-Version, Swift-/SDK-Version, Zertifikatsbezeichnung, Testbenutzer und Datum. Ein Toolchain-Wechsel entwertet die betroffenen Zeilen.
+3. **Evidenzangabe.** Jede Zeile trägt Architektur, macOS-Version, Swift-/SDK-Version, Zertifikatsbezeichnung, den gebundenen Abnahmescope und Datum. Ein Toolchain-Wechsel entwertet die betroffenen Zeilen. Ein **separater** Testbenutzer ist keine allgemeine Pflicht; verbindlich ist die Isolation des Abnahmescopes nach den Dauerregeln §3 — nur ausdrücklich zugelassene Ziele werden mutiert, bestehende private Daten sind kein Testziel. Wo ein separater Benutzer diese Isolation herstellt, wird er benannt.
 4. **Spike-Evidenz ist keine Abnahme.** Ergebnisse technischer Spikes gelten als Vor- bzw. Teilnachweis und ersetzen keine Zeile der Modulabnahme (AV-3, 19).
 5. **Formatunabhängigkeit.** Die Matrix schreibt **kein** Auslieferungsformat vor. Sie verlangt ausschließlich, dass für jede Architektur der korrekte native Code bereitgestellt, überprüft und auf echter Hardware abgenommen wird — gleich ob er aus einem gemeinsamen Universal-2-Artefakt oder aus einem architekturspezifischen Paket stammt. Die Formatwahl ist als **DEC-D17** offen (17 §2); kein Prüfschritt darf eine der beiden Varianten voraussetzen.
 
@@ -107,7 +124,7 @@ Ausgefüllte Matrix nach der Struktur aus §7. **Zustände sind ausschließlich:
 **Gesamtstatus:**
 
 1. **Die produktive Implementierung des Kontakte-Moduls darf beginnen** (16 §4, ADR-0016 Punkt 8).
-2. **Der Modulabschluss bleibt gesperrt.** Ein Gesamt-PASS existiert nach §7 nur bei zwei vollständig bestandenen Spalten; beide Spalten enthalten `OPEN`-Zeilen (19 §10).
+2. **Der Modulabschluss des Kontaktmoduls bleibt gesperrt.** Beide Spalten enthalten `OPEN`-Zeilen (19 §10). Das ist eine modulbezogene Statusaussage; welche Zeilen erneut zu erbringen sind, richtet sich nach den Dauerregeln §14.
 3. Kein `OPEN` und kein `NOT EXECUTABLE IN CURRENT ENVIRONMENT` darf ohne die zugehörige Live-Abnahme auf echter Hardware nach `PASS` gesetzt werden (§7 Nr. 1–3).
 
 ### §8.1 Produktive Abnahme Kontakte (Stand 2026-08-04)

@@ -67,7 +67,7 @@ Der nach ADR-0016 Punkt 2 verpflichtende Spike G3a ist auf Apple Silicon arm64 *
 
 **Der Modulabschluss bleibt gesperrt,** solange die Abnahmematrix in 15 §8 nicht in **beiden** Spalten vollständig bestanden ist. Spike-Evidenz ist Vor- bzw. Teilnachweis und ersetzt keine Abnahmezeile (15 §7 Nr. 4).
 
-**Kein anderes Fachmodul beginnt parallel.** Die Reihenfolge der weiteren Module bleibt unverändert offen.
+**Parallelarbeit:** Die frühere pauschale Regel „Kein anderes Fachmodul beginnt parallel" ist als allgemeine Norm abgelöst; verbindlich sind die Dauerregeln §2, §19 und §20 ([`docs/governance/openjarvis-dauerregeln.md`](../governance/openjarvis-dauerregeln.md)) — eine Risk Lane und eine davon unabhängige Safe Product Lane dürfen gleichzeitig laufen, und Module blockieren einander nur bei echter technischer Abhängigkeit. Die Reihenfolge der weiteren Module bleibt unverändert offen.
 
 ## §5 Modulunterlagen (Konvention)
 
