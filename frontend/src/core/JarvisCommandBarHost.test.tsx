@@ -8,9 +8,11 @@
 // Modell-Abrufen, Analytics oder Health-Polling.
 
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { JarvisCommandBarHost } from './JarvisCommandBarHost';
+import { JarvisCommandBar } from './JarvisCommandBar';
+import { LeseQuelleNichtErreichbar } from './readPort';
 
 const zeige = (route = '/calendar') =>
   render(
@@ -61,5 +63,59 @@ describe('Command Bar', () => {
     const ergebnis = screen.getByTestId('jarvis-core-result');
     expect(ergebnis.getAttribute('data-kind')).toBe('unknown');
     expect(ergebnis.textContent).toContain('mach mal was');
+  });
+});
+
+// ── B: Lese-Integration ueber die echte Bar (Fixtures, kein Backend) ──────
+
+describe('Command Bar: Lesekommandos', () => {
+  const port = {
+    async sucheKontakte() {
+      return {
+        treffer: [{ id: 'k1', name: 'Anna Beispiel', organisation: null,
+                    emailAnzahl: 1, telefonAnzahl: 0 }],
+        weitereVorhanden: false,
+      };
+    },
+    async ladeTermine() {
+      return [{ id: 'e1', titel: 'Testtermin',
+                startUtc: '2026-08-11T08:00:00Z', endeUtc: '2026-08-11T09:00:00Z',
+                ganztaegig: false, kalender: 'Privat' }];
+    },
+  };
+
+  const tippen = (text: string) => {
+    const feld = screen.getByRole('textbox');
+    fireEvent.change(feld, { target: { value: text } });
+    fireEvent.keyDown(feld, { key: 'Enter' });
+  };
+
+  it('zeigt echte Kontakttreffer ueber den injizierten Port', async () => {
+    render(<JarvisCommandBar context={{}} onClose={() => {}} readPort={port} />);
+    tippen('kontakt Anna');
+    await waitFor(() => expect(screen.getByText(/Anna Beispiel/)).toBeTruthy());
+  });
+
+  it('zeigt Termine ueber den injizierten Port', async () => {
+    render(<JarvisCommandBar context={{}} onClose={() => {}} readPort={port} />);
+    tippen('termine 2026-08-11');
+    await waitFor(() => expect(screen.getByText(/Testtermin/)).toBeTruthy());
+  });
+
+  it('meldet ein nicht erreichbares Backend sichtbar — ohne Absturz', async () => {
+    const tot = {
+      async sucheKontakte(): Promise<never> {
+        throw new LeseQuelleNichtErreichbar('kontakte');
+      },
+      async ladeTermine(): Promise<never> {
+        throw new LeseQuelleNichtErreichbar('termine');
+      },
+    };
+    render(<JarvisCommandBar context={{}} onClose={() => {}} readPort={tot} />);
+    tippen('kontakt Anna');
+    await waitFor(() => expect(screen.getByText(/nicht verfügbar/)).toBeTruthy());
+    // Und die rein lokalen Befehle funktionieren danach weiter.
+    tippen('status');
+    await waitFor(() => expect(screen.getByText(/Jarvis Core v0 aktiv/)).toBeTruthy());
   });
 });

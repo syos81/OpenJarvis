@@ -6,10 +6,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { routeCommand, type CoreContext, type CoreResult } from './commandRouter';
+import { produktiverReadPort } from './readAdapter';
+import { resolveRead } from './readResolver';
+import type { CoreReadPort } from './readPort';
 
-export function JarvisCommandBar({ context, onClose }: {
+export function JarvisCommandBar({ context, onClose, readPort }: {
   context: CoreContext;
   onClose: () => void;
+  /** Der Lese-Port. Injizierbar, damit Tests ohne Backend laufen; der
+   *  Vorgabewert ist der produktive lokale Leseweg. */
+  readPort?: CoreReadPort;
 }) {
   const [eingabe, setEingabe] = useState('');
   const [ergebnis, setErgebnis] = useState<CoreResult | null>(null);
@@ -31,9 +37,23 @@ export function JarvisCommandBar({ context, onClose }: {
     return () => document.removeEventListener('keydown', aufTaste);
   }, [onClose]);
 
+  // Ein Lauf je Absendung: eine später eintreffende ältere Antwort darf
+  // ein neueres Ergebnis nicht überschreiben.
+  const laufNummer = useRef(0);
+
   const ausfuehren = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    setErgebnis(routeCommand(eingabe, context));
+    const sofort = routeCommand(eingabe, context);
+    setErgebnis(sofort);
+    if (!sofort.read) return;
+    const auftrag = sofort.read;
+    const meinLauf = (laufNummer.current += 1);
+    // Die einzige asynchrone Stelle. `resolveRead` wirft nicht — auch ein
+    // nicht erreichbares Backend wird zu sichtbaren Zeilen.
+    void resolveRead(auftrag, readPort ?? produktiverReadPort())
+      .then((fertig) => {
+        if (laufNummer.current === meinLauf) setErgebnis(fertig);
+      });
   };
 
   // Enter wird ausdrücklich behandelt statt auf die implizite Absendung des
