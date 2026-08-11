@@ -11,6 +11,7 @@ import { LogsPage } from './pages/LogsPage';
 import ContactsPage from './personal/contacts/ContactsPage';
 import CalendarPage from './personal/calendar/CalendarPage';
 import { CommandPalette } from './components/CommandPalette';
+import { JarvisCommandBarHost } from './core/JarvisCommandBarHost';
 import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
 import { useAppStore } from './lib/store';
@@ -167,10 +168,14 @@ export default function App() {
 
   const toggleSystemPanel = useAppStore((s) => s.toggleSystemPanel);
 
-  // Global keyboard shortcuts
+  // Global keyboard shortcuts.
+  //
+  // Cmd/Ctrl+K gehört seit Jarvis Core v0 der Command Bar (siehe
+  // JarvisCommandBarHost). Die Modellauswahl behält ihr Kürzel, es lautet
+  // jetzt Cmd/Ctrl+Shift+M — verschoben, nicht entfernt.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
         e.preventDefault();
         setCommandPaletteOpen(!commandPaletteOpen);
       }
@@ -207,6 +212,7 @@ export default function App() {
         </Route>
       </Routes>
       <Toaster position="bottom-right" />
+      <JarvisCommandBarHost />
       {commandPaletteOpen && <CommandPalette />}
       {optInModalOpen && (
         <OptInModal onClose={() => setOptInModalOpen(false)} />
