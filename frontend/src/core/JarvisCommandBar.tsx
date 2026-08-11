@@ -9,13 +9,19 @@ import { routeCommand, type CoreContext, type CoreResult } from './commandRouter
 import { produktiverReadPort } from './readAdapter';
 import { resolveRead } from './readResolver';
 import type { CoreReadPort } from './readPort';
+import { produktiverWritePort } from './writeAdapter';
+import { neuerSchacht, resolveWrite } from './writeResolver';
+import type { CoreWritePort } from './writePort';
 
-export function JarvisCommandBar({ context, onClose, readPort }: {
+export function JarvisCommandBar({ context, onClose, readPort, writePort }: {
   context: CoreContext;
   onClose: () => void;
   /** Der Lese-Port. Injizierbar, damit Tests ohne Backend laufen; der
    *  Vorgabewert ist der produktive lokale Leseweg. */
   readPort?: CoreReadPort;
+  /** Der Schreib-Port. Ebenfalls injizierbar — Tests mutieren nie echte
+   *  Daten. Er kennt kein Kalender-Löschen. */
+  writePort?: CoreWritePort;
 }) {
   const [eingabe, setEingabe] = useState('');
   const [ergebnis, setErgebnis] = useState<CoreResult | null>(null);
@@ -40,20 +46,29 @@ export function JarvisCommandBar({ context, onClose, readPort }: {
   // Ein Lauf je Absendung: eine später eintreffende ältere Antwort darf
   // ein neueres Ergebnis nicht überschreiben.
   const laufNummer = useRef(0);
+  // Genau EIN Platz für eine vorbereitete, noch nicht freigegebene
+  // Mutation — über die Lebensdauer der Bar hinweg stabil.
+  const schacht = useRef(neuerSchacht());
 
   const ausfuehren = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const sofort = routeCommand(eingabe, context);
     setErgebnis(sofort);
-    if (!sofort.read) return;
-    const auftrag = sofort.read;
     const meinLauf = (laufNummer.current += 1);
-    // Die einzige asynchrone Stelle. `resolveRead` wirft nicht — auch ein
-    // nicht erreichbares Backend wird zu sichtbaren Zeilen.
-    void resolveRead(auftrag, readPort ?? produktiverReadPort())
-      .then((fertig) => {
-        if (laufNummer.current === meinLauf) setErgebnis(fertig);
-      });
+    const uebernehmen = (fertig: CoreResult) => {
+      if (laufNummer.current === meinLauf) setErgebnis(fertig);
+    };
+    // Die beiden asynchronen Stellen. Beide Resolver werfen nicht — auch
+    // ein nicht erreichbares Backend wird zu sichtbaren Zeilen.
+    if (sofort.read) {
+      void resolveRead(sofort.read, readPort ?? produktiverReadPort())
+        .then(uebernehmen);
+      return;
+    }
+    if (sofort.write) {
+      void resolveWrite(sofort.write, writePort ?? produktiverWritePort(),
+                        schacht.current).then(uebernehmen);
+    }
   };
 
   // Enter wird ausdrücklich behandelt statt auf die implizite Absendung des

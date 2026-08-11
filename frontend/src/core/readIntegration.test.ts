@@ -216,14 +216,22 @@ describe('Backend-Ausfall', () => {
   });
 });
 
-describe('Safety: aus dem Core ist kein Mutationspfad erreichbar', () => {
+// HINWEIS ZUR VERTRAGSAENDERUNG (Risk-Lane-Block WRITE ENABLEMENT):
+// Im vorangegangenen Read-Block galt „der Core kennt ueberhaupt keinen
+// Schreibweg". Das ist durch die Eigentuemerentscheidung dieses Blocks
+// bewusst abgeloest: fuenf Schreiboperationen sind jetzt erreichbar.
+// Was hier NICHT aufgeweicht wird und weiterhin geprueft ist:
+//  · der LESEweg bleibt frei von jedem Mutationssymbol,
+//  · ein Lesebefehl erzeugt nie einen Schreibauftrag,
+//  · Calendar DELETE bleibt aus dem Core unerreichbar.
+// Die beiden letzten Aussagen pruefen zusaetzlich writeIntegration.test.ts.
+describe('Safety: der LESEweg bleibt mutationsfrei', () => {
   const lies = (datei: string) =>
     readFileSync(fileURLToPath(new URL(datei, import.meta.url)), 'utf8');
 
-  const CORE_DATEIEN = [
-    'commandRouter.ts', 'readPort.ts', 'readAdapter.ts', 'readResolver.ts',
-    'JarvisCommandBar.tsx', 'JarvisCommandBarHost.tsx',
-  ];
+  // Bewusst NUR die Lesedateien: der Router und die Bar tragen seit dem
+  // Write-Block auch Schreibpfade, die Lesekette aber nicht.
+  const CORE_DATEIEN = ['readPort.ts', 'readAdapter.ts', 'readResolver.ts'];
 
   /** Namen, die im Core einen produktiven Schreibweg bedeuten würden. */
   const MUTATIONSSYMBOLE = [
@@ -278,13 +286,20 @@ describe('Safety: aus dem Core ist kein Mutationspfad erreichbar', () => {
     }
   });
 
-  it('CORE_COMMANDS bietet kein schreibendes Kommando an', () => {
-    const verboten = ['create', 'anlegen', 'update', 'aendern', 'delete',
-                      'loeschen', 'löschen', 'sync'];
+  it('die LESEkommandos erzeugen weiterhin keinen Schreibauftrag', () => {
+    // Die Ablösung der alten Aussage betrifft nur die Existenz von
+    // Schreibkommandos. Dass ein LESEN nie schreibt, gilt unveraendert.
+    for (const eingabe of ['kontakt Max', 'termine', 'termine morgen',
+                           'status', 'help', '']) {
+      expect(routeCommand(eingabe).write, eingabe).toBeUndefined();
+    }
+  });
+
+  it('kein Kommando traegt ein Kalender-Loeschen im Namen', () => {
     for (const c of CORE_COMMANDS) {
-      for (const wort of verboten) {
-        expect(c.name.includes(wort), `Kommando ${c.name}`).toBe(false);
-      }
+      const kalenderLoeschen = c.name.startsWith('termin')
+        && /loesch|lösch|delete/.test(c.name);
+      expect(kalenderLoeschen, `Kommando ${c.name}`).toBe(false);
     }
   });
 });

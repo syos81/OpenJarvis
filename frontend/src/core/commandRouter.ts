@@ -23,6 +23,16 @@ export const CORE_COMMANDS: readonly CoreCommand[] = [
   { name: 'help', summary: 'Listet die lokalen Kommandos.' },
   { name: 'kontakt', summary: 'Sucht im lokalen Kontaktbestand: kontakt <suchbegriff>' },
   { name: 'termine', summary: 'Zeigt Termine des Tages: termine [heute|morgen|JJJJ-MM-TT]' },
+  // Schreibende Kommandos. Jedes BEREITET nur vor — ausgeführt wird
+  // ausschliesslich über `freigabe <id>`. Ein Kalender-Löschen gibt es
+  // hier bewusst nicht.
+  { name: 'kontakt-neu', summary: 'Bereitet einen neuen Kontakt vor: kontakt-neu <container> | <Vorname Nachname>' },
+  { name: 'kontakt-aendern', summary: 'Bereitet eine Änderung vor: kontakt-aendern <suchbegriff> | <feld> = <wert>' },
+  { name: 'kontakt-loeschen', summary: 'Bereitet eine Löschung vor: kontakt-loeschen <suchbegriff>' },
+  { name: 'termin-neu', summary: 'Bereitet einen Termin vor: termin-neu <kalender> | <tag> | <HH:MM-HH:MM> | <titel>' },
+  { name: 'termin-aendern', summary: 'Bereitet eine Titeländerung vor: termin-aendern <tag> | <suchbegriff> | <neuer titel>' },
+  { name: 'freigabe', summary: 'Gibt EINE vorbereitete Mutation frei und führt sie aus: freigabe <id>' },
+  { name: 'abbrechen', summary: 'Verwirft die vorbereitete Mutation ohne Ausführung.' },
 ];
 
 /** Die Kopfzeile des Status — der sichtbare Beleg, dass der Core lebt. */
@@ -39,7 +49,33 @@ export interface CoreContext {
   readonly route?: string;
 }
 
-export type CoreResultKind = 'status' | 'help' | 'unknown' | 'read';
+export type CoreResultKind =
+  'status' | 'help' | 'unknown' | 'read' | 'write_prepare' | 'write_execute';
+
+/**
+ * Ein Schreibauftrag, den der reine Router nicht selbst ausführt.
+ *
+ * Wie beim Lesen entscheidet der Router nur, WAS geschehen soll. Der
+ * entscheidende Unterschied: ein `write`-Auftrag mit `phase: 'prepare'`
+ * mutiert NICHTS — er holt eine Vorschau. Erst ein Auftrag mit
+ * `phase: 'execute'`, den ausschliesslich das Kommando `freigabe` erzeugen
+ * kann, führt aus. Beides sind getrennte Eingaben des Eigentümers; es gibt
+ * keinen Pfad, auf dem eine Suche oder eine Anzeige das Zweite auslöst.
+ */
+export type CoreWriteRequest =
+  | { readonly phase: 'prepare'; readonly operation: 'kontakt_anlegen';
+      readonly ziel: string; readonly name: string }
+  | { readonly phase: 'prepare'; readonly operation: 'kontakt_aendern';
+      readonly query: string; readonly feld: string; readonly wert: string }
+  | { readonly phase: 'prepare'; readonly operation: 'kontakt_loeschen';
+      readonly query: string }
+  | { readonly phase: 'prepare'; readonly operation: 'termin_anlegen';
+      readonly ziel: string; readonly tag: string; readonly vonBis: string;
+      readonly titel: string }
+  | { readonly phase: 'prepare'; readonly operation: 'termin_aendern';
+      readonly tag: string; readonly query: string; readonly neuerTitel: string }
+  | { readonly phase: 'execute'; readonly mutationId: string }
+  | { readonly phase: 'abort' };
 
 /**
  * Ein Leseauftrag, den der reine Router nicht selbst ausführen kann.
@@ -62,6 +98,8 @@ export interface CoreResult {
   readonly lines: readonly string[];
   /** Nur bei `kind === 'read'`: was gelesen werden soll. */
   readonly read?: CoreReadRequest;
+  /** Nur bei den Schreibarten: was vorbereitet bzw. ausgeführt werden soll. */
+  readonly write?: CoreWriteRequest;
 }
 
 /** Wie viele Kontakttreffer die Bar höchstens anzeigt. Mehrdeutige Suchen
@@ -144,6 +182,118 @@ function kontaktErgebnis(argument: string): CoreResult {
   };
 }
 
+
+// ── Schreibbefehle: sie BEREITEN VOR, sie fuehren nicht aus ────────────────
+
+/** Zerlegt an `|` und liefert die getrimmten Teile. */
+function teile(argument: string): string[] {
+  return argument.split('|').map((t) => t.trim());
+}
+
+function fehlform(command: string, erwartet: string): CoreResult {
+  return {
+    kind: 'unknown',
+    command,
+    lines: ['Eingabe nicht verstanden.', `Erwartet: ${erwartet}`],
+  };
+}
+
+function vorbereiten(command: string, write: CoreWriteRequest,
+                     zeile: string): CoreResult {
+  return {
+    kind: 'write_prepare',
+    command,
+    // Bewusst im Futur: hier ist noch nichts geschehen.
+    lines: [`${zeile} — wird vorbereitet …`],
+    write,
+  };
+}
+
+function kontaktNeuErgebnis(argument: string): CoreResult {
+  // Der Ablageort wird AUSDRUECKLICH genannt: auf diesem Mac gibt es
+  // mehrere Container, und der Core waehlt keinen davon selbst aus.
+  const [ziel, name] = teile(argument);
+  if (!ziel || !name) {
+    return fehlform('kontakt-neu',
+                    'kontakt-neu <container> | <Vorname Nachname>');
+  }
+  return vorbereiten('kontakt-neu',
+                     { phase: 'prepare', operation: 'kontakt_anlegen',
+                       ziel, name },
+                     'Kontakt anlegen');
+}
+
+function kontaktAendernErgebnis(argument: string): CoreResult {
+  const [query, zuweisung] = teile(argument);
+  const treffer = /^([^=]+)=(.*)$/.exec(zuweisung ?? '');
+  if (!query || !treffer) {
+    return fehlform('kontakt-aendern',
+                    'kontakt-aendern <suchbegriff> | <feld> = <wert>');
+  }
+  const feld = treffer[1].trim().toLowerCase();
+  const wert = treffer[2].trim();
+  if (!wert) {
+    return fehlform('kontakt-aendern', 'ein nicht leerer Wert nach dem =');
+  }
+  return vorbereiten('kontakt-aendern',
+                     { phase: 'prepare', operation: 'kontakt_aendern',
+                       query, feld, wert },
+                     'Kontakt ändern');
+}
+
+function kontaktLoeschenErgebnis(argument: string): CoreResult {
+  const query = argument.trim();
+  if (!query) {
+    return fehlform('kontakt-loeschen', 'kontakt-loeschen <suchbegriff>');
+  }
+  return vorbereiten('kontakt-loeschen',
+                     { phase: 'prepare', operation: 'kontakt_loeschen', query },
+                     'Kontakt löschen');
+}
+
+function terminNeuErgebnis(argument: string): CoreResult {
+  // Ebenso der Zielkalender — neun sind hier beschreibbar.
+  const [ziel, tag, vonBis, titel] = teile(argument);
+  if (!ziel || !tag || !/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(vonBis ?? '') || !titel) {
+    return fehlform('termin-neu',
+                    'termin-neu <kalender> | <tag> | <HH:MM-HH:MM> | <titel>');
+  }
+  return vorbereiten('termin-neu',
+                     { phase: 'prepare', operation: 'termin_anlegen',
+                       ziel, tag, vonBis, titel },
+                     'Termin anlegen');
+}
+
+function terminAendernErgebnis(argument: string): CoreResult {
+  const [tag, query, neuerTitel] = teile(argument);
+  if (!tag || !query || !neuerTitel) {
+    return fehlform('termin-aendern',
+                    'termin-aendern <tag> | <suchbegriff> | <neuer titel>');
+  }
+  return vorbereiten('termin-aendern',
+                     { phase: 'prepare', operation: 'termin_aendern',
+                       tag, query, neuerTitel },
+                     'Termin ändern');
+}
+
+/** Die EINZIGE Stelle, die eine Ausfuehrung anfordern kann. Sie verlangt
+ *  die Kennung der konkreten vorbereiteten Mutation — eine Freigabe ohne
+ *  Kennung gibt es nicht, und eine Kennung passt immer nur zu genau einer
+ *  vorbereiteten Operation. */
+function freigabeErgebnis(argument: string): CoreResult {
+  const mutationId = argument.trim();
+  if (!mutationId) {
+    return fehlform('freigabe',
+                    'freigabe <id> — die Kennung steht in der Vorschau');
+  }
+  return {
+    kind: 'write_execute',
+    command: 'freigabe',
+    lines: ['Freigabe erteilt — wird ausgeführt …'],
+    write: { phase: 'execute', mutationId },
+  };
+}
+
 /**
  * Routet eine Eingabe auf ein lokales Ergebnis.
  *
@@ -169,6 +319,24 @@ export function routeCommand(input: string, kontext: CoreContext = {}): CoreResu
       return kontaktErgebnis(argument);
     case 'termine':
       return terminErgebnis(argument);
+    case 'kontakt-neu':
+      return kontaktNeuErgebnis(argument);
+    case 'kontakt-aendern':
+      return kontaktAendernErgebnis(argument);
+    case 'kontakt-loeschen':
+      return kontaktLoeschenErgebnis(argument);
+    case 'termin-neu':
+      return terminNeuErgebnis(argument);
+    case 'termin-aendern':
+      return terminAendernErgebnis(argument);
+    case 'freigabe':
+      return freigabeErgebnis(argument);
+    case 'abbrechen':
+      return {
+        kind: 'write_execute', command: 'abbrechen',
+        lines: ['Vorbereitete Mutation verworfen.'],
+        write: { phase: 'abort' },
+      };
     default:
       // Die unbekannte Eingabe wird VOLLSTÄNDIG zurückgemeldet, nicht nur
       // ihr erstes Wort: wer „mach mal was" eingibt, muss genau das
