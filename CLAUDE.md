@@ -54,9 +54,11 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
 
 - Prüfungen laufen ausschließlich über die öffentliche Schnittstelle
   `scripts/gate.sh --block <block-id> --phase <phase>`.
-- Verbindliche Phasen: `preflight`, `targeted`, `offline-final`,
-  `platform-live`, `module-final`. Während der Arbeit gezielt prüfen
-  (`targeted`), am Blockende die vollständigen relevanten Gates fahren.
+- Prüfumfang und Blockabschluss: normativ
+  `docs/governance/openjarvis-dauerregeln.md` §15 (minimaler Blockabschluss;
+  ergänzend §12–§14). Es gibt keine allgemeine Pflicht zu fünf Phasen und
+  keinen obligatorischen `module-final`-Schritt. Die Phasennamen eines Blocks
+  ergeben sich aus seinem Manifest, nicht aus dieser Datei.
 - Verbindliche Ergebnisse: `pass`, `pass_with_baseline`, `fail`, `blocked`,
   `not_applicable`. Autoritativ ist immer das Enum im maschinellen Bericht.
 - Wörtlichkeit maschineller Ergebnisse: normativ DEC-067 — Der Bericht ist
@@ -112,15 +114,14 @@ und ist für OpenJarvis und den Werkzeugblock B0a-1 ergänzt worden.
   Fließtext unzulässig.
 - Entscheidungstitel werden wörtlich aus Register oder Primärtext übernommen,
   nie aus einer Beschreibung erraten.
-- Vergabe neuer DEC- und ADR-Nummern: normativ DEC-057 — ID-Vergabe nur über
-  das Register (`docs/governance/decisions/DEC-057-id-vergabe-nur-ueber-register.md`);
-  kanonisch ist `refs/governance/dec-reservations`, bedient ausschließlich über
-  `scripts/dec-reservations.sh`.
+- Vergabe neuer DEC- und ADR-Nummern: normativ
+  `docs/governance/openjarvis-dauerregeln.md` §11 — freie ID einmal mechanisch
+  auf Kollision prüfen, Entscheidung ins kanonische Register eintragen, fertig.
+  Kein Reservation-Ref-Verfahren und keine separate Reservierungszeremonie.
 - Bekannte Doppelvergaben werden dokumentiert, nicht bereinigt: keine
   Umnummerierung, kein stilles Löschen einer Seite, keine Erklärung einer Linie
   zur allein gültigen Belegung.
-- Bis zur integrierten Auflösung entsteht keine neue ADR-Datei und keine
-  Reservierung.
+- Bis zur integrierten Auflösung entsteht keine neue ADR-Datei.
 
 ## Versionierte Projektregeln
 
