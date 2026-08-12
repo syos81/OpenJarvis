@@ -84,7 +84,7 @@ function Avatar({ name }: { name: string }) {
 
 export function ContactsListPane({
   kontakte, auswahlId, onAuswahl, onEnterDetail, leerTitel, leerHinweis,
-  testHoehe,
+  testHoehe, onKontextmenue,
 }: {
   kontakte: ContactSummary[];
   auswahlId: string | null;
@@ -94,6 +94,12 @@ export function ContactsListPane({
   leerHinweis?: string;
   /** Nur für Tests ohne Layout: erzwungene Viewport-Höhe in Pixeln. */
   testHoehe?: number;
+  /**
+   * Rechtsklick auf eine Zeile. Die Liste entscheidet nicht, welche
+   * Aktionen es gibt — sie meldet nur, wo und auf welchem Kontakt geklickt
+   * wurde. Fehlt der Rückruf, gibt es kein Kontextmenü.
+   */
+  onKontextmenue?: (id: string, x: number, y: number) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -270,6 +276,14 @@ export function ContactsListPane({
               aria-posinset={zeile.pos}
               onClick={() => onAuswahl(k.id)}
               onDoubleClick={() => onAuswahl(k.id)}
+              // Wie in der Referenz: der Rechtsklick waehlt die Zeile zuerst
+              // aus. Ein Menue ueber einer nicht gewaehlten Zeile liesse
+              // offen, auf welchen Kontakt es sich bezieht.
+              onContextMenu={onKontextmenue ? (e) => {
+                e.preventDefault();
+                onAuswahl(k.id);
+                onKontextmenue(k.id, e.clientX, e.clientY);
+              } : undefined}
               style={{
                 ...lage,
                 position: lage ? lage.position : 'relative',

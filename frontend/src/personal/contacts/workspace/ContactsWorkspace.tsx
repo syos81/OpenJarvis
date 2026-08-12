@@ -22,6 +22,8 @@ import { fixtureDataSource } from '../data/fixtureSource';
 import { sortiereKontakte } from '../data/sortierung';
 import { ContactsSidebar, type SidebarAuswahl } from '../sidebar/ContactsSidebar';
 import { ContactsListPane } from '../list/ContactsListPane';
+import { KontextMenue } from '../list/KontextMenue';
+import type { KontextEintrag } from '../list/KontextMenue';
 import { ContactDetailPane } from '../detail/ContactDetailPane';
 import { ContactEditor } from '../editor/ContactEditor';
 import { CreateDialog, DeleteBestaetigung, PreviewDialog } from '../editor/dialogs';
@@ -196,6 +198,8 @@ export function ContactsWorkspace({ testListenHoehe }: {
   const [editorFehler, setEditorFehler] = useState<Fehlerbild | null>(null);
   const [editorSendet, setEditorSendet] = useState(false);
   const [loeschenOffen, setLoeschenOffen] = useState(false);
+  const [kontextmenue, setKontextmenue] =
+    useState<{ id: string; x: number; y: number } | null>(null);
   const [anlegenOffen, setAnlegenOffen] = useState(false);
   const [vorschau, setVorschau] = useState<PreparedMutation | null>(null);
   const [statusOffen, setStatusOffen] = useState(false);
@@ -399,6 +403,7 @@ export function ContactsWorkspace({ testListenHoehe }: {
               leerTitel={leerTitel}
               leerHinweis={leerHinweis}
               testHoehe={testListenHoehe}
+              onKontextmenue={(id, x, y) => setKontextmenue({ id, x, y })}
             />
           )}
         </div>
@@ -447,6 +452,37 @@ export function ContactsWorkspace({ testListenHoehe }: {
           )}
         </div>
       </div>
+
+      {kontextmenue && detail && detail.id === kontextmenue.id && (
+        <KontextMenue
+          x={kontextmenue.x}
+          y={kontextmenue.y}
+          onSchliessen={() => setKontextmenue(null)}
+          eintraege={((): KontextEintrag[] => {
+            // Dieselbe Regel wie die Knoepfe im Detailbereich. Ein Menue,
+            // das mehr anbietet als der Rest der Oberflaeche, waere ein
+            // zweiter Wahrheitsstand ueber dieselbe Faehigkeit.
+            const schreibbar = !detail.is_me_card && detail.writable;
+            const eintraege: KontextEintrag[] = [];
+            if (schreibbar && caps?.update_supported) {
+              eintraege.push({
+                id: 'bearbeiten',
+                text: 'Kontaktkarte bearbeiten',
+                onAuswahl: () => setBearbeitet(true),
+              });
+            }
+            if (schreibbar && caps?.delete_supported) {
+              eintraege.push({
+                id: 'loeschen',
+                text: 'Kontaktkarte löschen',
+                gefaehrlich: true,
+                onAuswahl: () => setLoeschenOffen(true),
+              });
+            }
+            return eintraege;
+          })()}
+        />
+      )}
 
       {statusOffen && (
         <ContactsStatusSurface

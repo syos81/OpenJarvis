@@ -103,6 +103,10 @@
   --pjc-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
 
   /* ── Radien und Bewegung (M2-VORLÄUFIG) ─────────────────────────────── */
+  /* Kontextmenü. Aus der Referenzaufnahme des Rechtsklickmenüs abgelesen;
+     die Zeilenhöhe ist dort deutlich kompakter als eine Listenzeile. */
+  --pjc-menu-radius: 6px;          /* M2-VORLÄUFIG */
+  --pjc-menu-row-height: 24px;     /* M2-VORLÄUFIG */
   --pjc-radius-row: 5px;
   --pjc-radius-control: 6px;
   --pjc-duration-fast: 120ms;
