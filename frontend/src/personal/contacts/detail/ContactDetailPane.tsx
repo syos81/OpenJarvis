@@ -20,19 +20,18 @@ export function labelText(roh: string | null): string {
   return LABEL_TEXT[roh] ?? roh;
 }
 
+/** Eine Feldzeile: Label ueber dem Wert, wie in der Referenz auf dem M2. */
 function FieldRow({ label, kinder }: { label: string; kinder: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+    <div>
       <dt style={{
-        flex: `0 0 var(--pjc-field-label-width)`,
         font: 'var(--pjc-font-label)',
         color: 'var(--color-text-muted)',
-        textAlign: 'right',
       }}>
         {label}
       </dt>
       <dd style={{
-        margin: 0, minWidth: 0, flex: 1,
+        margin: 0, minWidth: 0,
         font: 'var(--pjc-font-body)',
         overflowWrap: 'anywhere',
       }}>
@@ -42,15 +41,21 @@ function FieldRow({ label, kinder }: { label: string; kinder: React.ReactNode })
   );
 }
 
+/** Karte statt Trennlinie: die Referenz gruppiert Felder in gerundete Flaechen. */
+export function kartenFlaeche(): React.CSSProperties {
+  return {
+    background: 'var(--pjc-card-bg)',
+    borderRadius: 'var(--pjc-card-radius)',
+    padding: 'var(--pjc-card-pad)',
+    marginTop: 'var(--pjc-card-gap)',
+  };
+}
+
 function FieldSection({ titel, werte }: { titel: string; werte: LabeledValue[] }) {
   if (werte.length === 0) return null;
   return (
-    <section aria-label={titel} style={{
-      borderTop: 'var(--pjc-divider-width) solid var(--pjc-divider)',
-      paddingTop: 'var(--pjc-detail-gap)',
-      marginTop: 'var(--pjc-detail-gap)',
-    }}>
-      <dl style={{ margin: 0, display: 'grid', gap: '6px' }}>
+    <section aria-label={titel} style={kartenFlaeche()}>
+      <dl style={{ margin: 0, display: 'grid', gap: 'var(--pjc-card-gap)' }}>
         {werte.map((w) => (
           <FieldRow
             key={w.id}
@@ -66,12 +71,8 @@ function FieldSection({ titel, werte }: { titel: string; werte: LabeledValue[] }
 function AddressBlock({ adressen }: { adressen: LabeledValue[] }) {
   if (adressen.length === 0) return null;
   return (
-    <section aria-label="Adressen" style={{
-      borderTop: 'var(--pjc-divider-width) solid var(--pjc-divider)',
-      paddingTop: 'var(--pjc-detail-gap)',
-      marginTop: 'var(--pjc-detail-gap)',
-    }}>
-      <dl style={{ margin: 0, display: 'grid', gap: '10px' }}>
+    <section aria-label="Adressen" style={kartenFlaeche()}>
+      <dl style={{ margin: 0, display: 'grid', gap: 'var(--pjc-card-gap)' }}>
         {adressen.map((a) => {
           const zeilen = [
             String(a.extra.street ?? ''),
@@ -137,6 +138,12 @@ export function ContactDetailPane({
         padding: 'var(--pjc-detail-pad)',
       }}
     >
+      {/* Inhaltsspalte. M2 gemessen: die Karten sind 559 pt breit und mittig
+          im Panel, nicht ueber dessen volle Breite gezogen. */}
+      <div style={{
+        maxWidth: 'var(--pjc-card-width)',
+        marginInline: 'auto',
+      }}>
       {nichtImFilter && (
         <p role="status" style={{
           font: 'var(--pjc-font-label)',
@@ -148,22 +155,32 @@ export function ContactDetailPane({
         </p>
       )}
 
-      {/* Hero */}
-      <header style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      {/* Hero — zentriert, Avatar oben, Name darunter. So zeigt es die
+          Referenz auf dem M2; vorher stand der Name neben dem Avatar. */}
+      <header style={{
+        display: 'flex', flexDirection: 'column', gap: '12px',
+        alignItems: 'center', textAlign: 'center',
+      }}>
+        {/* Die Breite ist gemessen, die Deckelung auf 30 % haelt den Kreis
+            auch in einem schmalen Panel im Rahmen. Die Hoehe folgt ueber das
+            Seitenverhaeltnis — eine prozentuale Hoehe haette keinen Bezug und
+            wuerde auf null zusammenfallen. Die Initialen skalieren mit der
+            Box (Container-Einheit) statt mit einer festen Zahl. */}
         <span aria-hidden="true" style={{
-          width: 'var(--pjc-avatar-hero)',
-          height: 'var(--pjc-avatar-hero)',
+          width: 'min(var(--pjc-avatar-hero), 30%)',
+          aspectRatio: '1',
           borderRadius: '50%',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          font: 'var(--pjc-font-hero)',
-          fontSize: 'calc(var(--pjc-avatar-hero) * 0.38)',
           color: 'var(--color-text-muted)',
           backgroundColor: 'var(--color-surface-2)',
           flex: '0 0 auto',
+          containerType: 'inline-size',
         }}>
-          {initialen(kontakt.display_name)}
+          <span style={{ font: 'var(--pjc-font-hero)', fontSize: '38cqw' }}>
+            {initialen(kontakt.display_name)}
+          </span>
         </span>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ font: 'var(--pjc-font-hero)', margin: 0, overflowWrap: 'anywhere' }}>
@@ -179,7 +196,10 @@ export function ContactDetailPane({
               {untertitel}
             </p>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px',
+            justifyContent: 'center',
+          }}>
             {kontakt.is_me_card && (
               <Chip tone="info" title="Die eigene Karte ist in dieser Version schreibgeschützt.">
                 Meine Karte
@@ -201,7 +221,10 @@ export function ContactDetailPane({
       {/* Aktionen */}
       {(aenderbar || loeschbar) && (
         <div role="group" aria-label="Kontaktaktionen"
-             style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+             style={{
+               display: 'flex', gap: '8px', marginTop: '14px',
+               justifyContent: 'center',
+             }}>
           {aenderbar && (
             <button type="button" onClick={onBearbeiten} className="pjc-focusable"
                     data-testid="detail-bearbeiten"
@@ -367,6 +390,7 @@ export function ContactDetailPane({
             Kategorien bleiben auf diesem Mac.
           </p>
         </section>
+      </div>
       </div>
     </article>
   );

@@ -54,7 +54,18 @@
   --pjc-row-inset-right: 16px;
   --pjc-detail-pad: 24px;
   --pjc-detail-gap: 16px;          /* Abstand zwischen Feldgruppen */
-  --pjc-field-label-width: 96px;   /* Label-Spalte im Detail */
+  /* Label-Spalte: nur noch im Bearbeitungsmodus. Die Leseansicht setzt das
+     Label seit dem M2-Abgleich ueber den Wert — so macht es die Referenz. */
+  --pjc-field-label-width: 96px;
+  /* Feldkarten der Leseansicht. Der Vertrag (§1) sprach von einer
+     Label-Spaltenbreite und beschrieb damit die aeltere Apple-Gestaltung;
+     die App auf diesem M2 gruppiert stattdessen in gerundete Karten mit dem
+     Label ueber dem Wert. Nach §1 Nr. 1 gilt die App, nicht die Vokabel. */
+  --pjc-card-gap: 10px;            /* M2 gemessen: Abstand zweier Karten */
+  --pjc-card-width: 560px;         /* M2 gemessen: 559 pt Kartenbreite … */
+  --pjc-card-radius: 12px;         /* M2-VORLÄUFIG */
+  --pjc-card-pad: 12px;            /* M2-VORLÄUFIG */
+  --pjc-card-bg: color-mix(in srgb, var(--color-text) 5%, transparent); /* M2-VORLÄUFIG */
   --pjc-hit-target: 24px;          /* Mindestklickziel */
   --pjc-list-overscan: 8;          /* Zeilen Überhang bei Fensterung */
 
@@ -67,7 +78,12 @@
 
   /* ── Avatare und Icons (Liste M2-GEMESSEN, Rest M2-VORLÄUFIG) ───────── */
   --pjc-avatar-list: 36px;         /* M2 gemessen: 36x36 pt, 16 pt vom Rand */
-  --pjc-avatar-hero: 64px;
+  /* M2 gemessen: 260 pt bei 864 pt Panelbreite, exakt mittig — also 30 %.
+     Ob die Referenz fix oder proportional rechnet, ist aus einer einzigen
+     Fenstergroesse nicht entscheidbar; bis zur maximierten Aufnahme aus §1
+     gilt beides zugleich, der kleinere Wert gewinnt. Vorher stand hier 64px
+     ohne jede Messung. */
+  --pjc-avatar-hero: 260px;
   --pjc-icon-size: 15px;
   --pjc-icon-stroke: 1.75;
 
