@@ -12,6 +12,7 @@ Versuch, egal was schiefgeht.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -71,12 +72,24 @@ def Kanal(verfuegbar: bool = True):
     ausführen darf, sagt das über `provider_write_enabled` **und** die
     Operation. `fake_debug_capabilities` ist die einzige Stelle, die das
     erzeugt — und sie ist von keinem Build erreichbar.
+
+    Der **gesperrte** Fall braucht einen ausdrücklichen Pfad. Ohne ihn fiele
+    `app_channel_capabilities()` auf `default_release_path()` zurück und läse
+    die echte Freigabedatei des ausführenden Rechners: Der Test wäre dann nur
+    so lange grün, wie dort zufällig keine gültige Freigabe liegt, und würde
+    während eines Abnahmelaufs unversehens einen **offenen** Kanal prüfen.
+    Genau das trat am 2026-08-12 auf dem M2 ein. Ein Pfad, der nicht
+    existieren kann, macht die Sperre deterministisch.
     """
     from personaljarvis.contacts.application.app_channel import (
         app_channel_capabilities,
         fake_debug_capabilities,
     )
-    return fake_debug_capabilities() if verfuegbar else app_channel_capabilities()
+    if verfuegbar:
+        return fake_debug_capabilities()
+    return app_channel_capabilities(
+        release_path=Path(__file__).resolve().parent
+        / "_gibt-es-nicht" / "contacts-write-release.json")
 
 
 @pytest.fixture
