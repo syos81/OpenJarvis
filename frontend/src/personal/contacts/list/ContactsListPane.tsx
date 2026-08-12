@@ -59,7 +59,21 @@ function tokenPx(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+/**
+ * Farbe eines Avatars — aus dem Namen abgeleitet, nicht zufällig.
+ *
+ * Derselbe Kontakt behält damit über Neuladen, Filter und Sortierung hinweg
+ * dieselbe Farbe; sie wird zu einem Wiedererkennungsmerkmal statt zu Dekor.
+ * Bedeutung trägt sie nicht — die Initialen und der Name stehen daneben.
+ */
+export function avatarFarbe(name: string): string {
+  let summe = 0;
+  for (let i = 0; i < name.length; i += 1) summe = (summe * 31 + name.charCodeAt(i)) % 997;
+  return `var(--pjc-akzent-${(summe % 6) + 1})`;
+}
+
 function Avatar({ name }: { name: string }) {
+  const farbe = avatarFarbe(name);
   return (
     <span
       aria-hidden="true"
@@ -73,8 +87,8 @@ function Avatar({ name }: { name: string }) {
         justifyContent: 'center',
         font: 'var(--pjc-font-label)',
         fontWeight: 600,
-        color: 'var(--color-text-muted)',
-        backgroundColor: 'var(--color-surface-2)',
+        color: farbe,
+        backgroundColor: `color-mix(in srgb, ${farbe} var(--pjc-akzent-fond), transparent)`,
       }}
     >
       {initialen(name)}
@@ -84,7 +98,7 @@ function Avatar({ name }: { name: string }) {
 
 export function ContactsListPane({
   kontakte, auswahlId, onAuswahl, onEnterDetail, leerTitel, leerHinweis,
-  testHoehe,
+  testHoehe, onKontextmenue,
 }: {
   kontakte: ContactSummary[];
   auswahlId: string | null;
@@ -94,6 +108,12 @@ export function ContactsListPane({
   leerHinweis?: string;
   /** Nur für Tests ohne Layout: erzwungene Viewport-Höhe in Pixeln. */
   testHoehe?: number;
+  /**
+   * Rechtsklick auf eine Zeile. Die Liste entscheidet nicht, welche
+   * Aktionen es gibt — sie meldet nur, wo und auf welchem Kontakt geklickt
+   * wurde. Fehlt der Rückruf, gibt es kein Kontextmenü.
+   */
+  onKontextmenue?: (id: string, x: number, y: number) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -259,6 +279,7 @@ export function ContactsListPane({
           }
           const k = zeile.kontakt;
           const gewaehlt = k.id === auswahlId;
+          const letzte = idx === zeilen.length - 1;
           return (
             <div
               key={k.id}
@@ -269,16 +290,27 @@ export function ContactsListPane({
               aria-posinset={zeile.pos}
               onClick={() => onAuswahl(k.id)}
               onDoubleClick={() => onAuswahl(k.id)}
+              // Wie in der Referenz: der Rechtsklick waehlt die Zeile zuerst
+              // aus. Ein Menue ueber einer nicht gewaehlten Zeile liesse
+              // offen, auf welchen Kontakt es sich bezieht.
+              onContextMenu={onKontextmenue ? (e) => {
+                e.preventDefault();
+                onAuswahl(k.id);
+                onKontextmenue(k.id, e.clientX, e.clientY);
+              } : undefined}
               style={{
                 ...lage,
+                position: lage ? lage.position : 'relative',
                 height: `${rowH}px`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                margin: '0 calc(var(--pjc-pane-pad) - 4px)',
-                padding: '0 8px',
+                // M2: die Auswahlflaeche laeuft ueber die volle Spaltenbreite,
+                // eingerueckt wird der Inhalt. Vorher lag hier ein fester
+                // 8px-Wert in der Komponente — Zahlen gehoeren in tokens.css.
+                margin: 0,
+                padding: '0 var(--pjc-row-inset-right) 0 var(--pjc-row-inset)',
                 borderRadius: 'var(--pjc-radius-row)',
-                cursor: 'default',
                 color: gewaehlt && fokussiert
                   ? 'var(--pjc-selection-fg)' : 'var(--color-text)',
                 backgroundColor: gewaehlt
@@ -286,6 +318,25 @@ export function ContactsListPane({
                   : undefined,
               }}
             >
+              {/* Zeilentrenner. M2: 1 pt, beginnt an der linken Avatarkante und
+                  endet vor der Rollleiste. Als eigenes Element statt als
+                  border-bottom, damit die gerundete Auswahlflaeche ihn
+                  ueberdeckt statt ihn zu beschneiden. Die letzte Zeile bekommt
+                  keinen — Apple schliesst die Liste ohne Abschlusslinie. */}
+              {!gewaehlt && !letzte && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    left: 'var(--pjc-row-inset)',
+                    right: 'var(--pjc-row-inset-right)',
+                    bottom: 0,
+                    height: 'var(--pjc-divider-width)',
+                    backgroundColor: 'var(--pjc-divider)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
               <Avatar name={k.display_name} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{

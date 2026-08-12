@@ -9,7 +9,7 @@
 // Feldvertrag übertragbar" und übergibt sie nicht. Es entsteht keine neue
 // Mutationsarchitektur.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ContactDetail } from '../api';
 import { Modal } from '../components';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
@@ -98,7 +98,15 @@ function MehrwertEditor({ titel, eintraege, labels, onChange, gesperrt, fehlerTe
           const fehler = e.value.trim() !== '' ? fehlerText(e.value) : null;
           const fehlerId = fehler ? `pjc-fehler-${e.schluessel}` : undefined;
           return (
-            <div key={e.schluessel} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            // Der Bezeichner steht links in derselben schmalen Spalte wie
+            // die Namensfelder und traegt die Akzentfarbe — er ist ein
+            // Bedienelement, kein Beschriftungstext. So loest die Referenz es.
+            <div key={e.schluessel} style={{
+              display: 'grid',
+              gridTemplateColumns: 'var(--pjc-field-label-width) 1fr auto',
+              gap: '10px',
+              alignItems: 'start',
+            }}>
               <select
                 value={e.label}
                 aria-label={`Art (${titel} ${i + 1})`}
@@ -109,11 +117,18 @@ function MehrwertEditor({ titel, eintraege, labels, onChange, gesperrt, fehlerTe
                   onChange(neu);
                 }}
                 className="pjc-focusable"
-                style={eingabeStil(false)}
+                style={{
+                  ...eingabeStil(false),
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--pjc-akzent-1)',
+                  textAlign: 'right',
+                  padding: '3px 0',
+                }}
               >
                 {labels.map((l) => <option key={l} value={l}>{LABEL_TEXT[l] ?? l}</option>)}
               </select>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
                 <input
                   value={e.value}
                   aria-label={`${titel} ${i + 1}`}
@@ -137,13 +152,25 @@ function MehrwertEditor({ titel, eintraege, labels, onChange, gesperrt, fehlerTe
                   </p>
                 )}
               </div>
+              {/* Entfernen als runde Marke in der Warnfarbe, wie in der
+                  Referenz — kein Knopf mit Rahmen. */}
               <button
                 type="button"
                 aria-label={`${titel} ${i + 1} entfernen`}
                 disabled={gesperrt}
                 onClick={() => onChange(eintraege.filter((_, j) => j !== i))}
                 className="pjc-focusable"
-                style={aktionsKnopf(false)}
+                style={{
+                  width: '20px', height: '20px', marginTop: '3px',
+                  borderRadius: '50%', border: 'none',
+                  display: 'inline-flex', alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: gesperrt
+                    ? 'var(--pjc-divider)' : 'var(--pjc-akzent-5)',
+                  color: '#ffffff',
+                  font: 'var(--pjc-font-label)',
+                  lineHeight: 1,
+                }}
               >
                 −
               </button>
@@ -170,7 +197,7 @@ function MehrwertEditor({ titel, eintraege, labels, onChange, gesperrt, fehlerTe
 }
 
 export function ContactEditor({
-  kontakt, demoModus, onFertig, onAbbrechen, sendet, fehler,
+  kontakt, demoModus, onFertig, onAbbrechen, onDreckig, sendet, fehler,
   listenSchreibbar = true,
 }: {
   kontakt: ContactDetail;
@@ -190,6 +217,13 @@ export function ContactEditor({
    */
   onFertig: (felder: Record<string, unknown>) => void;
   onAbbrechen: () => void;
+  /**
+   * Meldet nach aussen, ob ungesicherte Eingaben vorliegen. Der Workspace
+   * laesst einen Kontaktwechsel nur zu, solange nichts geaendert wurde —
+   * so wie die Referenz: ein unberuehrter Editor steht dem Weiterklicken
+   * nicht im Weg, ein beschriebener schon.
+   */
+  onDreckig?: (dreckig: boolean) => void;
   sendet: boolean;
   fehler: Fehlerbild | null;
 }) {
@@ -212,6 +246,7 @@ export function ContactEditor({
   const mehrwertGeaendert = listenGeaendert(entwurf.emails, start.emails)
     || listenGeaendert(entwurf.phones, start.phones);
   const dreckig = Object.keys(skalarDiff).length > 0 || mehrwertGeaendert;
+  useEffect(() => { onDreckig?.(dreckig); }, [dreckig, onDreckig]);
 
   /**
    * Der vollständige Patch: geänderte Skalare plus **ganze** geänderte
@@ -256,12 +291,16 @@ export function ContactEditor({
         padding: 'var(--pjc-detail-pad)',
       }}
     >
+      {/* Inhaltsspalte wie in der Leseansicht: die Referenz zieht den Editor
+          nicht über die volle Breite, sondern hält eine schmale Spalte. */}
+      <div style={{ maxWidth: 'var(--pjc-card-width)', marginInline: 'auto' }}>
+
       <header style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         gap: '12px',
       }}>
-        <h2 style={{ font: 'var(--pjc-font-hero)', margin: 0 }}>
-          {kontakt.display_name} bearbeiten
+        <h2 style={{ font: 'var(--pjc-font-title)', margin: 0 }}>
+          {kontakt.display_name}
         </h2>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button type="button" onClick={abbrechen} className="pjc-focusable"
@@ -287,14 +326,6 @@ export function ContactEditor({
         </div>
       </header>
 
-      <p style={{
-        font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
-        margin: '6px 0 0',
-      }}>
-        „Fertig" bereitet die Änderung vor; übertragen wird erst nach deiner
-        Freigabe — und in dieser Version noch gar nicht.
-      </p>
-
       {fehler && (
         <p role="alert" style={{
           font: 'var(--pjc-font-body)', color: 'var(--color-danger)',
@@ -304,13 +335,23 @@ export function ContactEditor({
         </p>
       )}
 
-      <div style={{
-        display: 'grid', gap: '10px', marginTop: '16px',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(14rem, 1fr))',
-      }}>
+      {/* Namensfelder: Bezeichner rechtsbündig in einer schmalen Spalte, Wert
+          daneben — der Aufbau der Referenz. Vorher lagen sie als breites
+          Raster über die ganze Fläche. */}
+      <div style={{ display: 'grid', gap: '6px', marginTop: '16px' }}>
         {SKALARFELDER.map((f) => (
-          <label key={f.key} style={{ font: 'var(--pjc-font-label)' }}>
-            <span style={{ display: 'block', color: 'var(--color-text-muted)' }}>
+          <label key={f.key} style={{
+            display: 'grid',
+            gridTemplateColumns: 'var(--pjc-field-label-width) 1fr',
+            alignItems: 'center',
+            gap: '10px',
+            font: 'var(--pjc-font-body)',
+          }}>
+            <span style={{
+              textAlign: 'right',
+              font: 'var(--pjc-font-label)',
+              color: 'var(--color-text-muted)',
+            }}>
               {f.label}
             </span>
             <input
@@ -319,8 +360,9 @@ export function ContactEditor({
                 ...entwurf,
                 skalar: { ...entwurf.skalar, [f.key]: e.target.value },
               })}
+              placeholder={f.label}
               className="pjc-focusable"
-              style={{ ...eingabeStil(false), width: '100%', marginTop: '2px' }}
+              style={{ ...eingabeStil(false), width: '100%' }}
             />
           </label>
         ))}
@@ -368,6 +410,7 @@ export function ContactEditor({
           </p>
         </Modal>
       )}
+      </div>
     </div>
   );
 }

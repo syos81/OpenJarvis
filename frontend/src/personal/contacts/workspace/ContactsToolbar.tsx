@@ -3,7 +3,7 @@
 // Web-Headerleiste, keine dauerhafte Entwicklerdiagnose.
 
 import { forwardRef } from 'react';
-import { ClipboardList, Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
 
 export const ContactsToolbar = forwardRef<HTMLInputElement, {
@@ -11,14 +11,16 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
   onSuche: (wert: string) => void;
   onSucheEscape: () => void;
   anlegenSichtbar: boolean;
-  onAnlegen: () => void;
-  statusOffen: boolean;
-  onStatusToggle: () => void;
+  /** Das Plus oeffnet wie in der Referenz ein Menue, keinen Dialog direkt. */
+  onAnlegen: (x: number, y: number) => void;
+  /** „Bearbeiten" steht wie in der Referenz oben rechts, nicht in der Karte. */
+  bearbeitenSichtbar: boolean;
+  onBearbeiten: () => void;
   demoModus: boolean;
-  offeneFreigaben: number;
 }>(function ContactsToolbar({
   suche, onSuche, onSucheEscape, anlegenSichtbar, onAnlegen,
-  statusOffen, onStatusToggle, demoModus, offeneFreigaben,
+  bearbeitenSichtbar, onBearbeiten,
+  demoModus,
 }, suchfeldRef) {
   return (
     <div
@@ -56,10 +58,23 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
 
       <div style={{ flex: 1 }} />
 
+      {bearbeitenSichtbar && (
+        <button type="button" onClick={onBearbeiten} className="pjc-focusable"
+                data-testid="toolbar-bearbeiten"
+                style={aktionsKnopf(false)}>
+          Bearbeiten
+        </button>
+      )}
+
       {anlegenSichtbar && (
-        <button type="button" onClick={onAnlegen} className="pjc-focusable"
+        <button type="button" className="pjc-focusable"
+                onClick={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onAnlegen(r.left, r.bottom + 4);
+                }}
                 data-testid="toolbar-anlegen"
-                aria-label="Kontakt anlegen"
+                aria-label="Neu"
+                aria-haspopup="menu"
                 style={{ ...aktionsKnopf(false), display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <Plus size={15} aria-hidden="true" />
         </button>
@@ -111,7 +126,7 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
             style={{
               position: 'absolute', right: '2px', top: '50%',
               transform: 'translateY(-50%)',
-              border: 'none', background: 'none', cursor: 'default',
+              border: 'none', background: 'none',
               color: 'var(--color-text-muted)',
               minWidth: 'var(--pjc-hit-target)', minHeight: 'var(--pjc-hit-target)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -122,33 +137,9 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onStatusToggle}
-        aria-label={`Vorgänge und Status ${statusOffen ? 'schliessen' : 'öffnen'}`}
-        aria-expanded={statusOffen}
-        data-testid="toolbar-status"
-        className="pjc-focusable"
-        style={{
-          ...aktionsKnopf(false),
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          color: statusOffen ? 'var(--color-accent)' : 'var(--color-text)',
-        }}
-      >
-        <ClipboardList size={15} aria-hidden="true" />
-        {offeneFreigaben > 0 && (
-          <span
-            aria-label={`${offeneFreigaben} offene Freigaben`}
-            style={{
-              font: 'var(--pjc-font-label)',
-              color: 'var(--color-warning)',
-              fontWeight: 600,
-            }}
-          >
-            {offeneFreigaben}
-          </span>
-        )}
-      </button>
+      {/* Der Zugang zu Vorgängen und Status ist aus der Toolbar verschwunden
+          und steht jetzt unten in der Seitenleiste — die Referenz hat oben
+          rechts nichts dergleichen. */}
     </div>
   );
 });

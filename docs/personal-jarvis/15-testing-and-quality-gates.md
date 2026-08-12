@@ -138,23 +138,65 @@ Evidenz Intel-Spalte durchgehend: x86_64, macOS 12.7.6 (21H1320), Swift 5.7.2 /
 SDK 13.1, Zertifikat „Personal Jarvis Contacts Spike", Hauptbenutzer mit
 Ablageort „Auf meinem Mac", 2026-08-01 bis 2026-08-04.
 
+Evidenz arm64-Spalte durchgehend: Mac14,12 (Mac mini M2 Pro), arm64 nativ
+(`sysctl.proc_translated = 0`), macOS 26.2 (25C56), Swift 6.3.2 / SDK 26.5,
+Zertifikat „de.kluender.jarvis" (Blatt `b1038059…`), Zielcontainer
+`_local:ABAccount`, 2026-08-12.
+
 | Zeile | Apple Silicon arm64 | Intel x86_64 |
 |---|---|---|
-| Nativer Build und zertifikatsgebundene Signierung (App, Sidecar, Write-Helper) | OPEN | PASS |
-| Write-Helper im Bundle, kontaktfreie Bundle-Suite | OPEN | PASS |
-| Lesen, Containerinventar, Enumerate aus der gepackten App | OPEN | PASS |
-| Delta-/Change-History-Pfad | OPEN | PASS |
+| Nativer Build und zertifikatsgebundene Signierung (App, Sidecar, Write-Helper) | PASS | PASS ohne Write-Helper (Nachtrag unten) |
+| Write-Helper im Bundle, kontaktfreie Bundle-Suite | PASS | UNPROVEN (Nachtrag unten) |
+| Lesen, Containerinventar, Enumerate aus der gepackten App | PASS | PASS |
+| Delta-/Change-History-Pfad | PASS | PASS |
 | Voll-Diff-Fallback | OPEN | PASS |
-| Create live (ein Claim, ein Save, Read-back-Digest identisch) | OPEN | PASS |
-| Update live (Patch-Semantik, Listenposition, Identität unverändert) | OPEN | PASS |
-| Delete live (R2, `confirm_delete`, Abwesenheitsnachweis, Tombstone) | OPEN | PASS |
+| Create live (ein Claim, ein Save, Read-back-Digest identisch) | PASS | PASS |
+| Update live (Patch-Semantik, Listenposition, Identität unverändert) | PASS | PASS |
+| Delete live (R2, `confirm_delete`, Abwesenheitsnachweis, Tombstone) | PASS | PASS |
 | At-most-once unter Absturz (`outcome_unknown`, kein zweiter Send) | OPEN | PASS |
-| Lifecycle und Shutdown inkl. Eltern-Watchdog nach GUI-Absturz | OPEN | PASS |
+| Lifecycle und Shutdown inkl. Eltern-Watchdog nach GUI-Absturz | PASS | PASS |
 | App-Neustart mit `recover_interrupted()` | OPEN | PASS |
 | Vollständige TCC-Persistenzmatrix (Rebuild, Versions-Bump, Verschieben, Quarantäne) | OPEN | **OPEN** |
-| Vereinheitlichte Datensätze (Mehrcontainer/Unified) | OPEN | **OPEN** |
+| Vereinheitlichte Datensätze (Mehrcontainer/Unified) | NOT EXECUTABLE IN CURRENT ENVIRONMENT | **OPEN** |
 | Backup-/Restore-Roundtrip über den Backup-Kern | OPEN | **OPEN** |
 | Apple-Kontakte-Pixelabgleich auf demselben Gerät | OPEN | OPEN |
+
+**Was hinter den arm64-`OPEN`-Zeilen konkret fehlt:**
+
+*Voll-Diff-Fallback.* Zwei Delta-Läufe über beide Container liefen
+erfolgreich; ein Voll-Diff wurde nie gefordert (`requires_full_diff =
+false`) und deshalb auch nicht ausgelöst. Der Pfad ist unbelegt.
+
+*At-most-once unter Absturz.* Der Eltern-Watchdog ist belegt: SIGKILL auf
+die GUI beendete das Backend in 4 s, ohne Restprozess. Ein Absturz
+**während** eines laufenden `CNSaveRequest` wurde nicht herbeigeführt;
+`executing → outcome_unknown` bleibt auf arm64 unbelegt.
+
+*App-Neustart mit `recover_interrupted()`.* Zwei Neustarts verliefen sauber,
+alle drei Vorgänge blieben danach `succeeded` mit je einem Versuch. Es
+existierte jedoch kein unterbrochener Vorgang — die Erholung lief leer und
+zählt nach §9 nicht als Nachweis.
+
+*Vereinheitlichte Datensätze.* Anders als beim Intel-Abnahmebenutzer hat
+dieses Gerät **zwei** Container, und beide werden vollständig enumeriert
+(114/114 und 1/1, `complete`, zählkonsistent). Der Vereinheitlichungsfall
+selbst tritt trotzdem nicht ein: kein Datensatz trägt einen
+`unified_identifier`, kein Kontakt existiert in beiden Containern. Ihn
+herbeizuführen hiesse, einen Testdatensatz in den cardDAV-Container zu
+schreiben und damit nach aussen zu replizieren — eine Eigentümerentscheidung,
+keine Bauarbeit. Die Einstufung heisst wie in §8: weder bestanden noch
+fehlgeschlagen.
+
+*Pixelabgleich.* Alle acht Tokengruppen in
+`frontend/src/personal/contacts/tokens.css` tragen weiterhin den Marker
+`M2-VORLÄUFIG`; laut Dateikopf ist jeder markierte Wert eine begründete
+Intel-Schätzung. Die Eigentümer-Sichtprüfung am 2026-08-12 auf diesem Gerät
+ergab deutliche Abweichungen gegenüber der nativen App. Der Referenzvertrag
+([contacts-frontend-apple-redesign-2026-08-02.md](contacts-frontend-apple-redesign-2026-08-02.md)
+§1) verlangt dafür zehn definierte Referenzaufnahmen und die Reihenfolge
+(a) Aufnahmen, (b) eine Runde ausschliesslich `tokens.css`, (c) gezielte
+Komponentenkorrekturen, (d) Abgleich Szene für Szene. Die Aufnahmen
+existieren nicht; ohne sie ist die Zeile nicht schliessbar.
 
 **Zur Intel-Spalte:** Der Intel-**Zweig** ist abgeschlossen und eingefroren
 (modules/contacts.md §15.2). Die drei fett markierten Zeilen sind davon
@@ -162,8 +204,27 @@ ausgenommen — sie sind keine Intel-Bauarbeit, sondern Abnahmezeilen des
 Modulabschlusses, und sie bleiben offen. Ein „Intel fertig" im Sinne von
 19 §10 existiert nicht, solange sie offen sind.
 
-**Zur arm64-Spalte:** Auf dem vorhandenen Gerät nicht führbar. Keine Zeile
-darf aus der Intel-Spalte übernommen werden (§7 Nr. 1–2, DEC-042); die
-Reihenfolge der Abarbeitung steht als M2-Checkliste in
+**Nachtrag 2026-08-12 zum Write-Helper (betrifft beide Spalten).** Auf arm64
+wurde am gebauten Bundle mechanisch festgestellt: `tauri build` signiert den
+Schreibhelfer mit den Entitlements der **App** — neun Einträge statt dem
+einen, den ADR-0026 bindet — und gibt ihm den Identifier
+`contacts-write-helper` statt `de.kluender.jarvis.contacts-write-helper`,
+weil `scripts/reseal-contacts-sidecar.sh` ihn nicht erfasste. Zusätzlich war
+der Bundle-Pfad in `tests/personal/contacts/test_write_helper_bundle.py`
+fest auf `x86_64-apple-darwin` verdrahtet, wodurch die achtzehn Prüfungen
+dieser Kette auf arm64 lautlos übersprangen. Beides ist korrigiert und auf
+arm64 belegt.
+
+Der Teilnachweis **write-helper packaging / signing / identifier /
+entitlements** wird für x86_64 deshalb ab sofort als `UNPROVEN` geführt, bis
+auf Intel ein gezielter Revalidierungsblock gelaufen ist. Ausdrücklich
+**nicht** behauptet wird, dass das damalige konkrete Intel-Bundle denselben
+Fehler trug — das ist auf Intel nicht geprüft, und ohne Prüfung gibt es dazu
+keine Aussage (§6). Der übrige Intel-Abschluss bleibt unberührt.
+
+**Zur arm64-Spalte:** Am 2026-08-12 auf dem Mac mini M2 Pro erstmals
+bearbeitet. Keine Zeile ist aus der Intel-Spalte übernommen (§7 Nr. 1–2,
+DEC-042); jede `PASS`-Zeile beruht auf einer Beobachtung auf diesem Gerät.
+Die Reihenfolge der Abarbeitung steht als M2-Checkliste in
 [contacts-native-update-delete-intel-2026-08-04.md](contacts-native-update-delete-intel-2026-08-04.md)
 §17.

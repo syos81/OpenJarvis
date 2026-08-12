@@ -202,6 +202,7 @@ const MODULDATEIEN = [
   'workspace/fehler.ts',
   'sidebar/ContactsSidebar.tsx',
   'list/ContactsListPane.tsx',
+  'list/KontextMenue.tsx',
   'detail/ContactDetailPane.tsx',
   'editor/ContactEditor.tsx',
   'editor/dialogs.tsx',

@@ -271,13 +271,24 @@ describe('Hauptnavigation der Statusfläche', () => {
     }
   });
 
-  it('fuehrt nach einer Freigabe direkt zum Vorgang', async () => {
+  /**
+   * Bis zum M2-Abgleich fuehrte eine Freigabe in die Statusflaeche, weil der
+   * Vorgang dort noch ausgefuehrt werden musste. Eigene Handlungen laufen
+   * jetzt nach ihrer einen Bestaetigung durch — es gibt keinen zweiten
+   * Schritt mehr, zu dem hinzufuehren waere. Geprueft wird deshalb, dass der
+   * Workspace beide Schritte selbst abschliesst statt sie liegen zu lassen.
+   */
+  it('schliesst eigene Vorgaenge selbst ab, statt in die Statusflaeche zu fuehren', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const quelle = fs.readFileSync(
       path.join(process.cwd(),
                 'src/personal/contacts/workspace/ContactsWorkspace.tsx'),
       'utf8');
-    expect(quelle).toContain("setStatusStart('vorgaenge')");
+    expect(quelle).toContain('const abschliessen =');
+    expect(quelle).toContain('quelle.approve(');
+    expect(quelle).toContain('quelle.execute(');
+    // Und der Vorschaudialog haengt hier nicht mehr.
+    expect(quelle).not.toContain('<PreviewDialog');
   });
 });

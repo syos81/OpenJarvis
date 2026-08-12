@@ -18,12 +18,12 @@ import {
 } from './fixtures';
 import type { ContactsDataSource } from './source';
 
-// Update/Delete sind im Demo-Modus absichtlich AN: der Bearbeitungsmodus
-// soll ohne produktive Daten voll erlebbar sein. Alles endet in
+// Create/Update/Delete sind im Demo-Modus absichtlich AN: Bearbeiten und
+// Anlegen sollen ohne produktive Daten voll erlebbar sein. Alles endet in
 // Fake-Vorgaengen; `execute` lehnt grundsaetzlich ab.
 const CAPS: Capabilities = {
   read_supported: true,
-  create_supported: false,
+  create_supported: true,
   update_supported: true,
   delete_supported: true,
   change_history_supported: false,

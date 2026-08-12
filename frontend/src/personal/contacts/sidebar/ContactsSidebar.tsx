@@ -39,12 +39,18 @@ function SidebarSection({ titel, children }: {
   );
 }
 
-function SidebarRow({ label, anzahl, aktiv, onSelect, testId }: {
+function SidebarRow({ label, anzahl, aktiv, onSelect, testId, akzent }: {
   label: string;
   anzahl?: number;
   aktiv: boolean;
   onSelect: () => void;
   testId?: string;
+  /**
+   * Farbmarke der Kategorie, Vorbild Erinnerungen-App. Sie steht **neben**
+   * dem Namen, nie an seiner Stelle: wer Farben nicht unterscheiden kann,
+   * liest weiterhin dieselbe Liste (7 Accessibility).
+   */
+  akzent?: string;
 }) {
   return (
     <li>
@@ -69,14 +75,29 @@ function SidebarRow({ label, anzahl, aktiv, onSelect, testId }: {
           textAlign: 'left',
           color: aktiv ? 'var(--pjc-selection-fg)' : 'var(--color-text)',
           backgroundColor: aktiv ? 'var(--pjc-selection-bg)' : 'transparent',
-          cursor: 'default',
         }}
       >
         <span style={{
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          fontWeight: aktiv ? 600 : 400,
+          display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0,
         }}>
-          {label}
+          {akzent && (
+            <span
+              aria-hidden="true"
+              style={{
+                flex: '0 0 auto',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: aktiv ? 'var(--pjc-selection-fg)' : akzent,
+              }}
+            />
+          )}
+          <span style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            fontWeight: aktiv ? 600 : 400,
+          }}>
+            {label}
+          </span>
         </span>
         {anzahl !== undefined && (
           <span style={{
@@ -93,6 +114,7 @@ function SidebarRow({ label, anzahl, aktiv, onSelect, testId }: {
 
 export function ContactsSidebar({
   auswahl, onAuswahl, konten, kategorien, gesamt, demoModus,
+  statusOffen, onStatusToggle, offeneFreigaben,
 }: {
   auswahl: SidebarAuswahl;
   onAuswahl: (a: SidebarAuswahl) => void;
@@ -100,6 +122,9 @@ export function ContactsSidebar({
   kategorien: RoleCount[];
   gesamt: number;
   demoModus: boolean;
+  statusOffen: boolean;
+  onStatusToggle: () => void;
+  offeneFreigaben: number;
 }) {
   return (
     <nav
@@ -108,6 +133,8 @@ export function ContactsSidebar({
       style={{
         height: '100%',
         overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
         backgroundColor: 'var(--pjc-bg-sidebar)',
         paddingTop: 'var(--pjc-pane-pad)',
         paddingBottom: 'var(--pjc-pane-pad)',
@@ -138,17 +165,41 @@ export function ContactsSidebar({
 
       {kategorien.length > 0 && (
         <SidebarSection titel="Kategorien">
-          {kategorien.map((k) => (
+          {kategorien.map((k, i) => (
             <SidebarRow
               key={k.role}
               label={k.role}
               anzahl={k.count}
+              // Feste Zuordnung ueber die Position: dieselbe Kategorie
+              // bekommt bei gleichem Bestand immer dieselbe Farbe. Ein
+              // Zufallswert waere bei jedem Laden ein anderer.
+              akzent={`var(--pjc-akzent-${(i % 6) + 1})`}
               aktiv={auswahl.art === 'kategorie' && auswahl.rolle === k.role}
               onSelect={() => onAuswahl({ art: 'kategorie', rolle: k.role })}
             />
           ))}
         </SidebarSection>
       )}
+
+      {/* Quelle, Abgleich, Berechtigung, Demo-Modus und die Vorgangshistorie.
+       *
+       * Aus der Toolbar entfernt — die Referenz hat dort nichts dergleichen,
+       * und eigene Handlungen brauchen den Weg seit dem M2-Abgleich nicht
+       * mehr. Ersatzlos streichen ging aber nicht: der Abgleich, die
+       * Berechtigungsanfrage und der Demo-Modus sind ausschliesslich hier
+       * erreichbar. Unten in der Seitenleiste steht er leise und ist da,
+       * wenn man ihn sucht. Klemmt etwas, traegt er zusaetzlich die Zahl. */}
+      <div style={{ marginTop: 'auto', paddingTop: 'var(--pjc-pane-pad)' }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          <SidebarRow
+            label="Quelle & Status"
+            anzahl={offeneFreigaben > 0 ? offeneFreigaben : undefined}
+            aktiv={statusOffen}
+            onSelect={onStatusToggle}
+            testId="sidebar-status"
+          />
+        </ul>
+      </div>
     </nav>
   );
 }
