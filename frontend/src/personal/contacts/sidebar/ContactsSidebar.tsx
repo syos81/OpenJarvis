@@ -115,6 +115,7 @@ function SidebarRow({ label, anzahl, aktiv, onSelect, testId, akzent }: {
 
 export function ContactsSidebar({
   auswahl, onAuswahl, konten, kategorien, gesamt, demoModus,
+  statusOffen, onStatusToggle, offeneFreigaben,
 }: {
   auswahl: SidebarAuswahl;
   onAuswahl: (a: SidebarAuswahl) => void;
@@ -122,6 +123,9 @@ export function ContactsSidebar({
   kategorien: RoleCount[];
   gesamt: number;
   demoModus: boolean;
+  statusOffen: boolean;
+  onStatusToggle: () => void;
+  offeneFreigaben: number;
 }) {
   return (
     <nav
@@ -130,6 +134,8 @@ export function ContactsSidebar({
       style={{
         height: '100%',
         overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
         backgroundColor: 'var(--pjc-bg-sidebar)',
         paddingTop: 'var(--pjc-pane-pad)',
         paddingBottom: 'var(--pjc-pane-pad)',
@@ -175,6 +181,26 @@ export function ContactsSidebar({
           ))}
         </SidebarSection>
       )}
+
+      {/* Quelle, Abgleich, Berechtigung, Demo-Modus und die Vorgangshistorie.
+       *
+       * Aus der Toolbar entfernt — die Referenz hat dort nichts dergleichen,
+       * und eigene Handlungen brauchen den Weg seit dem M2-Abgleich nicht
+       * mehr. Ersatzlos streichen ging aber nicht: der Abgleich, die
+       * Berechtigungsanfrage und der Demo-Modus sind ausschliesslich hier
+       * erreichbar. Unten in der Seitenleiste steht er leise und ist da,
+       * wenn man ihn sucht. Klemmt etwas, traegt er zusaetzlich die Zahl. */}
+      <div style={{ marginTop: 'auto', paddingTop: 'var(--pjc-pane-pad)' }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          <SidebarRow
+            label="Quelle & Status"
+            anzahl={offeneFreigaben > 0 ? offeneFreigaben : undefined}
+            aktiv={statusOffen}
+            onSelect={onStatusToggle}
+            testId="sidebar-status"
+          />
+        </ul>
+      </div>
     </nav>
   );
 }

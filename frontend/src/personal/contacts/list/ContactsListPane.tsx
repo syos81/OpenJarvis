@@ -59,7 +59,21 @@ function tokenPx(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+/**
+ * Farbe eines Avatars — aus dem Namen abgeleitet, nicht zufällig.
+ *
+ * Derselbe Kontakt behält damit über Neuladen, Filter und Sortierung hinweg
+ * dieselbe Farbe; sie wird zu einem Wiedererkennungsmerkmal statt zu Dekor.
+ * Bedeutung trägt sie nicht — die Initialen und der Name stehen daneben.
+ */
+export function avatarFarbe(name: string): string {
+  let summe = 0;
+  for (let i = 0; i < name.length; i += 1) summe = (summe * 31 + name.charCodeAt(i)) % 997;
+  return `var(--pjc-akzent-${(summe % 6) + 1})`;
+}
+
 function Avatar({ name }: { name: string }) {
+  const farbe = avatarFarbe(name);
   return (
     <span
       aria-hidden="true"
@@ -73,8 +87,8 @@ function Avatar({ name }: { name: string }) {
         justifyContent: 'center',
         font: 'var(--pjc-font-label)',
         fontWeight: 600,
-        color: 'var(--color-text-muted)',
-        backgroundColor: 'var(--color-surface-2)',
+        color: farbe,
+        backgroundColor: `color-mix(in srgb, ${farbe} var(--pjc-akzent-fond), transparent)`,
       }}
     >
       {initialen(name)}

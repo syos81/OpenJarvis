@@ -3,7 +3,7 @@
 // Web-Headerleiste, keine dauerhafte Entwicklerdiagnose.
 
 import { forwardRef } from 'react';
-import { ClipboardList, Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
 
 export const ContactsToolbar = forwardRef<HTMLInputElement, {
@@ -16,14 +16,11 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
   /** „Bearbeiten" steht wie in der Referenz oben rechts, nicht in der Karte. */
   bearbeitenSichtbar: boolean;
   onBearbeiten: () => void;
-  statusOffen: boolean;
-  onStatusToggle: () => void;
   demoModus: boolean;
-  offeneFreigaben: number;
 }>(function ContactsToolbar({
   suche, onSuche, onSucheEscape, anlegenSichtbar, onAnlegen,
   bearbeitenSichtbar, onBearbeiten,
-  statusOffen, onStatusToggle, demoModus, offeneFreigaben,
+  demoModus,
 }, suchfeldRef) {
   return (
     <div
@@ -140,33 +137,9 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onStatusToggle}
-        aria-label={`Vorgänge und Status ${statusOffen ? 'schliessen' : 'öffnen'}`}
-        aria-expanded={statusOffen}
-        data-testid="toolbar-status"
-        className="pjc-focusable"
-        style={{
-          ...aktionsKnopf(false),
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          color: statusOffen ? 'var(--color-accent)' : 'var(--color-text)',
-        }}
-      >
-        <ClipboardList size={15} aria-hidden="true" />
-        {offeneFreigaben > 0 && (
-          <span
-            aria-label={`${offeneFreigaben} offene Freigaben`}
-            style={{
-              font: 'var(--pjc-font-label)',
-              color: 'var(--color-warning)',
-              fontWeight: 600,
-            }}
-          >
-            {offeneFreigaben}
-          </span>
-        )}
-      </button>
+      {/* Der Zugang zu Vorgängen und Status ist aus der Toolbar verschwunden
+          und steht jetzt unten in der Seitenleiste — die Referenz hat oben
+          rechts nichts dergleichen. */}
     </div>
   );
 });

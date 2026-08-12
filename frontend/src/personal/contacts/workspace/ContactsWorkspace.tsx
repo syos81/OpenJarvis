@@ -373,15 +373,12 @@ export function ContactsWorkspace({ testListenHoehe }: {
           if (sucheEingabe !== '') setSucheEingabe('');
           else fokusListe();
         }}
-        anlegenSichtbar={!demoModus && Boolean(caps?.create_supported)}
+        anlegenSichtbar={Boolean(caps?.create_supported)}
         onAnlegen={(x, y) => setNeuMenue({ x, y })}
         bearbeitenSichtbar={Boolean(
           detail && !detail.is_me_card && detail.writable && caps?.update_supported)}
         onBearbeiten={() => setBearbeitet(true)}
-        statusOffen={statusOffen}
-        onStatusToggle={() => setStatusOffen((o) => !o)}
         demoModus={demoModus}
-        offeneFreigaben={offeneFreigaben}
       />
 
       {/* Grid statt Flex: WKWebView auf macOS 12 zeichnete beim Ziehen der
@@ -405,6 +402,9 @@ export function ContactsWorkspace({ testListenHoehe }: {
             kategorien={kategorien}
             gesamt={kontakte.length}
             demoModus={demoModus}
+            statusOffen={statusOffen}
+            onStatusToggle={() => setStatusOffen((o) => !o)}
+            offeneFreigaben={offeneFreigaben}
           />
         </div>
         <PaneDivider
@@ -425,7 +425,12 @@ export function ContactsWorkspace({ testListenHoehe }: {
             <ContactsListPane
               kontakte={sichtbar}
               auswahlId={auswahlId}
-              onAuswahl={setAuswahlId}
+              // Im Bearbeitungsmodus bleibt die Auswahl stehen. Ein Wechsel
+              // wuerde den Editor mit ungesicherten Eingaben auf einen
+              // anderen Kontakt umschalten — Getipptes ginge verloren oder
+              // landete schlimmstenfalls beim Falschen. Die Referenz sperrt
+              // die Liste waehrend des Bearbeitens ebenso.
+              onAuswahl={(id) => { if (!bearbeitet) setAuswahlId(id); }}
               onEnterDetail={() => {
                 const el = document.querySelector<HTMLElement>('[data-testid="contact-detail"]');
                 el?.focus?.();

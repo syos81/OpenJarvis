@@ -555,7 +555,9 @@ describe('Accessibility', () => {
 
   it('benennt alle Icon-Schaltflächen', async () => {
     await rendern();
-    expect(screen.getByRole('button', { name: /Vorgänge und Status/ })).toBeInTheDocument();
+    // Der Zugang zu Vorgaengen und Status sitzt seit dem M2-Abgleich unten
+    // in der Seitenleiste, nicht mehr in der Toolbar.
+    expect(screen.getByTestId('sidebar-status')).toBeInTheDocument();
     expect(screen.getByLabelText('Kontakte durchsuchen')).toBeInTheDocument();
   });
 
@@ -597,7 +599,7 @@ describe('Sicherheit', () => {
   it('verlangt für den Demo-Modus zwei bewusste Schritte und ist beendbar', async () => {
     await rendern();
     const u = nutzer();
-    await u.click(screen.getByTestId('toolbar-status'));
+    await u.click(screen.getByTestId('sidebar-status'));
     await u.click(await screen.findByTestId('demo-anbieten'));
     // Erster Klick aktiviert nichts:
     expect(screen.queryByTestId('demo-banner')).not.toBeInTheDocument();
@@ -613,7 +615,7 @@ describe('Sicherheit', () => {
   it('ruft im Demo-Modus keinen einzigen Client-Endpunkt auf', async () => {
     await rendern();
     const u = nutzer();
-    await u.click(screen.getByTestId('toolbar-status'));
+    await u.click(screen.getByTestId('sidebar-status'));
     await u.click(await screen.findByTestId('demo-anbieten'));
     await u.click(screen.getByTestId('demo-starten'));
     await screen.findByTestId('demo-banner');

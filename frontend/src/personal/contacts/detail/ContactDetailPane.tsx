@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import type { Capabilities, ContactDetail, LabeledValue } from '../api';
 import { Chip, availabilityOf } from '../components';
-import { initialen } from '../list/ContactsListPane';
+import { avatarFarbe, initialen } from '../list/ContactsListPane';
 import type { Fehlerbild } from '../workspace/fehler';
 
 const LABEL_TEXT: Record<string, string> = {
@@ -173,8 +173,9 @@ export function ContactDetailPane({
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--color-text-muted)',
-          backgroundColor: 'var(--color-surface-2)',
+          color: avatarFarbe(kontakt.display_name),
+          backgroundColor: `color-mix(in srgb, ${avatarFarbe(kontakt.display_name)} `
+            + `var(--pjc-akzent-fond), transparent)`,
           flex: '0 0 auto',
           containerType: 'inline-size',
         }}>
