@@ -218,29 +218,11 @@ export function ContactDetailPane({
         </div>
       </header>
 
-      {/* Aktionen */}
-      {(aenderbar || loeschbar) && (
-        <div role="group" aria-label="Kontaktaktionen"
-             style={{
-               display: 'flex', gap: '8px', marginTop: '14px',
-               justifyContent: 'center',
-             }}>
-          {aenderbar && (
-            <button type="button" onClick={onBearbeiten} className="pjc-focusable"
-                    data-testid="detail-bearbeiten"
-                    style={aktionsKnopf(false)}>
-              Bearbeiten
-            </button>
-          )}
-          {loeschbar && (
-            <button type="button" onClick={onLoeschen} className="pjc-focusable"
-                    data-testid="detail-loeschen"
-                    style={aktionsKnopf(true)}>
-              Löschen…
-            </button>
-          )}
-        </div>
-      )}
+      {/* Keine Aktionsknoepfe in der Karte. Die Referenz auf dem M2 haelt
+          „Bearbeiten" oben in der Toolbar und alles Weitere im Rechtsklick;
+          die Karte selbst zeigt nur den Kontakt. `onBearbeiten` und
+          `onLoeschen` bleiben Teil des Vertrags dieser Komponente — der
+          Workspace loest beides jetzt von dort aus. */}
 
       {fehler && (
         <p role="alert" style={{

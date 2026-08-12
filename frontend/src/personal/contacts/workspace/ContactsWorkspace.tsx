@@ -26,7 +26,10 @@ import { KontextMenue } from '../list/KontextMenue';
 import type { KontextEintrag } from '../list/KontextMenue';
 import { ContactDetailPane } from '../detail/ContactDetailPane';
 import { ContactEditor } from '../editor/ContactEditor';
-import { CreateDialog, DeleteBestaetigung, PreviewDialog } from '../editor/dialogs';
+// PreviewDialog wird hier nicht mehr eingehaengt: eigene Handlungen laufen
+// nach ihrer einen Bestaetigung durch. Freigaben zu Vorgaengen, die Jarvis
+// selbst vorbereitet hat, entscheidet weiterhin die Statusflaeche.
+import { CreateDialog, DeleteBestaetigung } from '../editor/dialogs';
 import { ContactsStatusSurface } from '../status/ContactsStatusSurface';
 import { ContactsToolbar } from './ContactsToolbar';
 import { PaneDivider } from './PaneDivider';
@@ -200,13 +203,39 @@ export function ContactsWorkspace({ testListenHoehe }: {
   const [loeschenOffen, setLoeschenOffen] = useState(false);
   const [kontextmenue, setKontextmenue] =
     useState<{ id: string; x: number; y: number } | null>(null);
+  const [neuMenue, setNeuMenue] = useState<{ x: number; y: number } | null>(null);
   const [anlegenOffen, setAnlegenOffen] = useState(false);
-  const [vorschau, setVorschau] = useState<PreparedMutation | null>(null);
   const [statusOffen, setStatusOffen] = useState(false);
   //: Nach einer Freigabe soll die Fläche beim Vorgang aufgehen, nicht bei
   //: der Quelle — der Mensch hat gerade entschieden und will ausführen.
   const [statusStart, setStatusStart] = useState<'vorgaenge' | undefined>();
   const [aktionsFehler, setAktionsFehler] = useState<Fehlerbild | null>(null);
+
+  /**
+   * Schliesst einen vorbereiteten Vorgang ohne weiteren Klick ab.
+   *
+   * Der Mensch hat unmittelbar zuvor selbst gehandelt — „Fertig" im Editor,
+   * „Löschen" im Bestätigungsdialog, „Anlegen" im Anlegedialog. Diese
+   * Handlung **ist** die Freigabe; sie wird mit `decision_actor` in der
+   * Auditspur festgehalten und kostet nur keinen zweiten Klick mehr.
+   *
+   * Ausdrücklich begrenzt auf Vorgänge, die der Mensch selbst ausgelöst hat
+   * (`initiation_context = user_direct`). Was Jarvis von sich aus vorbereitet,
+   * behält den sichtbaren Freigabeweg — dort ist die Zustimmung der ganze
+   * Punkt (ADR-0026, DEC-053).
+   */
+  const abschliessen = async (m: PreparedMutation) => {
+    setAktionsFehler(null);
+    try {
+      await quelle.approve(m.mutation_id, 'desktop-user');
+      await quelle.execute(m.mutation_id, m.command === 'delete');
+    } catch (e) {
+      // Fehlschläge bleiben sichtbar: fail-closed heisst nicht stillschweigend.
+      setAktionsFehler(fehlerbild(e));
+    } finally {
+      setNachladen((n) => n + 1);
+    }
+  };
 
   const fertig = async (felder: Record<string, unknown>) => {
     if (!detail) return;
@@ -218,7 +247,7 @@ export function ContactsWorkspace({ testListenHoehe }: {
         fields: felder,
       });
       setBearbeitet(false);
-      setVorschau(m);
+      await abschliessen(m);
     } catch (e) {
       setEditorFehler(fehlerbild(e));
     } finally {
@@ -260,7 +289,6 @@ export function ContactsWorkspace({ testListenHoehe }: {
     setSidebarAuswahl({ art: 'alle' });
     setSucheEingabe('');
     setBearbeitet(false);
-    setVorschau(null);
   };
   const demoEnde = () => {
     setQuelle(apiDataSource());
@@ -268,7 +296,6 @@ export function ContactsWorkspace({ testListenHoehe }: {
     setSidebarAuswahl({ art: 'alle' });
     setSucheEingabe('');
     setBearbeitet(false);
-    setVorschau(null);
   };
 
   // ── Dev-Szenarien für Screenshot-Baselines ───────────────────────────────
@@ -347,7 +374,10 @@ export function ContactsWorkspace({ testListenHoehe }: {
           else fokusListe();
         }}
         anlegenSichtbar={!demoModus && Boolean(caps?.create_supported)}
-        onAnlegen={() => setAnlegenOffen(true)}
+        onAnlegen={(x, y) => setNeuMenue({ x, y })}
+        bearbeitenSichtbar={Boolean(
+          detail && !detail.is_me_card && detail.writable && caps?.update_supported)}
+        onBearbeiten={() => setBearbeitet(true)}
         statusOffen={statusOffen}
         onStatusToggle={() => setStatusOffen((o) => !o)}
         demoModus={demoModus}
@@ -484,6 +514,19 @@ export function ContactsWorkspace({ testListenHoehe }: {
         />
       )}
 
+      {neuMenue && (
+        <KontextMenue
+          x={neuMenue.x}
+          y={neuMenue.y}
+          onSchliessen={() => setNeuMenue(null)}
+          eintraege={[{
+            id: 'neuer-kontakt',
+            text: 'Neuer Kontakt',
+            onAuswahl: () => setAnlegenOffen(true),
+          }]}
+        />
+      )}
+
       {statusOffen && (
         <ContactsStatusSurface
           quelle={quelle}
@@ -503,27 +546,14 @@ export function ContactsWorkspace({ testListenHoehe }: {
           kontakt={detail}
           quelle={quelle}
           onClose={() => setLoeschenOffen(false)}
-          onPrepared={(m) => { setLoeschenOffen(false); setVorschau(m); }}
+          onPrepared={(m) => { setLoeschenOffen(false); void abschliessen(m); }}
         />
       )}
       {anlegenOffen && (
         <CreateDialog
           caps={caps}
           onClose={() => setAnlegenOffen(false)}
-          onPrepared={(m) => { setAnlegenOffen(false); setVorschau(m); }}
-        />
-      )}
-      {vorschau && (
-        <PreviewDialog
-          vorgang={vorschau}
-          quelle={quelle}
-          onClose={() => setVorschau(null)}
-          onEntschieden={() => {
-            setVorschau(null);
-            setStatusStart('vorgaenge');
-            setStatusOffen(true);
-            setNachladen((n) => n + 1);
-          }}
+          onPrepared={(m) => { setAnlegenOffen(false); void abschliessen(m); }}
         />
       )}
     </div>

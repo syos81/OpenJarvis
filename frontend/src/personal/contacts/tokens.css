@@ -96,10 +96,28 @@
      kam aus `--color-border-subtle` und lag bei 4 %, also sichtbar zu blass. */
   --pjc-divider: color-mix(in srgb, var(--color-text) 10%, transparent);
   --pjc-divider-width: 1px;
+  /* Auswahl kräftig, wie in der Referenz: gefüllte Fläche, weisse Schrift.
+     Die Systemakzentfarbe ist aus dem WKWebView nicht auslesbar (§7), der
+     gemessene Wert ist Lukas' persönliches Orange — deshalb steht hier eine
+     eigene kräftige Farbe statt eines nachgemalten Systemwerts. */
   --pjc-selection-bg: var(--color-accent);
   --pjc-selection-fg: #ffffff;
   --pjc-selection-inactive-bg: var(--color-bg-tertiary);
   --pjc-hover-bg: color-mix(in srgb, var(--color-text) 6%, transparent);
+
+  /* ── Akzentpalette der Kategorien ────────────────────────────────────
+     Vorbild ist die Erinnerungen-App: kräftige, klar unterscheidbare
+     Farben auf hellem Grund. Sie tragen Bedeutung (welche Kategorie),
+     nie allein — daneben steht immer der Name, damit die Fläche auch
+     ohne Farbunterscheidung lesbar bleibt. */
+  --pjc-akzent-1: #0a84ff;   /* Blau */
+  --pjc-akzent-2: #ff9f0a;   /* Orange */
+  --pjc-akzent-3: #30d158;   /* Grün */
+  --pjc-akzent-4: #bf5af2;   /* Violett */
+  --pjc-akzent-5: #ff375f;   /* Rot */
+  --pjc-akzent-6: #64d2ff;   /* Türkis */
+  /* Die weissliche Hinterlegung: dieselbe Farbe, stark aufgehellt. */
+  --pjc-akzent-fond: 12%;
   --pjc-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
 
   /* ── Radien und Bewegung (M2-VORLÄUFIG) ─────────────────────────────── */

@@ -334,7 +334,7 @@ describe('Bearbeitung', () => {
     await rendern();
     const u = nutzer();
     await u.click(within(liste()).getByText('Bruno Beispiel'));
-    await u.click(await screen.findByTestId('detail-bearbeiten'));
+    await u.click(await screen.findByTestId('toolbar-bearbeiten'));
     const editor = await screen.findByTestId('contact-editor');
     const orga = within(editor).getByLabelText('Organisation');
     await u.clear(orga);
@@ -345,8 +345,12 @@ describe('Bearbeitung', () => {
     expect(zielId).toBe('k-2');
     expect(args.fields).toEqual({ organization_name: 'Muster AG' });
     expect(args.expectedRevision).toBe('1');
-    // Danach: Vorschau mit Freigabeweg.
-    expect(await screen.findByText('Änderung prüfen und freigeben')).toBeInTheDocument();
+    // „Fertig" ist die Zustimmung: der Vorgang laeuft danach ohne zweiten
+    // Klick durch, und die Freigabe steht mit Akteur in der Spur.
+    await waitFor(() => expect(mock.approveMutation).toHaveBeenCalledTimes(1));
+    expect(mock.approveMutation).toHaveBeenCalledWith('m-1', 'desktop-user');
+    // Der Vorschaudialog erscheint fuer eigene Handlungen nicht mehr.
+    expect(screen.queryByText('Änderung prüfen und freigeben')).not.toBeInTheDocument();
   });
 
   it('schliesst ohne Änderungen sofort, fragt bei Änderungen nach', async () => {
@@ -354,11 +358,11 @@ describe('Bearbeitung', () => {
     await rendern();
     const u = nutzer();
     await u.click(within(liste()).getByText('Bruno Beispiel'));
-    await u.click(await screen.findByTestId('detail-bearbeiten'));
+    await u.click(await screen.findByTestId('toolbar-bearbeiten'));
     await u.click(screen.getByTestId('editor-abbrechen'));
     expect(screen.queryByTestId('contact-editor')).not.toBeInTheDocument();
 
-    await u.click(await screen.findByTestId('detail-bearbeiten'));
+    await u.click(await screen.findByTestId('toolbar-bearbeiten'));
     await u.type(within(screen.getByTestId('contact-editor')).getByLabelText('Spitzname'), 'Bibi');
     await u.click(screen.getByTestId('editor-abbrechen'));
     expect(await screen.findByText('Änderungen verwerfen?')).toBeInTheDocument();
@@ -404,7 +408,7 @@ describe('Bearbeitung', () => {
     await rendern();
     const u = nutzer();
     await u.click(within(liste()).getByText('Bruno Beispiel'));
-    await u.click(await screen.findByTestId('detail-bearbeiten'));
+    await u.click(await screen.findByTestId('toolbar-bearbeiten'));
     expect(screen.queryByText(/erst mit einem erweiterten Feldvertrag/))
       .not.toBeInTheDocument();
     const knopf = screen.getByRole('button', { name: 'E-Mail hinzufügen' });
@@ -421,10 +425,20 @@ describe('Bearbeitung', () => {
     const u = nutzer();
     await u.click(within(liste()).getByText('Bruno Beispiel'));
     await screen.findByTestId('contact-detail');
-    expect(screen.queryByTestId('detail-bearbeiten')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('toolbar-bearbeiten')).not.toBeInTheDocument();
   });
 
-  it('öffnet den Löschdialog mit Unumkehrbarkeits-Warnung, ohne auszuführen', async () => {
+  /**
+   * Seit dem M2-Abgleich fuehrt der Loeschweg ueber den Rechtsklick, und die
+   * Bestaetigung des Menschen **ist** die Freigabe: danach laeuft der Vorgang
+   * ohne weiteren Klick durch. Der Eigentuemer hat das ausdruecklich so
+   * entschieden — begrenzt auf Handlungen, die er selbst ausloest. Was Jarvis
+   * von sich aus vorbereitet, behaelt den sichtbaren Freigabeweg.
+   *
+   * Genau eine Zustimmung bleibt also Pflicht; geprueft wird hier, dass es
+   * ohne sie keinen Save gibt und mit ihr genau einen Durchlauf.
+   */
+  it('loescht ueber den Rechtsklick und schliesst nach einer Bestaetigung ab', async () => {
     mock.getCapabilities.mockResolvedValue({ ...CAPS_UPDATE, delete_supported: true });
     mock.prepareDelete.mockResolvedValue({
       mutation_id: 'm-2', approval_id: 'a-2', state: 'awaiting_approval',
@@ -435,12 +449,22 @@ describe('Bearbeitung', () => {
     await rendern();
     const u = nutzer();
     await u.click(within(liste()).getByText('Bruno Beispiel'));
-    await u.click(await screen.findByTestId('detail-loeschen'));
+    await screen.findByTestId('contact-detail');
+
+    await u.pointer({ keys: '[MouseRight]',
+                      target: within(liste()).getByText('Bruno Beispiel') });
+    await u.click(await screen.findByTestId('kontextmenue-loeschen'));
+
+    // Der Warnhinweis bleibt: unumkehrbar heisst unumkehrbar.
     expect(await screen.findByText(/nicht rückgängig/)).toBeInTheDocument();
+    // Bis hierher wurde nichts vorbereitet und erst recht nichts gesendet.
+    expect(mock.prepareDelete).not.toHaveBeenCalled();
+
     await u.click(screen.getByTestId('loeschen-vorbereiten'));
     await waitFor(() => expect(mock.prepareDelete).toHaveBeenCalledTimes(1));
-    // Vorbereitet, nie ausgeführt:
-    expect(mock.executeMutation).not.toHaveBeenCalled();
+    // Eine Zustimmung, ein Durchlauf — und die Freigabe steht in der Spur.
+    await waitFor(() => expect(mock.approveMutation).toHaveBeenCalledTimes(1));
+    expect(mock.approveMutation).toHaveBeenCalledWith('m-2', 'desktop-user');
   });
 });
 

@@ -39,12 +39,18 @@ function SidebarSection({ titel, children }: {
   );
 }
 
-function SidebarRow({ label, anzahl, aktiv, onSelect, testId }: {
+function SidebarRow({ label, anzahl, aktiv, onSelect, testId, akzent }: {
   label: string;
   anzahl?: number;
   aktiv: boolean;
   onSelect: () => void;
   testId?: string;
+  /**
+   * Farbmarke der Kategorie, Vorbild Erinnerungen-App. Sie steht **neben**
+   * dem Namen, nie an seiner Stelle: wer Farben nicht unterscheiden kann,
+   * liest weiterhin dieselbe Liste (7 Accessibility).
+   */
+  akzent?: string;
 }) {
   return (
     <li>
@@ -73,10 +79,26 @@ function SidebarRow({ label, anzahl, aktiv, onSelect, testId }: {
         }}
       >
         <span style={{
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          fontWeight: aktiv ? 600 : 400,
+          display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0,
         }}>
-          {label}
+          {akzent && (
+            <span
+              aria-hidden="true"
+              style={{
+                flex: '0 0 auto',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: aktiv ? 'var(--pjc-selection-fg)' : akzent,
+              }}
+            />
+          )}
+          <span style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            fontWeight: aktiv ? 600 : 400,
+          }}>
+            {label}
+          </span>
         </span>
         {anzahl !== undefined && (
           <span style={{
@@ -138,11 +160,15 @@ export function ContactsSidebar({
 
       {kategorien.length > 0 && (
         <SidebarSection titel="Kategorien">
-          {kategorien.map((k) => (
+          {kategorien.map((k, i) => (
             <SidebarRow
               key={k.role}
               label={k.role}
               anzahl={k.count}
+              // Feste Zuordnung ueber die Position: dieselbe Kategorie
+              // bekommt bei gleichem Bestand immer dieselbe Farbe. Ein
+              // Zufallswert waere bei jedem Laden ein anderer.
+              akzent={`var(--pjc-akzent-${(i % 6) + 1})`}
               aktiv={auswahl.art === 'kategorie' && auswahl.rolle === k.role}
               onSelect={() => onAuswahl({ art: 'kategorie', rolle: k.role })}
             />

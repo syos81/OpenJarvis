@@ -11,13 +11,18 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
   onSuche: (wert: string) => void;
   onSucheEscape: () => void;
   anlegenSichtbar: boolean;
-  onAnlegen: () => void;
+  /** Das Plus oeffnet wie in der Referenz ein Menue, keinen Dialog direkt. */
+  onAnlegen: (x: number, y: number) => void;
+  /** „Bearbeiten" steht wie in der Referenz oben rechts, nicht in der Karte. */
+  bearbeitenSichtbar: boolean;
+  onBearbeiten: () => void;
   statusOffen: boolean;
   onStatusToggle: () => void;
   demoModus: boolean;
   offeneFreigaben: number;
 }>(function ContactsToolbar({
   suche, onSuche, onSucheEscape, anlegenSichtbar, onAnlegen,
+  bearbeitenSichtbar, onBearbeiten,
   statusOffen, onStatusToggle, demoModus, offeneFreigaben,
 }, suchfeldRef) {
   return (
@@ -56,10 +61,23 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
 
       <div style={{ flex: 1 }} />
 
+      {bearbeitenSichtbar && (
+        <button type="button" onClick={onBearbeiten} className="pjc-focusable"
+                data-testid="toolbar-bearbeiten"
+                style={aktionsKnopf(false)}>
+          Bearbeiten
+        </button>
+      )}
+
       {anlegenSichtbar && (
-        <button type="button" onClick={onAnlegen} className="pjc-focusable"
+        <button type="button" className="pjc-focusable"
+                onClick={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onAnlegen(r.left, r.bottom + 4);
+                }}
                 data-testid="toolbar-anlegen"
-                aria-label="Kontakt anlegen"
+                aria-label="Neu"
+                aria-haspopup="menu"
                 style={{ ...aktionsKnopf(false), display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <Plus size={15} aria-hidden="true" />
         </button>
