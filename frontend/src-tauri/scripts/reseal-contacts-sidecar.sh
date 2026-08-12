@@ -43,6 +43,12 @@ CONTACTS_ENTITLEMENTS="$HERE/../ContactsSidecar.entitlements"
 CONTACTS_IDENTIFIER="de.kluender.jarvis.contacts-bridge"
 CALENDAR_ENTITLEMENTS="$HERE/../CalendarSidecar.entitlements"
 CALENDAR_IDENTIFIER="de.kluender.jarvis.calendar-bridge"
+# Der Schreibhelfer ist kein Sidecar, braucht aber dieselbe Behandlung: ADR-0026
+# bindet ihn auf einen eigenen Identifier und **ein** Entitlement. Ohne diesen
+# Schritt erbt er den vollen Satz der App — auf arm64 mechanisch belegt: neun
+# Einträge und der Identifier `contacts-write-helper` statt des vollen Namens.
+HELPER_ENTITLEMENTS="$HERE/../ContactsWriteHelper.entitlements"
+HELPER_IDENTIFIER="de.kluender.jarvis.contacts-write-helper"
 
 if [ -z "$APP" ] || [ ! -d "$APP" ]; then
     echo "Usage: APPLE_SIGNING_IDENTITY=<id> $0 <path-to-.app>" >&2
@@ -57,6 +63,7 @@ fi
 
 CONTACTS_SIDECAR="$APP/Contents/MacOS/jarvis-contacts"
 CALENDAR_SIDECAR="$APP/Contents/MacOS/jarvis-calendar"
+WRITE_HELPER="$APP/Contents/MacOS/contacts-write-helper"
 
 if [ ! -f "$CONTACTS_SIDECAR" ]; then
     echo "No bundled sidecar at $CONTACTS_SIDECAR" >&2
@@ -66,8 +73,12 @@ if [ ! -f "$CALENDAR_SIDECAR" ]; then
     echo "No bundled sidecar at $CALENDAR_SIDECAR" >&2
     exit 4
 fi
+if [ ! -f "$WRITE_HELPER" ]; then
+    echo "No bundled write helper at $WRITE_HELPER" >&2
+    exit 4
+fi
 
-for ent in "$CONTACTS_ENTITLEMENTS" "$CALENDAR_ENTITLEMENTS"; do
+for ent in "$CONTACTS_ENTITLEMENTS" "$CALENDAR_ENTITLEMENTS" "$HELPER_ENTITLEMENTS"; do
     if [ ! -f "$ent" ]; then
         echo "Missing $ent — refusing to fall back to the app's entitlements," >&2
         echo "which is exactly what this script exists to prevent." >&2
@@ -75,7 +86,7 @@ for ent in "$CONTACTS_ENTITLEMENTS" "$CALENDAR_ENTITLEMENTS"; do
     fi
 done
 
-echo "== 1/4 Re-sign each sidecar with its own minimal entitlements =="
+echo "== 1/4 Re-sign each sidecar and the write helper with minimal entitlements =="
 codesign --force --sign "$IDENTITY" \
     --identifier "$CONTACTS_IDENTIFIER" \
     --options runtime --timestamp=none \
@@ -86,6 +97,11 @@ codesign --force --sign "$IDENTITY" \
     --options runtime --timestamp=none \
     --entitlements "$CALENDAR_ENTITLEMENTS" \
     "$CALENDAR_SIDECAR"
+codesign --force --sign "$IDENTITY" \
+    --identifier "$HELPER_IDENTIFIER" \
+    --options runtime --timestamp=none \
+    --entitlements "$HELPER_ENTITLEMENTS" \
+    "$WRITE_HELPER"
 
 echo "== 2/4 Re-sign the enclosing app =="
 codesign --force --sign "$IDENTITY" \
@@ -96,6 +112,7 @@ codesign --force --sign "$IDENTITY" \
 echo "== 3/4 Verify =="
 codesign --verify --strict --verbose=2 "$CONTACTS_SIDECAR"
 codesign --verify --strict --verbose=2 "$CALENDAR_SIDECAR"
+codesign --verify --strict --verbose=2 "$WRITE_HELPER"
 codesign --verify --strict --deep --verbose=2 "$APP"
 
 echo "== 4/4 Evidence =="
@@ -107,4 +124,8 @@ echo "-- Calendar sidecar entitlements (expected: calendars only) --"
 codesign -d --entitlements :- "$CALENDAR_SIDECAR" 2>&1 | tail -n +2
 echo "-- Calendar sidecar designated requirement --"
 codesign -d -r- "$CALENDAR_SIDECAR" 2>&1 | grep designated
+echo "-- Write helper entitlements (expected: address book only) --"
+codesign -d --entitlements - "$WRITE_HELPER" 2>&1 | tail -n +2
+echo "-- Write helper designated requirement --"
+codesign -d -r- "$WRITE_HELPER" 2>&1 | grep designated
 echo "RESEAL OK"

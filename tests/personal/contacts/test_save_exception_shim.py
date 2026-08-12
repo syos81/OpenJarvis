@@ -33,11 +33,18 @@ from personaljarvis.contacts.bridge.process import SidecarProcess
 from personaljarvis.contacts.bridge.resolver import (
     SidecarLocation,
     host_architecture,
+    tauri_triple,
 )
 
 _REPO = Path(__file__).resolve().parents[3]
 _SRC = _REPO / "native" / "contacts-bridge" / "src"
+#: Kandidaten fuer das Bauverzeichnis des Harness. Der erste Eintrag ist die
+#: Form, die die Paketierung tatsaechlich verwendet: `build-<Rust-Triple>`,
+#: derselbe Name wie der externalBin-Suffix. Fehlte er, uebersprang der
+#: Harness-Test lautlos, obwohl `build.sh` ihn unmittelbar zuvor gebaut und
+#: ausgefuehrt hatte — ein leerer Pflichtscan ist kein Nachweis (§9).
 _BUILD_DIRS = (
+    _REPO / "native" / "contacts-bridge" / f"build-{tauri_triple()}",
     _REPO / "native" / "contacts-bridge" / "build",
     _REPO / "native" / "contacts-bridge" / "build-x86_64",
     _REPO / "native" / "contacts-bridge" / "build-arm64",

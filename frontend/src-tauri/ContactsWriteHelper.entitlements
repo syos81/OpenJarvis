@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements des Schreibhelfers — vollständig und abschliessend.
+
+  ADR-0026 bindet den Helfer auf „**ein** Entitlement (Addressbook)". Ohne
+  eigene Datei signiert `tauri build` ihn mit den Entitlements der App: neun
+  Einträge, darunter JIT, unsignierter Speicher, abgeschaltete
+  Library-Validation, beide Netzrechte und Kalenderzugriff. Der Helfer nimmt
+  genau eine ExecutionOrder über stdin entgegen, führt höchstens einen
+  `CNSaveRequest` aus und berichtet über stdout — er öffnet keine Verbindung,
+  lädt keine fremde Bibliothek und rührt keinen Kalender an.
+
+  Dieselbe Begründung wie beim Sidecar (ContactsSidecar.entitlements): ein
+  ungenutztes Recht bleibt ein gewährtes Recht. Gesetzt wird es durch
+  scripts/reseal-contacts-sidecar.sh, das den Helfer vor der App neu siegelt.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.personal-information.addressbook</key>
+    <true/>
+</dict>
+</plist>
