@@ -104,6 +104,9 @@
   --pjc-selection-fg: #ffffff;
   --pjc-selection-inactive-bg: var(--color-bg-tertiary);
   --pjc-hover-bg: color-mix(in srgb, var(--color-text) 6%, transparent);
+  /* Gedrückt ist deutlich tiefer als überfahren — sonst ist der Unterschied
+     zwischen „die Maus ist hier" und „ich habe gedrückt" nicht spürbar. */
+  --pjc-press-bg: color-mix(in srgb, var(--color-text) 14%, transparent);
 
   /* ── Akzentpalette der Kategorien ────────────────────────────────────
      Vorbild ist die Erinnerungen-App: kräftige, klar unterscheidbare
@@ -182,12 +185,38 @@
   cursor: text;
 }
 
+/* Gedrückt: die Fläche geht spürbar tiefer, und zwar **sofort**. Ein
+ * Druck, der erst über 120 ms einblendet, fühlt sich nach Verzögerung an
+ * statt nach Reaktion — deshalb setzt der aktive Zustand die Dauer auf 0
+ * und lässt nur das Loslassen wieder ausblenden. */
+[data-testid="contacts-workspace"] button:active:not(:disabled):not(.pjc-primary),
+[data-testid="contacts-workspace"] [role="option"]:active:not([aria-selected="true"]),
+[data-testid="contacts-workspace"] [role="menuitem"]:active,
+[data-testid="contacts-workspace"] select:active:not(:disabled) {
+  background-color: var(--pjc-press-bg);
+  transition-duration: 0s;
+}
+
+/* Gefüllte Flächen können nicht dunkler hinterlegt werden, ohne ihre Farbe
+ * zu verlieren — sie werden stattdessen abgedunkelt. Das gilt für den
+ * Primärknopf und für die bereits ausgewählte Zeile. */
+[data-testid="contacts-workspace"] .pjc-primary:active:not(:disabled),
+[data-testid="contacts-workspace"] [role="option"][aria-selected="true"]:active {
+  filter: brightness(0.92);
+  transition-duration: 0s;
+}
+
 /* Nichts davon gilt für Abgeschaltetes: ein deaktiviertes Element darf
- * weder den Zeiger wechseln noch auf Hover reagieren, sonst verspricht es
- * eine Wirkung, die es nicht hat. */
+ * weder den Zeiger wechseln noch auf Hover oder Druck reagieren, sonst
+ * verspricht es eine Wirkung, die es nicht hat. */
 [data-testid="contacts-workspace"] :disabled,
 [data-testid="contacts-workspace"] [aria-disabled="true"] {
   cursor: default;
+}
+[data-testid="contacts-workspace"] :disabled:active,
+[data-testid="contacts-workspace"] [aria-disabled="true"]:active {
+  background-color: transparent;
+  filter: none;
 }
 
 /* Fokusring als Klasse, damit er überall identisch ist und nie nur über
