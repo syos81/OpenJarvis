@@ -191,12 +191,27 @@ fehlgeschlagen.
 `frontend/src/personal/contacts/tokens.css` tragen weiterhin den Marker
 `M2-VORLÄUFIG`; laut Dateikopf ist jeder markierte Wert eine begründete
 Intel-Schätzung. Die Eigentümer-Sichtprüfung am 2026-08-12 auf diesem Gerät
-ergab deutliche Abweichungen gegenüber der nativen App. Der Referenzvertrag
+ergab zunächst deutliche Abweichungen gegenüber der nativen App; die daraufhin
+entstandenen neun Oberflächencommits (`cf188094`…`b9675dbf`) hat der Eigentümer
+am selben Tag durch Sichtprüfung abgenommen.
+
+Diese Abnahme schliesst die Zeile **nicht**. Der Referenzvertrag
 ([contacts-frontend-apple-redesign-2026-08-02.md](contacts-frontend-apple-redesign-2026-08-02.md)
-§1) verlangt dafür zehn definierte Referenzaufnahmen und die Reihenfolge
+§1) verlangt zehn definierte Referenzaufnahmen und die Reihenfolge
 (a) Aufnahmen, (b) eine Runde ausschliesslich `tokens.css`, (c) gezielte
-Komponentenkorrekturen, (d) Abgleich Szene für Szene. Die Aufnahmen
-existieren nicht; ohne sie ist die Zeile nicht schliessbar.
+Komponentenkorrekturen, (d) Abgleich Szene für Szene. Die Aufnahmen existieren
+nicht. Der Stand ist deshalb sauber zu trennen:
+
+| Aussage | Stand |
+|---|---|
+| Oberflächenabnahme | bestanden **durch Eigentümer-Sichtprüfung** |
+| Zehn-Szenen-Referenzabgleich | **nicht durchgeführt** |
+| Messevidenz gegen den M2 | **nicht behauptet** |
+| Die acht Tokengruppen | bleiben `M2-VORLÄUFIG`, also unvermessen |
+
+Eine Sichtprüfung ersetzt keine Messung; sie ist eine Eigentümerentscheidung
+über das Aussehen, kein Beleg über Werte. Die Zeile bleibt `OPEN`, bis die
+Aufnahmen vorliegen und der Abgleich Szene für Szene gelaufen ist.
 
 **Zur Intel-Spalte:** Der Intel-**Zweig** ist abgeschlossen und eingefroren
 (modules/contacts.md §15.2). Die drei fett markierten Zeilen sind davon
