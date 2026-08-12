@@ -19,9 +19,21 @@ from pathlib import Path
 
 import pytest
 
+from personaljarvis.contacts.bridge.resolver import (
+    binary_architectures,
+    host_architecture,
+    tauri_triple,
+)
+
 _REPO = Path(__file__).resolve().parents[3]
-_BUNDLE = (_REPO / "frontend/src-tauri/target/x86_64-apple-darwin/release"
-           / "bundle/macos/Jarvis.app")
+#: Der Zielordner heisst nach dem **Rust-Triple des Hosts**. Bis 2026-08-12
+#: stand hier `x86_64-apple-darwin` fest verdrahtet — auf arm64 fand diese
+#: Datei damit kein Bundle und uebersprang lautlos ihre gesamte Kette. Genau
+#: davor warnt die Schwesterdatei `test_packaging_app.py` ausdruecklich: beide
+#: macOS-Architekturen sind gleichwertige Produktionsziele (DEC-042,
+#: ADR-0018), und ein leerer Pflichtscan ist kein Nachweis (Dauerregeln §9).
+_BUNDLE = (_REPO / "frontend/src-tauri/target" / tauri_triple()
+           / "release/bundle/macos/Jarvis.app")
 _HELPER = _BUNDLE / "Contents/MacOS/contacts-write-helper"
 
 pytestmark = pytest.mark.skipif(
@@ -36,10 +48,14 @@ def _codesign(*args: str) -> str:
 
 
 # ═══ A · Artefakt ═══════════════════════════════════════════════════════════
-def test_der_helfer_ist_ein_natives_x86_64_binary():
-    ausgabe = subprocess.run(["/usr/bin/file", str(_HELPER)],
-                             capture_output=True, text=True).stdout
-    assert "Mach-O 64-bit executable x86_64" in ausgabe
+def test_der_helfer_ist_ein_natives_binary_der_hostarchitektur():
+    """Nativ heisst: die Architektur des Rechners, auf dem geprueft wird.
+
+    Rosetta ersetzt keinen nativen Nachweis (ADR-0018 §7 Nr. 2, Dauerregeln
+    §14), deshalb wird gegen den tatsaechlichen Host verglichen und nicht
+    gegen eine fest genannte Architektur.
+    """
+    assert binary_architectures(_HELPER) == (host_architecture(),)
 
 
 def test_der_helfer_traegt_seinen_eigenen_identifier():
