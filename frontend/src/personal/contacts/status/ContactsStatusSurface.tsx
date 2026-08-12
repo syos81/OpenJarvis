@@ -244,7 +244,7 @@ function ApprovalBoard({ quelle, onOpenMutation }: {
                       style={{
                         marginLeft: '8px', border: 'none', background: 'none',
                         font: 'var(--pjc-font-body)', textDecoration: 'underline',
-                        color: 'var(--color-accent)', cursor: 'default',
+                        color: 'var(--color-accent)',
                       }}>
                 Vorgang öffnen
               </button>
@@ -666,7 +666,7 @@ function MutationList({ quelle, onOpen, nurAufmerksamkeit = false }: {
                   style={{
                     display: 'block', width: '100%', textAlign: 'left',
                     border: 'none', background: 'none', padding: '8px 0',
-                    cursor: 'default', color: 'var(--color-text)',
+                    color: 'var(--color-text)',
                   }}>
             <span style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ font: 'var(--pjc-font-body)', fontWeight: 600 }}>
@@ -886,7 +886,7 @@ export function ContactsStatusSurface({
                 data-testid="status-schliessen"
                 className="pjc-focusable"
                 style={{
-                  border: 'none', background: 'none', cursor: 'default',
+                  border: 'none', background: 'none',
                   color: 'var(--color-text-muted)',
                   minWidth: 'var(--pjc-hit-target)', minHeight: 'var(--pjc-hit-target)',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -907,7 +907,7 @@ export function ContactsStatusSurface({
             className="pjc-focusable"
             style={{
               font: 'var(--pjc-font-body)',
-              border: 'none', background: 'none', cursor: 'default',
+              border: 'none', background: 'none',
               padding: '8px 10px',
               borderBottom: `2px solid ${tab === t.key ? 'var(--color-accent)' : 'transparent'}`,
               color: tab === t.key ? 'var(--color-accent)' : 'var(--color-text-muted)',

@@ -116,7 +116,6 @@ export function KontextMenue({ x, y, eintraege, onSchliessen }: {
             font: 'var(--pjc-font-body)',
             color: 'var(--color-text)',
             textAlign: 'left',
-            cursor: 'default',
           }}
         >
           {e.gefaehrlich && (

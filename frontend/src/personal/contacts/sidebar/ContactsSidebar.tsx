@@ -75,7 +75,6 @@ function SidebarRow({ label, anzahl, aktiv, onSelect, testId, akzent }: {
           textAlign: 'left',
           color: aktiv ? 'var(--pjc-selection-fg)' : 'var(--color-text)',
           backgroundColor: aktiv ? 'var(--pjc-selection-bg)' : 'transparent',
-          cursor: 'default',
         }}
       >
         <span style={{

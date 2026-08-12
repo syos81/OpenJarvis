@@ -323,7 +323,7 @@ export function ContactDetailPane({
                   onClick={() => onRolleWeg(r)}
                   className="pjc-focusable"
                   style={{
-                    border: 'none', background: 'none', cursor: 'default',
+                    border: 'none', background: 'none',
                     font: 'inherit', color: 'var(--color-text-muted)',
                     minWidth: 'var(--pjc-hit-target)', minHeight: 'var(--pjc-hit-target)',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',

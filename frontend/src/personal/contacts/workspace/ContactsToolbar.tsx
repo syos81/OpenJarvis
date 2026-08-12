@@ -126,7 +126,7 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
             style={{
               position: 'absolute', right: '2px', top: '50%',
               transform: 'translateY(-50%)',
-              border: 'none', background: 'none', cursor: 'default',
+              border: 'none', background: 'none',
               color: 'var(--color-text-muted)',
               minWidth: 'var(--pjc-hit-target)', minHeight: 'var(--pjc-hit-target)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',

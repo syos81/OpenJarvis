@@ -170,7 +170,6 @@ function MehrwertEditor({ titel, eintraege, labels, onChange, gesperrt, fehlerTe
                   color: '#ffffff',
                   font: 'var(--pjc-font-label)',
                   lineHeight: 1,
-                  cursor: 'default',
                 }}
               >
                 −

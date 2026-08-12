@@ -311,7 +311,6 @@ export function ContactsListPane({
                 margin: 0,
                 padding: '0 var(--pjc-row-inset-right) 0 var(--pjc-row-inset)',
                 borderRadius: 'var(--pjc-radius-row)',
-                cursor: 'default',
                 color: gewaehlt && fokussiert
                   ? 'var(--pjc-selection-fg)' : 'var(--color-text)',
                 backgroundColor: gewaehlt

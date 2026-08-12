@@ -146,11 +146,48 @@
 [data-testid="contacts-workspace"] .pjc-primary:hover:not(:disabled) {
   filter: brightness(1.12);
 }
-[data-testid="contacts-workspace"] [role="option"] {
+[data-testid="contacts-workspace"] [role="option"],
+[data-testid="contacts-workspace"] [role="menuitem"] {
+  cursor: pointer;
   transition: background-color var(--pjc-duration-fast) ease;
 }
-[data-testid="contacts-workspace"] [role="option"]:hover:not([aria-selected="true"]) {
+[data-testid="contacts-workspace"] [role="option"]:hover:not([aria-selected="true"]),
+[data-testid="contacts-workspace"] [role="menuitem"]:hover {
   background-color: var(--pjc-hover-bg);
+}
+
+/* Auch eine ausgewählte Zeile reagiert — sonst wirkt genau die Zeile tot,
+ * auf der die Maus am häufigsten steht. Sie hellt auf statt die Fläche zu
+ * wechseln, damit die Auswahl erkennbar bleibt. */
+[data-testid="contacts-workspace"] [role="option"][aria-selected="true"]:hover {
+  filter: brightness(1.08);
+}
+
+/* Alles Übrige, was man anfassen kann: Auswahllisten, Ankreuzfelder,
+ * Beschriftungen mit eigenem Bedienelement. Eingabefelder bekommen den
+ * Textcursor, nicht den Zeiger — sie werden beschrieben, nicht gedrückt. */
+[data-testid="contacts-workspace"] select,
+[data-testid="contacts-workspace"] summary,
+[data-testid="contacts-workspace"] input[type="checkbox"],
+[data-testid="contacts-workspace"] input[type="radio"] {
+  cursor: pointer;
+}
+[data-testid="contacts-workspace"] select:hover:not(:disabled) {
+  background-color: var(--pjc-hover-bg);
+}
+[data-testid="contacts-workspace"] input[type="text"],
+[data-testid="contacts-workspace"] input[type="search"],
+[data-testid="contacts-workspace"] input:not([type]),
+[data-testid="contacts-workspace"] textarea {
+  cursor: text;
+}
+
+/* Nichts davon gilt für Abgeschaltetes: ein deaktiviertes Element darf
+ * weder den Zeiger wechseln noch auf Hover reagieren, sonst verspricht es
+ * eine Wirkung, die es nicht hat. */
+[data-testid="contacts-workspace"] :disabled,
+[data-testid="contacts-workspace"] [aria-disabled="true"] {
+  cursor: default;
 }
 
 /* Fokusring als Klasse, damit er überall identisch ist und nie nur über
