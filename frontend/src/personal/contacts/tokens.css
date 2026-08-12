@@ -1,10 +1,13 @@
 /* Design-Tokens der Kontakte-Oberfläche (Namespace --pjc-*).
  *
- * VERBINDLICHE REFERENZ ist die macOS-Kontakte-App auf dem M2-Pro-Mac;
- * sie stand beim Bau dieser Datei nicht zur Verfügung. Jeder mit
- * M2-VORLÄUFIG markierte Wert ist eine begründete Intel-Schätzung und wird
- * bei der M2-Abnahme hier zentral nachgezogen. Komponenten dürfen keine
- * eigenen Pixelwerte tragen — wer eine Zahl braucht, definiert sie hier.
+ * VERBINDLICHE REFERENZ ist die macOS-Kontakte-App auf dem M2-Pro-Mac.
+ * Beim Bau dieser Datei stand sie nicht zur Verfügung; am 2026-08-12 wurde
+ * erstmals gegen sie gemessen. Werte mit M2-GEMESSEN stammen aus dieser
+ * Messung (Bildschirm 2560x1440 bei Skalierung 1, also 1 px = 1 pt);
+ * Werte mit M2-VORLÄUFIG sind weiterhin begründete Intel-Schätzungen und
+ * warten auf die noch fehlenden Referenzszenen aus §1 des Referenzvertrags.
+ * Komponenten dürfen keine eigenen Pixelwerte tragen — wer eine Zahl
+ * braucht, definiert sie hier.
  *
  * Farben bauen auf den bestehenden Jarvis-Tokens aus src/index.css auf,
  * damit Light/Dark ohne eigene Logik funktionieren. Drei Altlasten-Tokens
@@ -18,8 +21,12 @@
   --color-danger: var(--color-error);
   --color-surface-2: var(--color-bg-tertiary);
 
-  /* ── Spalten (M2-VORLÄUFIG) ─────────────────────────────────────────── */
-  --pjc-sidebar-width: 200px;
+  /* ── Spalten (Seitenleiste M2-GEMESSEN, Liste M2-VORLÄUFIG) ─────────── */
+  /* Seitenleiste am M2 gemessen: 215 pt breites Panel. Die Listenbreite
+     bleibt vorläufig: Apple mass dort 608 pt, aber an einem 1739 pt breiten
+     Fenster und bei frei ziehbarer Spalte — das ist auf das Jarvis-Standard-
+     fenster (1280 pt) nicht übertragbar und wäre eine erfundene Zahl. */
+  --pjc-sidebar-width: 215px;
   --pjc-sidebar-min: 160px;
   --pjc-sidebar-max: 320px;
   --pjc-list-width: 280px;
@@ -35,11 +42,11 @@
      (fixed top-2 right-3) ueber allem — Toolbar-Knoepfe muessen davor enden. */
   --pjc-toolbar-reserve: 56px;
 
-  /* ── Zeilen und Abstände (M2-VORLÄUFIG) ─────────────────────────────── */
-  --pjc-row-height: 36px;          /* Kontaktzeile in der Liste */
-  --pjc-section-height: 24px;      /* Abschnittsmarker (A, B, …) */
-  --pjc-sidebar-row-height: 28px;
-  --pjc-pane-pad: 10px;
+  /* ── Zeilen und Abstände (M2-GEMESSEN 2026-08-12, ausser wo vermerkt) ── */
+  --pjc-row-height: 52px;          /* Kontaktzeile: 12x 52 pt Trennerabstand */
+  --pjc-section-height: 29px;      /* Abschnittsmarker: 81 pt Sprung minus Zeile */
+  --pjc-sidebar-row-height: 28px;  /* M2-VORLÄUFIG: Seitenleistenzeilen nicht sauber trennbar */
+  --pjc-pane-pad: 16px;            /* = gemessener Avatar-Einzug links */
   --pjc-detail-pad: 24px;
   --pjc-detail-gap: 16px;          /* Abstand zwischen Feldgruppen */
   --pjc-field-label-width: 96px;   /* Label-Spalte im Detail */
@@ -53,8 +60,8 @@
   --pjc-font-label: 400 0.75rem/1.3 var(--font-sans, system-ui);
   --pjc-font-section: 600 0.6875rem/1.2 var(--font-sans, system-ui);
 
-  /* ── Avatare und Icons (M2-VORLÄUFIG) ───────────────────────────────── */
-  --pjc-avatar-list: 24px;
+  /* ── Avatare und Icons (Liste M2-GEMESSEN, Rest M2-VORLÄUFIG) ───────── */
+  --pjc-avatar-list: 36px;         /* M2 gemessen: 36x36 pt, 16 pt vom Rand */
   --pjc-avatar-hero: 64px;
   --pjc-icon-size: 15px;
   --pjc-icon-stroke: 1.75;
