@@ -200,6 +200,7 @@ export function ContactsWorkspace({ testListenHoehe }: {
   const [bearbeitet, setBearbeitet] = useState(false);
   const [editorFehler, setEditorFehler] = useState<Fehlerbild | null>(null);
   const [editorSendet, setEditorSendet] = useState(false);
+  const [editorDreckig, setEditorDreckig] = useState(false);
   const [loeschenOffen, setLoeschenOffen] = useState(false);
   const [kontextmenue, setKontextmenue] =
     useState<{ id: string; x: number; y: number } | null>(null);
@@ -425,12 +426,16 @@ export function ContactsWorkspace({ testListenHoehe }: {
             <ContactsListPane
               kontakte={sichtbar}
               auswahlId={auswahlId}
-              // Im Bearbeitungsmodus bleibt die Auswahl stehen. Ein Wechsel
-              // wuerde den Editor mit ungesicherten Eingaben auf einen
-              // anderen Kontakt umschalten — Getipptes ginge verloren oder
-              // landete schlimmstenfalls beim Falschen. Die Referenz sperrt
-              // die Liste waehrend des Bearbeitens ebenso.
-              onAuswahl={(id) => { if (!bearbeitet) setAuswahlId(id); }}
+              // Ein unberuehrter Editor steht dem Weiterklicken nicht im Weg:
+              // dann wird er geschlossen und die Auswahl folgt. Erst wenn
+              // etwas getippt wurde, bleibt die Auswahl stehen — sonst
+              // zeigte der Editor mit ungesicherten Eingaben ploetzlich auf
+              // jemand anderen. So verhaelt sich die Referenz auch.
+              onAuswahl={(id) => {
+                if (bearbeitet && editorDreckig) return;
+                setBearbeitet(false);
+                setAuswahlId(id);
+              }}
               onEnterDetail={() => {
                 const el = document.querySelector<HTMLElement>('[data-testid="contact-detail"]');
                 el?.focus?.();
@@ -468,7 +473,11 @@ export function ContactsWorkspace({ testListenHoehe }: {
                 demoModus={demoModus}
                 onFertig={(felder) => void fertig(felder)}
                 listenSchreibbar={Boolean(caps?.update_supported)}
-                onAbbrechen={() => { setBearbeitet(false); setEditorFehler(null); }}
+                onDreckig={setEditorDreckig}
+                onAbbrechen={() => {
+                  setBearbeitet(false); setEditorFehler(null);
+                  setEditorDreckig(false);
+                }}
                 sendet={editorSendet}
                 fehler={editorFehler}
               />
