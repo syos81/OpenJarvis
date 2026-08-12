@@ -47,6 +47,11 @@
   --pjc-section-height: 29px;      /* Abschnittsmarker: 81 pt Sprung minus Zeile */
   --pjc-sidebar-row-height: 28px;  /* M2-VORLÄUFIG: Seitenleistenzeilen nicht sauber trennbar */
   --pjc-pane-pad: 16px;            /* = gemessener Avatar-Einzug links */
+  /* Einzug des Zeileninhalts. M2 gemessen: der Avatar beginnt 27 pt nach dem
+     linken Rand der Listenspalte, und der Zeilentrenner beginnt an genau
+     derselben Kante. Rechts bleiben 16 pt frei — dort liegt die Rollleiste. */
+  --pjc-row-inset: 27px;
+  --pjc-row-inset-right: 16px;
   --pjc-detail-pad: 24px;
   --pjc-detail-gap: 16px;          /* Abstand zwischen Feldgruppen */
   --pjc-field-label-width: 96px;   /* Label-Spalte im Detail */
@@ -66,11 +71,14 @@
   --pjc-icon-size: 15px;
   --pjc-icon-stroke: 1.75;
 
-  /* ── Flächen, Divider, Auswahl (M2-VORLÄUFIG) ───────────────────────── */
+  /* ── Flächen, Divider, Auswahl (Divider M2-GEMESSEN, Rest VORLÄUFIG) ── */
   --pjc-bg-sidebar: var(--color-bg-secondary);
   --pjc-bg-list: var(--color-bg);
   --pjc-bg-detail: var(--color-bg);
-  --pjc-divider: var(--color-border-subtle, var(--color-border));
+  /* M2 gemessen: hell rgb(230,230,230) auf Weiss, dunkel rgb(56,61,63) auf
+     rgb(35,41,44) — beides rund 10 % Kontrast zur Fläche. Der vorherige Wert
+     kam aus `--color-border-subtle` und lag bei 4 %, also sichtbar zu blass. */
+  --pjc-divider: color-mix(in srgb, var(--color-text) 10%, transparent);
   --pjc-divider-width: 1px;
   --pjc-selection-bg: var(--color-accent);
   --pjc-selection-fg: #ffffff;

@@ -259,6 +259,7 @@ export function ContactsListPane({
           }
           const k = zeile.kontakt;
           const gewaehlt = k.id === auswahlId;
+          const letzte = idx === zeilen.length - 1;
           return (
             <div
               key={k.id}
@@ -271,12 +272,16 @@ export function ContactsListPane({
               onDoubleClick={() => onAuswahl(k.id)}
               style={{
                 ...lage,
+                position: lage ? lage.position : 'relative',
                 height: `${rowH}px`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                margin: '0 calc(var(--pjc-pane-pad) - 4px)',
-                padding: '0 8px',
+                // M2: die Auswahlflaeche laeuft ueber die volle Spaltenbreite,
+                // eingerueckt wird der Inhalt. Vorher lag hier ein fester
+                // 8px-Wert in der Komponente — Zahlen gehoeren in tokens.css.
+                margin: 0,
+                padding: '0 var(--pjc-row-inset-right) 0 var(--pjc-row-inset)',
                 borderRadius: 'var(--pjc-radius-row)',
                 cursor: 'default',
                 color: gewaehlt && fokussiert
@@ -286,6 +291,25 @@ export function ContactsListPane({
                   : undefined,
               }}
             >
+              {/* Zeilentrenner. M2: 1 pt, beginnt an der linken Avatarkante und
+                  endet vor der Rollleiste. Als eigenes Element statt als
+                  border-bottom, damit die gerundete Auswahlflaeche ihn
+                  ueberdeckt statt ihn zu beschneiden. Die letzte Zeile bekommt
+                  keinen — Apple schliesst die Liste ohne Abschlusslinie. */}
+              {!gewaehlt && !letzte && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    left: 'var(--pjc-row-inset)',
+                    right: 'var(--pjc-row-inset-right)',
+                    bottom: 0,
+                    height: 'var(--pjc-divider-width)',
+                    backgroundColor: 'var(--pjc-divider)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
               <Avatar name={k.display_name} />
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{
