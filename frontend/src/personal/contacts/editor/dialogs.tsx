@@ -9,7 +9,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Capabilities, ContactDetail, PreparedMutation } from '../api';
 import * as api from '../api';
-import { ChangeTable, COMMAND_LABELS, CONTAINER_ART, Modal } from '../components';
+import {
+  ChangeTable, COMMAND_LABELS, CONTAINER_ART, Modal, Zielangabe,
+} from '../components';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
 import type { ContactsDataSource } from '../data/source';
 import type { Fehlerbild } from '../workspace/fehler';
@@ -144,10 +146,13 @@ export function PreviewDialog({ vorgang, quelle, onClose, onEntschieden }: {
           Dieser Vorgang war bereits vorbereitet. Es wurde kein zweiter angelegt.
         </p>
       )}
-      <p style={{ font: 'var(--pjc-font-body)', margin: 0 }}>
-        <strong>{COMMAND_LABELS[vorgang.command] ?? vorgang.command}</strong>
-        {vorgang.target_label && <> · {vorgang.target_label}</>}
-      </p>
+      {/* Wohin — vor allem anderen. Die Zielangabe entsteht erst beim
+          Vorbereiten; das Absenden des Formulars davor kann sie nicht
+          zeigen und ist deshalb keine informierte Freigabe (§8 A). */}
+      <Zielangabe command={vorgang.command}
+                  targetLabel={vorgang.target_label}
+                  containerRef={vorgang.container_ref}
+                  containerType={vorgang.container_type} />
       {vorgang.warnings.map((w) => (
         <p key={w} style={{ font: 'var(--pjc-font-body)', color: 'var(--color-warning)', margin: '8px 0 0' }}>
           {w}

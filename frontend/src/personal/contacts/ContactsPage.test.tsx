@@ -345,12 +345,14 @@ describe('Bearbeitung', () => {
     expect(zielId).toBe('k-2');
     expect(args.fields).toEqual({ organization_name: 'Muster AG' });
     expect(args.expectedRevision).toBe('1');
-    // „Fertig" ist die Zustimmung: der Vorgang laeuft danach ohne zweiten
-    // Klick durch, und die Freigabe steht mit Akteur in der Spur.
-    await waitFor(() => expect(mock.approveMutation).toHaveBeenCalledTimes(1));
-    expect(mock.approveMutation).toHaveBeenCalledWith('m-1', 'desktop-user');
-    // Der Vorschaudialog erscheint fuer eigene Handlungen nicht mehr.
-    expect(screen.queryByText('Änderung prüfen und freigeben')).not.toBeInTheDocument();
+    // „Fertig" bereitet vor — mehr nicht. Bis 2026-08-13 verlangte dieser
+    // Test das Gegenteil („laeuft ohne zweiten Klick durch") und sicherte
+    // damit die Selbstfreigabe ab. Der Vorgang geht jetzt in die Vorschau,
+    // und dort entscheidet der Eigentuemer.
+    expect(await screen.findByText('Änderung prüfen und freigeben'))
+      .toBeInTheDocument();
+    expect(mock.approveMutation).not.toHaveBeenCalled();
+    expect(mock.executeMutation).not.toHaveBeenCalled();
   });
 
   it('schliesst ohne Änderungen sofort, fragt bei Änderungen nach', async () => {
@@ -462,9 +464,13 @@ describe('Bearbeitung', () => {
 
     await u.click(screen.getByTestId('loeschen-vorbereiten'));
     await waitFor(() => expect(mock.prepareDelete).toHaveBeenCalledTimes(1));
-    // Eine Zustimmung, ein Durchlauf — und die Freigabe steht in der Spur.
-    await waitFor(() => expect(mock.approveMutation).toHaveBeenCalledTimes(1));
-    expect(mock.approveMutation).toHaveBeenCalledWith('m-2', 'desktop-user');
+    // Auch das Loeschen bereitet nur vor. Eine Bestaetigung im Kontextmenue
+    // ist keine Freigabe: Sie kennt den Zielablageort noch gar nicht, der
+    // erst beim Vorbereiten aufgeloest wird.
+    expect(await screen.findByText('Änderung prüfen und freigeben'))
+      .toBeInTheDocument();
+    expect(mock.approveMutation).not.toHaveBeenCalled();
+    expect(mock.executeMutation).not.toHaveBeenCalled();
   });
 });
 

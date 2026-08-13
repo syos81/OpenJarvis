@@ -865,6 +865,7 @@ type StatusTab = 'quelle' | 'vorgaenge' | 'diagnose';
 
 export function ContactsStatusSurface({
   quelle, demoModus, onClose, onSynced, onDemoStart, onDemoEnde, startTab,
+  startMutationId,
 }: {
   quelle: ContactsDataSource;
   demoModus: boolean;
@@ -874,11 +875,19 @@ export function ContactsStatusSurface({
   onDemoEnde: () => void;
   /** Nur für Dev-Szenarien: Starttab der Fläche. */
   startTab?: StatusTab;
+  /**
+   * Direkt auf diesen Vorgang aufschlagen. Gebraucht nach einer Freigabe:
+   * Der Eigentuemer soll den freigegebenen Vorgang sehen und dort — als
+   * **eigene** Handlung — ausfuehren, statt ihn in einer Liste suchen zu
+   * muessen. Ausgefuehrt wird dadurch nichts; es wird nur angezeigt.
+   */
+  startMutationId?: string | null;
 }) {
   const [tab, setTab] = useState<StatusTab>(
     startTab === 'diagnose' || startTab === 'vorgaenge' ? startTab : 'quelle',
   );
-  const [mutationId, setMutationId] = useState<string | null>(null);
+  const [mutationId, setMutationId] = useState<string | null>(
+    startMutationId ?? null);
   // Über die Quelle, nicht über einen eigenen Abruf: Der Demo-Modus bleibt
   // damit aufruffrei (sein Nullaufruf-Vertrag), und der Hinweis zeigt
   // trotzdem den echten Stand.

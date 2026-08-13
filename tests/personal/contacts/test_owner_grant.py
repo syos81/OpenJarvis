@@ -292,3 +292,59 @@ def test_die_command_bar_gibt_nicht_mehr_selbst_frei():
     assert "ENTSCHEIDER" not in code
     # Und er fuehrt nur aus, was bereits freigegeben ist.
     assert "zustand.approval_state !== 'granted'" in code
+
+
+def test_keine_selbstfreigabe_irgendwo_in_der_oberflaeche():
+    """Der Kehraus, den die Reparatur von G zuerst nicht gemacht hat.
+
+    G nannte `writeAdapter.ts`, und genau die eine Datei wurde repariert. Der
+    Livelauf am 2026-08-13 fand dieselbe Defektklasse an einer zweiten Stelle:
+    `ContactsWorkspace.abschliessen` rief `approve` und unmittelbar danach
+    `execute`, mit hartkodiertem `'desktop-user'` — Vorbereiten, Freigeben und
+    Ausfuehren fielen in dieselbe Sekunde.
+
+    Dieser Test prueft deshalb nicht mehr eine Datei, sondern die Menge:
+    Freigeben darf **nur** dort stehen, wo ein Mensch klickt.
+    """
+    wurzel = _REPO / "frontend/src"
+    mit_approve = set()
+    for pfad in wurzel.rglob("*.ts*"):
+        if ".test." in pfad.name:
+            continue
+        text = pfad.read_text(encoding="utf-8")
+        code = "\n".join(z for z in text.splitlines()
+                         if not z.lstrip().startswith("//"))
+        if ".approve(" in code or "approveMutation(" in code:
+            mit_approve.add(str(pfad.relative_to(wurzel)))
+
+    assert mit_approve == {
+        # Der Freigabeknopf des Boards.
+        "personal/contacts/status/ContactsStatusSurface.tsx",
+        # Der Freigabeknopf der Vorschau.
+        "personal/contacts/editor/dialogs.tsx",
+        # Reine Durchreiche zur API, ohne eigene Entscheidung.
+        "personal/contacts/data/source.ts",
+    }, sorted(mit_approve)
+
+
+def test_jede_freigabe_haengt_an_einem_klick():
+    """In beiden Oberflaechendateien steht `approve` in einem onClick."""
+    for name in ["personal/contacts/status/ContactsStatusSurface.tsx",
+                 "personal/contacts/editor/dialogs.tsx"]:
+        text = (_REPO / "frontend/src" / name).read_text(encoding="utf-8")
+        for i, zeile in enumerate(text.splitlines()):
+            if ".approve(" not in zeile or zeile.lstrip().startswith("//"):
+                continue
+            umfeld = "\n".join(text.splitlines()[max(0, i - 3):i + 1])
+            assert "onClick" in umfeld, f"{name}:{i + 1} — {zeile.strip()}"
+
+
+def test_der_workspace_fuehrt_nichts_selbst_aus():
+    """Vorbereiten oeffnet die Vorschau; ausgefuehrt wird am Vorgang."""
+    quelle = (_REPO / "frontend/src/personal/contacts/workspace/"
+              "ContactsWorkspace.tsx").read_text(encoding="utf-8")
+    code = "\n".join(z for z in quelle.splitlines()
+                     if not z.lstrip().startswith("//"))
+    assert "quelle.approve(" not in code
+    assert "quelle.execute(" not in code
+    assert "setVorschau(m)" in code

@@ -278,7 +278,11 @@ describe('Hauptnavigation der Statusfläche', () => {
    * Schritt mehr, zu dem hinzufuehren waere. Geprueft wird deshalb, dass der
    * Workspace beide Schritte selbst abschliesst statt sie liegen zu lassen.
    */
-  it('schliesst eigene Vorgaenge selbst ab, statt in die Statusflaeche zu fuehren', async () => {
+  it('gibt eigene Vorgaenge nicht selbst frei und fuehrt sie nicht selbst aus', async () => {
+    // Dieser Test stand bis 2026-08-13 auf dem Kopf: Er verlangte genau das
+    // Gegenteil und sicherte damit den Defekt als Merkmal ab. Der Livelauf
+    // zeigte die Folge — Vorbereiten, Freigeben und Ausfuehren fielen in
+    // dieselbe Sekunde, mit hartkodiertem Entscheider.
     const fs = await import('node:fs');
     const path = await import('node:path');
     const quelle = fs.readFileSync(
@@ -286,9 +290,11 @@ describe('Hauptnavigation der Statusfläche', () => {
                 'src/personal/contacts/workspace/ContactsWorkspace.tsx'),
       'utf8');
     expect(quelle).toContain('const abschliessen =');
-    expect(quelle).toContain('quelle.approve(');
-    expect(quelle).toContain('quelle.execute(');
-    // Und der Vorschaudialog haengt hier nicht mehr.
-    expect(quelle).not.toContain('<PreviewDialog');
+    expect(quelle).not.toContain('quelle.approve(');
+    expect(quelle).not.toContain('quelle.execute(');
+    // Stattdessen: der Vorgang geht in die Vorschau, und dort entscheidet
+    // der Eigentuemer.
+    expect(quelle).toContain('<PreviewDialog');
+    expect(quelle).toContain('setVorschau(m)');
   });
 });

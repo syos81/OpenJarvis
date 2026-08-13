@@ -27,10 +27,18 @@ import { KontextMenue } from '../list/KontextMenue';
 import type { KontextEintrag } from '../list/KontextMenue';
 import { ContactDetailPane } from '../detail/ContactDetailPane';
 import { ContactEditor } from '../editor/ContactEditor';
-// PreviewDialog wird hier nicht mehr eingehaengt: eigene Handlungen laufen
-// nach ihrer einen Bestaetigung durch. Freigaben zu Vorgaengen, die Jarvis
-// selbst vorbereitet hat, entscheidet weiterhin die Statusflaeche.
-import { CreateDialog, DeleteBestaetigung } from '../editor/dialogs';
+// PreviewDialog haengt seit 2026-08-13 wieder hier. Er war ausgehaengt
+// worden, damit eigene Handlungen „nach ihrer einen Bestaetigung durchlaufen"
+// (530e01d3). Der Livelauf zeigte, was daran nicht traegt: Diese eine
+// Bestaetigung ist das Absenden des Formulars — also **vor** dem
+// Vorbereiten. Der Zielablageort entsteht aber erst dabei, und eine
+// Zustimmung ohne ihn ist keine informierte Freigabe. Ohne den Dialog gab
+// `abschliessen` selbst frei und fuehrte selbst aus, beides in derselben
+// Sekunde und mit hartkodiertem Entscheider — dieselbe Defektklasse wie im
+// Kontaktzweig der Command Bar (§8 G).
+import {
+  CreateDialog, DeleteBestaetigung, PreviewDialog,
+} from '../editor/dialogs';
 import { SchreibsperreDialog } from '../editor/SchreibsperreDialog';
 import { ContactsStatusSurface } from '../status/ContactsStatusSurface';
 import { ContactsToolbar } from './ContactsToolbar';
@@ -94,6 +102,11 @@ export function ContactsWorkspace({ testListenHoehe }: {
   // Bewusst kein Abraeumen des Filters: Wer die Leiste zuklappt, will Platz,
   // nicht einen anderen Bestand sehen.
   const [seitenleisteOffen, setSeitenleisteOffen] = useState(true);
+  // Der vorbereitete Vorgang, ueber den der Eigentuemer gleich entscheidet.
+  const [vorschau, setVorschau] = useState<PreparedMutation | null>(null);
+  // Nach der Freigabe direkt auf den Vorgang aufschlagen — ausgefuehrt wird
+  // dort mit einem eigenen Klick, nicht hier.
+  const [zeigeVorgang, setZeigeVorgang] = useState<string | null>(null);
   const [offeneFreigaben, setOffeneFreigaben] = useState(0);
   const [nachladen, setNachladen] = useState(0);
 
@@ -238,17 +251,20 @@ export function ContactsWorkspace({ testListenHoehe }: {
    * behält den sichtbaren Freigabeweg — dort ist die Zustimmung der ganze
    * Punkt (ADR-0026, DEC-053).
    */
-  const abschliessen = async (m: PreparedMutation) => {
+  /**
+   * Ein vorbereiteter Vorgang geht in die Vorschau — und **nur** dorthin.
+   *
+   * Hier stand bis 2026-08-13 `approve` gefolgt von `execute`, beides
+   * automatisch. Das erteilte die Freigabe im selben Zug, in dem es sie
+   * verbrauchte: Vorbereiten und Ausfuehren waren damit eine Handlung, und
+   * der Entscheider war ein hartkodierter String. Jetzt entscheidet der
+   * Eigentuemer in der Vorschau, und das Ausfuehren ist ein eigener Klick
+   * am Vorgang.
+   */
+  const abschliessen = (m: PreparedMutation) => {
     setAktionsFehler(null);
-    try {
-      await quelle.approve(m.mutation_id, 'desktop-user');
-      await quelle.execute(m.mutation_id, m.command === 'delete');
-    } catch (e) {
-      // Fehlschläge bleiben sichtbar: fail-closed heisst nicht stillschweigend.
-      setAktionsFehler(fehlerbild(e));
-    } finally {
-      setNachladen((n) => n + 1);
-    }
+    setVorschau(m);
+    setNachladen((n) => n + 1);
   };
 
   const fertig = async (felder: Record<string, unknown>) => {
@@ -573,11 +589,15 @@ export function ContactsWorkspace({ testListenHoehe }: {
       {statusOffen && (
         <ContactsStatusSurface
           quelle={quelle}
+          startMutationId={zeigeVorgang}
           startTab={statusStart ?? (import.meta.env.DEV
             ? (new URLSearchParams(window.location.search).get('pjcStatus') as never)
             : undefined)}
           demoModus={demoModus}
-          onClose={() => { setStatusOffen(false); setStatusStart(undefined); }}
+          onClose={() => {
+            setStatusOffen(false); setStatusStart(undefined);
+            setZeigeVorgang(null); setNachladen((n) => n + 1);
+          }}
           onSynced={() => setNachladen((n) => n + 1)}
           onDemoStart={demoStart}
           onDemoEnde={demoEnde}
@@ -597,6 +617,23 @@ export function ContactsWorkspace({ testListenHoehe }: {
           caps={caps}
           onClose={() => setAnlegenOffen(false)}
           onPrepared={(m) => { setAnlegenOffen(false); void abschliessen(m); }}
+        />
+      )}
+      {vorschau && (
+        <PreviewDialog
+          vorgang={vorschau}
+          quelle={quelle}
+          onClose={() => setVorschau(null)}
+          onEntschieden={() => {
+            // Freigegeben oder abgelehnt — in beiden Faellen ist hier Schluss.
+            // Ausgefuehrt wird als eigene Handlung am Vorgang selbst.
+            const id = vorschau.mutation_id;
+            setVorschau(null);
+            setZeigeVorgang(id);
+            setStatusStart('vorgaenge');
+            setStatusOffen(true);
+            setNachladen((n) => n + 1);
+          }}
         />
       )}
       {/* Erklaert die Sperre und prueft neu — er erteilt nichts. Die Freigabe
