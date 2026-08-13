@@ -201,7 +201,7 @@ Contacts-Gates · erneute vollständige CRUD-Abnahme beider Architekturen ·
 | G | Command-Bar-Kontaktzweig / Self-Grant | **PASS** | Eigentümerentscheidung liegt vor: G ist Safety-Blocker vor dem Live-Test und wurde repariert. Siehe §8. |
 | H | Packaging fail-closed | **PASS** | Kanonischer Build erzwingt den Helfervertrag; App und DMG je 33/33; vier Negativproben greifen; `tests/personal/contacts/test_bundle_contract.py` |
 | I | Write-Bootstrap-UX und Capability-Lifecycle | **PASS** | Schreibrechte frisch statt Startschnappschuss; gesperrte Aktion bleibt sichtbar und führt in eine Erklärung; kein Self-Grant; `test_capability_bridge.py`, `frontend/…/schreibsperre.test.tsx` |
-| J | Seitenleiste ausblendbar | **PASS** | Toggle an macOS-üblicher Stelle; Leiste und Trenner auf Breite null, Zustand bleibt erhalten; `frontend/…/seitenleiste.test.tsx` |
+| J | Seitenleiste ausblendbar | **PASS** | Toggle an macOS-üblicher Stelle; Leiste und Trenner bleiben im Grid-Fluss, nur unsichtbar; Eigentümer-Sichtprüfung nach der Korrektur bestanden; `frontend/…/seitenleiste.test.tsx` |
 
 ## 6. Nicht erbracht — und warum
 
@@ -305,4 +305,132 @@ fünf.
 | `M2 arm64 INTEGRATED BUILD` | `PASS_EVIDENCE_COMPLETE` |
 | `integration_report_update` | `PENDING` — Nachtrag auf dem Integrationszweig nach diesem Block, keine Historienumschreibung |
 | `CONTACTS REPAIR x86_64 NATIVE CLOSURE` | `PENDING` — eigener Nachweisblock auf dem Intel-Rechner, derselbe finale Commit, nativ |
-| M2-Live-Risk-Test | ausstehend — wartet auf die Eigentümerfreigabe im Lauf |
+| M2-Live-Risk-Test | **PASS** — A, B, CREATE, UPDATE, DELETE; siehe §10 |
+| `CONTACTS WRITE/LIFECYCLE REPAIR – arm64` | **PASS** |
+
+---
+
+## 10. M2-Live-Risk-Test, 2026-08-13
+
+Gefahren am gebauten Paket des Reparaturstands, mit einer vom Eigentümer im
+Lauf erteilten Schreibfreigabe (`contacts-write-v1`, zwei Stunden, alle drei
+Operationen). Ein einziger synthetischer Kontakt, ausschliesslich im lokalen
+Ablageort `C-4b8df1`. Der cardDAV-Container `C-63caab` war zu keinem Zeitpunkt
+Ziel eines Vorgangs.
+
+### Die Trennung, in Zeitstempeln
+
+Das ist der Kernbeleg, und er braucht keine Erklärung:
+
+| Operation | vorbereitet | freigegeben | ausgeführt | Versuche |
+|---|---|---|---|---|
+| `create` (**alter Stand**) | 13:25:45 | 13:25:45 | 13:25:46 | 1 |
+| `create` | 13:42:50 | 13:46:35 | 13:47:55 | 1 |
+| `update` | 13:49:46 | 13:51:00 | 13:51:12 | 1 |
+| `delete` | 13:53:29 | 13:54:33 | 13:55:20 | 1 |
+
+Die erste Zeile ist der Defekt: drei Stufen in einer Sekunde, ohne dass ein
+Mensch dazwischen entschieden hätte. Die drei folgenden sind drei getrennte
+Eigentümerhandlungen mit Minuten dazwischen.
+
+### A · Start ohne Freigabe — PASS
+
+`create/update/delete_supported` alle `false`, `mutations_available: false`,
+`channel_mode: disabled`, `native_create_available: true` (der Pfad ist da,
+die Erlaubnis fehlt), keine Freigabedatei, **0 offene Vorgänge**. Der Start
+hat weder einen Grant noch eine Mutation erzeugt.
+
+Eigentümer-Sichtprüfung: Der Anlegen-Knopf bleibt sichtbar und führt gesperrt
+in den Erklärdialog — Datei, Vertrag, Rechte, und der Satz, dass die Freigabe
+dem Eigentümer gehört. Genau zwei Knöpfe, keiner davon erteilt etwas.
+
+### B · Freigabe ohne Neustart — PASS
+
+| | |
+|---|---|
+| GUI-Prozess gestartet | 15:22:58 (lokal) |
+| Freigabe angelegt | 15:23:30 — **32 Sekunden später** |
+| danach `create/update/delete_supported` | alle `true`, ohne Neustart |
+| `channel_mode` | `disabled` → `native_create` |
+
+Vor der Reparatur hätte `/capabilities` weiter `false` gemeldet: Der
+Startschnappschuss kannte die Datei nicht.
+
+### C · CRUD am synthetischen Kontakt — PASS
+
+**CREATE.** Vorschau nannte `Anlegen`, Ablageort `Lokal · Auf meinem Mac
+local C-4b8df1`, die drei geplanten Felder. Vor der Freigabe serverseitig
+gegengeprüft: `awaiting_approval`, 0 Versuche, Bestand unverändert. Nach der
+Freigabe sichtbar als `approved` mit Frist, Ausführungs- und
+Verwerfen-Aktion, weiterhin 0 Versuche und `completed_at: None`. Nach dem
+eigenen Ausführungsklick: `succeeded`, 1 Versuch, Readback deckungsgleich
+(„Zweiter Attrappe", `person`, `revision 1`), Bestand 116 → 117.
+
+**UPDATE.** Frischer Read vor dem Vorbereiten ergab Fingerprint `6672bd45…`;
+der gebundene Vorzustand im Auftrag trug denselben Wert, ebenso die erwartete
+Revision `1`. Geändert wurde ausschliesslich `organizationName`; Namen und Typ
+blieben unangetastet. 1 Versuch, Bestand unverändert bei 117.
+
+Ein Messfehler von mir gehört hierher: Der erste Re-Read-Vergleich lief
+**nach** dem bereits ausgeführten Execute und meldete deshalb eine Abweichung.
+Das war ein Zeitfehler der externen Messung, kein Konflikt — der
+Re-Read-vor-Send liegt im nativen Pfad selbst. Beim DELETE war die Messung
+richtig getaktet.
+
+**DELETE.** Recovery-Bedingung vorab erfüllt: `contacts-backup.py` mit
+echtem Grund, `integrity_check: ok`, **`restore_path_verified: true`**, Datei
+0600 in einem 0700-Verzeichnis, ausserhalb des Repositorys. Frischer Read
+ergab Fingerprint `2029d5ce…`; der Re-Read **unmittelbar vor** dem Ausführen
+ergab denselben Wert. Ausführung verlangte zusätzlich den eigenen Löschhaken.
+Ergebnis `succeeded`, 1 Versuch.
+
+Positive Abwesenheitskontrolle über die **aktive** Sicht: „Zweiter Attrappe"
+nicht mehr in der Liste, 117 → 116, während der nicht als Ziel gewählte
+„Reparatur Attrappe" weiterhin steht. Tombstone mit Grund
+`deleted_by_own_mutation`; der Datensatz bleibt lokal mit `is_tombstone = 1`
+erhalten.
+
+**E live:** Die Detailroute antwortet nach dem DELETE mit **HTTP 404**
+(`not_found`) statt den Tombstone mit 200 durchzureichen.
+
+### Punkt 7 · Zusätzliche Nachweise
+
+| Prüfung | Befund |
+|---|---|
+| Abgelaufener Grant wird ohne Mutation als `expired` gelesen | deterministisch, `test_der_abgelaufene_grant_liest_sich_ohne_mutation_als_expired` |
+| Abgelaufen kann nicht ausgeführt werden | deterministisch, `test_eine_abgelaufene_freigabe_traegt_kein_execute` |
+| Keine zwei stillen gleichartigen Vorgänge | live: durchgehend genau ein offener Vorgang, danach 0 |
+| Approval entsteht nie durch Execute | live: siehe Zeitstempeltabelle; deterministisch: `TestExecuteErzeugtKeineFreigabe` |
+| Lesen schreibt keinen Freigabezustand fort | live: nach mehrfachem Lesen alle Freigaben unverändert `consumed` |
+
+### Was der Lauf gefunden hat
+
+Zwei Befunde, beide von der Eigentümer-Sichtprüfung und nicht von den Tests:
+
+1. **Selbstfreigabe im Workspace.** `abschliessen` rief `approve` und
+   unmittelbar `execute` mit hartkodiertem `'desktop-user'` — dieselbe
+   Defektklasse wie G, an einer zweiten Stelle. Die Reparatur von G hatte die
+   im Bericht benannte Datei behandelt statt die Klasse. Repariert, mit einem
+   Wächter über alle `approve`-Aufrufstellen.
+2. **Eingeklappte Seitenleiste nahm die Liste mit.** Bedingtes Rendern des
+   Trenners und `hidden` an der Leiste nehmen beide das Element aus dem
+   Grid-Fluss; die folgenden Kinder rutschten je eine Spur. Repariert über
+   `visibility`, am laufenden Demo-Modus nachgemessen.
+
+### Grenzen dieses Laufs
+
+* **F ist live nicht belegt.** Der geänderte Vorwert war echt `None` — die
+  Anzeige `bisher: —` ist dort korrekt und widerlegt F nicht, beweist es aber
+  auch nicht. F bleibt deterministisch bewiesen.
+* Ein zweiter, älterer Testkontakt („Reparatur Attrappe") liegt weiterhin im
+  lokalen Ablageort. Er entstand im Lauf über den alten, nicht getrennten
+  Pfad und diente danach als Kontrollobjekt der Abwesenheitsprüfung.
+* Ein Backup trägt den Grund `--help`: ein Fehlgriff beim Erkunden der
+  Skriptschnittstelle, der versehentlich einen echten Lauf auslöste. Harmlos
+  — eine Lesekopie im privaten Ordner — und nicht entfernt, weil Löschen im
+  Home des Eigentümers dessen Handlung ist.
+* Die Reiterhervorhebung der Statusfläche zeigt „Diagnose", während der
+  Vorgang angezeigt wird. Kosmetisch, kein Blocker.
+* Die Commitnachricht von `eaa8e75c` hat ihre Codebezeichner verloren: zsh
+  las die Backticks als Befehlssubstitution. Inhalt und Code sind unberührt;
+  `--amend` bleibt gesperrt.
