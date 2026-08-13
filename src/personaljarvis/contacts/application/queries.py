@@ -255,18 +255,36 @@ class ContactsQueryService:
             return ContactPage(items=eintraege, next_cursor=naechster,
                                has_more=mehr)
 
-    def get_contact(self, contact_id: str, *,
-                    workspace_id: str) -> Contact | None:
-        """Vollständiger Kontakt inklusive Feldverfügbarkeit.
+    def get_contact(self, contact_id: str, *, workspace_id: str,
+                    include_tombstones: bool = False) -> Contact | None:
+        """Vollständiger **aktiver** Kontakt inklusive Feldverfügbarkeit.
 
         Die Workspace-Prüfung ist Teil der Abfrage, nicht des Aufrufers: ein
         fremder Workspace bekommt `None`, nicht den Datensatz.
+
+        Tombstones ebenso. Bis 2026-08-13 gab diese Abfrage einen gelöschten
+        Kontakt weiter aus, während alle Listenwege ihn mit
+        `AND is_tombstone = 0` ausschlossen — die Detailroute antwortete nach
+        einem DELETE also mit HTTP 200 (§8 E). Der Vertrag in
+        `docs/personal-jarvis/modules/contacts.md` nennt für
+        `GET /v1/personal/contacts/{id}` als Fehlerfall `NotFound`, und
+        `ContactDetailOut` ist `_Strict` **ohne** `deleted_at` und ohne
+        `is_tombstone`: Die Route kann einen Tombstone nicht einmal
+        ausdrücken. Sie verspricht damit den aktiven Kontakt, und alles andere
+        ist ein Defekt, keine Semantikfrage.
+
+        `include_tombstones=True` bleibt für Diagnose- und Historienwege, die
+        den gelöschten Stand ausdrücklich sehen wollen. Eine positive
+        Abwesenheitskontrolle nach DELETE benutzt es **nicht** — sie fragt die
+        aktive Sicht, sonst prüft sie das Gegenteil ihrer Behauptung.
         """
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
-                "SELECT workspace_id FROM contacts WHERE id = ?",
+                "SELECT workspace_id, is_tombstone FROM contacts WHERE id = ?",
                 (contact_id,)).fetchone()
             if zeile is None or zeile["workspace_id"] != workspace_id:
+                return None
+            if zeile["is_tombstone"] and not include_tombstones:
                 return None
             return SqliteContactRepository(uow).get(contact_id)
 
@@ -339,22 +357,35 @@ class ContactsQueryService:
         Die Nutzlast liegt in derselben kanonischen Datenbank wie die Kontakte;
         sie wird hier **gelesen**, nicht erneut gespeichert und nie in Audit
         oder Outbox geschrieben.
+
+        Der Vorzustand kommt aus `expectedPrevious` **derselben** Nutzlast und
+        nicht mehr aus einer frisch gelesenen `contacts`-Zeile. Zwei Gründe,
+        und beide sind wichtiger als die kürzere Abfrage:
+
+        * **Namensraum.** `fields` trägt bei `update` die kanonischen Schlüssel
+          aus `canonical_patch` (`organizationName`); eine `contacts`-Zeile
+          trägt Spaltennamen (`organization_name`). Der Nachschlag ging damit
+          strukturell ins Leere und lieferte `previous: null`, obwohl ein
+          Vorwert existierte. Listenfelder wie `emails` hatten dort ohnehin
+          nie eine Spalte.
+        * **Zeitpunkt.** `expectedPrevious` ist der Zustand, den der Mensch in
+          der Vorschau gesehen und freigegeben hat, und er ist vom
+          `payload_digest` gedeckt. Der aktuelle Datenbankstand ist es nicht —
+          er kann sich seit der Freigabe geändert haben.
+
+        Ein `create` hat keinen Vorzustand; dort bleibt `previous` leer, und
+        das ist die richtige Aussage statt einer erfundenen.
         """
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
-                "SELECT payload_json, command, target_contact_id "
-                "FROM contacts_mutations WHERE mutation_id = ? "
-                "AND workspace_id = ?", (mutation_id, workspace_id)).fetchone()
+                "SELECT payload_json FROM contacts_mutations "
+                "WHERE mutation_id = ? AND workspace_id = ?",
+                (mutation_id, workspace_id)).fetchone()
             if zeile is None:
                 return ()
             nutzlast = json.loads(zeile["payload_json"])
             felder = nutzlast.get("fields") or {}
-            vorher: dict = {}
-            if zeile["target_contact_id"]:
-                alt = uow.execute("SELECT * FROM contacts WHERE id = ?",
-                                  (zeile["target_contact_id"],)).fetchone()
-                if alt is not None:
-                    vorher = dict(alt)
+            vorher = nutzlast.get("expectedPrevious") or {}
             return tuple(
                 {"field": name, "previous": vorher.get(name), "planned": wert}
                 for name, wert in sorted(felder.items()))
@@ -555,11 +586,18 @@ class ContactsQueryService:
 
     @staticmethod
     def _approval(row, jetzt: str) -> ApprovalSummary:
-        abgelaufen = (row["state"] == "awaiting_approval"
-                      and jetzt >= row["expires_at"])
+        # Bis 2026-08-13 wurde hier nur `awaiting_approval` gegen die Frist
+        # gehalten. Eine **erteilte**, aber abgelaufene Freigabe kam damit als
+        # `granted` und `is_expired=False` heraus, obwohl `consume()` sie
+        # bereits verweigert hätte (§8 B). Der wirksame Zustand kommt jetzt aus
+        # derselben Funktion, die auch die Sperre begründet.
+        from personaljarvis.base.approvals import ApprovalState, effective_state
+
+        wirksam = effective_state(row["state"], row["expires_at"], now=jetzt)
+        abgelaufen = wirksam == ApprovalState.EXPIRED
         return ApprovalSummary(
             approval_id=row["approval_id"], mutation_id=row["mutation_id"],
-            command=row["command"], state=row["state"],
+            command=row["command"], state=wirksam,
             initiation_context=row["initiation_context"], actor=row["actor"],
             correlation_id=row["correlation_id"],
             requested_at=row["requested_at"], expires_at=row["expires_at"],

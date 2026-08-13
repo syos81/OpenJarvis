@@ -25,6 +25,7 @@ from personaljarvis.errors import PersonalJarvisError
 
 __all__ = [
     "ApprovalState",
+    "effective_state",
     "ApprovalError",
     "ApprovalNotFound",
     "ApprovalNotPending",
@@ -53,6 +54,32 @@ class ApprovalState:
     CONSUMED = "consumed"
 
     TERMINAL = frozenset({REJECTED, EXPIRED, CANCELLED, CONSUMED})
+
+    #: Zustände, aus denen heraus eine Freigabe noch wirken könnte — und die
+    #: deshalb ablaufen können. Alles andere ist bereits entschieden.
+    OPEN = frozenset({AWAITING, GRANTED})
+
+
+def effective_state(state: str, expires_at: str, *,
+                    now: str | None = None) -> str:
+    """Der Zustand, den ein **Leser** sehen muss — Zeit eingerechnet.
+
+    Der gespeicherte Zustand ist die Absicht des letzten Schreibers, nicht die
+    Lage. Eine erteilte Freigabe bleibt in der Datenbank `granted`, bis
+    irgendein Zugriff sie auswertet; bis dahin behauptete jede Anzeige eine
+    Handlungsfähigkeit, die `consume()` längst verweigert. Genau das war der
+    offene Punkt B des Integrationsberichts.
+
+    Diese Funktion ist die **eine** Stelle, die aus Zustand plus Zeit den
+    wirksamen Zustand macht. Sie schreibt nichts: Das Fortschreiben in der
+    Datenbank bleibt ein eigener, ausdrücklicher Schritt (`expire`), damit ein
+    Lesezugriff keine Zustandsänderung auslöst. Anzeige und Fail-closed-Sperre
+    in `consume()` teilen sich dadurch dieselbe Wahrheit, statt sie zweimal —
+    und irgendwann verschieden — zu formulieren.
+    """
+    if state in ApprovalState.OPEN and (now or utc_now()) >= expires_at:
+        return ApprovalState.EXPIRED
+    return state
 
 
 class ApprovalError(PersonalJarvisError):
@@ -104,6 +131,10 @@ class Approval:
 
     def is_expired(self, *, now: str | None = None) -> bool:
         return (now or utc_now()) >= self.expires_at
+
+    def effective_state(self, *, now: str | None = None) -> str:
+        """Wie `state`, aber mit eingerechneter Zeit — siehe `effective_state`."""
+        return effective_state(self.state, self.expires_at, now=now)
 
 
 class ApprovalStore:
