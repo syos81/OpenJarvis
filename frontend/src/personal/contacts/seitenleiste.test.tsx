@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ContactsToolbar } from './workspace/ContactsToolbar';
+import { PaneDivider } from './workspace/PaneDivider';
 
 const quelltext = async (datei: string) => {
   const fs = await import('node:fs');
@@ -57,21 +58,27 @@ describe('Toggle der Seitenleiste', () => {
   });
 });
 
-describe('Ausgeblendet heisst weg, nicht abgeraeumt', () => {
-  it('haelt Leiste und Trenner beide auf null', async () => {
+describe('Ausgeblendet heisst unsichtbar, nicht aus dem Grid', () => {
+  it('haelt die Spuren auf null', async () => {
     const quelle = await quelltext(
       'src/personal/contacts/workspace/ContactsWorkspace.tsx');
     expect(quelle).toContain('${seitenleisteOffen ? sidebarBreite : 0}px');
-    // Ein stehengebliebener Trenner waere ein Griff ins Leere.
-    expect(quelle).toContain('{seitenleisteOffen && <PaneDivider');
   });
 
-  it('baut die Leiste nicht neu auf', async () => {
+  it('nimmt weder Leiste noch Trenner aus dem Grid-Fluss', async () => {
+    // Der Fehler, den dieser Test festhaelt (Nutzerbefund 2026-08-13): Das
+    // Grid definiert fuenf Spuren fuer fuenf Kinder. Wer eines davon
+    // bedingt rendert oder auf `hidden` (display:none) setzt, laesst alle
+    // folgenden Kinder eine Spur nach links rutschen — die Liste landete
+    // damit in der Nullspur, und nur die Detailspalte blieb stehen.
     const quelle = await quelltext(
       'src/personal/contacts/workspace/ContactsWorkspace.tsx');
-    // `hidden` statt Aushaengen: sonst verloere sie ihren Zustand.
-    expect(quelle).toContain('hidden={!seitenleisteOffen}');
+    expect(quelle).not.toContain('{seitenleisteOffen && <PaneDivider');
     expect(quelle).not.toContain('{seitenleisteOffen && <ContactsSidebar');
+    expect(quelle).not.toContain('hidden={!seitenleisteOffen}');
+    // Stattdessen: Platz halten, Sichtbarkeit nehmen.
+    expect(quelle).toContain("visibility: seitenleisteOffen ? 'visible' : 'hidden'");
+    expect(quelle).toContain('versteckt={!seitenleisteOffen}');
   });
 
   it('laesst Auswahl und Filter unberuehrt', async () => {
@@ -82,5 +89,27 @@ describe('Ausgeblendet heisst weg, nicht abgeraeumt', () => {
     expect(block).toContain('setSeitenleisteOffen((o) => !o)');
     expect(block).not.toContain('setAuswahlId');
     expect(block).not.toContain('setSidebarAuswahl');
+  });
+});
+
+describe('Der versteckte Trenner haelt seinen Platz', () => {
+  it('bleibt im Layout, ist aber unsichtbar und nicht greifbar', () => {
+    const { container } = render(
+      <PaneDivider label="Breite der Seitenleiste" wert={200} min={100}
+                   max={300} onChange={() => {}} versteckt />);
+    const trenner = container.querySelector('[role="separator"]')!;
+    expect(getComputedStyle(trenner).visibility).toBe('hidden');
+    expect(trenner.getAttribute('tabindex')).toBe('-1');
+    expect(trenner.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('ist sichtbar und bedienbar, solange die Spalte offen ist', () => {
+    const { container } = render(
+      <PaneDivider label="Breite der Seitenleiste" wert={200} min={100}
+                   max={300} onChange={() => {}} />);
+    const trenner = container.querySelector('[role="separator"]')!;
+    expect(getComputedStyle(trenner).visibility).toBe('visible');
+    expect(trenner.getAttribute('tabindex')).toBe('0');
+    expect(trenner.getAttribute('aria-hidden')).toBeNull();
   });
 });

@@ -414,10 +414,16 @@ export function ContactsWorkspace({ testListenHoehe }: {
         flex: 1,
         minHeight: 0,
       }}>
-        {/* Sidebar — ausgeblendet bleibt sie montiert, aber unsichtbar und
-            nicht fokussierbar. Sie neu aufzubauen verlöre ihren Zustand. */}
-        <div hidden={!seitenleisteOffen}
-             style={{ minWidth: 0, overflow: 'hidden', height: '100%' }}>
+        {/* Sidebar — ausgeblendet bleibt sie montiert und **im Grid**, aber
+            unsichtbar und nicht fokussierbar. `hidden` waere falsch: Es
+            setzt display:none, nimmt das Element damit aus dem Grid und
+            laesst alle folgenden Kinder eine Spur nach links rutschen.
+            `visibility` haelt den Platz. Sie neu aufzubauen verloere
+            ausserdem ihren Zustand. */}
+        <div style={{
+          minWidth: 0, overflow: 'hidden', height: '100%',
+          visibility: seitenleisteOffen ? 'visible' : 'hidden',
+        }}>
           <ContactsSidebar
             auswahl={sidebarAuswahl}
             onAuswahl={setSidebarAuswahl}
@@ -430,13 +436,14 @@ export function ContactsWorkspace({ testListenHoehe }: {
             offeneFreigaben={offeneFreigaben}
           />
         </div>
-        {seitenleisteOffen && <PaneDivider
+        <PaneDivider
+          versteckt={!seitenleisteOffen}
           label="Breite der Seitenleiste"
           wert={sidebarBreite}
           min={grenzen.sidebar.min}
           max={grenzen.sidebar.max}
           onChange={setSidebarBreite}
-        />}
+        />
 
         {/* Liste */}
         <div style={{ minWidth: 0, overflow: 'hidden', height: '100%' }}>

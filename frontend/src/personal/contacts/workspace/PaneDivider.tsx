@@ -17,7 +17,7 @@ import { useCallback, useRef, useState } from 'react';
 const TASTATUR_SCHRITT = 16;
 
 export function PaneDivider({ label, wert, min, max, onChange,
-                              richtung = 'links' }: {
+                              richtung = 'links', versteckt = false }: {
   label: string;
   wert: number;
   min: number;
@@ -27,6 +27,16 @@ export function PaneDivider({ label, wert, min, max, onChange,
       Bei `rechts` waechst die Spalte beim Ziehen nach links — die
       Pfeiltasten folgen der Separatorbewegung, nicht dem Breitenwert. */
   richtung?: 'links' | 'rechts';
+  /** Eingeklappte Nachbarspalte: Der Trenner bleibt im Grid, ist aber weder
+      sichtbar noch greifbar noch fokussierbar.
+
+      Ihn stattdessen **nicht zu rendern** war ein Fehler: Das Grid definiert
+      fuenf Spuren fuer fuenf Kinder, und ein fehlendes Kind laesst alle
+      folgenden eine Spur nach links rutschen — die Liste landete damit in
+      der Nullspur (Nutzerbefund 2026-08-13). `visibility: hidden` haelt den
+      Platz, nimmt das Element aber aus Tabreihenfolge, Zugaenglichkeitsbaum
+      und Zeigerereignissen. */
+  versteckt?: boolean;
 }) {
   const faktor = richtung === 'rechts' ? -1 : 1;
   const start = useRef<{ x: number; breite: number } | null>(null);
@@ -45,9 +55,11 @@ export function PaneDivider({ label, wert, min, max, onChange,
         aria-valuenow={Math.round(ziehtZu ?? wert)}
         aria-valuemin={min}
         aria-valuemax={max}
-        tabIndex={0}
+        tabIndex={versteckt ? -1 : 0}
+        aria-hidden={versteckt || undefined}
         className="pjc-focusable"
         style={{
+          visibility: versteckt ? 'hidden' : 'visible',
           position: 'relative',
           flex: '0 0 auto',
           width: 'var(--pjc-divider-width)',
