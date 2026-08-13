@@ -465,16 +465,33 @@ def test_die_schreibweise_ist_zwischen_sidecar_und_kern_identisch():
 def test_die_schreibweise_ist_zwischen_kern_und_oberflaeche_identisch():
     from pathlib import Path
 
-    # Seit dem Apple-Neuaufbau (2026-08-02) lebt die Ablageort-Beschriftung
-    # im Anlage-Dialog des Kontakte-Moduls, nicht mehr im Seitenmonolithen.
+    # Seit dem Apple-Neuaufbau (2026-08-02) lebt die Ablageort-Beschriftung im
+    # Kontakte-Modul, nicht mehr im Seitenmonolithen. Seit 2026-08-13 steht sie
+    # in `components.tsx` statt im Anlage-Dialog: Die Freigabevorschau nennt
+    # den Zielort ebenfalls (§8 A), und zwei Beschriftungstabellen waeren zwei
+    # Wahrheiten darueber, wie „local" heisst — ausgerechnet an der Stelle, an
+    # der der Mensch entscheidet, wohin geschrieben wird.
     quelle = Path(__file__).resolve().parents[3] / (
-        "frontend/src/personal/contacts/editor/dialogs.tsx")
+        "frontend/src/personal/contacts/components.tsx")
     text = quelle.read_text(encoding="utf-8")
     block = text.split("const CONTAINER_ART", 1)[1].split("};", 1)[0]
     for art in SPECIFIC_CONTAINER_TYPES | {CONTAINER_TYPE_UNKNOWN}:
         assert f"{art}:" in block, art
     # Und die lokale Ablage trägt genau den Wortlaut, an dem sie erkannt wird.
     assert "local: 'Lokal · Auf meinem Mac'" in block
+
+
+def test_die_beschriftung_steht_genau_einmal():
+    """Zwei Tabellen waeren zwei Wahrheiten (CLAUDE.md: eine normative Stelle)."""
+    from pathlib import Path
+
+    wurzel = Path(__file__).resolve().parents[3] / "frontend/src"
+    # Testdateien nennen die Zeichenkette, um genau diese Regel zu pruefen —
+    # sie deklarieren die Tabelle nicht.
+    treffer = [p for p in wurzel.rglob("*.tsx")
+               if not p.name.endswith(".test.tsx")
+               and "const CONTAINER_ART" in p.read_text(encoding="utf-8")]
+    assert len(treffer) == 1, [str(p) for p in treffer]
 
 
 def test_validate_inventory_liefert_uebersetzte_arten():

@@ -38,6 +38,7 @@ from personaljarvis.contacts.domain.models import Contact
 from personaljarvis.contacts.repositories.sqlite import (
     SqliteContactRepository,
 )
+from personaljarvis.contacts.sync.containers import normalize_container_type
 
 __all__ = [
     "MAX_PAGE_SIZE",
@@ -128,6 +129,10 @@ class MutationSummary:
     target_contact_id: str | None
     target_display_name: str | None
     container_identifier: str | None
+    #: Art des Zielablageorts. Fuer `update`/`delete` traegt die Vorgangszeile
+    #: selbst keinen Container — er wird beim Lesen aus der bestehenden
+    #: Provideridentitaet aufgeloest, damit die Anzeige „wohin" beantwortet.
+    container_type: str | None
     expected_revision: str | None
     attempt_count: int
     last_error_code: str | None
@@ -164,6 +169,12 @@ class ApprovalSummary:
     decision_actor: str | None
     preview_digest: str
     is_expired: bool
+    #: Was freigegeben wird — die Anzeige ist Teil der informierten Freigabe
+    #: (§8 A). Der Knopf sitzt an dieser Liste, also gehoert der Zielort hierher
+    #: und nicht erst in die Detailansicht dahinter.
+    target_display_name: str | None = None
+    container_identifier: str | None = None
+    container_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -322,7 +333,7 @@ class ContactsQueryService:
         with self._persistence.unit_of_work() as uow:
             rows = uow.execute(
                 f"SELECT m.*, c.display_name AS ziel_name, a.state AS a_state, "
-                f"a.expires_at AS a_expires, "
+                f"a.expires_at AS a_expires, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art, "
                 # Kanonische Quelle der Sendversuche (siehe `_mutation`).
                 f"o.attempt_count AS sendversuche "
                 f"FROM contacts_mutations m "
@@ -330,6 +341,7 @@ class ContactsQueryService:
                 f"LEFT JOIN personal_approvals a ON a.approval_id = m.approval_id "
                 f"LEFT JOIN personal_external_action_outbox o "
                 f"ON o.outbox_id = m.outbox_id "
+                f"LEFT JOIN contact_external_ids x ON x.provider_account_id = m.provider_account_id AND x.provider_identifier = m.target_provider_identifier LEFT JOIN contacts_sync_state st ON st.provider_account_id = m.provider_account_id AND st.container_identifier = COALESCE(m.container_identifier, x.container_identifier) "
                 f"WHERE {' AND '.join(bedingungen)} "
                 f"ORDER BY m.created_at DESC, m.mutation_id LIMIT ?",
                 (*werte, limit)).fetchall()
@@ -340,12 +352,14 @@ class ContactsQueryService:
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
                 "SELECT m.*, c.display_name AS ziel_name, a.state AS a_state, "
-                "a.expires_at AS a_expires, o.attempt_count AS sendversuche "
+                "a.expires_at AS a_expires, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art, "
+                "o.attempt_count AS sendversuche "
                 "FROM contacts_mutations m "
                 "LEFT JOIN contacts c ON c.id = m.target_contact_id "
                 "LEFT JOIN personal_approvals a ON a.approval_id = m.approval_id "
                 "LEFT JOIN personal_external_action_outbox o "
                 "ON o.outbox_id = m.outbox_id "
+                "LEFT JOIN contact_external_ids x ON x.provider_account_id = m.provider_account_id AND x.provider_identifier = m.target_provider_identifier LEFT JOIN contacts_sync_state st ON st.provider_account_id = m.provider_account_id AND st.container_identifier = COALESCE(m.container_identifier, x.container_identifier) "
                 "WHERE m.mutation_id = ? AND m.workspace_id = ?",
                 (mutation_id, workspace_id)).fetchone()
             return self._mutation(zeile) if zeile else None
@@ -405,9 +419,17 @@ class ContactsQueryService:
             werte.append(state)
         with self._persistence.unit_of_work() as uow:
             rows = uow.execute(
-                f"SELECT a.*, m.command, m.mutation_id "
+                f"SELECT a.*, m.command, m.mutation_id, c.display_name AS ziel_name, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art "
                 f"FROM personal_approvals a "
                 f"JOIN contacts_mutations m ON m.approval_id = a.approval_id "
+                f"LEFT JOIN contacts c ON c.id = m.target_contact_id "
+                f"LEFT JOIN contact_external_ids x "
+                f"ON x.provider_account_id = m.provider_account_id "
+                f"AND x.provider_identifier = m.target_provider_identifier "
+                f"LEFT JOIN contacts_sync_state st "
+                f"ON st.provider_account_id = m.provider_account_id "
+                f"AND st.container_identifier = "
+                f"COALESCE(m.container_identifier, x.container_identifier) "
                 f"WHERE {' AND '.join(bedingungen)} "
                 f"ORDER BY a.requested_at DESC, a.approval_id",
                 tuple(werte)).fetchall()
@@ -422,8 +444,17 @@ class ContactsQueryService:
 
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
-                "SELECT a.*, m.command, m.mutation_id FROM personal_approvals a "
+                "SELECT a.*, m.command, m.mutation_id, c.display_name AS ziel_name, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art "
+                "FROM personal_approvals a "
                 "JOIN contacts_mutations m ON m.approval_id = a.approval_id "
+                "LEFT JOIN contacts c ON c.id = m.target_contact_id "
+                "LEFT JOIN contact_external_ids x "
+                "ON x.provider_account_id = m.provider_account_id "
+                "AND x.provider_identifier = m.target_provider_identifier "
+                "LEFT JOIN contacts_sync_state st "
+                "ON st.provider_account_id = m.provider_account_id "
+                "AND st.container_identifier = "
+                "COALESCE(m.container_identifier, x.container_identifier) "
                 "WHERE a.approval_id = ? AND m.workspace_id = ?",
                 (approval_id, workspace_id)).fetchone()
             return self._approval(zeile, now or utc_now()) if zeile else None
@@ -567,7 +598,9 @@ class ContactsQueryService:
             provider_account_id=row["provider_account_id"],
             target_contact_id=row["target_contact_id"],
             target_display_name=row["ziel_name"],
-            container_identifier=row["container_identifier"],
+            container_identifier=row["ziel_container"],
+            container_type=normalize_container_type(
+                row["ziel_container_art"]),
             expected_revision=row["expected_revision"],
             # **Kanonisch die Outbox.** Sie erhoeht den Zaehler beim Claim,
             # also genau dann, wenn ein Sendversuch beginnt. Die gleichnamige
@@ -602,4 +635,8 @@ class ContactsQueryService:
             correlation_id=row["correlation_id"],
             requested_at=row["requested_at"], expires_at=row["expires_at"],
             decided_at=row["decided_at"], decision_actor=row["decision_actor"],
-            preview_digest=row["preview_digest"], is_expired=abgelaufen)
+            preview_digest=row["preview_digest"], is_expired=abgelaufen,
+            target_display_name=row["ziel_name"],
+            container_identifier=row["ziel_container"],
+            container_type=normalize_container_type(
+                row["ziel_container_art"]))

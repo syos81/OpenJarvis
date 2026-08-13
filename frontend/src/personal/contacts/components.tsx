@@ -177,6 +177,75 @@ export const COMMAND_LABELS: Record<string, string> = {
   delete: 'Löschen',
 };
 
+/**
+ * Beschriftung der Ablageortarten. Wortgleich mit dem geschlossenen Vorrat in
+ * `sync/containers.py` (`SPECIFIC_CONTAINER_TYPES`).
+ *
+ * Stand bis 2026-08-13 nur im Anlagedialog. Seit die Freigabevorschau den
+ * Zielort ebenfalls nennt, ist das eine gemeinsame Sache: Zwei Tabellen wären
+ * zwei Wahrheiten darüber, wie „local" heisst — und ausgerechnet an der
+ * Stelle, an der der Mensch entscheidet, wohin geschrieben wird.
+ */
+export const CONTAINER_ART: Record<string, string> = {
+  local: 'Lokal · Auf meinem Mac',
+  cardDAV: 'CardDAV / iCloud',
+  exchange: 'Exchange',
+  unassigned: 'Ohne Zuordnung',
+  unknown: 'Art noch nicht bekannt',
+};
+
+/**
+ * Die Zielangabe einer freigabepflichtigen Mutation: Operation, Zielobjekt,
+ * Ablageort mit Art und stabiler Kennung.
+ *
+ * Sie ist Bestandteil der informierten Eigentümerfreigabe (§8 A) und keine
+ * Verzierung — ohne sie beantwortet die Vorschau „wohin" nicht. Der
+ * Vorschau-Digest deckt Ablageort **und** Art; angezeigt wird ausschliesslich
+ * die maskierte Kennung, nie die rohe Providerkennung.
+ */
+export function Zielangabe({ command, targetLabel, containerRef, containerType }: {
+  command: string;
+  targetLabel?: string | null;
+  containerRef?: string | null;
+  containerType?: string | null;
+}) {
+  const art = containerType ?? 'unknown';
+  return (
+    <dl data-testid="zielangabe" style={{
+      display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 10px',
+      font: 'var(--pjc-font-body)', margin: 0,
+    }}>
+      <dt style={{ color: 'var(--color-text-muted)' }}>Operation</dt>
+      <dd style={{ margin: 0, fontWeight: 600 }}>
+        {COMMAND_LABELS[command] ?? command}
+      </dd>
+      {targetLabel && (
+        <>
+          <dt style={{ color: 'var(--color-text-muted)' }}>Ziel</dt>
+          <dd style={{ margin: 0 }}>{targetLabel}</dd>
+        </>
+      )}
+      <dt style={{ color: 'var(--color-text-muted)' }}>Ablageort</dt>
+      <dd style={{ margin: 0 }}>
+        {CONTAINER_ART[art] ?? art}
+        {containerRef && (
+          <>
+            {' '}
+            <span style={{ color: 'var(--color-text-muted)' }}>
+              {art} {containerRef}
+            </span>
+          </>
+        )}
+        {!containerRef && (
+          <span style={{ color: 'var(--color-text-muted)' }}>
+            {' '}— nicht bestimmbar
+          </span>
+        )}
+      </dd>
+    </dl>
+  );
+}
+
 export function StateChip({ state }: { state: string }) {
   const warnend = ['outcome_unknown', 'reconcile_required',
     'manual_decision_required', 'failed', 'rejected', 'expired'];

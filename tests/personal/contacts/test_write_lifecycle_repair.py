@@ -185,7 +185,123 @@ class TestVorwertImAenderungssatz:
         assert all(a["previous"] is None for a in aenderungen)
 
 
+# ═══ A · Der Zielablageort in der Vorschau ══════════════════════════════════
+class TestZielablageortInDerVorschau:
+    """§8 A: Die Vorschau nannte den Zielcontainer nicht sichtbar.
+
+    Für `update` und `delete` stand dort fest `None` — die Nutzlast nennt
+    keinen Container, weil nichts verschoben wird (ADR-0026 §7). Für den
+    Menschen ist „wohin" trotzdem die erste Frage vor einer Freigabe.
+    """
+
+    def test_create_nennt_ablageort_und_art(self, module):
+        from personaljarvis.contacts.application import ContactDraft, CreateContact
+
+        _inventar(module)
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        befehl = CreateContact(
+            mutation_id=new_id(), idempotency_key=new_id(),
+            provider_account_id=KONTO, workspace_id=WORKSPACE, actor=MENSCH,
+            initiation_context=InitiationContext.USER_DIRECT,
+            correlation_id=new_id(), container_identifier=CONTAINER,
+            draft=ContactDraft({"given_name": "Fixi", "family_name": "Eins"}))
+        vorgang = dienst.prepare(befehl)
+
+        assert vorgang.preview.container_identifier == CONTAINER
+        assert vorgang.preview.container_type == "local"
+
+    @pytest.mark.parametrize("bauer", ["update", "delete"])
+    def test_update_und_delete_nennen_den_ablageort_ebenfalls(self, module, bauer):
+        from personaljarvis.contacts.application import DeleteContact
+
+        _inventar(module)
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        if bauer == "update":
+            befehl = _update_befehl(kontakt)
+        else:
+            befehl = DeleteContact(
+                mutation_id=new_id(), idempotency_key=new_id(),
+                provider_account_id=KONTO, workspace_id=WORKSPACE,
+                actor=MENSCH,
+                initiation_context=InitiationContext.USER_DIRECT,
+                correlation_id=new_id(), target_provider_identifier="raw-1")
+        vorgang = dienst.prepare(befehl)
+
+        assert vorgang.preview.container_identifier == CONTAINER
+        assert vorgang.preview.container_type == "local"
+
+    def test_unbekannte_art_ist_eine_aussage_keine_vermutung(self, module):
+        """Ohne Inventareintrag lautet die Antwort `unknown` — nicht `local`."""
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        vorgang = dienst.prepare(_update_befehl(kontakt))
+
+        assert vorgang.preview.container_identifier == CONTAINER
+        assert vorgang.preview.container_type == "unknown"
+
+    def test_der_digest_deckt_die_art_des_ablageorts(self):
+        """Was gezeigt wurde, muss die Freigabe binden."""
+        from personaljarvis.contacts.application.models import MutationPreview
+
+        eine = MutationPreview(command="create",
+                               target_provider_identifier=None,
+                               container_identifier="c-1",
+                               container_type="local")
+        andere = MutationPreview(command="create",
+                                 target_provider_identifier=None,
+                                 container_identifier="c-1",
+                                 container_type="cardDAV")
+        assert eine.digest != andere.digest
+
+    def test_der_leseweg_nennt_den_ablageort_auch_spaeter(self, module):
+        """Nicht nur beim Vorbereiten — auch beim Nachschauen und Freigeben."""
+        _inventar(module)
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        befehl = _update_befehl(kontakt)
+        dienst.prepare(befehl)
+
+        fragen = ContactsQueryService(module)
+        vorgang = fragen.get_mutation(befehl.mutation_id,
+                                      workspace_id=WORKSPACE)
+        assert vorgang.container_identifier == CONTAINER
+        assert vorgang.container_type == "local"
+
+        freigabe = fragen.list_approvals(workspace_id=WORKSPACE)[0]
+        assert freigabe.container_identifier == CONTAINER
+        assert freigabe.container_type == "local"
+        assert freigabe.target_display_name == kontakt.display_name
+
+    def test_die_rohe_kennung_verlaesst_die_api_grenze_nicht(self, module):
+        """Nach draussen geht das Kürzel, nie die Apple-Kennung."""
+        from personaljarvis.contacts.api.redaction import container_ref
+
+        _inventar(module)
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        befehl = _update_befehl(kontakt)
+        dienst.prepare(befehl)
+
+        freigabe = ContactsQueryService(module).list_approvals(
+            workspace_id=WORKSPACE)[0]
+        kuerzel = container_ref(freigabe.container_identifier)
+        assert kuerzel.startswith("C-")
+        assert CONTAINER not in kuerzel
+
+
 # ── Hilfen ──────────────────────────────────────────────────────────────────
+def _inventar(module, *, art="local"):
+    """Ein Inventareintrag, damit die Art des Ablageorts bekannt ist."""
+    with module.unit_of_work() as uow:
+        uow.execute(
+            "INSERT INTO contacts_sync_state (provider_account_id, "
+            "container_identifier, key_set_version, mode, circuit_state, "
+            "updated_at, container_type) VALUES (?,?,?,?,?,?,?)",
+            (KONTO, CONTAINER, "v1", "delta", "closed",
+             "2026-08-13T10:00:00+00:00", art))
+
+
 def _lokal(module, *, provider_identifier="raw-1", **felder):
     with module.unit_of_work() as uow:
         kontakt = make_contact(**felder)

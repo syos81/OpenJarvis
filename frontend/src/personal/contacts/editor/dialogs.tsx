@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Capabilities, ContactDetail, PreparedMutation } from '../api';
 import * as api from '../api';
-import { ChangeTable, COMMAND_LABELS, Modal } from '../components';
+import { ChangeTable, COMMAND_LABELS, CONTAINER_ART, Modal } from '../components';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
 import type { ContactsDataSource } from '../data/source';
 import type { Fehlerbild } from '../workspace/fehler';
@@ -185,14 +185,6 @@ const LABEL_TEXT: Record<string, string> = {
 };
 
 type ListenEintrag = { label: string; value: string };
-
-const CONTAINER_ART: Record<string, string> = {
-  local: 'Lokal · Auf meinem Mac',
-  cardDAV: 'CardDAV / iCloud',
-  exchange: 'Exchange',
-  unassigned: 'Ohne Zuordnung',
-  unknown: 'Art noch nicht bekannt',
-};
 
 export function CreateDialog({ caps, onClose, onPrepared }: {
   caps: Capabilities | null;

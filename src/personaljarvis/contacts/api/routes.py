@@ -564,11 +564,23 @@ def create_contacts_router(module) -> APIRouter:
             contact_id=ergebnis.contact_id,
             pending_local_catchup=ergebnis.pending_local_catchup)
 
+    def _approval_out(a) -> S.ApprovalOut:
+        """Freigabe nach aussen — mit Zielangabe, ohne rohe Kennung.
+
+        `vars(a)` waere hier falsch: `ApprovalSummary.container_identifier`
+        traegt die **rohe** Providerkennung, und die verlaesst die API-Grenze
+        nie (ADR-0025 §2). Nach draussen geht das Kuerzel.
+        """
+        felder = vars(a).copy()
+        roh = felder.pop("container_identifier", None)
+        return S.ApprovalOut(**felder,
+                             container_ref=container_ref(roh) if roh else None)
+
     @router.get("/approvals", response_model=list[S.ApprovalOut])
     def list_approvals(request: Request,
                        state: str | None = Query(default=None, max_length=64),
                        include_expired: bool = Query(default=True)) -> Any:
-        return [S.ApprovalOut(**vars(a)) for a in queries.list_approvals(
+        return [_approval_out(a) for a in queries.list_approvals(
             workspace_id=workspace(request), state=state,
             include_expired=include_expired)]
 
@@ -578,7 +590,7 @@ def create_contacts_router(module) -> APIRouter:
                                        workspace_id=workspace(request))
         if eintrag is None:
             raise _http_error(MutationNotFound("Freigabe existiert nicht"))
-        return S.ApprovalOut(**vars(eintrag))
+        return _approval_out(eintrag)
 
     def _entscheiden(mutation_id: str, request: Request, aktion: str,
                      decision_actor: str | None) -> Any:
@@ -597,7 +609,7 @@ def create_contacts_router(module) -> APIRouter:
         eintrag = queries.get_approval(
             queries.get_mutation(mutation_id, workspace_id=ws).approval_id,
             workspace_id=ws)
-        return S.ApprovalOut(**vars(eintrag))
+        return _approval_out(eintrag)
 
     @router.post("/mutations/{mutation_id}/approve", response_model=S.ApprovalOut)
     def approve(mutation_id: str, body: S.ApprovalDecisionIn,
@@ -670,6 +682,7 @@ def create_contacts_router(module) -> APIRouter:
             target_contact_id=vorschau.target_contact_id,
             container_ref=(container_ref(vorschau.container_identifier)
                            if vorschau.container_identifier else None),
+            container_type=vorschau.container_type or "unknown",
             target_label=vorschau.target_label,
             changes=[S.FieldChangeOut(field_name=c.field_name,
                                       previous=c.previous, planned=c.planned)
@@ -831,6 +844,7 @@ def _mutation_out(m) -> S.MutationOut:
         target_display_name=m.target_display_name,
         container_ref=(container_ref(m.container_identifier)
                        if m.container_identifier else None),
+        container_type=m.container_type or "unknown",
         expected_revision=m.expected_revision, attempt_count=m.attempt_count,
         last_error_code=m.last_error_code, created_at=m.created_at,
         approved_at=m.approved_at, completed_at=m.completed_at,

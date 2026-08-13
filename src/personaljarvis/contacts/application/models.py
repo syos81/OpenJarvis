@@ -53,14 +53,28 @@ class MutationPreview:
     warnings: tuple[str, ...] = ()
     #: Lokale Zielkennung — sie und nicht die Providerkennung geht nach aussen.
     target_contact_id: str | None = None
+    #: Art des Zielablageorts aus dem geschlossenen Vorrat
+    #: (`local | cardDAV | exchange | unassigned | unknown`). Sie gehört in die
+    #: Vorschau, weil „wohin" ohne sie nicht beantwortet ist: Eine Kennung
+    #: allein sagt dem Menschen nicht, ob er in den lokalen Ablageort oder in
+    #: ein Konto schreibt (§8 A, ADR-0025 §2).
+    container_type: str | None = None
 
     @property
     def digest(self) -> str:
-        """Digest der Vorschau — bindet die Freigabe an das Gezeigte."""
+        """Digest der Vorschau — bindet die Freigabe an das Gezeigte.
+
+        Der Zielablageort ist seit 2026-08-13 mit **Art** gedeckt, nicht mehr
+        nur mit Kennung. Die Anzeige ist Bestandteil der informierten
+        Freigabe: Was gezeigt wurde, muss der Digest binden — sonst deckte die
+        Freigabe eine andere Darstellung derselben Nutzlast, und genau davor
+        schützt die Digestbindung in `consume()`.
+        """
         return digest_of({
             "command": self.command,
             "target": self.target_provider_identifier,
             "container": self.container_identifier,
+            "containerType": self.container_type,
             "changes": [
                 {"field": c.field_name, "previous": c.previous,
                  "planned": c.planned} for c in self.changes

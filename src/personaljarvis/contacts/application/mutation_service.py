@@ -786,8 +786,17 @@ class ContactsMutationService:
             "AND idempotency_key = ?", (provider_account_id, key)).fetchone()
 
     def _reuse(self, uow: UnitOfWork, zeile) -> PreparedMutation:
-        """Derselbe Vorgang, keine zweite Mutation (Plan §7.1)."""
+        """Derselbe Vorgang, keine zweite Mutation (Plan §7.1).
+
+        Der Zielablageort wird hier genauso aufgelöst wie beim ersten Mal:
+        Ein wiederverwendeter Vorgang, dessen Vorschau „wohin" nicht mehr
+        beantwortet, wäre für den Menschen ein anderer Vorgang.
+        """
         payload = self._payload_from_row(zeile)
+        container = zeile["container_identifier"] or \
+            self._container_der_identitaet(
+                uow, zeile["provider_account_id"],
+                zeile["target_provider_identifier"])
         return PreparedMutation(
             mutation_id=zeile["mutation_id"],
             approval_id=zeile["approval_id"], outbox_id=zeile["outbox_id"],
@@ -795,7 +804,9 @@ class ContactsMutationService:
             preview=MutationPreview(
                 command=zeile["command"],
                 target_provider_identifier=zeile["target_provider_identifier"],
-                container_identifier=zeile["container_identifier"],
+                container_identifier=container,
+                container_type=self._container_art(
+                    uow, zeile["provider_account_id"], container),
                 target_contact_id=zeile["target_contact_id"]),
             reused=True)
 
@@ -855,6 +866,56 @@ class ContactsMutationService:
                 expected_revision=command.expected_revision, fields={})
         raise InvalidCommand(f"Unbekannter Command: {type(command).__name__}")
 
+    @staticmethod
+    def _container_art(uow: UnitOfWork, provider_account_id: str,
+                       container_identifier: str | None) -> str:
+        """Art des Ablageorts aus dem Inventar — nie geraten.
+
+        Fehlt der Eintrag, ist die Antwort `unknown`. Das ist eine Aussage
+        („keine Auskunft") und keine Vermutung; `normalize_container_type`
+        hält den Vorrat geschlossen.
+        """
+        from personaljarvis.contacts.sync.containers import (
+            CONTAINER_TYPE_UNKNOWN,
+            normalize_container_type,
+        )
+
+        if not container_identifier:
+            return CONTAINER_TYPE_UNKNOWN
+        zeile = uow.execute(
+            "SELECT container_type FROM contacts_sync_state "
+            "WHERE provider_account_id = ? AND container_identifier = ?",
+            (provider_account_id, container_identifier)).fetchone()
+        return normalize_container_type(zeile["container_type"]
+                                        if zeile else None)
+
+    @staticmethod
+    def _container_der_identitaet(uow: UnitOfWork, provider_account_id: str,
+                                  provider_identifier: str | None) -> str | None:
+        """Ablageort einer bestehenden Provideridentität."""
+        if not provider_identifier:
+            return None
+        zeile = uow.execute(
+            "SELECT container_identifier FROM contact_external_ids "
+            "WHERE provider_account_id = ? AND provider_identifier = ?",
+            (provider_account_id, provider_identifier)).fetchone()
+        return zeile["container_identifier"] if zeile else None
+
+    @staticmethod
+    def _ziel_container(uow: UnitOfWork, command: MutationCommand) -> str | None:
+        """Wohin wirkt diese Mutation — für `update` und `delete` nachgesehen.
+
+        Ein `update` **nennt** keinen Container, weil es nichts verschiebt
+        (Containerwechsel ist v2, ADR-0026 §7); die Nutzlast bleibt deshalb
+        unverändert ohne Containerangabe. Für den Menschen ist „wohin" aber
+        trotzdem die erste Frage vor einer Freigabe. Der Ort steht in der
+        bestehenden Identität — dieselbe Quelle, aus der `_spiegeln` ihn nach
+        der Ausführung holt.
+        """
+        return ContactsMutationService._container_der_identitaet(
+            uow, command.provider_account_id,
+            command.target_provider_identifier)
+
     def _build_preview(self, uow: UnitOfWork, command: MutationCommand,
                        ziel: dict) -> MutationPreview:
         """Vorschau mit konkreten Werten — wird zurückgegeben, nie gespeichert."""
@@ -868,6 +929,9 @@ class ContactsMutationService:
             return MutationPreview(
                 command="create", target_provider_identifier=None,
                 container_identifier=command.container_identifier,
+                container_type=self._container_art(
+                    uow, command.provider_account_id,
+                    command.container_identifier),
                 changes=tuple(FieldChange(name, None, wert) for name, wert
                               in preview_items(command.draft.contract)))
         vorher = {}
@@ -877,11 +941,13 @@ class ContactsMutationService:
                 (ziel["contact_id"],)).fetchone()
             if zeile is not None:
                 vorher = dict(zeile)
+        container = self._ziel_container(uow, command)
+        art = self._container_art(uow, command.provider_account_id, container)
         if isinstance(command, UpdateContact):
             return MutationPreview(
                 command="update",
                 target_provider_identifier=command.target_provider_identifier,
-                container_identifier=None,
+                container_identifier=container, container_type=art,
                 changes=tuple(
                     FieldChange(k, vorher.get(k), v) for k, v
                     in sorted(command.patch.fields.items())),
@@ -891,7 +957,7 @@ class ContactsMutationService:
         return MutationPreview(
             command="delete",
             target_provider_identifier=command.target_provider_identifier,
-            container_identifier=None,
+            container_identifier=container, container_type=art,
             target_label=vorher.get("display_name"),
             target_contact_id=ziel.get("contact_id"),
             warnings=("Der Datensatz wird beim Provider geloescht.",))

@@ -119,6 +119,8 @@ export interface PreparedMutation {
   /** Lokale Zielkennung — bei `create` erst nach der Ausführung bekannt. */
   target_contact_id: string | null;
   container_ref: string | null;
+  /** Art des Zielablageorts — Teil der informierten Freigabe (§8 A). */
+  container_type: string;
   target_label: string | null;
   changes: FieldChange[];
   warnings: string[];
@@ -137,6 +139,8 @@ export interface Mutation {
   target_contact_id: string | null;
   target_display_name: string | null;
   container_ref: string | null;
+  /** Art des Zielablageorts — Teil der informierten Freigabe (§8 A). */
+  container_type: string;
   expected_revision: string | null;
   attempt_count: number;
   last_error_code: string | null;
@@ -170,6 +174,13 @@ export interface Approval {
   decision_actor: string | null;
   preview_digest: string;
   is_expired: boolean;
+  /**
+   * Was freigegeben wird. Der Freigabeknopf sitzt an dieser Liste — ohne
+   * Zielangabe wäre die Zustimmung nicht informiert (§8 A).
+   */
+  target_display_name: string | null;
+  container_ref: string | null;
+  container_type: string;
 }
 
 export interface Capabilities {

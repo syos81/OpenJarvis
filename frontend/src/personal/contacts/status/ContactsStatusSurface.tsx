@@ -17,6 +17,7 @@ import type {
 } from '../api';
 import {
   Chip, COMMAND_LABELS, EmptyState, ErrorState, LoadingState, StateChip,
+  Zielangabe,
 } from '../components';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
 import type { ContactsDataSource } from '../data/source';
@@ -249,9 +250,17 @@ function ApprovalBoard({ quelle, onOpenMutation }: {
                 Vorgang öffnen
               </button>
             </p>
+            {/* Wohin — vor den Knöpfen. Wer hier freigibt, muss den Zielort
+                gesehen haben; genau das ist die informierte Freigabe (§8 A). */}
+            <div style={{ marginTop: '6px' }}>
+              <Zielangabe command={a.command}
+                          targetLabel={a.target_display_name}
+                          containerRef={a.container_ref}
+                          containerType={a.container_type} />
+            </div>
             <p style={{
               font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
-              margin: '4px 0 0', display: 'flex', flexWrap: 'wrap', gap: '8px',
+              margin: '6px 0 0', display: 'flex', flexWrap: 'wrap', gap: '8px',
             }}>
               <span>Ausgelöst von {a.actor} ({a.initiation_context})</span>
               <span>gültig bis {a.expires_at}</span>
@@ -430,6 +439,14 @@ function MutationDetailView({ id, quelle, onBack }: {
         <StateChip state={m.state} />
         {m.last_error_code && <Chip tone="warn">{m.last_error_code}</Chip>}
         <Chip>Versuche: {m.attempt_count}</Chip>
+      </div>
+
+      {/* Wohin wirkt das? Vor Zustand und Aktion, weil es die erste Frage
+          vor einer Freigabe ist und nicht die letzte (§8 A). */}
+      <div style={{ marginTop: '10px' }}>
+        <Zielangabe command={m.command} targetLabel={m.target_display_name}
+                    containerRef={m.container_ref}
+                    containerType={m.container_type} />
       </div>
 
       {m.state === 'approved' && (

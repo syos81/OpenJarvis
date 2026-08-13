@@ -415,6 +415,10 @@ class PreparedMutationOut(_Strict):
     #: Lokale Zielkennung — bei `create` erst nach der Ausführung bekannt.
     target_contact_id: str | None = None
     container_ref: str | None = None
+    #: Art des Zielablageorts aus dem geschlossenen Vorrat. Ohne sie ist
+    #: „wohin" nicht beantwortet: eine Kennung allein unterscheidet den
+    #: lokalen Ablageort nicht von einem Konto.
+    container_type: str = "unknown"
     target_label: str | None = None
     changes: list[FieldChangeOut] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -433,6 +437,7 @@ class MutationOut(_Strict):
     target_contact_id: str | None = None
     target_display_name: str | None = None
     container_ref: str | None = None
+    container_type: str = "unknown"
     expected_revision: str | None = None
     attempt_count: int = 0
     last_error_code: str | None = None
@@ -466,6 +471,11 @@ class ApprovalOut(_Strict):
     decision_actor: str | None = None
     preview_digest: str
     is_expired: bool = False
+    #: Was freigegeben wird. Der Freigabeknopf sitzt an dieser Liste — ohne
+    #: Zielangabe waere die Zustimmung nicht informiert (§8 A).
+    target_display_name: str | None = None
+    container_ref: str | None = None
+    container_type: str = "unknown"
 
 
 class ApprovalDecisionIn(_Strict):
