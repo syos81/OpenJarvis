@@ -333,7 +333,10 @@ class ContactsQueryService:
         with self._persistence.unit_of_work() as uow:
             rows = uow.execute(
                 f"SELECT m.*, c.display_name AS ziel_name, a.state AS a_state, "
-                f"a.expires_at AS a_expires, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art, "
+                f"a.expires_at AS a_expires, "
+                f"COALESCE(m.container_identifier, x.container_identifier) "
+                f"AS ziel_container, "
+                f"st.container_type AS ziel_container_art, "
                 # Kanonische Quelle der Sendversuche (siehe `_mutation`).
                 f"o.attempt_count AS sendversuche "
                 f"FROM contacts_mutations m "
@@ -341,7 +344,13 @@ class ContactsQueryService:
                 f"LEFT JOIN personal_approvals a ON a.approval_id = m.approval_id "
                 f"LEFT JOIN personal_external_action_outbox o "
                 f"ON o.outbox_id = m.outbox_id "
-                f"LEFT JOIN contact_external_ids x ON x.provider_account_id = m.provider_account_id AND x.provider_identifier = m.target_provider_identifier LEFT JOIN contacts_sync_state st ON st.provider_account_id = m.provider_account_id AND st.container_identifier = COALESCE(m.container_identifier, x.container_identifier) "
+                f"LEFT JOIN contact_external_ids x "
+                f"ON x.provider_account_id = m.provider_account_id "
+                f"AND x.provider_identifier = m.target_provider_identifier "
+                f"LEFT JOIN contacts_sync_state st "
+                f"ON st.provider_account_id = m.provider_account_id "
+                f"AND st.container_identifier = "
+                f"COALESCE(m.container_identifier, x.container_identifier) "
                 f"WHERE {' AND '.join(bedingungen)} "
                 f"ORDER BY m.created_at DESC, m.mutation_id LIMIT ?",
                 (*werte, limit)).fetchall()
@@ -352,14 +361,23 @@ class ContactsQueryService:
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
                 "SELECT m.*, c.display_name AS ziel_name, a.state AS a_state, "
-                "a.expires_at AS a_expires, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art, "
+                "a.expires_at AS a_expires, "
+                "COALESCE(m.container_identifier, x.container_identifier) "
+                "AS ziel_container, "
+                "st.container_type AS ziel_container_art, "
                 "o.attempt_count AS sendversuche "
                 "FROM contacts_mutations m "
                 "LEFT JOIN contacts c ON c.id = m.target_contact_id "
                 "LEFT JOIN personal_approvals a ON a.approval_id = m.approval_id "
                 "LEFT JOIN personal_external_action_outbox o "
                 "ON o.outbox_id = m.outbox_id "
-                "LEFT JOIN contact_external_ids x ON x.provider_account_id = m.provider_account_id AND x.provider_identifier = m.target_provider_identifier LEFT JOIN contacts_sync_state st ON st.provider_account_id = m.provider_account_id AND st.container_identifier = COALESCE(m.container_identifier, x.container_identifier) "
+                "LEFT JOIN contact_external_ids x "
+                "ON x.provider_account_id = m.provider_account_id "
+                "AND x.provider_identifier = m.target_provider_identifier "
+                "LEFT JOIN contacts_sync_state st "
+                "ON st.provider_account_id = m.provider_account_id "
+                "AND st.container_identifier = "
+                "COALESCE(m.container_identifier, x.container_identifier) "
                 "WHERE m.mutation_id = ? AND m.workspace_id = ?",
                 (mutation_id, workspace_id)).fetchone()
             return self._mutation(zeile) if zeile else None
@@ -419,7 +437,11 @@ class ContactsQueryService:
             werte.append(state)
         with self._persistence.unit_of_work() as uow:
             rows = uow.execute(
-                f"SELECT a.*, m.command, m.mutation_id, c.display_name AS ziel_name, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art "
+                f"SELECT a.*, m.command, m.mutation_id, "
+                f"c.display_name AS ziel_name, "
+                f"COALESCE(m.container_identifier, x.container_identifier) "
+                f"AS ziel_container, "
+                f"st.container_type AS ziel_container_art "
                 f"FROM personal_approvals a "
                 f"JOIN contacts_mutations m ON m.approval_id = a.approval_id "
                 f"LEFT JOIN contacts c ON c.id = m.target_contact_id "
@@ -444,7 +466,11 @@ class ContactsQueryService:
 
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
-                "SELECT a.*, m.command, m.mutation_id, c.display_name AS ziel_name, COALESCE(m.container_identifier, x.container_identifier) AS ziel_container, st.container_type AS ziel_container_art "
+                "SELECT a.*, m.command, m.mutation_id, "
+                "c.display_name AS ziel_name, "
+                "COALESCE(m.container_identifier, x.container_identifier) "
+                "AS ziel_container, "
+                "st.container_type AS ziel_container_art "
                 "FROM personal_approvals a "
                 "JOIN contacts_mutations m ON m.approval_id = a.approval_id "
                 "LEFT JOIN contacts c ON c.id = m.target_contact_id "
