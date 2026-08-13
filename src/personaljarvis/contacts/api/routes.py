@@ -52,6 +52,7 @@ from personaljarvis.contacts.application.errors import (
     InvalidCommand,
     MeCardNotWritable,
     MutationError,
+    MutationAlreadyPending,
     MutationNotExecutable,
     MutationNotFound,
     RevisionConflict,
@@ -109,6 +110,10 @@ _ERROR_MAP: tuple[tuple[type, int, str], ...] = (
     (ContainerNotAvailable, 409, "conflict"),
     (RevisionConflict, 409, "conflict"),
     (AlreadySettled, 409, "conflict"),
+    # Eigener Code statt eines allgemeinen Konflikts: Die Oberflaeche
+    # soll auf den bestehenden Vorgang zeigen koennen, statt nur
+    # „geht nicht" zu melden.
+    (MutationAlreadyPending, 409, "already_pending"),
     (MutationNotExecutable, 409, "conflict"),
     (MutationNotFound, 404, "not_found"),
     (CapabilityNotDeclared, 422, "unsupported"),
@@ -156,9 +161,16 @@ def _live_error(exc: "LiveError") -> HTTPException:
 def _http_error(exc: Exception) -> HTTPException:
     for typ, status, code in _ERROR_MAP:
         if isinstance(exc, typ):
-            return HTTPException(
-                status_code=status,
-                detail={"code": code, "message": str(exc), "retryable": False})
+            detail = {"code": code, "message": str(exc), "retryable": False}
+            # Traegt der Fehler die Kennung des blockierenden Vorgangs, geht
+            # sie mit: Sie ist eine lokale Mutationskennung, keine
+            # Providerangabe, und ohne sie muesste die Oberflaeche raten,
+            # worauf sie zeigen soll.
+            offen = getattr(exc, "mutation_id", None)
+            if offen:
+                detail["mutation_id"] = offen
+                detail["state"] = getattr(exc, "state", None)
+            return HTTPException(status_code=status, detail=detail)
     return HTTPException(
         status_code=500,
         detail={"code": "internal", "message": type(exc).__name__,

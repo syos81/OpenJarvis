@@ -90,6 +90,10 @@ export function ContactsWorkspace({ testListenHoehe }: {
   // ihr Ergebnis. Fuer eine verstaendliche Fuehrung braucht es beides.
   const [kanal, setKanal] = useState<AppChannelCapabilities | null>(null);
   const [sperreOffen, setSperreOffen] = useState(false);
+  // Ausblenden heisst Breite null — die Auswahl bleibt dabei unberuehrt.
+  // Bewusst kein Abraeumen des Filters: Wer die Leiste zuklappt, will Platz,
+  // nicht einen anderen Bestand sehen.
+  const [seitenleisteOffen, setSeitenleisteOffen] = useState(true);
   const [offeneFreigaben, setOffeneFreigaben] = useState(0);
   const [nachladen, setNachladen] = useState(0);
 
@@ -383,6 +387,8 @@ export function ContactsWorkspace({ testListenHoehe }: {
           if (sucheEingabe !== '') setSucheEingabe('');
           else fokusListe();
         }}
+        seitenleisteOffen={seitenleisteOffen}
+        onSeitenleiste={() => setSeitenleisteOffen((o) => !o)}
         anlegenMoeglich={Boolean(caps?.create_supported)}
         onAnlegen={(x, y) => setNeuMenue({ x, y })}
         onGesperrt={() => setSperreOffen(true)}
@@ -399,13 +405,19 @@ export function ContactsWorkspace({ testListenHoehe }: {
           einer Eigenschaft und bleiben beim Drag konsistent. */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `${sidebarBreite}px auto ${listenBreite}px auto `
+        // Ausgeblendet bekommen Leiste **und** ihr Trenner die Breite 0:
+        // Ein stehengebliebener Trenner waere ein Griff ins Leere.
+        gridTemplateColumns:
+          `${seitenleisteOffen ? sidebarBreite : 0}px `
+          + `${seitenleisteOffen ? 'auto' : '0px'} ${listenBreite}px auto `
           + `minmax(var(--pjc-detail-min), 1fr)`,
         flex: 1,
         minHeight: 0,
       }}>
-        {/* Sidebar */}
-        <div style={{ minWidth: 0, overflow: 'hidden', height: '100%' }}>
+        {/* Sidebar — ausgeblendet bleibt sie montiert, aber unsichtbar und
+            nicht fokussierbar. Sie neu aufzubauen verlöre ihren Zustand. */}
+        <div hidden={!seitenleisteOffen}
+             style={{ minWidth: 0, overflow: 'hidden', height: '100%' }}>
           <ContactsSidebar
             auswahl={sidebarAuswahl}
             onAuswahl={setSidebarAuswahl}
@@ -418,13 +430,13 @@ export function ContactsWorkspace({ testListenHoehe }: {
             offeneFreigaben={offeneFreigaben}
           />
         </div>
-        <PaneDivider
+        {seitenleisteOffen && <PaneDivider
           label="Breite der Seitenleiste"
           wert={sidebarBreite}
           min={grenzen.sidebar.min}
           max={grenzen.sidebar.max}
           onChange={setSidebarBreite}
-        />
+        />}
 
         {/* Liste */}
         <div style={{ minWidth: 0, overflow: 'hidden', height: '100%' }}>

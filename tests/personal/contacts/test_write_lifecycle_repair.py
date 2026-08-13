@@ -323,3 +323,116 @@ def _update_befehl(kontakt, *, patch_felder=None):
         initiation_context=InitiationContext.USER_DIRECT,
         correlation_id=new_id(), target_provider_identifier="raw-1",
         patch=ContactPatch(patch_felder or {"nickname": "Neu"}))
+
+
+# ═══ D · Keine stille Mehrfachvorbereitung ══════════════════════════════════
+class TestMehrfachvorbereitung:
+    """§8 D: Mehrere offene Vorbereitungen konnten unbemerkt nebeneinander
+    bestehen. Dedupliziert wurde nur über den Idempotenzschlüssel — zwei
+    Vorbereitungen derselben Aktion mit verschiedenen Schlüsseln erzeugten
+    zwei scharfe Vorgänge mit je eigener Freigabe.
+    """
+
+    def test_zweiter_offener_vorgang_wird_nicht_still_erzeugt(self, module):
+        from personaljarvis.contacts.application.errors import (
+            MutationAlreadyPending,
+        )
+
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        erster = _update_befehl(kontakt)
+        dienst.prepare(erster)
+
+        with pytest.raises(MutationAlreadyPending) as fehler:
+            dienst.prepare(_update_befehl(kontakt))
+
+        # Der bestehende Vorgang wird benannt, nicht bloss abgewiesen.
+        assert fehler.value.mutation_id == erster.mutation_id
+        assert fehler.value.state == "awaiting_approval"
+
+    def test_es_entsteht_dabei_kein_zweiter_datensatz(self, module):
+        from personaljarvis.contacts.application.errors import (
+            MutationAlreadyPending,
+        )
+
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        dienst.prepare(_update_befehl(kontakt))
+        with pytest.raises(MutationAlreadyPending):
+            dienst.prepare(_update_befehl(kontakt))
+
+        with module.unit_of_work() as uow:
+            anzahl = uow.execute(
+                "SELECT count(*) AS n FROM contacts_mutations").fetchone()["n"]
+            freigaben = uow.execute(
+                "SELECT count(*) AS n FROM personal_approvals").fetchone()["n"]
+        assert anzahl == 1
+        assert freigaben == 1
+
+    def test_derselbe_idempotenzschluessel_gibt_weiterhin_denselben_vorgang(
+            self, module):
+        """Der bewährte Weg bleibt: gleicher Schlüssel, gleicher Vorgang."""
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        befehl = _update_befehl(kontakt)
+        erster = dienst.prepare(befehl)
+        zweiter = dienst.prepare(befehl)
+
+        assert zweiter.reused is True
+        assert zweiter.mutation_id == erster.mutation_id
+
+    def test_nach_dem_verwerfen_geht_ein_neuer_vorgang(self, module):
+        """Blockiert wird nur, was noch wirken kann — nicht die Historie."""
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        erster = _update_befehl(kontakt)
+        dienst.prepare(erster)
+        dienst.cancel(erster.mutation_id, decision_actor=MENSCH)
+
+        zweiter = dienst.prepare(_update_befehl(kontakt))
+        assert zweiter.mutation_id != erster.mutation_id
+
+    def test_ein_anderes_ziel_bleibt_frei(self, module):
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        eins = _lokal(module, provider_identifier="raw-1")
+        _lokal(module, provider_identifier="raw-2")
+        dienst.prepare(_update_befehl(eins))
+
+        anderer = _update_befehl(eins)
+        anderer = type(anderer)(
+            **{**vars(anderer), "target_provider_identifier": "raw-2"})
+        assert dienst.prepare(anderer).mutation_id == anderer.mutation_id
+
+    def test_delete_blockiert_ein_offenes_update_nicht(self, module):
+        """Verschiedene Aktionen auf dasselbe Ziel sind verschieden."""
+        from personaljarvis.contacts.application import DeleteContact
+
+        dienst = ContactsMutationService(module, AttrappenProvider())
+        kontakt = _lokal(module)
+        dienst.prepare(_update_befehl(kontakt))
+
+        loeschen = DeleteContact(
+            mutation_id=new_id(), idempotency_key=new_id(),
+            provider_account_id=KONTO, workspace_id=WORKSPACE, actor=MENSCH,
+            initiation_context=InitiationContext.USER_DIRECT,
+            correlation_id=new_id(), target_provider_identifier="raw-1")
+        assert dienst.prepare(loeschen).mutation_id == loeschen.mutation_id
+
+    def test_create_bleibt_ungebremst(self, module):
+        """Zwei Neuanlagen in denselben Ablageort sind legitim verschieden."""
+        from personaljarvis.contacts.application import ContactDraft, CreateContact
+
+        dienst = ContactsMutationService(module, AttrappenProvider())
+
+        def anlegen():
+            return CreateContact(
+                mutation_id=new_id(), idempotency_key=new_id(),
+                provider_account_id=KONTO, workspace_id=WORKSPACE,
+                actor=MENSCH,
+                initiation_context=InitiationContext.USER_DIRECT,
+                correlation_id=new_id(), container_identifier=CONTAINER,
+                draft=ContactDraft({"given_name": "Fixi",
+                                    "family_name": "Eins"}))
+
+        assert dienst.prepare(anlegen()).mutation_id
+        assert dienst.prepare(anlegen()).mutation_id

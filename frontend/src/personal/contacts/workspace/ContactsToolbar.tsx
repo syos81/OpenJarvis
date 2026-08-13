@@ -3,10 +3,14 @@
 // Web-Headerleiste, keine dauerhafte Entwicklerdiagnose.
 
 import { forwardRef } from 'react';
-import { Plus, Search, X } from 'lucide-react';
+import { PanelLeft, Plus, Search, X } from 'lucide-react';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
 
 export const ContactsToolbar = forwardRef<HTMLInputElement, {
+  /** Ist die linke Seitenleiste eingeblendet? */
+  seitenleisteOffen: boolean;
+  /** Blendet sie ein oder aus — macOS-Konvention: Knopf ganz links. */
+  onSeitenleiste: () => void;
   suche: string;
   onSuche: (wert: string) => void;
   onSucheEscape: () => void;
@@ -26,6 +30,7 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
   onBearbeiten: () => void;
   demoModus: boolean;
 }>(function ContactsToolbar({
+  seitenleisteOffen, onSeitenleiste,
   suche, onSuche, onSucheEscape, anlegenMoeglich, onAnlegen, onGesperrt,
   bearbeitenSichtbar, onBearbeiten,
   demoModus,
@@ -45,6 +50,24 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
         flex: '0 0 auto',
       }}
     >
+      {/* Ganz links, wie in den Systemapps. Der Zustand steht in
+          aria-pressed, damit er auch ohne Blick auf das Symbol lesbar ist. */}
+      <button type="button" className="pjc-focusable"
+              onClick={onSeitenleiste}
+              data-testid="seitenleiste-toggle"
+              aria-pressed={seitenleisteOffen}
+              aria-label={seitenleisteOffen
+                ? 'Seitenleiste ausblenden' : 'Seitenleiste einblenden'}
+              title={seitenleisteOffen
+                ? 'Seitenleiste ausblenden' : 'Seitenleiste einblenden'}
+              style={{
+                ...aktionsKnopf(false), display: 'inline-flex',
+                alignItems: 'center',
+                opacity: seitenleisteOffen ? 1 : 0.55,
+              }}>
+        <PanelLeft size={15} aria-hidden="true" />
+      </button>
+
       <h1 style={{ font: 'var(--pjc-font-title)', fontSize: '0.9375rem', margin: 0 }}>
         Kontakte
       </h1>

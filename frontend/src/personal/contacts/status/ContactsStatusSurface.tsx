@@ -458,6 +458,16 @@ function MutationDetailView({ id, quelle, onBack }: {
             Die Freigabe allein ändert bei Apple Kontakte nichts. Erst dieser
             Schritt überträgt den Vorgang, und er läuft genau einmal.
           </p>
+          {/* Bis wann sie gilt. Ein scharfer Vorgang ohne sichtbare Frist
+              laesst den Eigentuemer im Unklaren, wie lange er Zeit hat. */}
+          {m.approval_expires_at && (
+            <p data-testid="freigabe-frist" style={{
+              font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
+              margin: '4px 0 0',
+            }}>
+              Freigabe gültig bis {m.approval_expires_at}
+            </p>
+          )}
           <button
             type="button" data-testid="ausfuehren"
             disabled={fuehrtAus || !kannAusfuehren(m, caps)
@@ -499,6 +509,19 @@ function MutationDetailView({ id, quelle, onBack }: {
               </span>
             </label>
           )}
+          {/* Ein scharfer Vorgang braucht auch den Rueckweg. Ohne ihn bliebe
+              nur Warten auf den Ablauf — oder Ausfuehren. */}
+          <button
+            type="button" data-testid="vorgang-verwerfen" disabled={fuehrtAus}
+            onClick={async () => {
+              setFehler(null);
+              try { await quelle.cancel(m.mutation_id, 'lukas'); await laden(); }
+              catch (e) { setFehler(fehlerbild(e)); }
+            }}
+            className="pjc-focusable"
+            style={{ ...aktionsKnopf(false), marginTop: '10px' }}>
+            Vorgang verwerfen
+          </button>
           {!kannAusfuehren(m, caps) && (
             <p style={{ font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
               Diese Operation ist für Apple Kontakte noch nicht freigeschaltet.
@@ -662,7 +685,7 @@ function MutationList({ quelle, onOpen, nurAufmerksamkeit = false }: {
     try {
       const alle = await quelle.listMutations();
       setItems(nurAufmerksamkeit
-        ? alle.filter((m) => braucht_aufmerksamkeit(m.state))
+        ? alle.filter((m) => gehoert_in_die_vorgangsliste(m.state))
         : alle);
     } catch (e) { setFehler(fehlerbild(e)); } finally { setLaedt(false); }
   }, [quelle, nurAufmerksamkeit]);
@@ -813,6 +836,31 @@ export function braucht_aufmerksamkeit(state: string): boolean {
   return AUFMERKSAMKEIT.has(state);
 }
 
+/**
+ * Vorgänge, die **offen und scharf** sind: vorbereitet oder freigegeben, aber
+ * noch nicht ausgeführt.
+ *
+ * Sie fehlten bisher überall. Die Freigabeliste filtert auf
+ * `awaiting_approval`, `AUFMERKSAMKEIT` kennt weder `approved` noch
+ * `prepared` — ein freigegebener, nicht ausgeführter Vorgang erschien damit in
+ * keiner Liste. Die Detailansicht mit „Jetzt ausführen" existierte, war aber
+ * ohne bekannte `mutation_id` nicht erreichbar (§8 C).
+ *
+ * Bewusst getrennt von `AUFMERKSAMKEIT`: Das eine klemmt und braucht
+ * Diagnose, das andere wartet auf eine Entscheidung. Beides zusammenzuwerfen
+ * verlöre genau den Unterschied, auf den es ankommt.
+ */
+const OFFEN: ReadonlySet<string> = new Set(['prepared', 'awaiting_approval',
+  'approved']);
+
+export function ist_offen(state: string): boolean {
+  return OFFEN.has(state);
+}
+
+export function gehoert_in_die_vorgangsliste(state: string): boolean {
+  return braucht_aufmerksamkeit(state) || ist_offen(state);
+}
+
 type StatusTab = 'quelle' | 'vorgaenge' | 'diagnose';
 
 export function ContactsStatusSurface({
@@ -850,7 +898,8 @@ export function ContactsStatusSurface({
     quelle.listMutations()
       .then((alle) => {
         if (aktiv) {
-          setOffeneVorgaenge(alle.filter((m) => braucht_aufmerksamkeit(m.state)));
+          setOffeneVorgaenge(
+            alle.filter((m) => gehoert_in_die_vorgangsliste(m.state)));
         }
       })
       .catch(() => { if (aktiv) setOffeneVorgaenge([]); });

@@ -52,6 +52,7 @@ from personaljarvis.contacts.application.errors import (
     ForeignProviderAccount,
     InvalidCommand,
     MeCardNotWritable,
+    MutationAlreadyPending,
     MutationNotExecutable,
     MutationNotFound,
     RevisionConflict,
@@ -227,6 +228,20 @@ class ContactsMutationService:
                 uow, command.provider_account_id, command.idempotency_key)
             if vorhanden is not None:
                 return self._reuse(uow, vorhanden)
+
+            # Derselbe fachliche Vorgang, anderer Idempotenzschlüssel: Bis
+            # 2026-08-13 entstand daneben still eine zweite Mutation mit
+            # eigener Freigabe (§8 D). Zwei scharfe Vorgänge auf dasselbe Ziel
+            # sind kein Komfort, sondern eine Falle — der Eigentümer gibt
+            # zweimal frei und meint einmal.
+            offen = self._offener_gleichartiger(uow, command)
+            if offen is not None:
+                raise MutationAlreadyPending(
+                    "Für dieselbe Aktion ist bereits ein Vorgang offen: "
+                    f"{offen['mutation_id']} ({offen['state']}). Er ist "
+                    "sichtbar und lässt sich ausführen oder verwerfen; ein "
+                    "zweiter entsteht erst danach.",
+                    mutation_id=offen["mutation_id"], state=offen["state"])
 
             ziel = self._resolve_target(uow, command)
             payload = self._build_payload(command)
@@ -790,6 +805,37 @@ class ContactsMutationService:
             caps.require(command_name)
         except Exception as exc:                        # noqa: BLE001
             raise CapabilityNotDeclared(str(exc)) from exc
+
+    #: Zustände, in denen ein Vorgang noch wirken kann. Terminale zählen
+    #: nicht — ein abgeschlossener Vorgang blockiert keinen neuen.
+    _OFFENE_ZUSTAENDE = ("prepared", "awaiting_approval", "approved")
+
+    @classmethod
+    def _offener_gleichartiger(cls, uow: UnitOfWork, command: MutationCommand):
+        """Ein bereits offener Vorgang derselben fachlichen Aktion — oder None.
+
+        „Dieselbe Aktion" heisst: dasselbe Kommando auf dasselbe Ziel. Für
+        `update` und `delete` ist das Ziel die Providerkennung, für `create`
+        der Zielcontainer — zwei Neuanlagen in denselben Ablageort sind
+        allerdings legitim verschieden, deshalb greift die Regel dort **nicht**.
+        Ein `create` hat kein Ziel, das doppelt getroffen werden könnte; seine
+        Wiederholung schützt weiterhin der Idempotenzschlüssel.
+
+        Es wird nichts verworfen und nichts überschrieben: Der Aufrufer
+        bekommt den bestehenden Vorgang genannt und entscheidet.
+        """
+        if isinstance(command, CreateContact):
+            return None
+        platzhalter = ",".join("?" * len(cls._OFFENE_ZUSTAENDE))
+        return uow.execute(
+            f"SELECT mutation_id, state FROM contacts_mutations "
+            f"WHERE provider_account_id = ? AND command = ? "
+            f"AND target_provider_identifier = ? "
+            f"AND state IN ({platzhalter}) "
+            f"ORDER BY created_at, mutation_id LIMIT 1",
+            (command.provider_account_id, command.command_name,
+             command.target_provider_identifier, *cls._OFFENE_ZUSTAENDE),
+        ).fetchone()
 
     @staticmethod
     def _find_by_idempotency(uow: UnitOfWork, provider_account_id: str,

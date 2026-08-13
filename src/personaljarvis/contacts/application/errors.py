@@ -20,6 +20,7 @@ __all__ = [
     "MutationNotFound",
     "MutationNotExecutable",
     "AlreadySettled",
+    "MutationAlreadyPending",
     "ReconcileAmbiguous",
     "CapabilityNotDeclared",
 ]
@@ -67,6 +68,23 @@ class MutationNotFound(MutationError):
 
 class MutationNotExecutable(MutationError):
     """Die Mutation ist in einem Zustand, der keine Ausführung erlaubt."""
+
+
+class MutationAlreadyPending(MutationError):
+    """Für dieselbe fachliche Aktion ist bereits ein Vorgang offen.
+
+    Kein Fehler des Aufrufers, sondern eine Weiche: Der bestehende Vorgang ist
+    freigabepflichtig und scharf; ein zweiter daneben hiesse, dass der
+    Eigentuemer zweimal freigibt und einmal meint (§8 D). Die Kennung des
+    offenen Vorgangs gehoert deshalb in den Fehler — sonst muesste die
+    Oberflaeche raten, worauf sie zeigen soll.
+    """
+
+    def __init__(self, message: str, *, mutation_id: str,
+                 state: str) -> None:
+        super().__init__(message)
+        self.mutation_id = mutation_id
+        self.state = state
 
 
 class AlreadySettled(MutationError):
