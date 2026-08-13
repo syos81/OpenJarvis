@@ -162,11 +162,17 @@ def test_der_mutationsdienst_sieht_dieselben_faehigkeiten(aufbau):
 
     Vor der Korrektur haette er die alte Menge festgehalten und `create` waere
     auch bei kompatiblem Sidecar gesperrt geblieben.
+
+    Seit 2026-08-13 haelt er nicht einmal mehr eine Menge fest, sondern die
+    **Abfrage**: Die Schreibrechte haengen an einer ablaufenden Freigabedatei,
+    und ein beim Aufbau eingefrorener Wert ueberlebte sie. Die Aussage bleibt
+    dieselbe und wird staerker — geprueft wird der aufgeloeste Wert statt der
+    Identitaet des gespeicherten Attributs.
     """
     contacts = aufbau(KOMPATIBEL).contacts
     dienst = contacts.mutation_service()
-    assert dienst._capabilities is contacts.capabilities
-    assert dienst._capabilities.create_supported is True
+    assert dienst._aktuelle_capabilities() == contacts.capabilities
+    assert dienst._aktuelle_capabilities().create_supported is True
 
 
 def test_die_faehigkeiten_erreichen_den_api_vertrag(aufbau):
@@ -281,3 +287,81 @@ def test_die_aufrufreihenfolge_steht_im_quelltext():
             < quelle.index("_register_mutation_bridge(")), (
         "Der Handshake muss vor der Registrierung ausgewertet werden, sonst "
         "traegt der neu gebaute Dienst die alte Faehigkeitsmenge")
+
+
+# ═══ I · Der Capability-Lifecycle ═══════════════════════════════════════════
+#
+# Bis 2026-08-13 war `/capabilities` ein Startschnappschuss: `check_bridge()`
+# berechnete die Menge einmal, danach gab die Eigenschaft sie nur noch zurück.
+# Eine nach dem Start erteilte Freigabe blieb bis zum Neustart unsichtbar, eine
+# abgelaufene bis zum Neustart sichtbar — während `/app-channel` dieselbe Datei
+# frisch las. Zwei Wahrheiten über denselben Sachverhalt.
+def test_eine_nach_dem_start_erteilte_freigabe_wirkt_ohne_neustart(
+        aufbau, db_path):
+    contacts = aufbau(KOMPATIBEL, schreibfreigabe=False).contacts
+    assert contacts.capabilities.create_supported is False
+
+    _freigabe_legen(db_path.parent)
+
+    assert contacts.capabilities.create_supported is True
+
+
+def test_eine_entfernte_freigabe_verschwindet_ohne_neustart(aufbau, db_path):
+    from personaljarvis.contacts.application.write_release import (
+        WRITE_RELEASE_FILENAME,
+    )
+
+    contacts = aufbau(KOMPATIBEL).contacts
+    assert contacts.capabilities.create_supported is True
+
+    (db_path.parent / WRITE_RELEASE_FILENAME).unlink()
+
+    assert contacts.capabilities.create_supported is False
+
+
+def test_der_handshake_wird_dabei_nicht_erneut_gefahren(aufbau):
+    """Frisch heisst die Freigabedatei lesen — nicht den Sidecar starten.
+
+    Der teure Teil bleibt gecacht; sonst startete jede Anzeige einen Prozess.
+    """
+    contacts = aufbau(KOMPATIBEL).contacts
+    vorher = contacts.bridge_status
+
+    for _ in range(5):
+        contacts.capabilities
+
+    assert contacts.bridge_status is vorher
+
+
+def test_der_mutationsdienst_folgt_der_freigabe_statt_dem_aufbauzeitpunkt(
+        aufbau, db_path):
+    """Ein beim Aufbau eingefrorener Wert überlebte die Freigabe.
+
+    Der Dienst wird beim Start einmal gebaut. Läuft die Freigabe danach ab,
+    muss `prepare` sie verweigern — nicht auf die alte Menge vertrauen.
+    """
+    from personaljarvis.contacts.application.write_release import (
+        WRITE_RELEASE_FILENAME,
+    )
+
+    contacts = aufbau(KOMPATIBEL).contacts
+    dienst = contacts.mutation_service()
+    assert dienst._aktuelle_capabilities().create_supported is True
+
+    (db_path.parent / WRITE_RELEASE_FILENAME).unlink()
+
+    assert dienst._aktuelle_capabilities().create_supported is False
+
+
+def test_kein_selbstgrant_aus_dem_kern(aufbau, db_path):
+    """Kein Lesepfad erzeugt eine Freigabe — auch nicht als Nebenwirkung."""
+    from personaljarvis.contacts.application.write_release import (
+        WRITE_RELEASE_FILENAME,
+    )
+
+    contacts = aufbau(KOMPATIBEL, schreibfreigabe=False).contacts
+    for _ in range(3):
+        contacts.capabilities
+        contacts.mutation_service()
+
+    assert not (db_path.parent / WRITE_RELEASE_FILENAME).exists()

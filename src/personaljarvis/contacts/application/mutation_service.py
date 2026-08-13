@@ -768,13 +768,26 @@ class ContactsMutationService:
     def _require_capability(self, command: MutationCommand) -> None:
         self._require_capability_named(command.command_name)
 
+    def _aktuelle_capabilities(self):
+        """Die Fähigkeitsmenge zum **Zeitpunkt der Prüfung**.
+
+        `capabilities` darf eine Menge oder eine Abfrage sein. Produktiv ist es
+        eine Abfrage: Die Schreibrechte hängen an einer ablaufenden
+        Freigabedatei, und ein beim Aufbau eingefrorener Wert überlebte sie.
+        `None` heisst weiterhin „ungeprüft" — so bauen Tests einen Dienst ohne
+        Fähigkeitsschranke.
+        """
+        caps = self._capabilities
+        return caps() if callable(caps) else caps
+
     def _require_capability_named(self, command_name: str) -> None:
-        if self._capabilities is None:
+        caps = self._aktuelle_capabilities()
+        if caps is None:
             return
         if command_name not in ("create", "update", "delete"):
             raise InvalidCommand(f"Unbekannter Command: {command_name}")
         try:
-            self._capabilities.require(command_name)
+            caps.require(command_name)
         except Exception as exc:                        # noqa: BLE001
             raise CapabilityNotDeclared(str(exc)) from exc
 

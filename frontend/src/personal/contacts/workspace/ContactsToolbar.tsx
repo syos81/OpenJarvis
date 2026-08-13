@@ -10,15 +10,23 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
   suche: string;
   onSuche: (wert: string) => void;
   onSucheEscape: () => void;
-  anlegenSichtbar: boolean;
+  /**
+   * Ob Anlegen tatsaechlich moeglich ist. `false` blendet die Aktion
+   * **nicht** aus: Eine Oberflaeche, in der Schreibfunktionen bei fehlender
+   * Freigabe spurlos verschwinden, sieht aus, als gaebe es sie gar nicht —
+   * und laesst den Eigentuemer ohne Weg zur Freigabe zurueck (§I).
+   */
+  anlegenMoeglich: boolean;
   /** Das Plus oeffnet wie in der Referenz ein Menue, keinen Dialog direkt. */
   onAnlegen: (x: number, y: number) => void;
+  /** Erklaert den gesperrten Zustand — nie eine Selbstfreigabe. */
+  onGesperrt: () => void;
   /** „Bearbeiten" steht wie in der Referenz oben rechts, nicht in der Karte. */
   bearbeitenSichtbar: boolean;
   onBearbeiten: () => void;
   demoModus: boolean;
 }>(function ContactsToolbar({
-  suche, onSuche, onSucheEscape, anlegenSichtbar, onAnlegen,
+  suche, onSuche, onSucheEscape, anlegenMoeglich, onAnlegen, onGesperrt,
   bearbeitenSichtbar, onBearbeiten,
   demoModus,
 }, suchfeldRef) {
@@ -66,19 +74,28 @@ export const ContactsToolbar = forwardRef<HTMLInputElement, {
         </button>
       )}
 
-      {anlegenSichtbar && (
-        <button type="button" className="pjc-focusable"
-                onClick={(e) => {
-                  const r = e.currentTarget.getBoundingClientRect();
-                  onAnlegen(r.left, r.bottom + 4);
-                }}
-                data-testid="toolbar-anlegen"
-                aria-label="Neu"
-                aria-haspopup="menu"
-                style={{ ...aktionsKnopf(false), display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <Plus size={15} aria-hidden="true" />
-        </button>
-      )}
+      {/* Immer da. Gesperrt fuehrt es zur Erklaerung, nicht ins Leere: Der
+          Eigentuemer soll sehen, dass Schreiben existiert und derzeit
+          gesperrt ist — und wie es freigegeben wird. */}
+      <button type="button" className="pjc-focusable"
+              onClick={(e) => {
+                if (!anlegenMoeglich) { onGesperrt(); return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                onAnlegen(r.left, r.bottom + 4);
+              }}
+              data-testid="toolbar-anlegen"
+              data-gesperrt={anlegenMoeglich ? undefined : 'true'}
+              aria-label={anlegenMoeglich ? 'Neu' : 'Neu — Schreiben gesperrt'}
+              aria-haspopup={anlegenMoeglich ? 'menu' : 'dialog'}
+              title={anlegenMoeglich ? undefined
+                : 'Schreiben ist gesperrt — hier erfaehrst du, warum'}
+              style={{
+                ...aktionsKnopf(false), display: 'inline-flex',
+                alignItems: 'center', gap: '4px',
+                opacity: anlegenMoeglich ? 1 : 0.45,
+              }}>
+        <Plus size={15} aria-hidden="true" />
+      </button>
 
       <div style={{ position: 'relative' }}>
         <Search

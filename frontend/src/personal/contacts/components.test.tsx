@@ -206,6 +206,7 @@ const MODULDATEIEN = [
   'detail/ContactDetailPane.tsx',
   'editor/ContactEditor.tsx',
   'editor/dialogs.tsx',
+  'editor/SchreibsperreDialog.tsx',
   'status/ContactsStatusSurface.tsx',
   'data/source.ts',
   'data/fixtureSource.ts',

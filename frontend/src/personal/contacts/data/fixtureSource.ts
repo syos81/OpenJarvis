@@ -154,6 +154,9 @@ export function fixtureDataSource(anzahl: number): ContactsDataSource {
     detail: (id) => Promise.resolve(syntheticDetail(id)),
     kategorien: () => Promise.resolve(syntheticKategorien(kontakte)),
     capabilities: () => Promise.resolve(CAPS),
+    // Der Demo-Modus ruft nichts ab (Nullaufruf-Vertrag) und liefert
+    // deshalb auch hier eine Fixture statt einer Auskunft.
+    appChannel: () => Promise.resolve(null),
     authorization: () => Promise.resolve<Authorization>({
       status: 'authorized',
       can_request: false,

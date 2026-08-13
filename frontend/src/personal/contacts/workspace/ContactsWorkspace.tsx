@@ -13,6 +13,7 @@ import {
   useEffect, useMemo, useRef, useState,
 } from 'react';
 import type {
+  AppChannelCapabilities,
   Capabilities, ContactDetail, ContactSummary, PreparedMutation, RoleCount,
 } from '../api';
 import { EmptyState, ErrorState, LoadingState } from '../components';
@@ -30,6 +31,7 @@ import { ContactEditor } from '../editor/ContactEditor';
 // nach ihrer einen Bestaetigung durch. Freigaben zu Vorgaengen, die Jarvis
 // selbst vorbereitet hat, entscheidet weiterhin die Statusflaeche.
 import { CreateDialog, DeleteBestaetigung } from '../editor/dialogs';
+import { SchreibsperreDialog } from '../editor/SchreibsperreDialog';
 import { ContactsStatusSurface } from '../status/ContactsStatusSurface';
 import { ContactsToolbar } from './ContactsToolbar';
 import { PaneDivider } from './PaneDivider';
@@ -84,6 +86,10 @@ export function ContactsWorkspace({ testListenHoehe }: {
   const [ladeFehler, setLadeFehler] = useState<Fehlerbild | null>(null);
   const [kategorien, setKategorien] = useState<RoleCount[]>([]);
   const [caps, setCaps] = useState<Capabilities | null>(null);
+  // Der Kanal traegt den **Grund** einer Sperre; die Capabilities tragen nur
+  // ihr Ergebnis. Fuer eine verstaendliche Fuehrung braucht es beides.
+  const [kanal, setKanal] = useState<AppChannelCapabilities | null>(null);
+  const [sperreOffen, setSperreOffen] = useState(false);
   const [offeneFreigaben, setOffeneFreigaben] = useState(0);
   const [nachladen, setNachladen] = useState(0);
 
@@ -117,6 +123,9 @@ export function ContactsWorkspace({ testListenHoehe }: {
     quelle.capabilities()
       .then((c) => { if (aktiv) setCaps(c); })
       .catch(() => { if (aktiv) setCaps(null); });
+    quelle.appChannel()
+      .then((k) => { if (aktiv) setKanal(k); })
+      .catch(() => { if (aktiv) setKanal(null); });
     quelle.listApprovals()
       .then((a) => {
         if (!aktiv) return;
@@ -374,8 +383,9 @@ export function ContactsWorkspace({ testListenHoehe }: {
           if (sucheEingabe !== '') setSucheEingabe('');
           else fokusListe();
         }}
-        anlegenSichtbar={Boolean(caps?.create_supported)}
+        anlegenMoeglich={Boolean(caps?.create_supported)}
         onAnlegen={(x, y) => setNeuMenue({ x, y })}
+        onGesperrt={() => setSperreOffen(true)}
         bearbeitenSichtbar={Boolean(
           detail && !detail.is_me_card && detail.writable && caps?.update_supported)}
         onBearbeiten={() => setBearbeitet(true)}
@@ -570,6 +580,21 @@ export function ContactsWorkspace({ testListenHoehe }: {
           onPrepared={(m) => { setAnlegenOffen(false); void abschliessen(m); }}
         />
       )}
+      {/* Erklaert die Sperre und prueft neu — er erteilt nichts. Die Freigabe
+          bleibt eine Eigentuemerhandlung (Dauerregeln §4, DEC-069). */}
+      <SchreibsperreDialog
+        caps={caps} kanal={kanal} offen={sperreOffen}
+        onClose={() => setSperreOffen(false)}
+        onErneutPruefen={async () => {
+          const [c, k] = await Promise.all([
+            quelle.capabilities().catch(() => null),
+            quelle.appChannel().catch(() => null),
+          ]);
+          setCaps(c);
+          setKanal(k);
+          if (c?.create_supported) setSperreOffen(false);
+        }}
+      />
     </div>
   );
 }

@@ -126,9 +126,31 @@ class ContactsModule:
 
     @property
     def capabilities(self) -> ContactCapabilitySet:
+        """Die Fähigkeitsmenge — Schreibrechte **frisch**, Handshake gecacht.
+
+        Bis 2026-08-13 gab diese Eigenschaft den Schnappschuss zurück, den
+        `check_bridge()` einmal beim Start gesetzt hatte. Für alles, was aus
+        dem Handshake kommt, ist das richtig: Der Sidecar wechselt seinen
+        Vertragsstand nicht im laufenden Betrieb. Für die Schreibrechte war es
+        falsch. Sie hängen an `contacts-write-release.json` — einer Datei, die
+        der Eigentümer jederzeit anlegt und die **abläuft** (höchstens vier
+        Stunden). Eine nach dem Start erteilte Freigabe blieb damit bis zum
+        Neustart unsichtbar, eine abgelaufene bis zum Neustart sichtbar.
+        Gleichzeitig las `/app-channel` dieselbe Datei frisch — zwei Wahrheiten
+        über denselben Sachverhalt, und die Oberfläche hing an der falschen.
+
+        Neu berechnet wird deshalb nur das Flüchtige. Der teure Teil — den
+        Sidecar starten, `ping`, `caps` — bleibt der gecachte `bridge_status`.
+        Das ist kein Polling: gerechnet wird beim Zugriff, und ein Zugriff ist
+        ein Lesen der Freigabedatei, kein Prozessstart.
+        """
         if self._capabilities is None:
             raise PersonalJarvisError("Modul ist nicht gestartet")
-        return self._capabilities
+        if self._bridge_status is None:
+            # Gate A: kein Handshake, also auch nichts Flüchtiges abzuleiten.
+            return self._capabilities
+        return derive_capabilities(self._bridge_status,
+                                   database_path=self._factory._path)
 
     @property
     def connection_factory(self) -> ConnectionFactory:
@@ -312,15 +334,20 @@ class ContactsModule:
             ContactsMutationService,
         )
 
+        # Durchgereicht wird die **Abfrage**, nicht ihr Ergebnis. Ein
+        # Schnappschuss aus dem Aufbauzeitpunkt hielte eine Schreibfreigabe
+        # fest, die inzwischen abgelaufen sein kann — und ein bereits gebauter
+        # Dienst überlebt jede Freigabe. Die Sperre soll zum Zeitpunkt des
+        # `prepare` gelten, nicht zum Zeitpunkt des Aufbaus.
         if provider is not None:
             return ContactsMutationService(self, provider,
-                                           capabilities=self._capabilities)
+                                           capabilities=lambda: self.capabilities)
         if self._mutation_service is None:
             # Der produktive Provider wird von der Kompositionswurzel gesetzt.
             # Fehlt er, bleibt der Standard, der nachweislich nichts sendet.
             ziel = getattr(self, "mutation_provider", None) or _UnavailableProvider()
             self._mutation_service = ContactsMutationService(
-                self, ziel, capabilities=self._capabilities)
+                self, ziel, capabilities=lambda: self.capabilities)
         return self._mutation_service
 
     def approval_service(self) -> "ContactsApprovalService":

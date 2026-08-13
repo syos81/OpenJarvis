@@ -12,6 +12,7 @@
 
 import * as api from '../api';
 import type {
+  AppChannelCapabilities,
   Approval, Authorization, Capabilities, ContactDetail, ContactSummary,
   Mutation, MutationDetail, PreparedMutation, RoleCount, SyncStatus,
 } from '../api';
@@ -32,6 +33,12 @@ export interface ContactsDataSource {
   detail(id: string): Promise<ContactDetail>;
   kategorien(): Promise<RoleCount[]>;
   capabilities(): Promise<Capabilities>;
+  /**
+   * Auskunft des Ausfuehrungskanals — sie traegt den **Grund** einer Sperre.
+   * `null`, wenn sie nicht zu haben ist; das ist kein Fehler, sondern
+   * schlicht keine Auskunft, und die Oberflaeche behauptet dann keinen Grund.
+   */
+  appChannel(): Promise<AppChannelCapabilities | null>;
   authorization(): Promise<Authorization>;
   syncStatus(): Promise<SyncStatus[]>;
 
@@ -82,6 +89,7 @@ export function apiDataSource(): ContactsDataSource {
     detail: (id) => api.getContact(id),
     kategorien: () => api.listCategories(),
     capabilities: () => api.getCapabilities(),
+    appChannel: () => api.getAppChannel().catch(() => null),
     authorization: () => api.getAuthorization(),
     syncStatus: () => api.getSyncStatus(),
     assignRole: (id, role) => api.assignRole(id, role),
