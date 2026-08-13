@@ -32,6 +32,8 @@ __all__ = [
     "ApprovalExpired",
     "ApprovalPayloadMismatch",
     "SelfApprovalRejected",
+    "OwnerDecision",
+    "owner_decision",
     "Approval",
     "ApprovalStore",
     "DEFAULT_TTL_SECONDS",
@@ -43,6 +45,73 @@ DEFAULT_TTL_SECONDS = 15 * 60
 
 #: Ursprünge, die niemals selbst entscheiden dürfen (05 §5).
 _NON_HUMAN_ORIGINS = frozenset({"llm_assisted", "automation", "system"})
+
+#: Das Siegel der Eigentümerhandlung.
+#:
+#: Ein Objekt ohne Namen und ohne Wert — es lässt sich nicht erraten, nicht
+#: buchstabieren und nicht aus einer Anfrage rekonstruieren. Wer es nicht
+#: bereits hat, kann kein `OwnerDecision` bauen.
+_SIEGEL = object()
+
+
+class OwnerDecision:
+    """Beleg einer ausdrücklichen Eigentümerhandlung.
+
+    **Warum kein String mehr.** Bis 2026-08-13 war die Grenze eine Denylist:
+    `grant()` wies `llm_assisted`, `automation` und `system` ab und liess alles
+    andere durch. Damit genügte der Literal `'lukas'`, um eine
+    Eigentümerfreigabe zu erzeugen — und genau das tat der Kontaktzweig der
+    Command Bar (`writeAdapter.ts`, `const ENTSCHEIDER = 'lukas'`)
+    programmatisch im Ausführungsschritt. Ein vom Produktcode gewählter String
+    ist keine Eigentümerhandlung.
+
+    Eine Allowlist derselben Sorte (`actor == 'lukas'`) wäre keine Reparatur,
+    sondern dieselbe Lücke mit umgekehrtem Vorzeichen: weiterhin von beliebigem
+    Produktcode vortäuschbar.
+
+    Die Freigabe verlangt deshalb keinen Namen mehr, sondern **dieses
+    Objekt**. Es entsteht ausschliesslich in `owner_decision()`, und
+    `owner_decision()` wird ausschliesslich am interaktiven
+    Freigabe-Endpunkt aufgerufen — ein Statiktest hält die Aufrufstellen fest.
+    Ein zweiter Konstruktionsweg existiert nicht: ohne `_SIEGEL` wirft der
+    Konstruktor.
+
+    **Was das ist und was nicht.** Das ist eine geschlossene Repräsentation
+    und eine Disziplingrenze mit maschineller Wirkung — kein
+    kryptographischer Nachweis, dass ein Mensch geklickt hat. Wer Produktcode
+    ändern darf, darf auch `owner_decision()` aufrufen. Der Unterschied ist,
+    dass es dafür jetzt genau eine benannte, auffindbare und geprüfte Stelle
+    gibt statt jeder beliebigen Zeichenkette. Dieselbe Semantik wie im
+    Guard-Vertrauensmodell: `requires_interactive_owner_authentication`, nicht
+    `technically_impossible`.
+    """
+
+    __slots__ = ("actor",)
+
+    def __init__(self, actor: str, *, seal: object = None) -> None:
+        if seal is not _SIEGEL:
+            raise SelfApprovalRejected(
+                "Eine Eigentuemerentscheidung entsteht ausschliesslich ueber "
+                "owner_decision() am interaktiven Freigabeweg")
+        self.actor = actor
+
+    def __repr__(self) -> str:                       # pragma: no cover
+        return f"OwnerDecision(actor={self.actor!r})"
+
+
+def owner_decision(actor: str) -> OwnerDecision:
+    """Die **einzige** Stelle, an der eine Eigentümerentscheidung entsteht.
+
+    Sie gehört an den interaktiven Freigabeweg und nirgendwo sonst. Der Name
+    bleibt erhalten, weil die Auditspur festhalten muss, *wer* entschieden
+    hat — er ist Protokoll, nicht mehr Nachweis.
+    """
+    if not actor or not actor.strip():
+        raise SelfApprovalRejected("Eine Freigabe ohne Entscheider ist keine")
+    if actor.strip() in _NON_HUMAN_ORIGINS:
+        raise SelfApprovalRejected(
+            f"'{actor}' ist ein maschineller Ursprung und kein Entscheider")
+    return OwnerDecision(actor.strip(), seal=_SIEGEL)
 
 
 class ApprovalState:
@@ -194,16 +263,22 @@ class ApprovalStore:
         return approval
 
     # ── Entscheiden ─────────────────────────────────────────────────────────
-    def grant(self, approval_id: str, *, decision_actor: str) -> Approval:
-        """Menschliche Freigabe. Ein Modell kann das nicht auslösen."""
+    def grant(self, approval_id: str, *, decision: OwnerDecision) -> Approval:
+        """Eigentümerfreigabe. Sie verlangt das Siegel, nicht einen Namen.
+
+        Der Parameter heisst bewusst `decision` und nicht mehr
+        `decision_actor`: Ein Aufrufer, der bisher einen String übergab,
+        scheitert damit beim Übersetzen statt still weiterzulaufen — genau
+        die Sorte Fehlschlag, die man beim Umbau einer Sicherheitsgrenze
+        haben will.
+        """
         approval = self.require(approval_id)
         self._require_pending(approval)
-        if decision_actor in _NON_HUMAN_ORIGINS or not decision_actor.strip():
+        if not isinstance(decision, OwnerDecision):
             raise SelfApprovalRejected(
-                "Eine Freigabe verlangt eine menschliche Entscheidung; "
-                f"'{decision_actor}' ist kein zulaessiger Entscheider"
-            )
-        return self._decide(approval, ApprovalState.GRANTED, decision_actor)
+                "Eine Freigabe verlangt eine ausdrueckliche "
+                "Eigentuemerentscheidung, keinen Entscheidernamen")
+        return self._decide(approval, ApprovalState.GRANTED, decision.actor)
 
     def reject(self, approval_id: str, *, decision_actor: str) -> Approval:
         approval = self.require(approval_id)

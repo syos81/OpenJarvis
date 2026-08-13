@@ -30,6 +30,7 @@ from personaljarvis.base.approvals import (
     ApprovalNotPending,
     ApprovalPayloadMismatch,
     SelfApprovalRejected,
+    owner_decision,
 )
 from personaljarvis.contacts.api import schemas as S
 from personaljarvis.contacts.api.redaction import (
@@ -613,6 +614,12 @@ def create_contacts_router(module) -> APIRouter:
         try:
             if aktion == "expire":
                 service.expire(mutation_id)
+            elif aktion == "grant":
+                # **Die einzige Stelle im Kontaktmodul**, an der eine
+                # Eigentuemerentscheidung entsteht. Ein Statiktest haelt das
+                # fest; ohne diese Enge waere die Grenze wieder ein String.
+                service.grant(mutation_id,
+                              decision=owner_decision(decision_actor or ""))
             else:
                 getattr(service, aktion)(mutation_id,
                                          decision_actor=decision_actor)

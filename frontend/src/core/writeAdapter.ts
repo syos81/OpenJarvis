@@ -18,7 +18,7 @@
 // erreicht ihn nicht — auch nicht versehentlich.
 
 import {
-  approveMutation, executeMutation, getContact, listContacts, listContainers,
+  executeMutation, getContact, getMutation, listContacts, listContainers,
   prepareCreate, prepareDelete, prepareUpdate,
 } from '../personal/contacts/api';
 import { ladeKalender, ladeTermine as ladeTermineApi } from '../personal/calendar/api';
@@ -32,9 +32,6 @@ import {
   type AusgefuehrteMutation, type CoreWritePort, type VorbereiteteMutation,
   type Zielobjekt,
 } from './writePort';
-
-/** Der eine Entscheider dieses Kanals — derselbe Wert wie im Kontaktmodul. */
-const ENTSCHEIDER = 'lukas';
 
 /** Die Felder, die `kontakt-aendern` setzen darf. Bewusst klein und
  *  geschlossen: was hier nicht steht, ist aus dem Core nicht änderbar. */
@@ -381,14 +378,35 @@ export function produktiverWritePort(): CoreWritePort {
 
     async fuehreAus(vorbereitet: VorbereiteteMutation): Promise<AusgefuehrteMutation> {
       if (vorbereitet.kanal === 'kontakte') {
-        // Freigabe und Ausführung sind zwei Aufrufe des bewiesenen Kanals.
-        // `executeMutation` prüft die Revision serverseitig erneut; weicht
-        // sie ab, kommt ein Konflikt zurück und es wird nichts geschrieben.
+        // **Hier wird nicht freigegeben.** Bis 2026-08-13 stand an dieser
+        // Stelle `approveMutation(id, ENTSCHEIDER)` mit einem hartkodierten
+        // `'lukas'` — ein vom Produktcode gewählter String ist keine
+        // Eigentümerhandlung, und ein Ausführungsschritt, der sich selbst die
+        // Freigabe erteilt, hat die Trennung von Vorbereiten und Ausführen
+        // aufgehoben (§8 G). Der Kern nimmt seit derselben Änderung nur noch
+        // eine gesiegelte `OwnerDecision` entgegen, die ausschliesslich am
+        // interaktiven Freigabeweg entsteht.
+        //
+        // Ausgeführt wird deshalb nur, was der Eigentümer bereits freigegeben
+        // hat. Der Zustand wird frisch gelesen statt aus der Vorbereitung
+        // erinnert: Zwischen Prepare und Execute kann die Freigabe erteilt,
+        // abgelaufen oder verbraucht worden sein.
+        let zustand;
         try {
-          await approveMutation(vorbereitet.mutationId, ENTSCHEIDER);
+          zustand = await getMutation(vorbereitet.mutationId);
         } catch (f) {
-          alsSchreibFehler(f, new SchreibFehler('freigabe_fehlt', undefined,
-                                                'ausfuehren'));
+          alsSchreibFehler(f, new SchreibFehler('ausfuehrung_fehlgeschlagen',
+                                                undefined, 'ausfuehren'));
+        }
+        // `approval_state` ist der **wirksame** Zustand: Eine erteilte, aber
+        // abgelaufene Freigabe liest sich als `expired` und nicht mehr als
+        // `granted`. Beide Bedingungen zusammen decken die vier Fälle, in
+        // denen nicht ausgeführt werden darf — wartend, abgelaufen,
+        // verbraucht, abgeschlossen.
+        if (zustand.state !== 'approved' || zustand.approval_state !== 'granted') {
+          throw new SchreibFehler('freigabe_fehlt',
+                                  zustand.approval_state ?? zustand.state,
+                                  'ausfuehren');
         }
         let ergebnis;
         try {

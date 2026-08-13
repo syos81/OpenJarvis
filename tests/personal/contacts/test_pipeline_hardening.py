@@ -23,6 +23,8 @@ from pathlib import Path
 
 import pytest
 
+from personaljarvis.base.approvals import owner_decision
+
 from personaljarvis.base.audit import AuditStage, AuditTrail
 from personaljarvis.base.outbox import ExternalActionOutbox, OutboxState
 from personaljarvis.contacts.application import (
@@ -86,7 +88,7 @@ def test_failed_before_send_ist_terminal_und_nie_mehr_faellig(module):
     service = ContactsMutationService(
         module, Provider(ProviderOutcome.CONFLICT, error_code="conflict"))
     vorgang = service.prepare(_cmd())
-    service.grant(vorgang.mutation_id, decision_actor=MENSCH)
+    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == MutationState.FAILED_BEFORE_SEND
     assert MutationState.FAILED_BEFORE_SEND in MutationState.TERMINAL
@@ -106,7 +108,7 @@ def test_zweites_execute_nach_failed_before_send_ist_already_settled(module):
     provider = Provider(ProviderOutcome.REJECTED_BEFORE_SEND, error_code="nein")
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_cmd())
-    service.grant(vorgang.mutation_id, decision_actor=MENSCH)
+    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
     service.execute(vorgang.mutation_id)
     with pytest.raises(AlreadySettled):
         service.execute(vorgang.mutation_id)
@@ -118,7 +120,7 @@ def test_precheck_fehlschlag_schliesst_outbox_ebenfalls(module):
     _container(module)
     service = ContactsMutationService(module, Provider())
     vorgang = service.prepare(_cmd(container_identifier="verschwunden"))
-    service.grant(vorgang.mutation_id, decision_actor=MENSCH)
+    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == MutationState.FAILED_BEFORE_SEND
     with module.unit_of_work() as uow:
@@ -137,7 +139,7 @@ def _abgestuerzt(module) -> str:
     service = ContactsMutationService(
         module, Provider(raises=SystemExit("Abbruch")))
     vorgang = service.prepare(_cmd())
-    service.grant(vorgang.mutation_id, decision_actor=MENSCH)
+    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
     with pytest.raises(SystemExit):
         service.execute(vorgang.mutation_id)
     return vorgang.mutation_id
@@ -213,7 +215,7 @@ def test_recover_auf_gesunder_datenbank_ist_leer(module):
     _container(module)
     service = ContactsMutationService(module, Provider())
     vorgang = service.prepare(_cmd())
-    service.grant(vorgang.mutation_id, decision_actor=MENSCH)
+    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
     service.execute(vorgang.mutation_id)
     assert service.recover_interrupted() == ()
 

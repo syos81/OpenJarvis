@@ -32,6 +32,7 @@ from personaljarvis.base.approvals import (
     ApprovalError,
     ApprovalStore,
     DEFAULT_TTL_SECONDS,
+    owner_decision,
 )
 from personaljarvis.base.audit import AuditStage, AuditTrail
 from personaljarvis.base.db.factory import ConnectionFactory
@@ -837,8 +838,12 @@ class CalendarMutationService:
             if zeile["state"] != "prepared":
                 raise MutationNotExecutable(
                     f"Vorgang ist '{zeile['state']}', nicht 'prepared'")
+            # Derselbe Freigabekern, dieselbe Grenze: Seit 2026-08-13
+            # verlangt `grant` die gesiegelte Eigentuemerentscheidung statt
+            # eines Namens. Eine Grenze, die nur fuer ein Modul gilt, ist
+            # keine.
             ApprovalStore(uow).grant(zeile["approval_id"],
-                                     decision_actor=decision_actor)
+                                     decision=owner_decision(decision_actor))
             pruefe_uebergang(zeile["state"], "approved")
             uow.execute(
                 "UPDATE calendar_mutations SET state = 'approved' "

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pytest
 
+from personaljarvis.base.approvals import owner_decision
+
 from personaljarvis import attach
 from personaljarvis.bootstrap import PersonalBootstrap
 from personaljarvis.contacts.application import (
@@ -55,7 +57,7 @@ def _unterbrochener_vorgang(db_path) -> str:
             initiation_context=InitiationContext.USER_DIRECT,
             provider_account_id=KONTO, container_identifier=CONTAINER,
             draft=ContactDraft({"given_name": "Erholung"})))
-        dienst.grant(vorgang.mutation_id, decision_actor=MENSCH)
+        dienst.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
         with pytest.raises(SystemExit):
             dienst.execute(vorgang.mutation_id)
         return vorgang.mutation_id

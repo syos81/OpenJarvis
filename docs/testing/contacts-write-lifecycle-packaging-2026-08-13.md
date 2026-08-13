@@ -198,7 +198,7 @@ Contacts-Gates · erneute vollständige CRUD-Abnahme beider Architekturen ·
 | D | Mehrfachvorbereitung | **PASS** | `MutationAlreadyPending` nennt den bestehenden Vorgang; kein zweiter Datensatz, keine zweite Freigabe; `create` bleibt frei; `TestMehrfachvorbereitung` |
 | E | Tombstone-Detailroute | **PASS** — Variante B | Vertrag nennt `NotFound`, `ContactDetailOut` ist `_Strict` ohne `deleted_at`/`is_tombstone`; Tombstone gefiltert, Historie über `include_tombstones`; `TestTombstoneDetailroute` |
 | F | `"previous": null` | **PASS** | Ursache: kanonische Payload-Schlüssel gegen DB-Spaltennamen; jetzt aus `expectedPrevious`; `TestVorwertImAenderungssatz` |
-| G | Command-Bar-Kontaktzweig | **BLOCKED** | Eigentümerentscheidung ausstehend. Der Zusatzbefund — programmatisches `approveMutation` mit hartkodiertem `ENTSCHEIDER = 'lukas'` — liegt beim Eigentümer, weil er das Self-Grant-Verbot berührt. `writeAdapter.ts` blieb in diesem Block **unangetastet**. |
+| G | Command-Bar-Kontaktzweig / Self-Grant | **PASS** | Eigentümerentscheidung liegt vor: G ist Safety-Blocker vor dem Live-Test und wurde repariert. Siehe §8. |
 | H | Packaging fail-closed | **PASS** | Kanonischer Build erzwingt den Helfervertrag; App und DMG je 33/33; vier Negativproben greifen; `tests/personal/contacts/test_bundle_contract.py` |
 | I | Write-Bootstrap-UX und Capability-Lifecycle | **PASS** | Schreibrechte frisch statt Startschnappschuss; gesperrte Aktion bleibt sichtbar und führt in eine Erklärung; kein Self-Grant; `test_capability_bridge.py`, `frontend/…/schreibsperre.test.tsx` |
 | J | Seitenleiste ausblendbar | **PASS** | Toggle an macOS-üblicher Stelle; Leiste und Trenner auf Breite null, Zustand bleibt erhalten; `frontend/…/seitenleiste.test.tsx` |
@@ -221,3 +221,88 @@ Contacts-Gates · erneute vollständige CRUD-Abnahme beider Architekturen ·
   kein Benutzername.
 - `~/Jarvis-Next-Contacts-ARM64` unverändert bei `b9675dbf`.
 - Pushstatus: `not_performed_owner_action`.
+
+---
+
+## 8. G — die Freigabe ist keine Zeichenkette mehr
+
+*Nachtrag nach der Eigentümerentscheidung vom 2026-08-13: G ist ein
+Safety-Blocker vor dem Live-Risk-Test und wird in diesem Block repariert.*
+
+**Der Defekt hatte zwei Hälften, und beide waren nötig.**
+
+`ApprovalStore.grant()` prüfte eine **Denylist**: `llm_assisted`,
+`automation` und `system` raus, alles andere rein. Der Literal `'lukas'`
+genügte damit für eine Eigentümerfreigabe. Und `writeAdapter.fuehreAus()`
+setzte genau diesen Literal — `const ENTSCHEIDER = 'lukas'` — programmatisch
+**im Ausführungsschritt** ein. Der Execute-Pfad erteilte sich also die
+Freigabe, die er im selben Atemzug verbrauchte; die Trennung von Vorbereiten
+und Ausführen war damit aufgehoben.
+
+**Warum keine Allowlist.** `actor == 'lukas'` wäre dieselbe Lücke mit
+umgekehrtem Vorzeichen: weiterhin von beliebigem Produktcode vortäuschbar.
+Die Grenze darf nicht an einem Wert hängen, den der Aufrufer wählt.
+
+**Die geschlossene Repräsentation.** `grant()` verlangt kein
+`decision_actor: str` mehr, sondern ein `OwnerDecision`. Das Objekt entsteht
+ausschliesslich in `owner_decision()` — ein Konstruktor ohne das
+Modulsiegel wirft. Der Parametername wechselte bewusst mit: Aufrufer, die
+bisher einen String übergaben, scheitern jetzt laut statt still
+weiterzulaufen. 173 Testaufrufe fielen dabei auf, was der Punkt war.
+
+**Wo `owner_decision()` aufgerufen werden darf**, hält ein Statiktest über den
+AST fest: genau zwei Stellen, `contacts/api/routes.py` und
+`calendar/mutations/service.py`, beide der interaktive Entscheidungsweg. Ohne
+diese Enge wäre die Repräsentation folgenlos — wer sie überall aufrufen darf,
+hat wieder den freien String, nur mit mehr Zeichen.
+
+**Der Kalenderzweig ist mitgezogen.** Eine Sicherheitsgrenze im geteilten
+Freigabekern, die nur für ein Modul gilt, ist keine. Das ist Anpassung eines
+Aufrufers, keine neue Calendar-Funktion.
+
+**Was das ist und was nicht.** Eine geschlossene Repräsentation mit
+maschineller Wirkung, kein kryptographischer Nachweis, dass ein Mensch
+geklickt hat. Wer Produktcode ändern darf, darf auch `owner_decision()`
+aufrufen. Der Unterschied: dafür gibt es jetzt genau eine benannte,
+auffindbare und statisch geprüfte Stelle statt jeder beliebigen Zeichenkette.
+Dieselbe Semantik wie im Guard-Vertrauensmodell —
+`requires_interactive_owner_authentication`, nicht `technically_impossible`.
+
+**Der Ausführungsschritt** liest den Zustand jetzt frisch und führt nur aus,
+was `state == 'approved'` **und** `approval_state == 'granted'` trägt. Beide
+Bedingungen zusammen decken die vier Sperrfälle: wartend, abgelaufen (der
+wirksame Zustand aus B), verbraucht, abgeschlossen.
+
+### Deterministische Nachweise
+
+| Nachweis | Test |
+|---|---|
+| Execute auf `awaiting_approval` erzeugt keine Freigabe | `test_execute_auf_wartendem_vorgang_erzeugt_keine_freigabe` |
+| Execute auf `awaiting_approval` mutiert nicht (Provider ungerufen, `attempt_count` 0) | `test_execute_auf_wartendem_vorgang_mutiert_nicht` |
+| Kein selbst gewählter Name erzeugt eine Freigabe | `test_ein_selbst_gewaehlter_name_erzeugt_keine_freigabe`, `test_auch_direkt_am_store_nicht` |
+| Maschinenquelle wird abgewiesen | `test_maschinelle_ursprünge_werden_abgewiesen` |
+| Ausdrückliche Handlung erzeugt genau den gebundenen Grant | `test_die_ausdrueckliche_handlung_erzeugt_genau_den_gebundenen_grant` |
+| Bindung an Mutation-ID, Nutzlast und Vorschau | `test_die_bindung_gilt_an_genau_dieser_vorbereitung` |
+| Danach separates Execute nötig | `test_nach_der_freigabe_ist_execute_ein_eigener_schritt` |
+| Abgelaufen trägt kein Execute | `test_eine_abgelaufene_freigabe_traegt_kein_execute` |
+| Kein zweites Execute | `test_ein_zweites_execute_findet_nicht_statt` |
+| Lesen schreibt keinen Freigabezustand fort | `test_der_abgelaufene_grant_liest_sich_ohne_mutation_als_expired` |
+| `owner_decision()` nur am Freigabeweg | `test_owner_decision_wird_nur_am_freigabeweg_aufgerufen` |
+| Execute-Pfad kennt `grant` nicht | `test_der_ausfuehrungspfad_ruft_keine_freigabe` |
+| Command Bar gibt nicht mehr selbst frei (Verhalten) | `frontend/src/core/ownerGrant.test.ts`, 5 Tests |
+
+Die Frontendtests laufen gegen den **echten** Adapter, nicht gegen einen
+Stubport: Die vorhandene Core-Suite arbeitet mit einem Zählport und hätte
+diese Änderung nicht bemerkt. Ihr Mock stellt `approveMutation`
+ausdrücklich bereit — der alte Adapter soll alles bekommen, was er zum
+Freigeben braucht, und trotzdem auffallen. Gegen den alten Stand fallen alle
+fünf.
+
+## 9. Sachstatus
+
+| Aussage | Stand |
+|---|---|
+| `M2 arm64 INTEGRATED BUILD` | `PASS_EVIDENCE_COMPLETE` |
+| `integration_report_update` | `PENDING` — Nachtrag auf dem Integrationszweig nach diesem Block, keine Historienumschreibung |
+| `CONTACTS REPAIR x86_64 NATIVE CLOSURE` | `PENDING` — eigener Nachweisblock auf dem Intel-Rechner, derselbe finale Commit, nativ |
+| M2-Live-Risk-Test | ausstehend — wartet auf die Eigentümerfreigabe im Lauf |

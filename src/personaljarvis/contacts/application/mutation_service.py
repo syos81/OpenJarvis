@@ -34,6 +34,7 @@ from personaljarvis.base.approvals import (
     ApprovalState,
     ApprovalStore,
     DEFAULT_TTL_SECONDS,
+    OwnerDecision,
 )
 from personaljarvis.base.audit import AuditStage, AuditTrail
 from personaljarvis.base.db.unit_of_work import UnitOfWork
@@ -305,12 +306,19 @@ class ContactsMutationService:
                 payload_digest=payload.digest, preview=preview)
 
     # ── 2. Freigabe (menschlich) ────────────────────────────────────────────
-    def grant(self, mutation_id: str, *, decision_actor: str) -> Approval:
+    def grant(self, mutation_id: str, *, decision: OwnerDecision) -> Approval:
+        """Freigabe durch den Eigentuemer — verlangt die gesiegelte Handlung.
+
+        Kein Entscheidername mehr: Ein String ist von jedem Produktcode
+        waehlbar und belegt nichts (§8 G). Wer hier hineinkommt, hat
+        `owner_decision()` durchlaufen, und das steht genau am interaktiven
+        Freigabeweg.
+        """
         with self._persistence.unit_of_work() as uow:
             zeile = self._require_row(uow, mutation_id)
             approvals = ApprovalStore(uow)
             approval = approvals.grant(zeile["approval_id"],
-                                       decision_actor=decision_actor)
+                                       decision=decision)
             uow.execute(
                 "UPDATE contacts_mutations SET state = ?, approved_at = ? "
                 "WHERE mutation_id = ?",
@@ -319,7 +327,7 @@ class ContactsMutationService:
                 AuditStage.APPROVAL_GRANTED, subject_type=SUBJECT_TYPE,
                 subject_id=mutation_id,
                 facts={"approvalId": approval.approval_id,
-                       "decisionActor": decision_actor})
+                       "decisionActor": decision.actor})
             return approval
 
     def reject(self, mutation_id: str, *, decision_actor: str) -> Approval:
