@@ -185,3 +185,39 @@ Contacts-Gates · erneute vollständige CRUD-Abnahme beider Architekturen ·
 | Intel-x86_64-Revalidierung | Dieser Rechner ist ein Mac mini M2; installiert ist ausschließlich das Rust-Target `aarch64-apple-darwin`. Rosetta ersetzt nach Dauerregeln §14 keinen nativen Plattformnachweis. Verlangt den Intel-Rechner. |
 | Live-Risk-Test | Setzt eine gültige Schreibfreigabe voraus. Deren Erzeugung ist Eigentümerhandlung (Dauerregeln §4, DEC-069). |
 | §10 im Integrationsbericht | Nicht nachgetragen; gehört auf den Integrationsbranch. |
+
+---
+
+## 5. Ergebnis je Punkt
+
+| # | Punkt | Ergebnis | Beleg |
+|---|---|---|---|
+| A | Zielcontainer in der Freigabevorschau | **PASS** | Vorschau trägt Kennung **und** Art für alle drei Operationen; Digest deckt beides; Angabe steht im Freigabe-Board **vor** den Entscheidungsknöpfen; `tests/personal/contacts/test_write_lifecycle_repair.py::TestZielablageortInDerVorschau`, `frontend/…/zielangabe.test.tsx` |
+| B | Abgelaufene Freigabe | **PASS** | `effective_state()` als eine Stelle; Anzeige und `consume()`-Sperre teilen die Zeitlogik; Lesen schreibt nicht fort; `TestAblaufBeimLesen` |
+| C | `approved` sichtbar und ausführbar | **PASS** | `OFFEN` neben `AUFMERKSAMKEIT`; Karte nennt Frist, Ausführung und Verwerfen; kein Auto-Execute; `frontend/…/offene-vorgaenge.test.tsx` |
+| D | Mehrfachvorbereitung | **PASS** | `MutationAlreadyPending` nennt den bestehenden Vorgang; kein zweiter Datensatz, keine zweite Freigabe; `create` bleibt frei; `TestMehrfachvorbereitung` |
+| E | Tombstone-Detailroute | **PASS** — Variante B | Vertrag nennt `NotFound`, `ContactDetailOut` ist `_Strict` ohne `deleted_at`/`is_tombstone`; Tombstone gefiltert, Historie über `include_tombstones`; `TestTombstoneDetailroute` |
+| F | `"previous": null` | **PASS** | Ursache: kanonische Payload-Schlüssel gegen DB-Spaltennamen; jetzt aus `expectedPrevious`; `TestVorwertImAenderungssatz` |
+| G | Command-Bar-Kontaktzweig | **BLOCKED** | Eigentümerentscheidung ausstehend. Der Zusatzbefund — programmatisches `approveMutation` mit hartkodiertem `ENTSCHEIDER = 'lukas'` — liegt beim Eigentümer, weil er das Self-Grant-Verbot berührt. `writeAdapter.ts` blieb in diesem Block **unangetastet**. |
+| H | Packaging fail-closed | **PASS** | Kanonischer Build erzwingt den Helfervertrag; App und DMG je 33/33; vier Negativproben greifen; `tests/personal/contacts/test_bundle_contract.py` |
+| I | Write-Bootstrap-UX und Capability-Lifecycle | **PASS** | Schreibrechte frisch statt Startschnappschuss; gesperrte Aktion bleibt sichtbar und führt in eine Erklärung; kein Self-Grant; `test_capability_bridge.py`, `frontend/…/schreibsperre.test.tsx` |
+| J | Seitenleiste ausblendbar | **PASS** | Toggle an macOS-üblicher Stelle; Leiste und Trenner auf Breite null, Zustand bleibt erhalten; `frontend/…/seitenleiste.test.tsx` |
+
+## 6. Nicht erbracht — und warum
+
+| Gegenstand | Stand | Grund |
+|---|---|---|
+| Intel-x86_64-Revalidierung | **BLOCKED** | Dieser Rechner ist ein Mac mini M2; installiert ist nur `aarch64-apple-darwin`. Dauerregeln §14: Rosetta ersetzt keinen nativen Plattformnachweis. H ändert plattformspezifische Pfade und verlangt die Prüfung dort. |
+| Live-Risk-Test | **BLOCKED** | Setzt eine gültige Schreibfreigabe voraus; ihre Erzeugung ist Eigentümerhandlung (Dauerregeln §4, DEC-069). Der Lauf soll gerade den neuen Weg ausüben — Grant zunächst nicht vorhanden, UI zeigt gesperrt, Eigentümer aktiviert, UI erkennt ohne Neustart. |
+| `test_dec_052_ist_registriert` | vorbestehend | Nicht angefasst (Auftragsvorgabe). Liest ausschliesslich `decisions-register.md`. |
+| Pixelabgleich | out of scope | Ausdrücklich ausgeschlossen. |
+
+## 7. Ausdrückliche Bestätigungen
+
+- Keine produktive Mutation: kein Contacts- und kein Calendar-CREATE/UPDATE/DELETE.
+- cardDAV-Container unberührt; kein Livelauf gegen einen echten Provider.
+- Keine neue Fachfunktion ausserhalb A–J.
+- Feldvertrag bleibt v1: keine Pronomen, kein Klingelton, kein Nachrichtenton,
+  kein Benutzername.
+- `~/Jarvis-Next-Contacts-ARM64` unverändert bei `b9675dbf`.
+- Pushstatus: `not_performed_owner_action`.
