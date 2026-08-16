@@ -176,10 +176,63 @@ neue produktive Write-Funktionalität in einen eigenen Risk-Lane-Block.
 |---|---|
 | `INTEGRATION SOURCE` | **PASS** — ein Branch trägt den vorgesehenen Produktstand |
 | `INTEL x86_64 INTEGRATED BUILD` | **PASS** |
-| `M2 arm64 INTEGRATED BUILD` | offen — verlangt denselben Commit auf dem M2 |
+| `M2 arm64 INTEGRATED BUILD` | **PASS** — nachgetragen in §10 |
 
 In diesem Block fand **keine** produktive Mutation statt: kein Contacts- und
 kein Calendar-CREATE/UPDATE/DELETE. Die Schreibfreigabe wurde vor Beginn vom
 Eigentümer entfernt.
 
 Pushstatus: `not_performed_owner_action`.
+
+## 10. Nachtrag: `M2 arm64 INTEGRATED BUILD`
+
+*Eingetragen am 2026-08-16 aus der Intel-x86_64-Closure heraus. Das ist ein
+**Berichtsnachtrag**, keine neue Abnahme: Es entsteht keine Messung, es wird
+eine bereits an einen Commit gebundene Messung dorthin geschrieben, wo §9 sie
+offengelassen hatte. Kein Wechsel auf den alten Integrationszweig, keine
+Historienumschreibung.*
+
+**Gegenstand.** Integrationscommit
+`ff2409780aa385145122a3a83a7d35b262d6e8db` — derselbe, den dieser Bericht
+beschreibt.
+
+**Ergebnis.** `M2 arm64 INTEGRATED BUILD` = **PASS**.
+
+**Woher die Aussage stammt.** Aus dem Reparaturbericht
+[contacts-write-lifecycle-packaging-2026-08-13.md](contacts-write-lifecycle-packaging-2026-08-13.md),
+der auf `ff240978` aufsetzt und in seinem Sachstatus
+`M2 arm64 INTEGRATED BUILD = PASS_EVIDENCE_COMPLETE` führt. Er ist in
+`b5ddf3b4c4a9d7ca9ceddc35c12fdacd4728ca86` enthalten.
+
+**Belegte Grundlage.** Der Reparaturbericht benennt die auf dem M2 gegen
+diesen Commit gefahrenen Messungen als: nativer arm64-Build, Tests, App-Start,
+Read, Entitlements — kein Merge-Regressionsblocker, Testzahlen identisch zum
+Intel-Befund aus §6 dieses Berichts.
+
+**Zusätzlich hier mechanisch nachgezogen**, nicht aus dem Bericht übernommen:
+Der Contacts-UI-Teilbaum ist an beiden Enden **derselbe Baum**, nicht nur ein
+leerer Diff.
+
+```
+git ls-tree <commit> frontend/src/personal/contacts
+  b9675dbf  (akzeptierter arm64-Stand)   606decc4eb54770761afcbcc3a69d7e7916ee6a6
+  ff240978  (Integrationsstand)          606decc4eb54770761afcbcc3a69d7e7916ee6a6
+```
+
+Damit ist „gleiche Contacts-UI wie der akzeptierte M2-Stand" nicht behauptet,
+sondern aus der Objektidentität abgeleitet.
+
+**Was dieser Nachtrag ausdrücklich nicht trägt.** Die arm64-Rohwerte —
+Testzahlen, Helfer-Entitlementvorrat im Wortlaut, App-/Helfer-Signaturbindung,
+Artefaktidentität, TCC-Zurechnung — liegen **nicht** im Repository. Für den
+Intel-Zweig stehen sie in §6; ein Gegenstück für arm64 gibt es nicht. Diese
+Zeile ist deshalb die Übernahme eines an einen Commit gebundenen Status, keine
+zweite Messung und kein Ersatz für sie. Wer die arm64-Einzelwerte braucht,
+misst sie auf dem M2 nach.
+
+**Keine produktive Mutation.** Im §10-Integrationslauf fand kein Contacts- und
+kein Calendar-CREATE/UPDATE/DELETE statt. Die Aussage aus §9 dieses Berichts
+bleibt unverändert gültig.
+
+Damit schliesst `integration_report_update` = `PENDING` aus dem
+Reparaturbericht.
