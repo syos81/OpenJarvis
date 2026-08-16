@@ -279,52 +279,57 @@ def test_der_ausfuehrungspfad_ruft_keine_freigabe():
     assert "owner_decision" not in aufrufe
 
 
-def test_die_command_bar_gibt_nicht_mehr_selbst_frei():
-    """Der Kontaktzweig des Adapters kennt `approveMutation` nicht mehr."""
+def test_die_command_bar_gibt_im_ausfuehrungsschritt_nicht_frei():
+    """Der Kontaktzweig fuehrt aus, was freigegeben ist — er gibt nicht frei.
+
+    Umgestellt am 2026-08-16. Bis dahin verlangte dieser Test, dass
+    `approveMutation` in `writeAdapter.ts` **gar nicht** vorkommt. Das war zu
+    grob und zugleich zu schwach: Zu grob, weil der Adapter seit der Trennung
+    einen eigenen, reinen Freigabeweg hat (`genehmige`); zu schwach, weil ein
+    Zeichenkettenverbot den Kalenderzweig derselben Datei nie erfasste — dort
+    stand `gibFrei(...)` im Ausfuehrungsschritt und blieb drei Tage
+    unbemerkt.
+
+    Die Aussage ist jetzt die richtige: **der Ausfuehrungsschritt** erreicht
+    die Freigabegrenze nicht. Geprueft ueber Erreichbarkeit, nicht ueber
+    Namen; normativ in `tools/guards/approval_boundary.py`.
+    """
+    from tools.guards.approval_boundary import analysiere
+
+    ergebnis = analysiere(_REPO / "frontend/src")
+    assert not ergebnis.erreicht("core/writeAdapter.ts", "fuehreAus")
+    # Und er fuehrt nur aus, was bereits freigegeben ist.
     roh = (_REPO / "frontend/src/core/writeAdapter.ts").read_text(
         encoding="utf-8")
-    # Kommentare heraus: Die Begruendung der Aenderung nennt den alten Aufruf
-    # beim Namen, und ein Test, der daran scheitert, prueft die Dokumentation
-    # statt des Verhaltens.
     code = "\n".join(z for z in roh.splitlines()
-                     if not z.lstrip().startswith("//"))
-    assert "approveMutation" not in code
-    assert "ENTSCHEIDER" not in code
-    # Und er fuehrt nur aus, was bereits freigegeben ist.
-    assert "zustand.approval_state !== 'granted'" in code
+                      if not z.lstrip().startswith("//"))
+    assert code.count("zustand.approval_state !== 'granted'") == 2, \
+        "beide Kanaele pruefen den wirksamen Freigabezustand"
 
 
-def test_keine_selbstfreigabe_irgendwo_in_der_oberflaeche():
-    """Der Kehraus, den die Reparatur von G zuerst nicht gemacht hat.
+def test_der_strukturwaechter_umfasst_auch_den_kalender():
+    """Die Luecke, an der die erste G-Reparatur vorbeilief.
 
-    G nannte `writeAdapter.ts`, und genau die eine Datei wurde repariert. Der
-    Livelauf am 2026-08-13 fand dieselbe Defektklasse an einer zweiten Stelle:
-    `ContactsWorkspace.abschliessen` rief `approve` und unmittelbar danach
-    `execute`, mit hartkodiertem `'desktop-user'` — Vorbereiten, Freigeben und
-    Ausfuehren fielen in dieselbe Sekunde.
+    Der alte Wächter suchte `.approve(` und `approveMutation(` und hielt eine
+    Menge aus drei Kontaktdateien fuer geschlossen. `gibFrei(` — derselbe
+    Grenzuebergang im Kalender — war fuer ihn unsichtbar. Dass die Grenze
+    beide Module umfasst, ist deshalb eine eigene Behauptung und wird eigens
+    geprueft.
 
-    Dieser Test prueft deshalb nicht mehr eine Datei, sondern die Menge:
-    Freigeben darf **nur** dort stehen, wo ein Mensch klickt.
+    Die geschlossene Mengenaussage selbst steht in
+    `tests/personal/test_approval_boundary_produkt.py` — eine normative
+    Stelle je Sachverhalt.
     """
-    wurzel = _REPO / "frontend/src"
-    mit_approve = set()
-    for pfad in wurzel.rglob("*.ts*"):
-        if ".test." in pfad.name:
-            continue
-        text = pfad.read_text(encoding="utf-8")
-        code = "\n".join(z for z in text.splitlines()
-                         if not z.lstrip().startswith("//"))
-        if ".approve(" in code or "approveMutation(" in code:
-            mit_approve.add(str(pfad.relative_to(wurzel)))
+    from tools.guards.approval_boundary import analysiere
 
-    assert mit_approve == {
-        # Der Freigabeknopf des Boards.
-        "personal/contacts/status/ContactsStatusSurface.tsx",
-        # Der Freigabeknopf der Vorschau.
-        "personal/contacts/editor/dialogs.tsx",
-        # Reine Durchreiche zur API, ohne eigene Entscheidung.
-        "personal/contacts/data/source.ts",
-    }, sorted(mit_approve)
+    ergebnis = analysiere(_REPO / "frontend/src")
+    saatdateien = {s.datei for s in ergebnis.saat}
+    assert "personal/calendar/mutationsApi.ts" in saatdateien
+    assert "personal/contacts/api.ts" in saatdateien
+    # Und die Kalender-Freigabe haengt an einer reinen Freigabefunktion.
+    for datei in ("personal/calendar/TerminFormular.tsx",
+                  "personal/calendar/TerminLoeschen.tsx"):
+        assert ergebnis.erreicht(datei, "freigeben"), datei
 
 
 def test_jede_freigabe_haengt_an_einem_klick():

@@ -13,6 +13,17 @@ import { produktiverWritePort } from './writeAdapter';
 import { neuerSchacht, resolveWrite } from './writeResolver';
 import type { CoreWritePort } from './writePort';
 
+/**
+ * Der Entscheider dieser Oberfläche — Auditprotokoll, kein Nachweis.
+ *
+ * Er steht hier, an der Eingabe des Menschen, und nicht in einer Netz- oder
+ * Adapterschicht: Ein Modul, das ihn selbst einsetzt, behauptet eine
+ * Eigentümerhandlung, die es nicht beobachtet hat. Genau so stand er bis
+ * 2026-08-16 in `mutationsApi.ts` und machte jeden Aufrufer — auch den
+ * Ausführungsschritt — zum Freigeber.
+ */
+const ENTSCHEIDER = 'lukas';
+
 export function JarvisCommandBar({ context, onClose, readPort, writePort }: {
   context: CoreContext;
   onClose: () => void;
@@ -67,7 +78,7 @@ export function JarvisCommandBar({ context, onClose, readPort, writePort }: {
     }
     if (sofort.write) {
       void resolveWrite(sofort.write, writePort ?? produktiverWritePort(),
-                        schacht.current).then(uebernehmen);
+                        schacht.current, ENTSCHEIDER).then(uebernehmen);
     }
   };
 

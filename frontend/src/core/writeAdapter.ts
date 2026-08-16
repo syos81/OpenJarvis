@@ -18,13 +18,13 @@
 // erreicht ihn nicht — auch nicht versehentlich.
 
 import {
-  executeMutation, getContact, getMutation, listContacts, listContainers,
-  prepareCreate, prepareDelete, prepareUpdate,
+  approveMutation, executeMutation, getContact, getMutation, listContacts,
+  listContainers, prepareCreate, prepareDelete, prepareUpdate,
 } from '../personal/contacts/api';
 import { ladeKalender, ladeTermine as ladeTermineApi } from '../personal/calendar/api';
 import {
   beanspruche, bereiteUpdateVor, bereiteVor, fuehreAus as fuehreNativAus,
-  gibFrei, schliesseAb,
+  gibFrei, ladeMutation, schliesseAb,
 } from '../personal/calendar/mutationsApi';
 import { tagesFenster } from './readResolver';
 import {
@@ -376,6 +376,28 @@ export function produktiverWritePort(): CoreWritePort {
       };
     },
 
+    /**
+     * Die Eigentümerfreigabe — und sonst nichts.
+     *
+     * Beide Kanäle über dieselbe Grenze: der Kern nimmt eine gesiegelte
+     * `OwnerDecision` entgegen, die ausschliesslich am interaktiven
+     * Freigabe-Endpunkt entsteht. Der Entscheider wird durchgereicht und
+     * nicht hier gewählt.
+     */
+    async genehmige(vorbereitet: VorbereiteteMutation,
+                    entscheider: string): Promise<void> {
+      try {
+        if (vorbereitet.kanal === 'kontakte') {
+          await approveMutation(vorbereitet.mutationId, entscheider);
+        } else {
+          await gibFrei(vorbereitet.mutationId, entscheider);
+        }
+      } catch (f) {
+        alsSchreibFehler(f, new SchreibFehler('freigabe_fehlt', undefined,
+                                              'ausfuehren'));
+      }
+    },
+
     async fuehreAus(vorbereitet: VorbereiteteMutation): Promise<AusgefuehrteMutation> {
       if (vorbereitet.kanal === 'kontakte') {
         // **Hier wird nicht freigegeben.** Bis 2026-08-13 stand an dieser
@@ -422,11 +444,34 @@ export function produktiverWritePort(): CoreWritePort {
         return leseKontaktZurueck(vorbereitet, ergebnis.contact_id);
       }
 
-      // Kalender: gibFrei → beanspruche → nativer Execute → schliesseAb.
+      // Kalender: beanspruche → nativer Execute → schliesseAb.
+      //
+      // **Hier wird nicht freigegeben.** Bis 2026-08-16 stand an dieser Stelle
+      // `await gibFrei(...)`, und `gibFrei` setzte einen im Produktcode
+      // hartkodierten Entscheider ein. Freigeben und Ausführen fielen damit in
+      // denselben Aufruf — dieselbe Defektklasse wie G im Kontaktzweig, nur
+      // eine Etage tiefer und drei Tage länger unbemerkt.
+      //
+      // Der Zustand wird frisch gelesen, nicht aus der Vorbereitung erinnert:
+      // Zwischen Vorbereiten und Ausführen kann die Freigabe erteilt,
+      // abgelaufen oder verbraucht worden sein.
+      let zustand;
       try {
-        await gibFrei(vorbereitet.mutationId);
+        zustand = await ladeMutation(vorbereitet.mutationId);
       } catch (f) {
-        alsSchreibFehler(f, new SchreibFehler('freigabe_fehlt'));
+        alsSchreibFehler(f, new SchreibFehler('ausfuehrung_fehlgeschlagen',
+          undefined, 'ausfuehren'));
+      }
+      // `approval_state` ist der **wirksame** Zustand: Eine erteilte, aber
+      // abgelaufene Freigabe liest sich als `expired`. Beide Bedingungen
+      // zusammen decken die vier Fälle, in denen nicht ausgeführt werden darf
+      // — wartend, abgelaufen, verbraucht, abgeschlossen. Der Server prüft
+      // dasselbe beim Claim; diese Stelle spart den Fehlversuch und sagt dem
+      // Eigentümer, was fehlt.
+      if (zustand.state !== 'approved' || zustand.approval_state !== 'granted') {
+        throw new SchreibFehler('freigabe_fehlt',
+                                zustand.approval_state ?? zustand.state,
+                                'ausfuehren');
       }
       let auftrag;
       try {

@@ -18,7 +18,7 @@ import {
   type KalenderExecutionReport, type LoeschProbe, type VorbereiteterVorgang,
   MutationsFehler,
   beanspruche, bereiteLoeschenVor, bricheAb, erhebeLoeschProbe, fuehreAus,
-  gibFrei, schliesseAb,
+  gibFrei, ladeMutation, schliesseAb,
 } from './mutationsApi';
 import { lokalerTag, plusTage, uhrzeit } from './raster';
 
@@ -74,7 +74,13 @@ function fehlerText(e: unknown): string {
       + 'gelöscht, solange kein Sendeversuch gemeldet wurde.';
 }
 
-type Schritt = 'lade' | 'blocked' | 'vorschau' | 'ergebnis';
+// `freigegeben` ist seit 2026-08-16 ein eigener Zustand — dieselbe Trennung
+// wie im Terminformular. Der Loeschweg bleibt davon unabhaengig gesperrt:
+// `blocked` ist der Regelfall, und diese Reparatur schaltet ihn NICHT frei.
+type Schritt = 'lade' | 'blocked' | 'vorschau' | 'freigegeben' | 'ergebnis';
+
+/** Der Entscheider dieser Oberflaeche — Auditprotokoll, kein Nachweis. */
+const ENTSCHEIDER = 'lukas';
 
 export interface TerminLoeschenProps {
   termin: Termin;
@@ -148,10 +154,10 @@ export function TerminLoeschen({ termin, zone, aufSchliessen,
   }, [termin]);
 
   const abbrechen = async () => {
-    if (vorgang !== null && schritt === 'vorschau') {
+    if (vorgang !== null && (schritt === 'vorschau' || schritt === 'freigegeben')) {
       setLaeuft(true);
       try {
-        await bricheAb(vorgang.mutation_id);
+        await bricheAb(vorgang.mutation_id, ENTSCHEIDER);
       } catch {
         // Der Abbruch selbst schlug fehl — der Vorgang verfällt serverseitig
         // über die Freigabe-TTL. Gesendet wurde weiterhin nichts.
@@ -162,13 +168,38 @@ export function TerminLoeschen({ termin, zone, aufSchliessen,
     aufSchliessen();
   };
 
+  /** Freigeben — und sonst nichts. Kein Claim, kein Execute, kein Provider. */
+  const freigeben = async () => {
+    if (vorgang === null) return;
+    setLaeuft(true);
+    setFehler(null);
+    try {
+      await gibFrei(vorgang.mutation_id, ENTSCHEIDER);
+      setSchritt('freigegeben');
+    } catch (e) {
+      setFehler(fehlerText(e));
+    } finally {
+      setLaeuft(false);
+    }
+  };
+
+  /**
+   * Ausfuehren — und sonst nichts. Erzeugt keine Freigabe und liest den
+   * Vorgang frisch; nur `approved` **und** wirksam `granted` erreicht den
+   * Claim.
+   */
   const loeschen = async () => {
     if (vorgang === null) return;
     const id = vorgang.mutation_id;
     setLaeuft(true);
     setFehler(null);
     try {
-      await gibFrei(id);
+      const zustand = await ladeMutation(id);
+      if (zustand.state !== 'approved' || zustand.approval_state !== 'granted') {
+        setFehler('Der Vorgang ist nicht (mehr) freigegeben — es wurde nichts '
+          + 'gesendet.');
+        return;
+      }
       const auftrag = await beanspruche(id);
 
       let bericht: KalenderExecutionReport;
@@ -322,12 +353,45 @@ export function TerminLoeschen({ termin, zone, aufSchliessen,
                 style={{ border: '1px solid var(--pjk-line)' }}>
                 Abbrechen
               </button>
-              {/* GENAU EIN Freigabeknopf. */}
-              <button type="button" onClick={() => void loeschen()}
+              {/* GENAU EIN Freigabeknopf — und er gibt NUR frei. */}
+              <button type="button" onClick={() => void freigeben()}
+                data-testid="loeschen-freigeben"
                 disabled={laeuft} className="text-xs px-2 py-1 rounded font-semibold"
                 style={{ background: 'var(--color-error)', color: '#fff',
                          opacity: laeuft ? 0.5 : 1 }}>
                 {laeuft ? 'Läuft …' : 'Löschen freigeben'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {schritt === 'freigegeben' && (
+          <div data-testid="loeschen-freigegeben" className="flex flex-col gap-2">
+            <p role="status" className="text-xs">
+              Freigegeben — es wurde noch <strong>nichts</strong> gelöscht.
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--pjk-ink-leise)' }}>
+              Der Vorzustand wird unmittelbar vor der Löschung erneut geprüft;
+              bei Abweichung bricht der Vorgang ohne Mutation ab.
+            </p>
+
+            {fehler !== null && (
+              <p role="alert" data-testid="loeschen-fehler" className="text-[11px]"
+                style={{ color: 'var(--color-error)' }}>{fehler}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => void abbrechen()}
+                disabled={laeuft} className="text-xs px-2 py-1 rounded"
+                style={{ border: '1px solid var(--pjk-line)' }}>
+                Verwerfen
+              </button>
+              <button type="button" onClick={() => void loeschen()}
+                data-testid="loeschen-ausfuehren"
+                disabled={laeuft} className="text-xs px-2 py-1 rounded font-semibold"
+                style={{ background: 'var(--color-error)', color: '#fff',
+                         opacity: laeuft ? 0.5 : 1 }}>
+                {laeuft ? 'Läuft …' : 'Löschen ausführen'}
               </button>
             </div>
           </div>

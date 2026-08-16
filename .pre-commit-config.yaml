@@ -29,6 +29,12 @@ repos:
   #
   # `test_bundle_contract` überspringt seine bundleabhängigen Proben, solange
   # kein Produktbuild vorliegt; die Leseproben des Rechtevorrats laufen immer.
+  #
+  # Die beiden `approval_boundary`-Dateien kamen am 2026-08-16 dazu
+  # (18 Tests, 0,2 s bzw. 6 Tests, ~4 s). Der vorherige Wächter urteilte über
+  # Funktionsnamen und war für `gibFrei(` im Kalenderzweig blind — er hätte
+  # den Self-Grant, den er hätte finden sollen, bei jedem Commit
+  # durchgelassen.
   - repo: local
     hooks:
       - id: freigabe-und-packaging-waechter
@@ -38,6 +44,8 @@ repos:
           tests/personal/contacts/test_owner_grant.py
           tests/personal/contacts/test_write_lifecycle_repair.py
           tests/personal/contacts/test_bundle_contract.py
+          tests/personal/test_approval_boundary.py
+          tests/personal/test_approval_boundary_produkt.py
         language: system
         pass_filenames: false
         always_run: true

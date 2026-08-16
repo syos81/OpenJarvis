@@ -79,6 +79,27 @@ function bericht(over: Partial<mApi.KalenderExecutionReport> = {},
   };
 }
 
+beforeEach(() => {
+  // Der Ausfuehrungsschritt liest den Vorgang seit 2026-08-16 frisch, statt
+  // die Freigabe selbst nachzuholen.
+  vi.spyOn(mApi, 'ladeMutation').mockResolvedValue(
+    { mutation_id: 'm1', state: 'approved', approval_state: 'granted',
+      outcome: null, preview: {} } as never);
+});
+
+/**
+ * Freigeben UND ausfuehren — zwei Handlungen, zwei Klicks.
+ *
+ * Bis 2026-08-16 genuegte „Loeschen freigeben": derselbe Klick gab frei,
+ * beanspruchte und fuehrte aus. Der Test ist auf den gueltigen Vertrag
+ * umgestellt, nicht geloescht.
+ */
+async function freigebenUndLoeschen() {
+  fireEvent.click(screen.getByText('Löschen freigeben'));
+  await waitFor(() => expect(screen.getByTestId('loeschen-freigegeben')).toBeTruthy());
+  fireEvent.click(screen.getByText('Löschen ausführen'));
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   cleanup();
@@ -167,7 +188,7 @@ describe('Vorschau und Freigabe', () => {
     await waitFor(() => expect(screen.getByTestId('loeschen-vorschau')).toBeTruthy());
     fireEvent.click(screen.getByText('Abbrechen'));
     await waitFor(() => expect(schliessen).toHaveBeenCalled());
-    expect(abbruch).toHaveBeenCalledWith('m1');
+    expect(abbruch).toHaveBeenCalledWith('m1', 'lukas');
     expect(ausfuehren).not.toHaveBeenCalled();
   });
 
@@ -195,7 +216,7 @@ describe('Vorschau und Freigabe', () => {
     });
     const { erfolg } = oeffne();
     await waitFor(() => expect(screen.getByTestId('loeschen-vorschau')).toBeTruthy());
-    fireEvent.click(screen.getByText('Löschen freigeben'));
+    await freigebenUndLoeschen();
     await waitFor(() => expect(screen.getByTestId('loeschen-ergebnis')).toBeTruthy());
     expect(reihenfolge).toEqual(['approve', 'claim', 'execute', 'settle']);
     expect(screen.getByRole('status').textContent).toContain('gelöscht');
@@ -218,7 +239,7 @@ describe('Vorschau und Freigabe', () => {
       idempotent: false, error_class: 'revision_conflict' });
     const { erfolg } = oeffne();
     await waitFor(() => expect(screen.getByTestId('loeschen-vorschau')).toBeTruthy());
-    fireEvent.click(screen.getByText('Löschen freigeben'));
+    await freigebenUndLoeschen();
     await waitFor(() => expect(screen.getByTestId('loeschen-ergebnis')).toBeTruthy());
     expect(screen.getByRole('status').textContent)
       .toContain('nichts gesendet');

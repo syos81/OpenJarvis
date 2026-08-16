@@ -23,15 +23,16 @@ export const CORE_COMMANDS: readonly CoreCommand[] = [
   { name: 'help', summary: 'Listet die lokalen Kommandos.' },
   { name: 'kontakt', summary: 'Sucht im lokalen Kontaktbestand: kontakt <suchbegriff>' },
   { name: 'termine', summary: 'Zeigt Termine des Tages: termine [heute|morgen|JJJJ-MM-TT]' },
-  // Schreibende Kommandos. Jedes BEREITET nur vor — ausgeführt wird
-  // ausschliesslich über `freigabe <id>`. Ein Kalender-Löschen gibt es
-  // hier bewusst nicht.
+  // Schreibende Kommandos. Jedes BEREITET nur vor. Freigegeben wird über
+  // `freigabe <id>`, ausgeführt über `ausfuehren <id>` — zwei getrennte
+  // Eingaben. Ein Kalender-Löschen gibt es hier bewusst nicht.
   { name: 'kontakt-neu', summary: 'Bereitet einen neuen Kontakt vor: kontakt-neu <container> | <Vorname Nachname>' },
   { name: 'kontakt-aendern', summary: 'Bereitet eine Änderung vor: kontakt-aendern <suchbegriff> | <feld> = <wert>' },
   { name: 'kontakt-loeschen', summary: 'Bereitet eine Löschung vor: kontakt-loeschen <suchbegriff>' },
   { name: 'termin-neu', summary: 'Bereitet einen Termin vor: termin-neu <kalender> | <tag> | <HH:MM-HH:MM> | <titel>' },
   { name: 'termin-aendern', summary: 'Bereitet eine Titeländerung vor: termin-aendern <tag> | <suchbegriff> | <neuer titel>' },
-  { name: 'freigabe', summary: 'Gibt EINE vorbereitete Mutation frei und führt sie aus: freigabe <id>' },
+  { name: 'freigabe', summary: 'Gibt EINE vorbereitete Mutation frei — ohne sie auszuführen: freigabe <id>' },
+  { name: 'ausfuehren', summary: 'Führt eine bereits freigegebene Mutation aus: ausfuehren <id>' },
   { name: 'abbrechen', summary: 'Verwirft die vorbereitete Mutation ohne Ausführung.' },
 ];
 
@@ -57,10 +58,19 @@ export type CoreResultKind =
  *
  * Wie beim Lesen entscheidet der Router nur, WAS geschehen soll. Der
  * entscheidende Unterschied: ein `write`-Auftrag mit `phase: 'prepare'`
- * mutiert NICHTS — er holt eine Vorschau. Erst ein Auftrag mit
- * `phase: 'execute'`, den ausschliesslich das Kommando `freigabe` erzeugen
- * kann, führt aus. Beides sind getrennte Eingaben des Eigentümers; es gibt
- * keinen Pfad, auf dem eine Suche oder eine Anzeige das Zweite auslöst.
+ * mutiert NICHTS — er holt eine Vorschau.
+ *
+ * Seit 2026-08-16 sind Freigeben und Ausführen **drei** statt zwei Eingaben:
+ *
+ *   termin-neu …        → phase 'prepare'   — Vorschau, nichts geändert
+ *   freigabe <id>       → phase 'approve'   — freigegeben, nichts geändert
+ *   ausfuehren <id>     → phase 'execute'   — jetzt geht etwas zum Provider
+ *
+ * Vorher erzeugte `freigabe` unmittelbar die Ausführung, und der
+ * Ausführungsschritt holte die Freigabe im Kalenderzweig selbst nach. Ein
+ * einzelnes Kommando gab damit implizit frei. Jede der drei Phasen ist jetzt
+ * eine eigene Eingabe des Eigentümers; es gibt keinen Pfad, auf dem eine
+ * Suche, eine Anzeige oder ein Ausführungsbefehl die Freigabe erzeugt.
  */
 export type CoreWriteRequest =
   | { readonly phase: 'prepare'; readonly operation: 'kontakt_anlegen';
@@ -74,6 +84,7 @@ export type CoreWriteRequest =
       readonly titel: string }
   | { readonly phase: 'prepare'; readonly operation: 'termin_aendern';
       readonly tag: string; readonly query: string; readonly neuerTitel: string }
+  | { readonly phase: 'approve'; readonly mutationId: string }
   | { readonly phase: 'execute'; readonly mutationId: string }
   | { readonly phase: 'abort' };
 
@@ -276,10 +287,10 @@ function terminAendernErgebnis(argument: string): CoreResult {
                      'Termin ändern');
 }
 
-/** Die EINZIGE Stelle, die eine Ausfuehrung anfordern kann. Sie verlangt
- *  die Kennung der konkreten vorbereiteten Mutation — eine Freigabe ohne
- *  Kennung gibt es nicht, und eine Kennung passt immer nur zu genau einer
- *  vorbereiteten Operation. */
+/** Die EINZIGE Stelle, die eine Freigabe anfordern kann. Sie verlangt die
+ *  Kennung der konkreten vorbereiteten Mutation — eine Freigabe ohne Kennung
+ *  gibt es nicht, und eine Kennung passt immer nur zu genau einer
+ *  vorbereiteten Operation. Sie führt **nichts** aus. */
 function freigabeErgebnis(argument: string): CoreResult {
   const mutationId = argument.trim();
   if (!mutationId) {
@@ -289,7 +300,24 @@ function freigabeErgebnis(argument: string): CoreResult {
   return {
     kind: 'write_execute',
     command: 'freigabe',
-    lines: ['Freigabe erteilt — wird ausgeführt …'],
+    lines: ['Freigabe wird erteilt — ausgeführt wird noch nichts.'],
+    write: { phase: 'approve', mutationId },
+  };
+}
+
+/** Die EINZIGE Stelle, die eine Ausfuehrung anfordern kann. Sie verlangt
+ *  dieselbe Kennung und setzt eine bereits erteilte Freigabe voraus; sie
+ *  erzeugt keine. */
+function ausfuehrenErgebnis(argument: string): CoreResult {
+  const mutationId = argument.trim();
+  if (!mutationId) {
+    return fehlform('ausfuehren',
+                    'ausfuehren <id> — die Kennung steht in der Vorschau');
+  }
+  return {
+    kind: 'write_execute',
+    command: 'ausfuehren',
+    lines: ['Wird ausgeführt …'],
     write: { phase: 'execute', mutationId },
   };
 }
@@ -331,6 +359,8 @@ export function routeCommand(input: string, kontext: CoreContext = {}): CoreResu
       return terminAendernErgebnis(argument);
     case 'freigabe':
       return freigabeErgebnis(argument);
+    case 'ausfuehren':
+      return ausfuehrenErgebnis(argument);
     case 'abbrechen':
       return {
         kind: 'write_execute', command: 'abbrechen',

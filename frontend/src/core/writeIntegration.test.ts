@@ -24,7 +24,7 @@ import {
 
 /** Ein Port, der zählt statt zu mutieren. Der Zähler IST der Beleg. */
 function zaehlPort(over: Partial<CoreWritePort> = {}) {
-  const zaehler = { vorbereitet: 0, ausgefuehrt: 0 };
+  const zaehler = { vorbereitet: 0, freigegeben: 0, ausgefuehrt: 0 };
   const vorbereitung = (operation: VorbereiteteMutation['operation'],
                         mutationId: string): VorbereiteteMutation => ({
     operation, mutationId, kanal: 'kontakte',
@@ -57,6 +57,9 @@ function zaehlPort(over: Partial<CoreWritePort> = {}) {
     },
     async bereiteTerminAendernVor() {
       zaehler.vorbereitet += 1; return vorbereitung('termin_aendern', 'm-tupd');
+    },
+    async genehmige() {
+      zaehler.freigegeben += 1;
     },
     async fuehreAus(v): Promise<AusgefuehrteMutation> {
       zaehler.ausgefuehrt += 1;
@@ -120,14 +123,27 @@ describe('Router: Schreibbefehle bereiten vor, sie fuehren nicht aus', () => {
     }
   });
 
-  it('nur `freigabe` kann eine Ausfuehrung anfordern', () => {
+  it('nur `ausfuehren` kann eine Ausfuehrung anfordern', () => {
+    // Seit 2026-08-16 ist `freigabe` KEIN Ausfuehrungsbefehl mehr: es gibt
+    // frei und laesst den Vorgang offen. Vorher loeste dasselbe Kommando
+    // beides aus, und im Kalenderzweig holte der Ausfuehrungsschritt die
+    // Freigabe zusaetzlich selbst nach.
     const ausfuehrend = ['status', 'help', 'kontakt Max', 'termine heute',
-                         'kontakt-neu C-1 | Max', 'kontakt-loeschen Max']
+                         'kontakt-neu C-1 | Max', 'kontakt-loeschen Max',
+                         'freigabe m-1']
       .map((e) => routeCommand(e))
       .filter((r) => r.write?.phase === 'execute');
     expect(ausfuehrend).toEqual([]);
     expect(routeCommand('freigabe m-1').write)
+      .toEqual({ phase: 'approve', mutationId: 'm-1' });
+    expect(routeCommand('ausfuehren m-1').write)
       .toEqual({ phase: 'execute', mutationId: 'm-1' });
+  });
+
+  it('`ausfuehren` ohne Kennung fuehrt nichts aus', () => {
+    const r = routeCommand('ausfuehren');
+    expect(r.kind).toBe('unknown');
+    expect(r.write).toBeUndefined();
   });
 });
 
@@ -136,7 +152,7 @@ describe('Freigabemechanik', () => {
     const { port, zaehler } = zaehlPort();
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     expect(r.kind).toBe('write_prepare');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('Noch ist nichts geändert');
@@ -146,7 +162,7 @@ describe('Freigabemechanik', () => {
   it('ohne Vorbereitung fuehrt eine Freigabe nichts aus', async () => {
     const { port, zaehler } = zaehlPort();
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('keine vorbereitete Mutation');
   });
@@ -155,9 +171,9 @@ describe('Freigabemechanik', () => {
     const { port, zaehler } = zaehlPort();
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('anderen Operation');
   });
@@ -166,9 +182,9 @@ describe('Freigabemechanik', () => {
     const { port, zaehler } = zaehlPort();
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(1);
     expect(r.lines[0]).toContain('durch frischen Readback bestätigt');
   });
@@ -177,10 +193,10 @@ describe('Freigabemechanik', () => {
     const { port, zaehler } = zaehlPort();
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
-    await resolveWrite({ phase: 'execute', mutationId: 'm-neu' }, port, schacht);
+      port, schacht, 'lukas');
+    await resolveWrite({ phase: 'execute', mutationId: 'm-neu' }, port, schacht, 'lukas');
     const zweite = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                      port, schacht);
+                                      port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(1);
     expect(zweite.lines.join(' ')).toContain('keine vorbereitete Mutation');
   });
@@ -189,10 +205,10 @@ describe('Freigabemechanik', () => {
     const { port, zaehler } = zaehlPort();
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'Max' },
-      port, schacht);
-    await resolveWrite({ phase: 'abort' }, port, schacht);
+      port, schacht, 'lukas');
+    await resolveWrite({ phase: 'abort' }, port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-del' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('keine vorbereitete Mutation');
   });
@@ -201,13 +217,13 @@ describe('Freigabemechanik', () => {
     const { port, zaehler } = zaehlPort();
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     // Die ALTE Kennung ist damit wertlos.
     const alt = await resolveWrite({ phase: 'execute', mutationId: 'm-del' },
-                                   port, schacht);
+                                   port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(alt.lines.join(' ')).toContain('anderen Operation');
   });
@@ -218,7 +234,7 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     const { port, zaehler } = zaehlPort();
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'mehrdeutig' },
-      port, schacht);
+      port, schacht, 'lukas');
     expect(zaehler.vorbereitet).toBe(0);
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('Mehrere Treffer');
@@ -229,7 +245,7 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     const { port, zaehler } = zaehlPort();
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_aendern', query: 'unbekannt',
-        feld: 'position', wert: 'X' }, port, schacht);
+        feld: 'position', wert: 'X' }, port, schacht, 'lukas');
     expect(zaehler.vorbereitet).toBe(0);
     expect(r.lines.join(' ')).toContain('Kein passendes Ziel');
   });
@@ -238,7 +254,7 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     const { port, zaehler } = zaehlPort();
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'totesbackend' },
-      port, schacht);
+      port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('nicht erreichbar');
   });
@@ -249,9 +265,9 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     });
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_aendern', query: 'Max',
-        feld: 'position', wert: 'Chef' }, port, schacht);
+        feld: 'position', wert: 'Chef' }, port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-upd' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(zaehler.ausgefuehrt).toBe(0);
     expect(r.lines.join(' ')).toContain('seit der Vorschau geändert');
     expect(r.lines.join(' ')).toContain('neu freigeben');
@@ -263,9 +279,9 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     });
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(r.lines.join(' ')).toContain('Berechtigung fehlt');
   });
 
@@ -277,7 +293,7 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     });
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     expect(r.lines.join(' ')).toContain('Kein eindeutiger Zielort');
     expect(schacht.offen).toBeNull();
   });
@@ -292,9 +308,9 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     });
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-del' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(r.lines[0]).toContain('bestätigt es NICHT');
   });
 
@@ -306,9 +322,9 @@ describe('Fail-closed in jedem geforderten Fehlerfall', () => {
     });
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(r.lines.join(' ')).toContain('fehlgeschlagen');
     expect(r.lines.join(' ')).toContain('provider_error');
   });
@@ -326,7 +342,7 @@ describe('Kein stilles Schreiben', () => {
     const { port, zaehler } = zaehlPort();
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_loeschen', query: 'Max' },
-      port, schacht);
+      port, schacht, 'lukas');
     // Ein Read dazwischen fuehrt nichts aus …
     expect(routeCommand('kontakt Max').write).toBeUndefined();
     expect(zaehler.ausgefuehrt).toBe(0);
@@ -435,7 +451,7 @@ describe('Diagnosepflicht der Fehlermeldung', () => {
     });
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-4b8df1',
-        name: 'Jarvis Schreibtest' }, port, schacht);
+        name: 'Jarvis Schreibtest' }, port, schacht, 'lukas');
     const text = r.lines.join(' | ');
     expect(text).toContain('Vorbereitung ist fehlgeschlagen');
     expect(text).not.toContain('Ausführung ist fehlgeschlagen');
@@ -451,7 +467,7 @@ describe('Diagnosepflicht der Fehlermeldung', () => {
     });
     const r = await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-4b8df1',
-        name: 'Jarvis Schreibtest' }, port, schacht);
+        name: 'Jarvis Schreibtest' }, port, schacht, 'lukas');
     const text = r.lines.join(' | ');
     expect(text).toContain('operation_nicht_freigeschaltet');
     expect(text).toContain("Operation 'create' ist nicht deklariert");
@@ -471,7 +487,7 @@ describe('Diagnosepflicht der Fehlermeldung', () => {
       });
       const r = await resolveWrite(
         { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1',
-          name: 'X' }, port, schacht);
+          name: 'X' }, port, schacht, 'lukas');
       expect(r.lines.join(' '), f.art).toContain('nichts');
       expect(schacht.offen, f.art).toBeNull();
     }
@@ -486,9 +502,9 @@ describe('Diagnosepflicht der Fehlermeldung', () => {
     });
     await resolveWrite(
       { phase: 'prepare', operation: 'kontakt_anlegen', ziel: 'C-1', name: 'X' },
-      port, schacht);
+      port, schacht, 'lukas');
     const r = await resolveWrite({ phase: 'execute', mutationId: 'm-neu' },
-                                 port, schacht);
+                                 port, schacht, 'lukas');
     expect(r.lines.join(' ')).toContain('Ausführung ist fehlgeschlagen');
   });
 });

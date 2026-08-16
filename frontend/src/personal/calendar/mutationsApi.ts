@@ -121,8 +121,16 @@ export interface SettleErgebnis {
   error_class: string | null;
 }
 
-/** Der entscheidende Mensch — derselbe Wert wie im Kontaktmodul. */
-const ENTSCHEIDER = 'lukas';
+// `const ENTSCHEIDER = 'lukas'` stand bis 2026-08-16 hier und wurde von
+// `gibFrei` und `bricheAb` selbst eingesetzt. Damit trug **dieses Modul** die
+// Behauptung, ein Mensch habe entschieden — und jeder Aufrufer, auch der
+// Ausführungsschritt, bekam sie geschenkt. Ein vom Produktcode gewählter
+// String ist keine Eigentümerhandlung; dieselbe Lücke wurde am 2026-08-13 im
+// Kontaktzweig geschlossen (§8 G).
+//
+// Der Entscheider ist jetzt ein Parameter. Er kommt von der Stelle, an der
+// der Mensch klickt, und nirgendwo sonst her; welche Stellen das sein dürfen,
+// hält `tools/guards/approval_boundary.py` fest.
 
 /** Ein Mutationsfehler mit dem, was der Mensch wissen muss: der
  * typisierte Grund des Servers. Kein freier Servertext wird durchgereicht —
@@ -246,19 +254,27 @@ export async function erhebeLoeschProbe(eventIdentifier: string,
   return { stage: 'channel_invalid' };
 }
 
-/** Menschliche Freigabe. Verbraucht wird sie erst beim Claim. */
-export function gibFrei(mutationId: string): Promise<{ mutation_id: string; state: string }> {
+/**
+ * Menschliche Freigabe. Verbraucht wird sie erst beim Claim.
+ *
+ * `entscheider` ist Pflicht und hat keinen Vorgabewert: Wer freigibt, muss
+ * es sagen. Der Ausführungsschritt ruft diese Funktion nicht — er liest den
+ * Zustand und führt nur aus, was bereits freigegeben ist.
+ */
+export function gibFrei(mutationId: string, entscheider: string):
+    Promise<{ mutation_id: string; state: string }> {
   return hole(`/mutations/${encodeURIComponent(mutationId)}/approve`, {
     method: 'POST',
-    body: JSON.stringify({ decision_actor: ENTSCHEIDER }),
+    body: JSON.stringify({ decision_actor: entscheider }),
   });
 }
 
 /** Bricht aus `prepared`/`approved` ab — es wurde nichts gesendet. */
-export function bricheAb(mutationId: string): Promise<{ mutation_id: string; state: string }> {
+export function bricheAb(mutationId: string, entscheider: string):
+    Promise<{ mutation_id: string; state: string }> {
   return hole(`/mutations/${encodeURIComponent(mutationId)}/cancel`, {
     method: 'POST',
-    body: JSON.stringify({ decision_actor: ENTSCHEIDER }),
+    body: JSON.stringify({ decision_actor: entscheider }),
   });
 }
 
@@ -277,8 +293,24 @@ export function schliesseAb(mutationId: string, claimToken: string,
   });
 }
 
+/**
+ * Der Zustand eines Vorgangs, soweit der Ausführungsweg ihn braucht.
+ *
+ * `approval_state` ist der **wirksame** Zustand der Freigabe: eine erteilte,
+ * aber abgelaufene liest sich als `expired`. Ohne dieses Feld müsste der
+ * Ausführungsweg aus `state` raten, ob eine Freigabe noch trägt.
+ */
+export interface MutationZustand {
+  mutation_id: string;
+  state: string;
+  approval_state?: string;
+  outcome: string | null;
+  preview: Record<string, unknown>;
+  [weiteres: string]: unknown;
+}
+
 /** Zustand und Vorschau eines Vorgangs. Reine Projektion. */
-export function ladeMutation(mutationId: string): Promise<Record<string, unknown>> {
+export function ladeMutation(mutationId: string): Promise<MutationZustand> {
   return hole(`/mutations/${encodeURIComponent(mutationId)}`);
 }
 

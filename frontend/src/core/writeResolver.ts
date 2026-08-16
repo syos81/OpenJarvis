@@ -96,7 +96,8 @@ function fehlerErgebnis(command: string, fehler: unknown): CoreResult {
  */
 export async function resolveWrite(auftrag: CoreWriteRequest,
                                    port: CoreWritePort,
-                                   schacht: FreigabeSchacht): Promise<CoreResult> {
+                                   schacht: FreigabeSchacht,
+                                   entscheider: string): Promise<CoreResult> {
   if (auftrag.phase === 'abort') {
     schacht.offen = null;
     return { kind: 'write_execute', command: 'abbrechen',
@@ -116,8 +117,9 @@ export async function resolveWrite(auftrag: CoreWriteRequest,
           ...vorbereitet.vorschau,
           '',
           'Noch ist nichts geändert.',
-          `Zum Ausführen: freigabe ${vorbereitet.mutationId}`,
-          'Zum Verwerfen: abbrechen',
+          `Zum Freigeben:  freigabe ${vorbereitet.mutationId}`,
+          `Zum Ausführen:  ausfuehren ${vorbereitet.mutationId}`,
+          'Zum Verwerfen:  abbrechen',
         ],
       };
     } catch (fehler) {
@@ -126,21 +128,43 @@ export async function resolveWrite(auftrag: CoreWriteRequest,
     }
   }
 
-  // phase === 'execute'
+  // phase === 'approve' | 'execute' — beide verlangen dieselbe Bindung.
   const offen = schacht.offen;
+  const kommando = auftrag.phase === 'approve' ? 'freigabe' : 'ausfuehren';
   if (!offen) {
     return {
-      kind: 'unknown', command: 'freigabe',
+      kind: 'unknown', command: kommando,
       lines: ['Es liegt keine vorbereitete Mutation vor — nichts ausgeführt.'],
     };
   }
   if (offen.mutationId !== auftrag.mutationId) {
     // Die Bindung: eine Freigabe für A führt B niemals aus.
     return {
-      kind: 'unknown', command: 'freigabe',
+      kind: 'unknown', command: kommando,
       lines: [FEHLER_TEXT.freigabe_gehoert_anderer_operation],
     };
   }
+
+  if (auftrag.phase === 'approve') {
+    // Freigeben ist ein eigener Schritt und lässt die Vorbereitung offen:
+    // ausgeführt wird sie erst durch das zweite Kommando. Der Schacht wird
+    // hier NICHT geleert — sonst wäre die Freigabe zugleich ihr Verbrauch.
+    try {
+      await port.genehmige(offen, entscheider);
+    } catch (fehler) {
+      return fehlerErgebnis('freigabe', fehler);
+    }
+    return {
+      kind: 'write_execute',
+      command: 'freigabe',
+      lines: [
+        'Freigegeben. Es wurde nichts geändert und nichts gesendet.',
+        `Zum Ausführen: ausfuehren ${offen.mutationId}`,
+        'Zum Verwerfen: abbrechen',
+      ],
+    };
+  }
+
   // Verbraucht, BEVOR ausgeführt wird: auch ein Fehlschlag lässt keine
   // zweite Ausführung derselben Freigabe zu.
   schacht.offen = null;

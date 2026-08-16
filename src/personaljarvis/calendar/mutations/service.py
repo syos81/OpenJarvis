@@ -1131,13 +1131,22 @@ class CalendarMutationService:
 
     # ── Lesen ───────────────────────────────────────────────────────────────
     def get(self, mutation_id: str) -> dict[str, Any]:
-        """Zustand und Vorschau eines Vorgangs — keine Rohkennungen im Log."""
+        """Zustand und Vorschau eines Vorgangs — keine Rohkennungen im Log.
+
+        `approval_state` ist der **wirksame** Zustand der Freigabe, nicht der
+        gespeicherte: eine erteilte, aber abgelaufene Freigabe liest sich hier
+        als `expired`. Der Ausführungsweg der Oberfläche prüft ihn, bevor er
+        beansprucht — dieselbe Zeitlogik, die `consume()` fail-closed anwendet,
+        statt einer zweiten, irgendwann abweichenden Formulierung.
+        """
         with self._uow() as uow:
             zeile = self._require(uow, mutation_id)
+            freigabe = ApprovalStore(uow).require(zeile["approval_id"])
             return {
                 "mutation_id": zeile["mutation_id"],
                 "command": zeile["command"],
                 "state": zeile["state"],
+                "approval_state": freigabe.effective_state(),
                 "outcome": zeile["outcome"],
                 "preview": json.loads(zeile["preview_json"]),
                 "payload_digest": zeile["payload_digest"],

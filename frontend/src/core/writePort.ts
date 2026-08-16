@@ -98,10 +98,19 @@ export interface CoreWritePort {
   bereiteTerminAendernVor(ziel: Zielobjekt,
                           neuerTitel: string): Promise<VorbereiteteMutation>;
 
-  /** Freigeben UND ausführen — in dieser Reihenfolge, für genau diese
-   *  vorbereitete Mutation. Der Aufrufer muss die Freigabe des Eigentümers
-   *  bereits eingeholt haben; der Port erzwingt die Bindung an die
-   *  `mutationId`. */
+  /** Die Eigentümerfreigabe für genau diese vorbereitete Mutation — und
+   *  **nur** sie. Sie führt nichts aus und sendet nichts an einen Provider.
+   *
+   *  Eigener Schritt seit 2026-08-16: Solange `fuehreAus` die Freigabe selbst
+   *  nachholte, war die Trennung von Vorbereiten und Ausführen im
+   *  Kalenderzweig aufgehoben. */
+  genehmige(vorbereitet: VorbereiteteMutation,
+            entscheider: string): Promise<void>;
+
+  /** Ausführen — und **nur** ausführen. Dieser Weg erzeugt keine Freigabe:
+   *  Er liest den Vorgang frisch und bricht fail-closed ab, wenn dieser
+   *  nicht bereits gültig freigegeben ist. Der Port erzwingt dabei die
+   *  Bindung an die `mutationId`. */
   fuehreAus(vorbereitet: VorbereiteteMutation): Promise<AusgefuehrteMutation>;
 }
 

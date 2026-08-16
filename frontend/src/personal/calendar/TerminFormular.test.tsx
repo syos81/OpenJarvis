@@ -114,7 +114,26 @@ function bericht(over: Partial<mApi.KalenderExecutionReport> = {},
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date('2026-08-12T10:00:00Z'));
+  // Der Ausfuehrungsschritt liest den Vorgang seit 2026-08-16 frisch, statt
+  // die Freigabe selbst nachzuholen. Voreingestellt ist der gueltige Fall;
+  // die Sperrfaelle setzen ihn je Test um.
+  vi.spyOn(mApi, 'ladeMutation').mockResolvedValue(
+    { mutation_id: 'm1', state: 'approved', approval_state: 'granted',
+      outcome: null, preview: {} } as never);
 });
+
+/**
+ * Freigeben UND ausfuehren — zwei Klicks, weil es zwei Handlungen sind.
+ *
+ * Bis 2026-08-16 genuegte einer: derselbe Knopf gab frei, beanspruchte und
+ * fuehrte aus. Die Tests schrieben das fest; sie sind auf den gueltigen
+ * Vertrag umgestellt, nicht geloescht.
+ */
+async function freigebenUndAusfuehren(ausfuehrenName: string) {
+  fireEvent.click(screen.getByTestId('termin-freigeben'));
+  await waitFor(() => expect(screen.getByTestId('termin-freigegeben')).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: ausfuehrenName }));
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -321,8 +340,11 @@ describe('Vorschau und Freigabe', () => {
     // Die SERVER-Preview-Zone ist Teil dessen, was freigegeben wird.
     expect(vorschau.textContent).toContain('Zeitzone');
     expect(vorschau.textContent).toContain('Europe/Berlin');
-    // GENAU EIN Freigabeknopf.
-    expect(screen.getAllByRole('button', { name: 'Anlegen' }).length).toBe(1);
+    // GENAU EIN Freigabeknopf — und er gibt NUR frei.
+    expect(screen.getAllByRole('button', { name: 'Freigeben' }).length).toBe(1);
+    // Ausgefuehrt wird erst im naechsten Schritt: hier gibt es keinen Knopf
+    // dafuer, und ein einzelner Klick kann nichts senden.
+    expect(screen.queryByRole('button', { name: 'Anlegen' })).toBeNull();
   });
 
   it('zeigt eine schwebende SERVER-Vorschau ehrlich als schwebend', async () => {
@@ -345,7 +367,7 @@ describe('Vorschau und Freigabe', () => {
     await oeffneFormular();
     await zurVorschau();
     fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
-    await waitFor(() => expect(abbruch).toHaveBeenCalledWith('m1'));
+    await waitFor(() => expect(abbruch).toHaveBeenCalledWith('m1', 'lukas'));
     // R9-artig: der App-Prozess wird nie erreicht, freigegeben wird nichts.
     expect(ausfuehren).not.toHaveBeenCalled();
     expect(frei).not.toHaveBeenCalled();
@@ -379,7 +401,7 @@ describe('Anlegen — der Claim-Settle-Kanal', () => {
 
     await oeffneFormular();
     await zurVorschau();
-    fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+    await freigebenUndAusfuehren('Anlegen');
     await waitFor(() => expect(screen.getByTestId('termin-ergebnis')).toBeTruthy());
 
     expect(reihenfolge).toEqual(['approve', 'claim', 'execute', 'settle']);
@@ -414,7 +436,7 @@ describe('Anlegen — der Claim-Settle-Kanal', () => {
 
     await oeffneFormular();
     await zurVorschau();
-    fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+    await freigebenUndAusfuehren('Anlegen');
     await waitFor(() => expect(screen.getByTestId('termin-ergebnis')).toBeTruthy());
 
     const text = screen.getByTestId('termin-ergebnis').textContent ?? '';
@@ -559,7 +581,7 @@ describe('Bearbeiten — Vorschau und Freigabefluss', () => {
     expect(delta.textContent).toContain('Zahnarzt');
     expect(delta.textContent).toContain('Kieferorthopäde');
     expect(delta.textContent).toContain('→');
-    expect(screen.getAllByRole('button', { name: 'Änderung freigeben' }).length)
+    expect(screen.getAllByRole('button', { name: 'Freigeben' }).length)
       .toBe(1);
     expect(screen.queryByRole('button', { name: 'Anlegen' })).toBeNull();
   });
@@ -599,7 +621,7 @@ describe('Bearbeiten — Vorschau und Freigabefluss', () => {
                      { target: { value: 'Kieferorthopäde' } });
     fireEvent.click(screen.getByText('Weiter zur Vorschau'));
     await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: 'Änderung freigeben' }));
+    await freigebenUndAusfuehren('Änderung ausführen');
     await waitFor(() => expect(screen.getByTestId('termin-ergebnis')).toBeTruthy());
 
     expect(reihenfolge).toEqual(['approve', 'claim', 'execute', 'settle']);
@@ -636,7 +658,7 @@ describe('Bearbeiten — Vorschau und Freigabefluss', () => {
                      { target: { value: 'Kieferorthopäde' } });
     fireEvent.click(screen.getByText('Weiter zur Vorschau'));
     await waitFor(() => expect(screen.getByTestId('termin-vorschau')).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: 'Änderung freigeben' }));
+    await freigebenUndAusfuehren('Änderung ausführen');
     await waitFor(() => expect(screen.getByTestId('termin-ergebnis')).toBeTruthy());
 
     const text = screen.getByTestId('termin-ergebnis').textContent ?? '';
