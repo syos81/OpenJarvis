@@ -237,7 +237,7 @@ Intel-UI-Zweig begonnen und nichts nachgebaut.
 | `CALENDAR DELETE` | `COMPLETED_BLOCKED` |
 | `CALENDAR_WRITE_RELEVANT_DIFF` | `NULL_EQUIVALENT` |
 | `CALENDAR_X86_64_LIVE_WRITE_REQUIRED` | `NO` |
-| `CALENDAR x86_64 CURRENT PRODUCT STAND` | **BLOCKED** — §7 |
+| `CALENDAR x86_64 CURRENT PRODUCT STAND` | ~~BLOCKED~~ → **COMPLETE**, siehe §13 |
 | `CALENDAR arm64` | `UNKNOWN UNTIL FINAL REPORT` — im Repository existiert kein finaler arm64-Calendar-Abschlussbericht |
 | `CALENDAR OVERALL` | `NOT_YET_CLAIMED_COMPLETE`, reason: `arm64 closure status not established from a final report` |
 | `M2_GUARD_OWNER_SETUP` | `PENDING` nach DEC-068 |
@@ -257,3 +257,145 @@ erzwungen und vom Strukturwächter nicht erfasst ist.
 - Keine Datei ausserhalb dieses Records geändert.
 - Keine neue Command-Bar-Architektur, keine neue Packaging-Zeremonie.
 - Claude Code hat nicht gepusht.
+
+---
+
+## 13. Nachtrag: die Freigabegrenze ist repariert (2026-08-16, Risk Lane)
+
+*Dieser Abschnitt hebt §7 und die Zeile `CURRENT PRODUCT STAND` in §11 auf.
+Die Messungen der §1–§6 und §8–§10 bleiben unverändert gültig; sie betreffen
+Diff, native Semantik, Read und Packaging und wurden von der Reparatur nicht
+berührt.*
+
+### Teil A — der Wächter zuerst
+
+Der Befund aus §7 hatte zwei Hälften, und die zweite wog schwerer: Der
+Strukturwächter, der Self-Grants finden sollte, war selbst namensbasiert. Er
+suchte `.approve(` und `approveMutation(` und behauptete daraus eine
+geschlossene Menge. `gibFrei(` sah er nicht.
+
+Repariert in `tools/guards/approval_boundary.py`: Die Grenze wird am
+**Endpunkt** erkannt (`/approve` im Pfad; `'approve'` in Argumentposition),
+nicht am Bezeichner. Von dieser Saat schliesst die Analyse über den
+Modulgraphen — Importe samt Umbenennung, lokale Wrapper, Bindung an
+Objekteigenschaften und Aufrufe darüber.
+
+Zwei Dinge mussten dafür stimmen, beide beim Bauen gemessen:
+
+* **Ein Aufruf ist kein Behälter.** Für jedes Symbol zählt nur der eigene
+  Rumpf, geschachtelte Definitionen werden abgezogen — samt ihrer Köpfe.
+  Ohne den Kopf sah `async genehmige(v, e): Promise<void> {` im Rumpf der
+  Portfabrik wie ein Aufruf aus und machte jede Fabrik zur Freigeberin.
+* **Kommentare sind keine Aufrufe.** Zeichenketten bleiben stehen — dort
+  steht die Saat —, Kommentare werden längentreu ausgeblendet.
+
+Neun Proben auf Fixtures, dazu zwei Regressionsproben für blinde Flecken,
+die erst beim Reparieren auffielen: eine mehrzeilige Signatur mit generischem
+Rückgabetyp liess die Saat lautlos verschwinden, und ein Kommentar über die
+Grenze galt als Aufruf. Beides hätte still zu einem leeren Scan geführt.
+
+| Probe | Ergebnis |
+|---|---|
+| A3 Umbenennen der Grenzfunktion | erkannt — die Saat hängt am Endpunkt |
+| A4 direkter Aufruf ausserhalb | FAIL, Callsite benannt |
+| A5 Alias-Import | FAIL |
+| A6 deutsch benannter Wrapper | FAIL, über zwei Ebenen verfolgt |
+| A7 englisch benannter Wrapper | FAIL |
+| A8 zusätzliche Callsite in unauffälliger Datei | FAIL, Datei benannt |
+| A9 positive Kontrolle | grün — legitime Freigabe wird nicht blockiert |
+| Behälter ist kein Freigeber | Portfabrik erreicht die Grenze nicht |
+
+**Ehrliche Reichweite.** `coverage_limits()` nennt, was **nicht** bewiesen
+ist: dynamisches `import()`, Aufrufe über berechnete Namen, über Closures
+verlorene Bezeichner — und dass Eigenschaftszugriffe über den **Namen**
+aufgelöst werden, nicht über den Typ des Objekts. Letzteres überschätzt
+bewusst. Es wird keine vollständige semantische Geschlossenheit behauptet;
+die Aussage ist „geschlossen über Import-, Aufruf- und Eigenschaftskanten,
+soweit statisch auflösbar".
+
+`WATCHER HOTFIX = PASS`.
+
+### Teil B — die Calendar-Reparatur
+
+| Stelle | vorher | jetzt |
+|---|---|---|
+| `mutationsApi.ts` | `const ENTSCHEIDER = 'lukas'`, vom Modul selbst eingesetzt | Entscheider ist Pflichtparameter von `gibFrei`/`bricheAb` |
+| `writeAdapter.ts:427` | `await gibFrei(id)` im Ausführungsschritt | eigener Weg `genehmige()`; `fuehreAus` liest frisch und verlangt `approved` **und** `granted` |
+| `writeResolver.ts` | Phasen `prepare` / `execute` | zusätzlich `approve`; der Schacht bleibt bei der Freigabe offen |
+| `commandRouter.ts` | `freigabe <id>` führte aus | `freigabe <id>` gibt nur frei, `ausfuehren <id>` führt aus |
+| `TerminFormular.tsx:321` | ein Klick: approve + claim + execute + settle | `freigeben()` und `ausfuehren()` getrennt, Zwischenzustand sichtbar |
+| `TerminLoeschen.tsx:171` | dito | dito — Delete bleibt gesperrt |
+| `calendar/mutations/service.py` | `get()` ohne Freigabezustand | `approval_state` als **wirksamer** Zustand |
+
+**Der Entscheider** steht jetzt dort, wo der Mensch handelt: in beiden
+Dialogen und in der Command Bar. Keine zweite calendar-eigene
+Eigentümerrepräsentation — der Kern bleibt die gesiegelte `OwnerDecision`,
+die Contacts und Calendar teilen.
+
+### Nachweise
+
+| Ebene | Ergebnis |
+|---|---|
+| `tests/personal` (Contacts + Calendar + Wächter) | **1362 passed, 94 skipped, 1 failed** |
+| Frontend (`vitest`, gesamt) | **396 passed** (20 Dateien) |
+| `tsc -b` | sauber |
+
+Der eine Fehlschlag ist `test_dec_052_ist_registriert` — vorbestehend, liest
+nur das Entscheidungsregister, architektur- und modulunabhängig.
+
+**Die Invariante**, geschlossen und ohne eine Funktion beim Namen zu nennen
+(`test_approval_boundary_produkt.py`):
+
+* Die Menge der Dateien mit Freigabe-Aufrufstellen ist **genau** die
+  Allowlist — neun Dateien, jede einzeln begründet.
+* Kein Blattsymbol erreicht Freigabe **und** Ausführung. Erlaubt sind allein
+  fünf Verteiler, die getrennte Phasen nebeneinander beherbergen.
+* Die drei Stellen aus §7 erreichen die Freigabe nicht mehr.
+
+Gegen den Stand vor der Reparatur fallen alle drei Aussagen.
+
+**Wirkung im verdrahteten Weg beobachtet**, nicht nur im Testcode: Über
+`pre-commit run` meldet der Hook `Passed`. Mit einem eingeschleusten deutsch
+benannten Wrapper im Ausführungsschritt meldet er `Failed` und nennt
+`core/writeAdapter.ts::fuehreAus`; mit einem Alias-Import in
+`personal/calendar/raster.ts` meldet er `Failed` und nennt
+`raster.ts:4 — nebenbei ruft stillerHelfer()`. Nach Rücknahme wieder
+`Passed`, ohne Rückstände im Baum.
+
+### Kein Livetest
+
+`CALENDAR_LIVE_WRITE_REQUIRED_AFTER_G_REPAIR` = **NO**.
+
+Mechanisch: Der Diff gegen den Evidence-Anchor `22887d` über
+`calendar_write.rs`, `JCCalendarWrite.{h,m}`, `calendar/bridge`,
+`calendar/domain.py`, `mutations/contracts.py`, `Cargo.toml`,
+`tauri.conf.json` und alle Entitlements ist **leer**. Die einzige
+Backendänderung liegt in `mutations/service.py`: die Freigabe-Aufrufstelle
+und das zusätzliche Lesefeld `approval_state`. Claim, Settle,
+Fingerprintbildung, Re-Read und Provider-Execute sind unberührt.
+
+Die neue Approval-→-Claim-→-Execute-Verbindung ist deterministisch belegt
+(142 Calendar-Tests, 62 native Rust-Tests, 396 Frontendtests). Es wurde
+**keine** produktive Mutation ausgeführt: kein CREATE, kein UPDATE, kein
+DELETE, kein Testtermin erzeugt.
+
+### Status nach der Reparatur
+
+| Aussage | Stand |
+|---|---|
+| `CALENDAR OWNER-APPROVAL BOUNDARY` | **PASS** |
+| `CALENDAR x86_64 READ` | **PASS** |
+| `CALENDAR x86_64 NATIVE CREATE PROVIDER EVIDENCE` | `CARRIED_FORWARD` |
+| `CALENDAR x86_64 NATIVE UPDATE PROVIDER EVIDENCE` | `CARRIED_FORWARD` |
+| `CALENDAR x86_64 CURRENT PRODUCT WRITE PATH` | **PASS** |
+| `CALENDAR DELETE` | `COMPLETED_BLOCKED` |
+| `CALENDAR x86_64 CURRENT PRODUCT STAND` | **COMPLETE** |
+| `CALENDAR arm64` | `UNKNOWN UNTIL FINAL REPORT` |
+| `CALENDAR OVERALL` | `NOT_YET_CLAIMED_COMPLETE` |
+| `M2_GUARD_OWNER_SETUP` | `PENDING` nach DEC-068 |
+| Pushstatus | `not_performed_owner_action` |
+
+Der Produktcode dieser Reparatur ist **gemeinsam** für x86_64 und arm64.
+Calendar arm64 ist damit nicht abgeschlossen: Es existiert weiterhin kein
+finaler arm64-Abschlussbericht, und die Reparatur verlangt den Nachweis auf
+dem M2 auf genau diesem Stand. `Calendar = COMPLETE` bleibt unzulässig.
