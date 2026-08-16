@@ -66,10 +66,26 @@ function tokenPx(name: string, fallback: number): number {
  * dieselbe Farbe; sie wird zu einem Wiedererkennungsmerkmal statt zu Dekor.
  * Bedeutung trägt sie nicht — die Initialen und der Name stehen daneben.
  */
-export function avatarFarbe(name: string): string {
+function akzentIndex(name: string): number {
   let summe = 0;
   for (let i = 0; i < name.length; i += 1) summe = (summe * 31 + name.charCodeAt(i)) % 997;
-  return `var(--pjc-akzent-${(summe % 6) + 1})`;
+  return (summe % 6) + 1;
+}
+
+export function avatarFarbe(name: string): string {
+  return `var(--pjc-akzent-${akzentIndex(name)})`;
+}
+
+/**
+ * Die Hinterlegung des Avatars — als eigener Token, nicht gerechnet.
+ *
+ * Bis 2026-08-16 stand hier `color-mix(in srgb, <farbe> 12%, transparent)`.
+ * Die WKWebView dieses Intel-Mac kennt `color-mix()` nicht; der Wert fiel
+ * stumm auf `rgba(0,0,0,0)` zurück, und der farbige Kreis verschwand — bei
+ * unverändertem Code, gemessen. Siehe den Kopf von `tokens.css`.
+ */
+export function avatarFond(name: string): string {
+  return `var(--pjc-akzent-${akzentIndex(name)}-fond)`;
 }
 
 function Avatar({ name }: { name: string }) {
@@ -88,7 +104,7 @@ function Avatar({ name }: { name: string }) {
         font: 'var(--pjc-font-label)',
         fontWeight: 600,
         color: farbe,
-        backgroundColor: `color-mix(in srgb, ${farbe} var(--pjc-akzent-fond), transparent)`,
+        backgroundColor: avatarFond(name),
       }}
     >
       {initialen(name)}

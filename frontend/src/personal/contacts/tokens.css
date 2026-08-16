@@ -1,3 +1,22 @@
+/* WARUM HIER KEIN `color-mix()` STEHT
+   ===================================
+   Die WKWebView dieses Intel-Mac (WebKit 17613, Safari-15.6-Ära) kennt
+   `color-mix()` nicht. Gemessen am 2026-08-16 mit einer WKWebView-Probe:
+
+     CSS.supports('background-color','color-mix(in srgb, #0a84ff 12%, transparent)')
+       -> false
+     getComputedStyle(...).backgroundColor bei color-mix  -> rgba(0, 0, 0, 0)
+     dasselbe als rgba geschrieben                        -> rgba(10,132,255,0.12)
+
+   Jede damit gebaute Farbe fiel im gepackten Lauf STUMM aus: der farbige
+   Kreis hinter den Initialen war weg, Hover und Trennlinien ebenso. Der Code
+   war dabei unverändert gegenüber dem auf dem M2 akzeptierten Stand — die
+   Ursache ist die Plattform, nicht ein Commit.
+
+   Der Kalender hat dieselbe Grenze in B2 gefunden und so gelöst: nur Tokens
+   verwenden, die dort real auflösen (siehe personal/calendar/tokens.css).
+   Diese Datei folgt demselben Muster statt ein zweites zu erfinden. */
+
 /* Design-Tokens der Kontakte-Oberfläche (Namespace --pjc-*).
  *
  * VERBINDLICHE REFERENZ ist die macOS-Kontakte-App auf dem M2-Pro-Mac.
@@ -65,7 +84,7 @@
   --pjc-card-width: 560px;         /* M2 gemessen: 559 pt Kartenbreite … */
   --pjc-card-radius: 12px;         /* M2-VORLÄUFIG */
   --pjc-card-pad: 12px;            /* M2-VORLÄUFIG */
-  --pjc-card-bg: color-mix(in srgb, var(--color-text) 5%, transparent); /* M2-VORLÄUFIG */
+  --pjc-card-bg: var(--color-bg-secondary);   /* M2-VORLÄUFIG */
   --pjc-hit-target: 24px;          /* Mindestklickziel */
   --pjc-list-overscan: 8;          /* Zeilen Überhang bei Fensterung */
 
@@ -94,7 +113,7 @@
   /* M2 gemessen: hell rgb(230,230,230) auf Weiss, dunkel rgb(56,61,63) auf
      rgb(35,41,44) — beides rund 10 % Kontrast zur Fläche. Der vorherige Wert
      kam aus `--color-border-subtle` und lag bei 4 %, also sichtbar zu blass. */
-  --pjc-divider: color-mix(in srgb, var(--color-text) 10%, transparent);
+  --pjc-divider: var(--color-border);
   --pjc-divider-width: 1px;
   /* Auswahl kräftig, wie in der Referenz: gefüllte Fläche, weisse Schrift.
      Die Systemakzentfarbe ist aus dem WKWebView nicht auslesbar (§7), der
@@ -103,10 +122,10 @@
   --pjc-selection-bg: var(--color-accent);
   --pjc-selection-fg: #ffffff;
   --pjc-selection-inactive-bg: var(--color-bg-tertiary);
-  --pjc-hover-bg: color-mix(in srgb, var(--color-text) 6%, transparent);
+  --pjc-hover-bg: var(--color-bg-tertiary);
   /* Gedrückt ist deutlich tiefer als überfahren — sonst ist der Unterschied
      zwischen „die Maus ist hier" und „ich habe gedrückt" nicht spürbar. */
-  --pjc-press-bg: color-mix(in srgb, var(--color-text) 14%, transparent);
+  --pjc-press-bg: var(--color-border);
 
   /* ── Akzentpalette der Kategorien ────────────────────────────────────
      Vorbild ist die Erinnerungen-App: kräftige, klar unterscheidbare
@@ -119,8 +138,18 @@
   --pjc-akzent-4: #bf5af2;   /* Violett */
   --pjc-akzent-5: #ff375f;   /* Rot */
   --pjc-akzent-6: #64d2ff;   /* Türkis */
-  /* Die weissliche Hinterlegung: dieselbe Farbe, stark aufgehellt. */
+  /* Die weissliche Hinterlegung: dieselbe Farbe, stark aufgehellt.
+     Ausgeschrieben statt über `color-mix()` gerechnet — siehe den Block über
+     dieser Datei. `--pjc-akzent-fond` bleibt als Mass erhalten, damit der
+     Zusammenhang zwischen Wert und Prozentsatz lesbar bleibt; gerechnet wird
+     damit nicht mehr. */
   --pjc-akzent-fond: 12%;
+  --pjc-akzent-1-fond: rgba(10, 132, 255, 0.12);
+  --pjc-akzent-2-fond: rgba(255, 159, 10, 0.12);
+  --pjc-akzent-3-fond: rgba(48, 209, 88, 0.12);
+  --pjc-akzent-4-fond: rgba(191, 90, 242, 0.12);
+  --pjc-akzent-5-fond: rgba(255, 55, 95, 0.12);
+  --pjc-akzent-6-fond: rgba(100, 210, 255, 0.12);
   --pjc-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
 
   /* ── Radien und Bewegung (M2-VORLÄUFIG) ─────────────────────────────── */
