@@ -45,9 +45,11 @@ from pathlib import Path
 __all__ = [
     "BinarySpec",
     "Finding",
+    "EntitlementsUnreadable",
     "BUNDLE_SPECS",
     "APP_IDENTIFIER",
     "entitlement_keys",
+    "entitlement_keys_from_blob",
     "signature_facts",
     "designated_requirement",
     "leaf_of",
@@ -114,22 +116,61 @@ def _run(*args: str) -> tuple[int, str]:
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
 
+class EntitlementsUnreadable(RuntimeError):
+    """Der Rechtevorrat war da, liess sich aber nicht lesen.
+
+    Ausdrücklich **nicht** dasselbe wie „keine Rechte". Bis 2026-08-16 fing
+    `entitlement_keys()` jeden Lesefehler ab und gab die leere Menge zurück —
+    ein unlesbarer Blob wurde damit zur Aussage „dieses Binary trägt kein
+    Recht". Für die vier Specs dieses Bundles fiel das fail-closed aus, weil
+    ihr Sollvorrat nicht leer ist. Für einen Vertrag, der eine leere
+    Rechtemenge *erwartet*, wäre daraus stilles Grün geworden — genau der
+    Empty-/No-op-Fall aus Dauerregeln §9.
+    """
+
+
+def entitlement_keys_from_blob(roh: bytes) -> frozenset[str]:
+    """Die Schlüssel aus dem, was `codesign` ausgegeben hat.
+
+    Eigene Funktion, weil hier die Plattformunterschiede sitzen und sie ohne
+    gebautes Bundle prüfbar sein müssen.
+
+    **Das NUL-Byte.** macOS 12.7.6 (Xcode 14.2) hängt hinter `</plist>` ein
+    `\\x00` an. Expat lehnt das als „not well-formed" ab; unter macOS 13+
+    tritt es nicht auf. Gemessen am x86_64-Produktbuild vom 2026-08-16: alle
+    vier Mach-O lasen sich als `(leer)`, obwohl das Reseal-Protokoll
+    unmittelbar davor genau ein Recht je Sidecar und Helfer auswies. Deshalb
+    wird an `</plist>` abgeschnitten statt auf ein wohlgeformtes Ende zu
+    hoffen.
+
+    Leere Ausgabe heisst weiterhin leere Menge: Ein ohne `--entitlements`
+    signiertes Binary gibt gar keinen Blob aus, und „gar kein Recht" ist eine
+    gültige Messung. Ein *vorhandener*, aber unlesbarer Blob ist es nicht.
+    """
+    anfang = roh.find(b"<?xml")
+    if anfang < 0:
+        return frozenset()
+    nutzlast = roh[anfang:]
+    ende = nutzlast.rfind(b"</plist>")
+    if ende >= 0:
+        nutzlast = nutzlast[:ende + len(b"</plist>")]
+    try:
+        geladen = plistlib.loads(nutzlast)
+    except Exception as fehler:
+        raise EntitlementsUnreadable(
+            "Rechteblob vorhanden, aber nicht als plist lesbar") from fehler
+    if not isinstance(geladen, dict):
+        raise EntitlementsUnreadable(
+            f"Rechteblob ist kein Dictionary, sondern {type(geladen).__name__}")
+    return frozenset(geladen)
+
+
 def entitlement_keys(pfad: Path) -> frozenset[str]:
     """Der tatsächliche Rechtevorrat eines Binaries — leer heisst leer."""
     proc = subprocess.run(
         ["/usr/bin/codesign", "-d", "--entitlements", "-", "--xml", str(pfad)],
         capture_output=True, timeout=120)
-    roh = proc.stdout or b""
-    anfang = roh.find(b"<?xml")
-    if anfang < 0:
-        return frozenset()
-    try:
-        geladen = plistlib.loads(roh[anfang:])
-    except Exception:
-        return frozenset()
-    if not isinstance(geladen, dict):
-        return frozenset()
-    return frozenset(geladen)
+    return entitlement_keys_from_blob(proc.stdout or b"")
 
 
 def expected_entitlement_keys(entitlements_datei: Path) -> frozenset[str]:
@@ -231,10 +272,18 @@ def verify_binary(pfad: Path, spec: BinarySpec, *, entitlements_dir: Path,
             blatt == expected_leaf.lower()))
 
     soll = expected_entitlement_keys(entitlements_dir / spec.entitlements_file)
-    ist = entitlement_keys(pfad)
-    befunde.append(Finding(
-        spec.name, "entitlements", ",".join(sorted(soll)) or "(leer)",
-        ",".join(sorted(ist)) or "(leer)", ist == soll))
+    try:
+        ist = entitlement_keys(pfad)
+    except EntitlementsUnreadable as fehler:
+        # Kein Vergleich gegen eine Menge, die nie gemessen wurde: Ein
+        # ungelesener Vorrat ist ein Vertragsbruch, keine leere Messung.
+        befunde.append(Finding(
+            spec.name, "entitlements", ",".join(sorted(soll)) or "(leer)",
+            f"unlesbar ({fehler})", False))
+    else:
+        befunde.append(Finding(
+            spec.name, "entitlements", ",".join(sorted(soll)) or "(leer)",
+            ",".join(sorted(ist)) or "(leer)", ist == soll))
 
     if expected_arch:
         gemessen = architectures(pfad)
