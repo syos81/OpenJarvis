@@ -5,3 +5,39 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  # Die schnellen Sicherheitswächter — kein neues Gate, keine neue Phase.
+  #
+  # Sie laufen bei jedem Commit, weil genau ihre Defektklassen zwischen zwei
+  # Abnahmen zurückkehren können, ohne dass es auffällt: eine zweite Stelle,
+  # die sich selbst freigibt; ein Ablauf, den nur die Anzeige kennt; ein
+  # Pflichtscan, der leer läuft und trotzdem grün meldet. Der Livelauf vom
+  # 2026-08-13 fand die Self-Grant-Klasse an einer zweiten Datei, nachdem die
+  # erste repariert war — deshalb prüfen diese Tests Mengen, nicht Dateien.
+  #
+  # Was hier bewusst NICHT steht: die vollständigen Backend-/Frontend-Suiten,
+  # Zwei-Rechner-Abnahmen, Livetests, TCC und native Vollbuilds. Der
+  # vollständige Packaging-Vertrag läuft weiterhin dort, wo das auslieferbare
+  # Artefakt entsteht — in `frontend/src-tauri/scripts/build-product.sh`.
+  #
+  # Auswahlkriterium ist gemessene Laufzeit, nicht Zugehörigkeit:
+  #   test_owner_grant             23 Tests, 2,2 s
+  #   test_write_lifecycle_repair  30 Tests, 3,7 s
+  #   test_bundle_contract         14 Tests, 2,8 s
+  # `test_capability_bridge` (21 Tests, 23,9 s) bleibt draussen — zu langsam
+  # für jeden Commit; er läuft im gezielten Testlauf des jeweiligen Blocks.
+  #
+  # `test_bundle_contract` überspringt seine bundleabhängigen Proben, solange
+  # kein Produktbuild vorliegt; die Leseproben des Rechtevorrats laufen immer.
+  - repo: local
+    hooks:
+      - id: freigabe-und-packaging-waechter
+        name: Freigabe-, Lifecycle- und Packaging-Wächter
+        entry: >-
+          uv run pytest -q --no-header -p no:cacheprovider
+          tests/personal/contacts/test_owner_grant.py
+          tests/personal/contacts/test_write_lifecycle_repair.py
+          tests/personal/contacts/test_bundle_contract.py
+        language: system
+        pass_filenames: false
+        always_run: true
