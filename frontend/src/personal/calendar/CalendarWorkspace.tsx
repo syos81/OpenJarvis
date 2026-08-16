@@ -429,11 +429,20 @@ export function CalendarWorkspace() {
             onChange={setSidebarBreite} />
         )}
 
-        <div ref={rasterRef} className="min-w-0 flex flex-col">
+        <div ref={rasterRef} className="min-w-0 min-h-0 flex flex-col">
           {/* B2: Monatstitel gross und deutlich links im Inhaltsbereich. */}
           <h1 className="flex-shrink-0 px-4 pt-3 pb-1 text-2xl font-bold truncate"
             style={{ color: 'var(--pjk-ink)' }}>{raster.titel}</h1>
-          <div className="flex-1 min-h-0">
+          {/* Die Rasterflaeche scrollt. Bis 2026-08-16 tat sie das nicht, und
+              was nicht hineinpasste, war unerreichbar: Die Zeitachse ist 24
+              Stunden a --pjk-hour-height hoch, also weit mehr als die Flaeche,
+              und schon die Monatsansicht lief gemessen 34 px ueber. Ohne
+              Scrollcontainer schnitt das `overflow-hidden` der Schale sie
+              einfach ab — kein Fehler, kein Hinweis, nur weg. `min-h-0` an der
+              Spalte gehoert dazu: ohne sie kann ein Flex-Kind nicht unter
+              seine Inhaltshoehe schrumpfen und der Ueberlauf entstuende gar
+              nicht erst am scrollenden Element. */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {modus === 'month' && (
               <MonatsRaster raster={raster} termineProTag={termineProTag} zone={zone}
                 heuteTag={heuteTag} bekanntVon={bestand.von} bekanntBis={bestand.bis}
