@@ -379,6 +379,25 @@ Die neue Approval-→-Claim-→-Execute-Verbindung ist deterministisch belegt
 **keine** produktive Mutation ausgeführt: kein CREATE, kein UPDATE, kein
 DELETE, kein Testtermin erzeugt.
 
+### Was der Produktbuild-Nachweis nach der Reparatur noch trägt
+
+Der Build aus §6 stammt von `042eafc`. Die Reparatur hat **keine
+Buildeingabe** berührt — mechanisch geprüft über `frontend/src-tauri/scripts`,
+`src`, `objc`, `native`, `Cargo.toml`, `Cargo.lock`, `tauri.conf.json`,
+`binaries`, alle `*.entitlements` und `tools/packaging`: der Diff
+`042eafc → HEAD` ist dort leer. Geändert sind ausschliesslich
+Frontend-Quellen, eine Backenddatei, Tests, Werkzeuge und Dokumentation.
+
+Damit trägt der Packaging-Vertrag weiter: Identifier, Entitlements,
+Architektur, Zertifikatsblatt und Artefaktidentität hängen an genau diesen
+unveränderten Eingaben, und die Mach-O-Binaries werden aus demselben
+Quellstand erzeugt.
+
+**Nicht behauptet** wird, dass für diesen HEAD bereits ein auslieferbares
+Paket existiert: gebaut wurde `042eafc`. Für einen Release ist der kanonische
+Produktbuild auf dem dann aktuellen Stand zu fahren. Geprüft ist hier der
+Übersetzungsstand (`tsc -b` sauber), nicht ein neues Artefakt.
+
 ### Status nach der Reparatur
 
 | Aussage | Stand |
