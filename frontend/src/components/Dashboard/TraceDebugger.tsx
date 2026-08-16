@@ -31,12 +31,27 @@ const STEP_COLORS: Record<string, string> = {
   respond: 'var(--color-accent-purple)',
 };
 
+/**
+ * Die blasse Hinterlegung je Schrittart.
+ *
+ * Eigene Tabelle statt `color-mix(in srgb, <farbe> 15%, transparent)`: Die
+ * WKWebView der Intel-Macs kennt `color-mix()` nicht, und die Flaeche fiel
+ * dort stumm aus. Die RGB-Tokens loesen ueberall auf — siehe index.css.
+ */
+const STEP_TINTS: Record<string, string> = {
+  retrieve: 'rgba(var(--color-success-rgb), 0.15)',
+  generate: 'rgba(var(--color-warning-rgb), 0.15)',
+  tool_call: 'rgba(var(--color-accent-purple-rgb), 0.15)',
+  respond: 'rgba(var(--color-accent-purple-rgb), 0.15)',
+};
+
 function StepBadge({ type }: { type: string }) {
   const color = STEP_COLORS[type] || 'var(--color-text-tertiary)';
+  const tint = STEP_TINTS[type] || 'rgba(var(--color-text-rgb), 0.10)';
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium"
-      style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+      style={{ background: tint, color }}
     >
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
       {type}

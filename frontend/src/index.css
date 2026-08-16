@@ -40,6 +40,25 @@
     --color-warning: #ca8a04;
     --color-error: #dc2626;
 
+    /* ── RGB-Komponenten derselben Farben ───────────────────────────────
+       WARUM ES SIE GIBT: Die WKWebView dieses Intel-Mac (WebKit 17613,
+       Safari-15.6-Aera) kennt `color-mix()` NICHT. Gemessen am 2026-08-16:
+       `CSS.supports('background-color','color-mix(...)')` ist dort `false`,
+       und jede so gebaute Farbe berechnet sich zu `rgba(0, 0, 0, 0)` — sie
+       faellt STUMM aus. Hover, Trennlinien, Statusflaechen und der farbige
+       Avatarkreis waren deshalb auf diesem Rechner unsichtbar.
+       `rgba(var(--x-rgb), 0.22)` loest dort auf. Dieselbe Farbe, dieselbe
+       Deckung, nur in einer Schreibweise, die die Zielplattform versteht —
+       derselbe Grundsatz, den der Kalender in B2 gewaehlt hat. */
+    --color-surface-rgb: 255, 255, 255;
+    --color-text-rgb: 9, 9, 11;
+    --color-text-secondary-rgb: 113, 113, 122;
+    --color-accent-rgb: 8, 145, 178;
+    --color-accent-purple-rgb: 139, 92, 246;
+    --color-success-rgb: 22, 163, 74;
+    --color-warning-rgb: 202, 138, 4;
+    --color-error-rgb: 220, 38, 38;
+
     --color-code-bg: #f4f4f5;
     --color-input-bg: #ffffff;
     --color-input-border: #d4d4d8;
@@ -99,6 +118,25 @@
     --color-warning: #f5a524;
     --color-error: #ff6b6b;
 
+    /* ── RGB-Komponenten derselben Farben ───────────────────────────────
+       WARUM ES SIE GIBT: Die WKWebView dieses Intel-Mac (WebKit 17613,
+       Safari-15.6-Aera) kennt `color-mix()` NICHT. Gemessen am 2026-08-16:
+       `CSS.supports('background-color','color-mix(...)')` ist dort `false`,
+       und jede so gebaute Farbe berechnet sich zu `rgba(0, 0, 0, 0)` — sie
+       faellt STUMM aus. Hover, Trennlinien, Statusflaechen und der farbige
+       Avatarkreis waren deshalb auf diesem Rechner unsichtbar.
+       `rgba(var(--x-rgb), 0.22)` loest dort auf. Dieselbe Farbe, dieselbe
+       Deckung, nur in einer Schreibweise, die die Zielplattform versteht —
+       derselbe Grundsatz, den der Kalender in B2 gewaehlt hat. */
+    --color-surface-rgb: 18, 18, 20;
+    --color-text-rgb: 237, 237, 239;
+    --color-text-secondary-rgb: 141, 141, 147;
+    --color-accent-rgb: 34, 211, 238;
+    --color-accent-purple-rgb: 183, 148, 255;
+    --color-success-rgb: 61, 220, 151;
+    --color-warning-rgb: 245, 165, 36;
+    --color-error-rgb: 255, 107, 107;
+
     --color-code-bg: #0c121a;
     --color-input-bg: #0c121a;
     --color-input-border: rgba(79, 209, 255, 0.12);
@@ -146,6 +184,25 @@
       --color-success: #3ddc97;
       --color-warning: #f5a524;
       --color-error: #ff6b6b;
+
+      /* ── RGB-Komponenten derselben Farben ───────────────────────────────
+         WARUM ES SIE GIBT: Die WKWebView dieses Intel-Mac (WebKit 17613,
+         Safari-15.6-Aera) kennt `color-mix()` NICHT. Gemessen am 2026-08-16:
+         `CSS.supports('background-color','color-mix(...)')` ist dort `false`,
+         und jede so gebaute Farbe berechnet sich zu `rgba(0, 0, 0, 0)` — sie
+         faellt STUMM aus. Hover, Trennlinien, Statusflaechen und der farbige
+         Avatarkreis waren deshalb auf diesem Rechner unsichtbar.
+         `rgba(var(--x-rgb), 0.22)` loest dort auf. Dieselbe Farbe, dieselbe
+         Deckung, nur in einer Schreibweise, die die Zielplattform versteht —
+         derselbe Grundsatz, den der Kalender in B2 gewaehlt hat. */
+      --color-surface-rgb: 18, 18, 20;
+      --color-text-rgb: 237, 237, 239;
+      --color-text-secondary-rgb: 141, 141, 147;
+      --color-accent-rgb: 34, 211, 238;
+      --color-accent-purple-rgb: 183, 148, 255;
+      --color-success-rgb: 61, 220, 151;
+      --color-warning-rgb: 245, 165, 36;
+      --color-error-rgb: 255, 107, 107;
 
       --color-code-bg: #0c121a;
       --color-input-bg: #0c121a;
@@ -393,7 +450,7 @@
   /* HUD ambient animations (CSS-only — kept out of JS for zero-cost continuous motion) */
   @keyframes hud-breathe {
     0%, 100% { box-shadow: 0 0 0 1px var(--color-border), 0 0 0 0 var(--color-accent-glow); }
-    50%      { box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 22%, transparent), 0 0 24px -4px var(--color-accent-glow); }
+    50%      { box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.22), 0 0 24px -4px var(--color-accent-glow); }
   }
 
   @keyframes hud-sweep {
@@ -425,7 +482,7 @@
     position: relative;
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-surface) 92%, transparent),
+      rgba(var(--color-surface-rgb), 0.92),
       var(--color-surface)
     );
     border: 1px solid var(--color-border);
@@ -435,7 +492,7 @@
   }
 
   .hud-panel:hover {
-    border-color: color-mix(in srgb, var(--color-text) 14%, transparent);
+    border-color: rgba(var(--color-text-rgb), 0.14);
   }
 
   .data-skeleton {
@@ -451,7 +508,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      color-mix(in srgb, var(--color-text) 6%, transparent) 50%,
+      rgba(var(--color-text-rgb), 0.06) 50%,
       transparent 100%
     );
     background-size: 200% 100%;
@@ -462,7 +519,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      color-mix(in srgb, var(--color-accent) 18%, transparent) 50%,
+      rgba(var(--color-accent-rgb), 0.18) 50%,
       transparent 100%
     );
     background-size: 200% 100%;
@@ -475,8 +532,8 @@
     pointer-events: none;
     z-index: 0;
     background-image:
-      radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 42%),
-      radial-gradient(circle at 85% 110%, color-mix(in srgb, var(--color-accent-purple) 8%, transparent), transparent 46%),
+      radial-gradient(circle at 20% 0%, rgba(var(--color-accent-rgb), 0.1), transparent 42%),
+      radial-gradient(circle at 85% 110%, rgba(var(--color-accent-purple-rgb), 0.08), transparent 46%),
       linear-gradient(to bottom, transparent, transparent);
   }
 
@@ -545,7 +602,7 @@
 
   @keyframes hud-heartbeat {
     0%, 100% { transform: scale(1);   box-shadow: 0 0 0 0 var(--color-accent-glow); }
-    40%      { transform: scale(1.3); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 0%, transparent); }
+    40%      { transform: scale(1.3); box-shadow: 0 0 0 6px rgba(var(--color-accent-rgb), 0); }
   }
 
 

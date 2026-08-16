@@ -333,7 +333,7 @@ export function CommandPalette() {
           </div>
         )}
         {pullSuccess && (
-          <div className="px-4 py-2 text-xs flex items-center gap-1.5" style={{ color: 'var(--color-success)', background: 'color-mix(in srgb, var(--color-success) 5%, transparent)' }}>
+          <div className="px-4 py-2 text-xs flex items-center gap-1.5" style={{ color: 'var(--color-success)', background: 'rgba(var(--color-success-rgb), 0.05)' }}>
             <Check size={12} /> Downloaded {pullSuccess} successfully
           </div>
         )}
@@ -468,7 +468,7 @@ export function CommandPalette() {
                       <Cloud size={14} style={{ color: hasKey ? 'var(--color-success)' : 'var(--color-text-tertiary)' }} />
                       <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>{provider.name}</span>
                       {hasKey && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-success) 10%, transparent)', color: 'var(--color-success)' }}>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--color-success-rgb), 0.1)', color: 'var(--color-success)' }}>
                           Connected
                         </span>
                       )}

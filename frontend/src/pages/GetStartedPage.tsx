@@ -232,7 +232,7 @@ function HostedView() {
       {healthy === false && (
         <div
           className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
-          style={{ background: 'color-mix(in srgb, var(--color-error) 10%, transparent)', color: 'var(--color-error)' }}
+          style={{ background: 'rgba(var(--color-error-rgb), 0.1)', color: 'var(--color-error)' }}
         >
           Server is not responding. The backend may be starting up.
         </div>

@@ -4,10 +4,10 @@ import { approveAction, denyAction, fetchPendingApprovals } from '../lib/api';
 import type { PendingApproval } from '../lib/api';
 
 const TIER_STYLES: Record<string, { label: string; color: string; bg: string }> = {
-  trivial: { label: 'Trivial', color: 'var(--color-text-secondary)', bg: 'color-mix(in srgb, var(--color-text-secondary) 10%, transparent)' },
+  trivial: { label: 'Trivial', color: 'var(--color-text-secondary)', bg: 'rgba(var(--color-text-secondary-rgb), 0.1)' },
   low:     { label: 'Low',     color: '#3b82f6',                    bg: 'rgba(59,130,246,0.12)' },
-  medium:  { label: 'Medium',  color: 'var(--color-warning)',       bg: 'color-mix(in srgb, var(--color-warning) 12%, transparent)' },
-  high:    { label: 'High',    color: 'var(--color-error)',         bg: 'color-mix(in srgb, var(--color-error) 12%, transparent)' },
+  medium:  { label: 'Medium',  color: 'var(--color-warning)',       bg: 'rgba(var(--color-warning-rgb), 0.12)' },
+  high:    { label: 'High',    color: 'var(--color-error)',         bg: 'rgba(var(--color-error-rgb), 0.12)' },
 };
 
 function timeAgo(iso: string): string {
@@ -86,7 +86,7 @@ export function ApprovalBell() {
           background: open
             ? 'var(--color-bg-tertiary)'
             : count > 0
-            ? 'color-mix(in srgb, var(--color-error) 8%, transparent)'
+            ? 'rgba(var(--color-error-rgb), 0.08)'
             : 'transparent',
         }}
       >
@@ -127,7 +127,7 @@ export function ApprovalBell() {
               <span
                 className="text-[11px] font-medium px-2 py-0.5 rounded-full"
                 style={{
-                  background: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                  background: 'rgba(var(--color-error-rgb), 0.12)',
                   color: 'var(--color-error)',
                 }}
               >
@@ -230,9 +230,9 @@ export function ApprovalBell() {
                         disabled={isLoading}
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-opacity cursor-pointer disabled:opacity-40"
                         style={{
-                          background: 'color-mix(in srgb, var(--color-success) 12%, transparent)',
+                          background: 'rgba(var(--color-success-rgb), 0.12)',
                           color: 'var(--color-success)',
-                          border: '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)',
+                          border: '1px solid rgba(var(--color-success-rgb), 0.22)',
                         }}
                       >
                         <CheckCircle size={12} />
@@ -243,9 +243,9 @@ export function ApprovalBell() {
                         disabled={isLoading}
                         className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-opacity cursor-pointer disabled:opacity-40"
                         style={{
-                          background: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                          background: 'rgba(var(--color-error-rgb), 0.12)',
                           color: 'var(--color-error)',
-                          border: '1px solid color-mix(in srgb, var(--color-error) 22%, transparent)',
+                          border: '1px solid rgba(var(--color-error-rgb), 0.22)',
                         }}
                       >
                         <XCircle size={12} />

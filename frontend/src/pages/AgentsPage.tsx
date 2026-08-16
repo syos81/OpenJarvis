@@ -527,7 +527,7 @@ function ToolsPicker({
                           alignItems: 'center',
                           gap: 5,
                           background: isSelected
-                            ? 'color-mix(in srgb, var(--color-accent) 14%, transparent)'
+                            ? 'rgba(var(--color-accent-rgb), 0.14)'
                             : 'var(--color-bg)',
                           color: disabled
                             ? 'var(--color-text-tertiary)'
@@ -538,7 +538,7 @@ function ToolsPicker({
                             ? '1px dashed var(--color-border)'
                             : `1px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border)'}`,
                           boxShadow: isSelected
-                            ? 'inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent)'
+                            ? 'inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.3)'
                             : 'none',
                           cursor: disabled ? 'not-allowed' : 'pointer',
                           opacity: disabled ? 0.55 : 1,
@@ -795,7 +795,7 @@ function LaunchWizard({
                 onClick={() => selectTemplate(tpl)}
                 className="text-left p-4 rounded-lg transition-all items-start"
                 style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.background = 'color-mix(in srgb, var(--color-accent-purple) 6%, transparent)'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.background = 'rgba(var(--color-accent-purple-rgb), 0.06)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = 'var(--color-bg-secondary)'; }}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -806,7 +806,7 @@ function LaunchWizard({
                 {(tpl as any).tools && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {((tpl as any).tools as string[]).slice(0, 4).map((t: string) => (
-                      <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent-purple) 12%, transparent)', color: 'var(--color-accent-purple)' }}>{t}</span>
+                      <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--color-accent-purple-rgb), 0.12)', color: 'var(--color-accent-purple)' }}>{t}</span>
                     ))}
                     {((tpl as any).tools as string[]).length > 4 && (
                       <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--color-text-tertiary)' }}>+{((tpl as any).tools as string[]).length - 4}</span>
@@ -819,7 +819,7 @@ function LaunchWizard({
               onClick={() => selectTemplate(null)}
               className="text-left p-4 rounded-lg transition-all items-start"
               style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.background = 'color-mix(in srgb, var(--color-accent-purple) 6%, transparent)'; }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.background = 'rgba(var(--color-accent-purple-rgb), 0.06)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = 'var(--color-bg-secondary)'; }}
             >
               <div className="flex items-center gap-2 mb-1">
@@ -1015,7 +1015,7 @@ function LaunchWizard({
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {wizard.selectedTools.map((t) => (
-                  <span key={t} className="text-xs px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent-purple) 12%, transparent)', color: 'var(--color-accent-purple)' }}>{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(var(--color-accent-purple-rgb), 0.12)', color: 'var(--color-accent-purple)' }}>{t}</span>
                 ))}
               </div>
             </div>
@@ -2061,7 +2061,7 @@ function ChannelsTab({ agentId }: { agentId: string }) {
               key={c.connector_id}
               style={{
                 background: 'var(--color-bg-secondary)',
-                border: '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)',
+                border: '1px solid rgba(var(--color-success-rgb), 0.22)',
                 borderRadius: 6,
                 overflow: 'hidden',
                 gridColumn: isReconnecting ? '1 / -1' : undefined,
@@ -2417,7 +2417,7 @@ function SendBlueWebhookStep({
   return (
     <div style={{ borderTop: '1px solid var(--color-border)', padding: 14, background: 'var(--color-bg)' }}>
       <div style={{
-        background: 'color-mix(in srgb, var(--color-success) 10%, var(--color-bg))', border: '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)',
+        background: 'rgba(var(--color-success-rgb), 0.1)', border: '1px solid rgba(var(--color-success-rgb), 0.22)',
         borderRadius: 6, padding: 12, marginBottom: 12, textAlign: 'center',
       }}>
         <div style={{ fontSize: 11, color: 'var(--color-success)', fontWeight: 600, marginBottom: 4 }}>
@@ -2542,7 +2542,7 @@ function SendBlueWizard({
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--color-bg-secondary)',
-    border: isActive ? '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)' : '1px dashed var(--color-border)',
+    border: isActive ? '1px solid rgba(var(--color-success-rgb), 0.22)' : '1px dashed var(--color-border)',
     borderRadius: 8, marginBottom: 10, overflow: 'hidden',
   };
 
@@ -2653,7 +2653,7 @@ function SendBlueWizard({
               </button>
             )}
             <span style={{
-              background: healthy ? 'color-mix(in srgb, var(--color-success) 22%, transparent)' : 'color-mix(in srgb, var(--color-warning) 18%, var(--color-bg))',
+              background: healthy ? 'rgba(var(--color-success-rgb), 0.22)' : 'rgba(var(--color-warning-rgb), 0.18)',
               color: healthy ? 'var(--color-success)' : 'var(--color-warning)',
               padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600,
             }}>{healthy ? 'Active' : 'Disconnected'}</span>
@@ -2813,7 +2813,7 @@ function SendBlueWizard({
             </div>
           ) : numbers.length === 1 ? (
             <div style={{
-              background: 'var(--color-bg-secondary)', border: '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)',
+              background: 'var(--color-bg-secondary)', border: '1px solid rgba(var(--color-success-rgb), 0.22)',
               borderRadius: 6, padding: '10px 12px', marginBottom: 12,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
@@ -2964,7 +2964,7 @@ function MessagingTab({ agentId }: { agentId: string }) {
             style={{
               background: 'var(--color-bg-secondary)',
               border: binding
-                ? '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)'
+                ? '1px solid rgba(var(--color-success-rgb), 0.22)'
                 : '1px dashed var(--color-border)',
               borderRadius: 8, marginBottom: 10,
               overflow: 'hidden',
@@ -2988,7 +2988,7 @@ function MessagingTab({ agentId }: { agentId: string }) {
               {binding ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
-                    background: 'color-mix(in srgb, var(--color-success) 22%, transparent)', color: 'var(--color-success)',
+                    background: 'rgba(var(--color-success-rgb), 0.22)', color: 'var(--color-success)',
                     padding: '2px 8px', borderRadius: 10,
                     fontSize: 10, fontWeight: 600,
                   }}>Active</span>
@@ -3945,7 +3945,7 @@ export function AgentsPage() {
           className="mx-4 mt-2 px-4 py-3 rounded-lg flex items-center gap-3 text-sm"
           style={{
             background: 'var(--color-accent-amber-subtle)',
-            border: '1px solid color-mix(in srgb, var(--color-warning) 20%, transparent)',
+            border: '1px solid rgba(var(--color-warning-rgb), 0.2)',
             color: 'var(--color-accent-amber)',
           }}
         >

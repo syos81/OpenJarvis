@@ -531,8 +531,8 @@ export function SourceConnectFlow({
                 <div
                   className="mt-3 px-4 py-3 rounded-lg text-sm"
                   style={{
-                    background: 'color-mix(in srgb, var(--color-error) 10%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--color-error) 20%, transparent)',
+                    background: 'rgba(var(--color-error-rgb), 0.1)',
+                    border: '1px solid rgba(var(--color-error-rgb), 0.2)',
                     color: 'var(--color-error)',
                   }}
                 >

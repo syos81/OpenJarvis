@@ -808,7 +808,7 @@ function DataSourcesSection() {
                 className="hud-panel"
                 style={{
                   borderColor: hasError
-                    ? 'color-mix(in srgb, var(--color-error) 28%, transparent)'
+                    ? 'rgba(var(--color-error-rgb), 0.28)'
                     : 'var(--color-border)',
                 }}
               >
@@ -1098,7 +1098,7 @@ function SendBlueSection({
     return (
       <div style={{
         background: 'var(--color-bg-secondary)',
-        border: '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)',
+        border: '1px solid rgba(var(--color-success-rgb), 0.22)',
         borderRadius: 8, marginBottom: 10,
         overflow: 'hidden',
       }}>
@@ -1452,7 +1452,7 @@ function MessagingSection({ agentId }: { agentId: string }) {
             key={ch.type}
             style={{
               background: 'var(--color-bg-secondary)',
-              border: binding ? '1px solid color-mix(in srgb, var(--color-success) 22%, transparent)' : '1px dashed var(--color-border)',
+              border: binding ? '1px solid rgba(var(--color-success-rgb), 0.22)' : '1px dashed var(--color-border)',
               borderRadius: 8, marginBottom: 10, overflow: 'hidden',
             }}
           >
@@ -1470,7 +1470,7 @@ function MessagingSection({ agentId }: { agentId: string }) {
               {binding ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
-                    background: 'color-mix(in srgb, var(--color-success) 22%, transparent)', color: 'var(--color-success)',
+                    background: 'rgba(var(--color-success-rgb), 0.22)', color: 'var(--color-success)',
                     padding: '2px 8px', borderRadius: 10,
                     fontSize: 10, fontWeight: 600,
                   }}>Active</span>
