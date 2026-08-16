@@ -241,7 +241,7 @@ Intel-UI-Zweig begonnen und nichts nachgebaut.
 | `CALENDAR arm64` | `UNKNOWN UNTIL FINAL REPORT` — im Repository existiert kein finaler arm64-Calendar-Abschlussbericht |
 | `CALENDAR OVERALL` | `NOT_YET_CLAIMED_COMPLETE`, reason: `arm64 closure status not established from a final report` |
 | `M2_GUARD_OWNER_SETUP` | `PENDING` nach DEC-068 |
-| Pushstatus | `not_performed_owner_action` |
+| Pushstatus | `pushed_by_owner` — `verify/calendar-x86_64-current` bei `c7bd40e` am 2026-08-16 vom Eigentümer nach `origin` gepusht |
 
 `BLOCKED` heisst hier nicht, dass der Kalender-Schreibpfad unbewiesen wäre.
 Nativer Pfad, Fingerprintbindung, Claim-Einmaligkeit und Fail-closed-Verhalten
@@ -412,7 +412,7 @@ Produktbuild auf dem dann aktuellen Stand zu fahren. Geprüft ist hier der
 | `CALENDAR arm64` | `UNKNOWN UNTIL FINAL REPORT` |
 | `CALENDAR OVERALL` | `NOT_YET_CLAIMED_COMPLETE` |
 | `M2_GUARD_OWNER_SETUP` | `PENDING` nach DEC-068 |
-| Pushstatus | `not_performed_owner_action` |
+| Pushstatus | `pushed_by_owner` — `verify/calendar-x86_64-current` bei `c7bd40e` am 2026-08-16 vom Eigentümer nach `origin` gepusht |
 
 Der Produktcode dieser Reparatur ist **gemeinsam** für x86_64 und arm64.
 Calendar arm64 ist damit nicht abgeschlossen: Es existiert weiterhin kein

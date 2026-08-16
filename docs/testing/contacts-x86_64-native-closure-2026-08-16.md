@@ -221,7 +221,7 @@ CREATE, kein UPDATE, kein DELETE. Der cardDAV-Bestand blieb unberührt.
 | `integration_report_update` | **geschlossen** — §10 im Integrationsbericht nachgetragen |
 | `AUTOMATIC_COMMIT_WATCHERS` | **verdrahtet** — siehe §8 |
 | `test_dec_052_ist_registriert` | vorbestehend, out of scope — siehe §9 |
-| Pushstatus | `not_performed_owner_action` |
+| Pushstatus | `pushed_by_owner` — `verify/contacts-repair-x86_64-2026-08-13` bei `042eafc` am 2026-08-16 vom Eigentümer nach `origin` gepusht |
 
 `NATIVE BOTH ARCHITECTURES = COMPLETE` heisst: die nativen Contacts-Pfade sind
 auf beiden unterstützten Architekturen abgeschlossen. Es heisst **nicht**,
