@@ -1,0 +1,1 @@
+"""Statische Wächter des Produktcodes."""
