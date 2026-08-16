@@ -227,6 +227,44 @@
     box-sizing: border-box;
   }
 
+  /* ── Zeigerwirkung ───────────────────────────────────────────────────
+     Ein Knopf, der aussieht wie ein Knopf, muss sich auch so anfuehlen.
+     WebKit gibt `button` von Haus aus `cursor: default`; nur Contacts hatte
+     dagegen eigene Regeln (contacts/tokens.css). Gemessen am 2026-08-16 in
+     der Zielengine: Contacts 135 Bedienelemente durchweg `pointer`, der
+     Kalender dagegen 59 aktive Elemente auf `default` — Tag/Woche/Monat/Jahr
+     und die Blaetterpfeile fuehlten sich an wie Text.
+
+     Deshalb hier zentral statt je Flaeche noch einmal. Die spezifischeren
+     Contacts-Regeln bleiben gueltig und sagen dasselbe.
+
+     Deaktiviertes bekommt ausdruecklich KEINE Zeigerwirkung: ein Knopf, der
+     nicht geht, darf nicht so tun als ginge er. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  a[href]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: default;
+  }
+
+  input[type="text"], input[type="search"], input[type="email"],
+  input[type="password"], input[type="number"], input[type="url"],
+  input:not([type]), textarea {
+    cursor: text;
+  }
+
   html, body, #root {
     height: 100%;
     width: 100%;
