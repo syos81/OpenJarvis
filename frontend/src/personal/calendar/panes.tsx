@@ -275,7 +275,11 @@ export function MonatsRaster(p: RasterProps) {
               data-selected={istGewaehlt ? '1' : '0'}
               aria-selected={istGewaehlt}
               onClick={() => aufTagAuswahl(d.tag)}
-              className={`p-1 min-w-0 cursor-default ${bekannt ? '' : 'pjk-unbekannt'}`}
+              /* `cursor-pointer`, nicht `cursor-default`: Die Zelle hat ein
+                 onClick und waehlt den Tag aus. Bis 2026-08-16 stand hier die
+                 Gegenklasse fest verdrahtet und gewann gegen jede Regel —
+                 dieselbe Fehlerklasse, die Contacts schon einmal hatte. */
+              className={`p-1 min-w-0 cursor-pointer ${bekannt ? '' : 'pjk-unbekannt'}`}
               style={{
                 // B2-Livebefund: klar sichtbare Zellgrenzen wie die Referenz.
                 borderRight: (i + 1) % 7 === 0 ? 'none' : '1px solid var(--pjk-line)',
