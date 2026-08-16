@@ -61,6 +61,11 @@ interface Bestand {
 
 const LEER: Bestand = { von: null, bis: null, termine: [], truncated: false };
 
+/** Wie oft ein reiner Verbindungsfehler wiederholt wird, bevor die Ansicht
+ *  ihn als Fehlzustand meldet. 600 ms, verdoppelt, gedeckelt bei 8 s —
+ *  zusammen rund eine Minute Geduld fuer ein startendes Backend. */
+const WIEDERHOLUNGEN = 6;
+
 export function CalendarWorkspace() {
   const zone = useMemo(() => systemZeitzone(), []);
   const wochenstart = useMemo(() => systemWochenstart(), []);
@@ -123,7 +128,8 @@ export function CalendarWorkspace() {
   }, [gewaehlterTag]);
 
   // Nur lesen. Weder Mount noch Ansichtswechsel loesen einen Sync aus.
-  const laden = useCallback(async (vonUtc: string, bisUtc: string) => {
+  const laden = useCallback(async (vonUtc: string, bisUtc: string,
+                                   versuch = 0): Promise<void> => {
     try {
       // Erst der kalenderfreie Handshake, dann der Status: `/status` meldet
       // bewusst den ZULETZT BEKANNTEN Bridge-Stand und fragt den Provider
@@ -145,7 +151,27 @@ export function CalendarWorkspace() {
       setBestand({ von: t.window.start_utc, bis: t.window.end_utc,
                    termine: t.events, truncated: t.truncated });
       setZustand('bereit');
-    } catch {
+    } catch (fehler) {
+      // Ein noch nicht lauschendes Backend ist KEIN Fehlzustand — es ist ein
+      // Zeitpunkt. Die App startet ihr Backend als Kindprozess (`jarvis
+      // serve`); bis es Anfragen annimmt, vergehen gemessen bis zu drei
+      // Minuten. Wer in diesem Fenster neu laedt, landete bisher in einer
+      // Sackgasse: „Der Kalender ist nicht erreichbar", bis jemand von Hand
+      // auf „Erneut versuchen" klickt. Genau das war der Eigentuemerbefund
+      // vom 2026-08-16 beim mehrfachen Neuladen.
+      //
+      // Wiederholt wird ausschliesslich der VERBINDUNGSfehler: `fetch` wirft
+      // dafuer einen `TypeError`. Eine Antwort des Servers — auch eine
+      // schlechte — kommt als `Error('calendar_api_<status>')` und wird NICHT
+      // wiederholt: Sie ist eine Aussage, kein Warten. Ohne diese Trennung
+      // verdeckte die Wiederholung echte Fehler hinter Geduld.
+      const nurNichtErreichbar = fehler instanceof TypeError;
+      if (nurNichtErreichbar && versuch < WIEDERHOLUNGEN) {
+        const wartezeit = Math.min(600 * 2 ** versuch, 8000);
+        await new Promise((fertig) => { setTimeout(fertig, wartezeit); });
+        await laden(vonUtc, bisUtc, versuch + 1);
+        return;
+      }
       setZustand('fehler');
     }
   }, []);
