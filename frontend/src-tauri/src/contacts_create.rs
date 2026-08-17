@@ -161,18 +161,36 @@ fn c_string_to_rust(puffer: &[c_char]) -> String {
 
 /// Vertragskennung — wortgleich zu `write_release.WRITE_RELEASE_CONTRACT`.
 pub const WRITE_RELEASE_CONTRACT: &str = "contacts-write-v1";
+/// Dauerhaftigkeitsvertrag — wortgleich zu `WRITE_RELEASE_CONTRACT_V2`.
+/// Ein eigener Vertrag, damit eine bestehende v1-Datei nicht nachträglich als
+/// Dauerfreigabe gelesen werden kann.
+pub const WRITE_RELEASE_CONTRACT_V2: &str = "contacts-write-v2";
+/// Fähigkeit, für die eine Freigabe gilt — wortgleich zum Kern.
+pub const WRITE_RELEASE_CAPABILITY: &str = "contacts";
+/// Modusnamen — wortgleich zum Kern.
+pub const MODE_TEMPORARY: &str = "temporary";
+pub const MODE_STANDING: &str = "standing";
 /// Dateiname — wortgleich zu `write_release.WRITE_RELEASE_FILENAME`.
 pub const WRITE_RELEASE_FILENAME: &str = "contacts-write-release.json";
-/// Längste zulässige Geltungsdauer, in Stunden.
+/// Längste zulässige Geltungsdauer, in Stunden. Gilt nur befristet.
 pub const MAX_RELEASE_HOURS: i64 = 4;
 
 #[derive(Debug, Deserialize)]
 struct RohFreigabe {
     contract: String,
     operations: Vec<String>,
-    expires_at: String,
+    #[serde(default)]
+    expires_at: Option<String>,
     #[serde(default)]
     reason: String,
+    #[serde(default)]
+    capability: Option<String>,
+    #[serde(default)]
+    mode: Option<String>,
+    #[serde(default)]
+    granted_at: Option<String>,
+    #[serde(default)]
+    revoked_at: Option<String>,
 }
 
 /// Prüft eine Freigabedatei nach denselben Regeln wie der Kern.
@@ -211,13 +229,52 @@ pub fn write_release_erlaubt(pfad: &std::path::Path, operation: &str, jetzt_unix
     let Ok(freigabe) = serde_json::from_str::<RohFreigabe>(&inhalt) else {
         return false;
     };
-    if freigabe.contract != WRITE_RELEASE_CONTRACT
+    let vertrag_bekannt = freigabe.contract == WRITE_RELEASE_CONTRACT
+        || freigabe.contract == WRITE_RELEASE_CONTRACT_V2;
+    if !vertrag_bekannt
         || !freigabe.operations.iter().any(|o| o == operation)
         || freigabe.reason.trim().is_empty()
     {
         return false;
     }
-    let Some(endet) = unix_aus_iso8601(&freigabe.expires_at) else {
+
+    // v1 kennt weder Fähigkeit noch Modus: er *ist* der befristete
+    // Kontaktvertrag. v2 muss beides ausdrücklich nennen.
+    let (gemeinte_capability, modus) = if freigabe.contract == WRITE_RELEASE_CONTRACT {
+        (WRITE_RELEASE_CAPABILITY.to_string(), MODE_TEMPORARY.to_string())
+    } else {
+        let Some(capability) = freigabe.capability.clone() else {
+            return false;
+        };
+        let Some(modus) = freigabe.mode.clone() else {
+            return false;
+        };
+        if modus != MODE_TEMPORARY && modus != MODE_STANDING {
+            return false;
+        }
+        (capability, modus)
+    };
+    if gemeinte_capability != WRITE_RELEASE_CAPABILITY {
+        return false;
+    }
+
+    if modus == MODE_STANDING {
+        // Kein Ablauf — sonst stünden zwei Aussagen nebeneinander und keine
+        // wäre die geltende. Dafür ein Beginn und keine Rücknahme.
+        return freigabe.expires_at.is_none()
+            && freigabe
+                .granted_at
+                .as_deref()
+                .and_then(unix_aus_iso8601)
+                .is_some()
+            && freigabe
+                .revoked_at
+                .as_deref()
+                .and_then(unix_aus_iso8601)
+                .is_none();
+    }
+
+    let Some(endet) = freigabe.expires_at.as_deref().and_then(unix_aus_iso8601) else {
         return false;
     };
     endet > jetzt_unix && endet <= jetzt_unix + MAX_RELEASE_HOURS * 3600
@@ -544,6 +601,89 @@ mod tests {
         assert!(write_release_erlaubt(&pfad, "create", jetzt));
         assert!(!write_release_erlaubt(&pfad, "update", jetzt));
         assert!(!write_release_erlaubt(&pfad, "delete", jetzt));
+    }
+
+    // ── Dauerfreigabe (v2) ──────────────────────────────────────────────────
+    //
+    // Dieselben Regeln wie im Kern (`write_release.py`). Laufen die beiden
+    // Seiten auseinander, meldet die eine „darf" und die andere „darf nicht" —
+    // genau der Zustand, den dieser Vertrag verhindern soll.
+    fn dauerhaft(zusatz: &str) -> String {
+        format!(
+            r#"{{"contract":"contacts-write-v2","capability":"contacts",
+                 "mode":"standing","operations":["create"],
+                 "granted_at":"2026-08-17T12:00:00+00:00",
+                 "reason":"Im Produkt eingeschaltet"{zusatz}}}"#
+        )
+    }
+
+    #[test]
+    fn eine_dauerfreigabe_gilt_auch_lange_danach() {
+        let dir = privates_verzeichnis("dauer");
+        let pfad = schreibe_freigabe(&dir, &dauerhaft(""), 0o600);
+        let start = unix_aus_iso8601("2026-08-17T12:00:00+00:00").unwrap();
+        assert!(write_release_erlaubt(&pfad, "create", start));
+        // Ein Neustart Wochen spaeter aendert nichts.
+        assert!(write_release_erlaubt(&pfad, "create", start + 97 * 86400));
+        // Dauerhaft ist trotzdem nicht universell.
+        assert!(!write_release_erlaubt(&pfad, "update", start));
+        assert!(!write_release_erlaubt(&pfad, "delete", start));
+    }
+
+    #[test]
+    fn eine_dauerfreigabe_mit_ablauf_gilt_nicht() {
+        let dir = privates_verzeichnis("dauer-ablauf");
+        let pfad = schreibe_freigabe(
+            &dir,
+            &dauerhaft(r#","expires_at":"2026-08-17T13:00:00+00:00""#),
+            0o600,
+        );
+        let start = unix_aus_iso8601("2026-08-17T12:00:00+00:00").unwrap();
+        assert!(!write_release_erlaubt(&pfad, "create", start));
+    }
+
+    #[test]
+    fn eine_zurueckgenommene_dauerfreigabe_gilt_nicht() {
+        let dir = privates_verzeichnis("dauer-zurueck");
+        let pfad = schreibe_freigabe(
+            &dir,
+            &dauerhaft(r#","revoked_at":"2026-08-18T12:00:00+00:00""#),
+            0o600,
+        );
+        let start = unix_aus_iso8601("2026-08-17T12:00:00+00:00").unwrap();
+        assert!(!write_release_erlaubt(&pfad, "create", start));
+    }
+
+    #[test]
+    fn eine_dauerfreigabe_fuer_eine_fremde_faehigkeit_gilt_nicht() {
+        let dir = privates_verzeichnis("dauer-fremd");
+        let inhalt = dauerhaft("").replace(r#""capability":"contacts""#, r#""capability":"calendar""#);
+        let pfad = schreibe_freigabe(&dir, &inhalt, 0o600);
+        let start = unix_aus_iso8601("2026-08-17T12:00:00+00:00").unwrap();
+        assert!(!write_release_erlaubt(&pfad, "create", start));
+    }
+
+    #[test]
+    fn ein_v1_dokument_wird_nie_zur_dauerfreigabe() {
+        // Der Schutz gegen Umdeutung: das Wort `standing` in einer alten,
+        // befristeten Urkunde aendert nichts an ihrem Ablauf.
+        let dir = privates_verzeichnis("v1-standing");
+        let inhalt = r#"{"contract":"contacts-write-v1","operations":["create"],
+             "mode":"standing","expires_at":"2026-08-04T02:00:00+00:00",
+             "reason":"alt"}"#;
+        let pfad = schreibe_freigabe(&dir, inhalt, 0o600);
+        let vorher = unix_aus_iso8601("2026-08-04T00:00:00+00:00").unwrap();
+        let nachher = unix_aus_iso8601("2026-08-04T03:00:00+00:00").unwrap();
+        assert!(write_release_erlaubt(&pfad, "create", vorher));
+        assert!(!write_release_erlaubt(&pfad, "create", nachher));
+    }
+
+    #[test]
+    fn eine_dauerfreigabe_mit_zu_offenen_rechten_gilt_nicht() {
+        let dir = privates_verzeichnis("dauer-rechte");
+        let pfad = schreibe_freigabe(&dir, &dauerhaft(""), 0o644);
+        let start = unix_aus_iso8601("2026-08-17T12:00:00+00:00").unwrap();
+        assert!(!write_release_erlaubt(&pfad, "create", start));
     }
 
     #[test]
