@@ -51,3 +51,75 @@ Blocks als Kontaktbeleg führt, wäre eine stärkere Behauptung als die Messung.
 
 **Nicht heute.** Ein eigener Block braucht Umfang, Phasenzuschnitt und eine
 Merkmalslinie; das ist eine Governance-Handlung und keine Nebenarbeit.
+
+## B-3 · Die Löschsicherung deckt den Feldvertrag v1 — und der ist enger als ein Kontakt
+
+**Die Frage.** Deckt der Vergleich, an dem die Löschung hängt, genau die
+Felder ab, die die Sicherung speichert? Geprüft wurde in beide Richtungen.
+
+**Kein Überhang.** Was in der Sicherung steht, wird auch verglichen. Die
+Sicherung trägt `expectedPrevious` unverändert; der Digest ist
+`digest_of({"fieldContractVersion": 1, "fields": <ebendieses Wörterbuch>})`;
+der native Pfad rechnet dieselbe Formel nach (`vorzustand_ist_gebunden`) und
+vergleicht dann mit `[ist isEqualToDictionary:erwartetVorher]` — einer
+**vollständigen** Wörterbuchgleichheit über beide Schlüsselmengen. Ein Feld,
+das nur mitgeschrieben und nicht erzwungen wäre, gibt es nicht.
+
+**Der Unterschuss — das ist die Lücke.** Ein Kontakt trägt mehr, als v1 kennt.
+Weder in `expectedPrevious` noch in der Sicherung noch im Vergleich stehen:
+
+| Familie | Zustand bei Jarvis |
+|---|---|
+| `social_profiles` | gelesen (`sidecar.swift`), lokal in `contact_social_profiles` |
+| `instant_messages` | gelesen, lokal in `contact_instant_messages` |
+| `relations` | gelesen, lokal in `contact_relations` |
+| Foto (`image_available`, `thumbnail_blob_ref`) | gelesen, lokal in `contacts` |
+| `note` | nie gelesen — `unavailable_by_capability` (Entitlement seit macOS 11) |
+
+Bei den ersten vier ist der Verlust real und nicht theoretisch: Jarvis liest
+sie und hält sie lokal, aber eine Wiederherstellung aus der Sicherung bringt
+sie nicht zurück, und der lokale Spiegel wird beim Löschen getombstonet.
+
+**Was daraus folgt.** „Kontaktinhalt wiederherstellbar" gilt für den
+Feldvertrag v1 — nicht für alles, was an einem Kontakt hängt. Die
+Oberflächentexte zählen deshalb auf, was gesichert wird, und nennen
+ausdrücklich, was nicht: Ein pauschales „die Feldwerte" verspräche direkt vor
+einer nicht rücknehmbaren Handlung mehr, als es hält.
+
+**Nicht heute entschieden.** Ob die Sicherung über v1 hinaus greifen soll, ist
+eine Eigentümerentscheidung. Sie berührt den Feldvertrag, und der ist
+unverändert.
+
+Mechanisch festgehalten in `tests/personal/contacts/test_delete_gate.py`,
+Abschnitt G.
+
+## B-4 · Dieselbe Tooling-Suite scheitert auf zwei Rechnern verschieden oft
+
+**Was.** `tests/tooling` meldet auf dem Intel MacBook Air (x86_64,
+macOS 12.7.6) **fünf** Fehlschläge, auf dem M2 **vierzehn** — jeweils am
+Commitstand und jeweils mit `git stash` gegengeprüft, also in beiden Fällen
+ohne die laufende Arbeit.
+
+**Die fünf hier gemessenen:**
+
+* `test_ast_dispositions.py::TestTheRealRegister::test_detected_candidates_equal_disposed_candidates`
+* `test_governance.py::TestCollisionRegistry::test_no_collision_is_detected_any_more`
+* `test_governance.py::TestCollisionRegistry::test_the_runner_accepts_the_resolved_state`
+* `test_governance.py::TestQualifiedReferences::test_every_governance_document_is_qualified`
+* `test_merge_readiness.py::TestReadinessChecks::test_the_resolved_collisions_no_longer_block_the_integration`
+
+Alle fünf liegen in der Ecke der bekannten DEC-Doppelvergaben, die
+ausdrücklich dokumentiert und nicht bereinigt wird.
+
+**Warum der Unterschied selbst ein Befund ist.** Die Dauerregel verlangt
+deterministische Testzustände. Eine Suite, deren Ergebnis vom Zustand des
+Entwicklerrechners abhängt, liefert keinen vergleichbaren Ausgangswert: Ein
+Bericht kann dann weder „unverändert rot" noch „neu rot" belegen, ohne den
+Rechner mitzunennen.
+
+**Was daraus folgt.** Jede Angabe zu vorbestehend roten Tooling-Tests nennt
+den Rechner, auf dem sie gemessen wurde. Eine Zahl ohne Rechner ist keine
+Angabe.
+
+**Nicht heute.** Die Ursache ist nicht erhoben. Sie zu suchen heisst, beide
+Rechner gegeneinander zu vermessen — ein eigener Arbeitsblock.

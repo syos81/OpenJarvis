@@ -517,16 +517,24 @@ function MutationDetailView({ id, quelle, onBack }: {
                 onChange={(e) => setBestaetigt(e.target.checked)}
                 className="pjc-focusable"
               />
+              {/* Die Endgültigkeit steht im Satz, den man ankreuzt — nicht
+                  darunter. Wer hier klickt, entscheidet über die Kennung,
+                  und die kommt nicht zurück. Der Hinweis darauf, was sehr
+                  wohl zurückkommt, steht bewusst danach: Er ist die
+                  Einschränkung, nicht die Nachricht. */}
               <span>
                 Ja, diesen Kontakt bei Apple Kontakte <strong>löschen</strong>.
+                Der Eintrag und seine Providerkennung sind danach endgültig
+                fort.
               </span>
             </label>
           )}
-          {/* Was umkehrbar ist und was nicht — an der Stelle, an der
-              ausgeführt wird. Bis hierher stand hier „lässt sich nicht
-              rückgängig machen"; seit dem Löschgate ist der Inhalt sehr wohl
-              wiederherstellbar, und nur die Identität ist es nicht. Der
-              alte Satz wäre jetzt der ungenauere. */}
+          {/* Was umkehrbar ist und was nicht. Bis hierher stand hier „lässt
+              sich nicht rückgängig machen"; seit dem Löschgate ist der Inhalt
+              sehr wohl wiederherstellbar, und nur die Identität ist es
+              nicht. Der alte Satz wäre jetzt der ungenauere — der Verzicht
+              auf ihn darf aber nicht heissen, dass hier gar nichts Endgültiges
+              mehr steht. */}
           {m.command === 'delete' && <WiederherstellungsHinweis />}
           {/* Ein scharfer Vorgang braucht auch den Rueckweg. Ohne ihn bliebe
               nur Warten auf den Ablauf — oder Ausfuehren. */}

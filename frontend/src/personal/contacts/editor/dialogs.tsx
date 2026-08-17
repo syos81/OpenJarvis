@@ -52,6 +52,13 @@ function FehlerZeile({ fehler }: { fehler: Fehlerbild | null }) {
  * zurückholen. Wer „der Kontakt kommt wieder" liest, plant anders als
  * jemand, der weiss, dass die alte Identität weg ist.
  *
+ * Die gesicherten Familien werden **aufgezählt** statt zusammengefasst. Die
+ * Sicherung deckt den Feldvertrag v1, und der ist enger als ein Kontakt:
+ * Profile, Sofortnachrichten, Beziehungen und das Foto liest Jarvis zwar,
+ * aber sie stehen nicht im Vertrag und damit nicht in der Sicherung. Ein
+ * pauschales „die Feldwerte" hätte an dieser Stelle mehr versprochen, als es
+ * hält — und zwar direkt vor einer Handlung, die man nicht zurücknimmt.
+ *
  * Kurzform: content-recoverable, identity-irreversible.
  */
 export function WiederherstellungsHinweis() {
@@ -60,11 +67,12 @@ export function WiederherstellungsHinweis() {
       font: 'var(--pjc-font-label)', color: 'var(--color-text-secondary)',
       margin: '8px 0 0',
     }}>
-      Der Kontaktinhalt bleibt wiederherstellbar: Jarvis sichert die Feldwerte
-      unmittelbar vor dem Löschen. Eine Wiederherstellung erzeugt
-      voraussichtlich einen <strong>neuen</strong> Kontakt mit neuer
-      Providerkennung; externe Verknüpfungen zur alten Identität können
-      verloren bleiben.
+      Der Kontaktinhalt bleibt wiederherstellbar: Jarvis sichert Namen,
+      Nummern, Adressen, Web und Termine unmittelbar vor dem Löschen. Nicht
+      gesichert werden Profile, Sofortnachrichten, Beziehungen und das Foto.
+      Eine Wiederherstellung erzeugt voraussichtlich einen <strong>neuen</strong>
+      {' '}Kontakt mit neuer Providerkennung; externe Verknüpfungen zur alten
+      Identität können verloren bleiben.
     </p>
   );
 }

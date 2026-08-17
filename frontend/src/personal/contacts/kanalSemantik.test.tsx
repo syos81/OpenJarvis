@@ -180,9 +180,17 @@ describe('Löschbestätigung (R2, DEC-053)', () => {
       path.join(process.cwd(),
                 'src/personal/contacts/status/ContactsStatusSurface.tsx'),
       'utf8');
+    // Ohne Kommentare: Geprüft wird, was Jarvis sagt, nicht was der Code
+    // erklärt. Ein Kommentar, der die alte Formulierung zitiert, um zu
+    // begründen, warum sie weg ist, darf diese Prüfung nicht auslösen.
     const block = quelle.split('data-testid="delete-bestaetigung"')[1]
-      .slice(0, 800);
+      .slice(0, 1400)
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' ')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
     expect(block).toContain('löschen');
+    // Die Endgültigkeit steht im angekreuzten Satz selbst …
+    expect(block).toContain('Providerkennung sind danach endgültig');
+    // … und die Einschränkung darunter.
     expect(block).toContain('WiederherstellungsHinweis');
     expect(block).not.toContain('nicht rückgängig');
   });

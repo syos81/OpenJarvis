@@ -76,6 +76,26 @@ describe('Die Sprache des Löschens', () => {
     expect(text).toContain('verloren bleiben');
   });
 
+  it('zählt auf, was gesichert wird — und was nicht', () => {
+    // „Die Feldwerte" hätte mehr versprochen, als die Sicherung hält: Sie
+    // deckt den Feldvertrag v1, und der ist enger als ein Kontakt.
+    const text = quelle('editor/dialogs.tsx');
+    expect(text).toContain('Namen, Nummern, Adressen, Web und Termine');
+    expect(text).toContain('Nicht gesichert werden Profile');
+  });
+
+  it('sagt an der Klickstelle, dass die Kennung endgültig fort ist', () => {
+    // Die Endgültigkeit gehört in den Satz, den man ankreuzt — nicht nur in
+    // die Vorschau und nicht nur in den Hinweis darunter. Ohne das bliebe an
+    // der Ausführungsstelle „Kontaktinhalt wiederherstellbar" stehen, und
+    // das ist für diese Handlung zu leicht.
+    const text = quelle('status/ContactsStatusSurface.tsx');
+    const block = text.split('data-testid="delete-bestaetigung"')[1]
+      .slice(0, 700);
+    expect(block).toContain('Providerkennung');
+    expect(block).toContain('endgültig');
+  });
+
   it('nennt den Ablageort der Sicherungen und dass sie liegen bleiben', () => {
     const text = quelle('settings/SchreibfreigabeSchalter.tsx');
     expect(text).toContain('~/.openjarvis/personal/backups/contacts/field-state/');

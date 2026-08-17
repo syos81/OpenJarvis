@@ -529,3 +529,118 @@ def test_ein_beleg_traegt_genau_einen_vorgang_und_genau_einmal(monkeypatch,
     assert _frage("vorgang-a").actor == MENSCH
     with pytest.raises(SelfApprovalRejected):
         _frage("vorgang-a")
+
+
+# ═══ G · Deckung: was verglichen wird, was gesichert wird ═══════════════════
+#
+# Die Ableitung „was gesichert wurde, ist genau das, was gelöscht wurde" trägt
+# nur so weit, wie der Vergleich reicht. Deshalb wird hier beides gegeneinander
+# geprüft, statt es abzuleiten — in beide Richtungen.
+def test_die_sicherung_enthaelt_nichts_das_der_vergleich_nicht_prueft(
+        module, dienst, ablage):
+    """Kein Überhang: Jeder gesicherte Wert ist ein verglichener Wert.
+
+    Der Vergleich im App-Prozess ist `[ist isEqualToDictionary:erwartetVorher]`
+    — eine **vollständige** Wörterbuchgleichheit über beide Schlüsselmengen.
+    Sein Operand `erwartetVorher` ist `expectedPrevious`, und genau dieses
+    Wörterbuch steht in der Sicherung. Ein Feld, das nur mitgeschrieben und
+    nicht erzwungen wäre, gibt es damit nicht.
+    """
+    mid = _freigegebene_loeschung(module, dienst)
+    dienst._sichere_loeschziel(mid)
+
+    doc = _gelesen(ablage, mid)
+    nutzlast = json.loads(_zeile(module, mid)["payload_json"])
+    assert doc["fields"] == nutzlast["expectedPrevious"]
+
+    # Und der Digest deckt genau dieses Wörterbuch — dieselbe Formel, die der
+    # native Pfad nachrechnet, bevor er den Vorzustand als gebunden annimmt.
+    from personaljarvis.base.digest import digest_of
+
+    assert doc["expectedFieldsDigest"] == digest_of({
+        "fieldContractVersion": doc["fieldContractVersion"],
+        "fields": doc["fields"]})
+
+
+def test_der_vergleich_rechnet_dieselbe_formel_wie_die_sicherung():
+    """Die Klammer im nativen Pfad — am Quelltext, nicht als Annahme."""
+    from pathlib import Path
+
+    wurzel = Path(__file__).resolve().parents[3]
+    rust = (wurzel / "frontend/src-tauri/src/contacts_create.rs").read_text(
+        encoding="utf-8")
+    # Der Vorzustand wird gegen seinen Digest gebunden …
+    assert '"fieldContractVersion": order.field_contract_version' in rust
+    assert '"fields": vorher' in rust
+    assert 'expectedFieldsDigest' in rust
+
+    objc = (wurzel / "frontend/src-tauri/objc/JCContactsCreate.m").read_text(
+        encoding="utf-8")
+    # … und dann Feld für Feld gegen den unmittelbaren Read verglichen.
+    assert "[ist isEqualToDictionary:erwartetVorher]" in objc
+    assert "JCContactsWriteOutcomeRevisionConflict" in objc
+
+
+#: Was Jarvis von einem Kontakt liest und lokal haelt, **ohne** dass es zum
+#: Feldvertrag v1 gehoert. Diese Familien stehen weder in `expectedPrevious`
+#: noch in der Sicherung noch im Vergleich — eine Wiederherstellung aus der
+#: Sicherung bringt sie nicht zurueck.
+#:
+#: Der Eintrag hier ist kein Auftrag, das zu aendern. Er haelt die Grenze
+#: fest, damit niemand „Kontaktinhalt wiederherstellbar" fuer mehr liest, als
+#: es sagt.
+AUSSERHALB_V1 = ("social_profiles", "instant_messages", "relations",
+                 "image_available", "thumbnail_blob_ref", "note")
+
+
+def test_die_sicherung_deckt_den_feldvertrag_v1_und_nicht_mehr(module, dienst,
+                                                               ablage):
+    """Der Unterschuss — benannt, nicht geschlossen.
+
+    Der Kontakt traegt mehr, als v1 kennt. `note` ist ausdruecklich nie
+    schreibbar (Entitlement), die uebrigen Familien werden gelesen und lokal
+    gehalten, gehoeren aber nicht zum Vertrag. „Kontaktinhalt
+    wiederherstellbar" gilt fuer den Feldvertrag v1 — nicht fuer alles, was an
+    einem Kontakt haengt.
+    """
+    from personaljarvis.contacts.application.field_contract import (
+        LIST_FIELDS,
+        SCALAR_FIELDS,
+    )
+
+    mid = _freigegebene_loeschung(module, dienst)
+    dienst._sichere_loeschziel(mid)
+    doc = _gelesen(ablage, mid)
+
+    erlaubt = ({"contactType", "birthday"}
+               | set(SCALAR_FIELDS.values())
+               | {kanonisch for kanonisch, _ in LIST_FIELDS.values()})
+    assert set(doc["fields"]) <= erlaubt
+
+    # Und keine der Familien ausserhalb des Vertrags steht darin — auch nicht
+    # zufaellig unter einem anderen Namen.
+    flach = json.dumps(doc["fields"]).lower()
+    for familie in AUSSERHALB_V1:
+        assert familie not in flach
+
+
+def test_die_nicht_gedeckten_familien_werden_sehr_wohl_gelesen():
+    """Genau das macht die Grenze zu einem Befund und nicht zu einer Fussnote.
+
+    Waeren diese Familien Jarvis unbekannt, waere ihr Fehlen in der Sicherung
+    folgenlos. Sie werden gelesen und lokal gehalten — der Verlust beim
+    Loeschen ist also real und nicht theoretisch.
+    """
+    from pathlib import Path
+
+    wurzel = Path(__file__).resolve().parents[3]
+    sidecar = (wurzel / "native/contacts-bridge/src/sidecar.swift").read_text(
+        encoding="utf-8")
+    for schluessel in ("socialProfiles", "instantMessages", "relations"):
+        assert schluessel in sidecar
+
+    schema = (wurzel / "src/personaljarvis/base/db/migrations/versions"
+              / "m0002_contacts.py").read_text(encoding="utf-8")
+    for tabelle in ("contact_social_profiles", "contact_instant_messages",
+                    "contact_relations"):
+        assert f"CREATE TABLE {tabelle}" in schema
