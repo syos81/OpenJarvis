@@ -53,6 +53,10 @@ function fakeMutation(teil: Partial<MutationDetail> & {
     correlation_id: `demo-c-${nr}`,
     provider_type: 'apple_contacts',
     account_ref: 'A-demo-lokal',
+    // Der Demo-Modus kennt keinen Bestand: kein gelesener Name, keine
+    // Zaehlung. `null` ist dieselbe ehrliche Aussage wie im Produkt.
+    container_name: null,
+    container_contact_count: null,
     target_contact_id: null,
     target_display_name: null,
     container_ref: 'C-demo-1',
@@ -110,6 +114,9 @@ export function fixtureDataSource(anzahl: number): ContactsDataSource {
       command: m.command,
       target_display_name: m.target_display_name,
       container_ref: m.container_ref,
+      container_name: null,
+      container_contact_count: null,
+      payload_digest: m.payload_digest,
       container_type: m.container_type,
       state: 'awaiting_approval',
       initiation_context: m.initiation_context,

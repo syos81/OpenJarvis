@@ -21,15 +21,42 @@ const quelltext = async (datei: string) => {
 };
 
 describe('Zielangabe', () => {
-  it('nennt Operation, Ziel, Art und stabile Kennung', () => {
+  it('nennt Operation, Ziel, Name, Art, Anzahl und stabile Kennung', () => {
     render(<Zielangabe command="delete" targetLabel="Quirin Quasiecht"
-                       containerRef="C-4b8df1" containerType="local" />);
+                       containerRef="C-4b8df1" containerType="local"
+                       containerName="Auf meinem Mac"
+                       containerContactCount={4} />);
     const block = screen.getByTestId('zielangabe');
     expect(block.textContent).toContain('Löschen');
     expect(block.textContent).toContain('Quirin Quasiecht');
-    expect(block.textContent).toContain('Lokal · Auf meinem Mac');
-    expect(block.textContent).toContain('local');
+    // Der Name zuerst — daran erkennt ein Mensch, wohin geschrieben wird.
+    expect(block.textContent).toContain('Auf meinem Mac');
+    expect(block.textContent).toContain(CONTAINER_ART.local);
+    expect(block.textContent).toContain('4 Kontakte');
+    // Die Kennung steht zusaetzlich, nie allein.
     expect(block.textContent).toContain('C-4b8df1');
+  });
+
+  it('sagt beim fehlenden Namen, dass er fehlt', () => {
+    render(<Zielangabe command="create" containerRef="C-4b8df1"
+                       containerType="cardDAV" containerName={null}
+                       containerContactCount={114} />);
+    const block = screen.getByTestId('zielangabe');
+    expect(block.textContent).toContain('noch nicht gelesen');
+    // Der Notbehelf steht daneben, nicht an der Stelle des Namens.
+    expect(block.textContent).toContain('C-4b8df1');
+  });
+
+  it('unterscheidet leeres Konto und leeren lokalen Ablageort', () => {
+    const { unmount } = render(
+      <Zielangabe command="create" containerRef="C-1" containerType="cardDAV"
+                  containerName="iCloud" containerContactCount={0} />);
+    const konto = screen.getByTestId('zielangabe-art').textContent;
+    unmount();
+
+    render(<Zielangabe command="create" containerRef="C-2" containerType="local"
+                       containerName="Auf meinem Mac" containerContactCount={0} />);
+    expect(screen.getByTestId('zielangabe-art').textContent).not.toBe(konto);
   });
 
   it('unterscheidet den lokalen Ablageort von einem Konto', () => {

@@ -31,12 +31,19 @@ export interface Zielangabe {
   anzahlText: string | null;
 }
 
-const ART_TEXT: Record<Ablageart, string> = {
-  local: 'Lokal auf diesem Mac',
-  cardDAV: 'Synchronisiertes Konto',
-  exchange: 'Synchronisiertes Konto',
-  unassigned: 'Ohne Ablageort',
-  unknown: 'Art noch nicht gelesen',
+/**
+ * Die **eine** Wortliste der Ablageortarten.
+ *
+ * Sie stand bis zum 2026-08-17 in `components.tsx` und wird von dort
+ * weitergereicht, damit es nicht zwei Vokabulare fuer dieselbe Sache gibt.
+ * Jedes Wort benennt die Art; keines behauptet eine Gefahr.
+ */
+export const CONTAINER_ART: Record<string, string> = {
+  local: 'Lokal · Auf meinem Mac',
+  cardDAV: 'CardDAV / iCloud',
+  exchange: 'Exchange',
+  unassigned: 'Ohne Zuordnung',
+  unknown: 'Art noch nicht bekannt',
 };
 
 /** Arten, die ein synchronisiertes Konto bezeichnen — aus dem Vorrat, nicht geraten. */
@@ -48,14 +55,14 @@ export function zielangabe(
   containerRef: string | null,
   anzahl: number | null,
 ): Zielangabe {
-  const art = (containerType in ART_TEXT ? containerType : 'unknown') as Ablageart;
+  const art = (containerType in CONTAINER_ART ? containerType : 'unknown');
   return {
     name: containerName,
     nameFehltHinweis: containerName
       ? null
       : 'Name noch nicht gelesen — er steht nach dem nächsten Abgleich',
     kennung: containerRef,
-    artText: ART_TEXT[art],
+    artText: CONTAINER_ART[art],
     // Die kategoriale Aussage haengt allein an der Art. Ein frisch angelegtes,
     // leeres Konto ist ein Konto.
     istKonto: KONTOARTEN.has(containerType),

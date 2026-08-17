@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { AlertTriangle, Info, Loader2, ShieldAlert } from 'lucide-react';
 import type { FieldAvailability, FieldState } from './api';
+import { CONTAINER_ART, zielangabe } from './settings/zielangabe';
 
 // ── Zustandsflächen ────────────────────────────────────────────────────────
 export function LoadingState({ label }: { label: string }) {
@@ -186,13 +187,10 @@ export const COMMAND_LABELS: Record<string, string> = {
  * zwei Wahrheiten darüber, wie „local" heisst — und ausgerechnet an der
  * Stelle, an der der Mensch entscheidet, wohin geschrieben wird.
  */
-export const CONTAINER_ART: Record<string, string> = {
-  local: 'Lokal · Auf meinem Mac',
-  cardDAV: 'CardDAV / iCloud',
-  exchange: 'Exchange',
-  unassigned: 'Ohne Zuordnung',
-  unknown: 'Art noch nicht bekannt',
-};
+// Die Wortliste lebt seit dem 2026-08-17 bei der Formulierung der Zielangabe
+// — eine Wortliste, nicht zwei. Hier steht sie nur noch als Weiterreichung,
+// damit bestehende Importe nichts merken.
+export { CONTAINER_ART } from './settings/zielangabe';
 
 /**
  * Die Zielangabe einer freigabepflichtigen Mutation: Operation, Zielobjekt,
@@ -203,13 +201,20 @@ export const CONTAINER_ART: Record<string, string> = {
  * Vorschau-Digest deckt Ablageort **und** Art; angezeigt wird ausschliesslich
  * die maskierte Kennung, nie die rohe Providerkennung.
  */
-export function Zielangabe({ command, targetLabel, containerRef, containerType }: {
+export function Zielangabe({ command, targetLabel, containerRef, containerType,
+                            containerName, containerContactCount }: {
   command: string;
   targetLabel?: string | null;
   containerRef?: string | null;
   containerType?: string | null;
+  /** Lesbarer Name aus dem Bestand. `null` heisst „noch nicht gelesen". */
+  containerName?: string | null;
+  /** Anzahl als Zusammenhang — nie als Kategorie. */
+  containerContactCount?: number | null;
 }) {
   const art = containerType ?? 'unknown';
+  const ziel = zielangabe(containerName ?? null, art, containerRef ?? null,
+                          containerContactCount ?? null);
   return (
     <dl data-testid="zielangabe" style={{
       display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 10px',
@@ -226,17 +231,26 @@ export function Zielangabe({ command, targetLabel, containerRef, containerType }
         </>
       )}
       <dt style={{ color: 'var(--color-text-muted)' }}>Ablageort</dt>
-      <dd style={{ margin: 0 }}>
-        {CONTAINER_ART[art] ?? art}
-        {containerRef && (
-          <>
-            {' '}
-            <span style={{ color: 'var(--color-text-muted)' }}>
-              {art} {containerRef}
-            </span>
-          </>
+      <dd style={{ margin: 0 }} data-testid="zielangabe-ablageort">
+        {/* Der Name zuerst — daran erkennt ein Mensch, wohin geschrieben
+            wird. Fehlt er, steht dort offen, dass er fehlt; die Kennung
+            bleibt Notbehelf und nimmt nie seinen Platz ein. */}
+        {ziel.name
+          ? <strong>{ziel.name}</strong>
+          : <span style={{ color: 'var(--color-text-muted)' }}>
+              {ziel.nameFehltHinweis}
+            </span>}
+        {' · '}
+        <span data-testid="zielangabe-art">{ziel.artText}</span>
+        {ziel.anzahlText && <>{' · '}{ziel.anzahlText}</>}
+        {ziel.kennung && (
+          <div style={{
+            font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
+          }}>
+            {ziel.kennung}
+          </div>
         )}
-        {!containerRef && (
+        {!ziel.kennung && (
           <span style={{ color: 'var(--color-text-muted)' }}>
             {' '}— nicht bestimmbar
           </span>

@@ -144,6 +144,12 @@ class MutationSummary:
     approval_expires_at: str | None
     payload_digest: str = ""
     preview_digest: str = ""
+    #: Lesbarer Name des Zielablageorts aus dem Bestand. `None` heisst „noch
+    #: nicht gelesen" — die Flaeche zeigt das offen, statt die Kennung
+    #: einzusetzen.
+    container_name: str | None = None
+    #: Anzahl der Kontakte im Zielablageort. Kontext, nicht Kategorie.
+    container_contact_count: int | None = None
 
     @property
     def requires_reconcile(self) -> bool:
@@ -175,6 +181,14 @@ class ApprovalSummary:
     target_display_name: str | None = None
     container_identifier: str | None = None
     container_type: str | None = None
+    #: Lesbarer Name des Zielablageorts. `None` heisst „noch nicht gelesen".
+    container_name: str | None = None
+    #: Anzahl im Zielablageort. Kontext, nicht Kategorie.
+    container_contact_count: int | None = None
+    #: Die Nutzlastbindung. Der Freigabeknopf sitzt an dieser Liste, und der
+    #: Beleg der Eigentuemerhandlung bindet Nutzlast UND Darstellung — ohne
+    #: beide Digests koennte diese Flaeche nicht freigeben.
+    payload_digest: str = ""
 
 
 @dataclass(frozen=True)
@@ -336,7 +350,7 @@ class ContactsQueryService:
                 f"a.expires_at AS a_expires, "
                 f"COALESCE(m.container_identifier, x.container_identifier) "
                 f"AS ziel_container, "
-                f"st.container_type AS ziel_container_art, "
+                f"st.container_type AS ziel_container_art, st.container_name AS ziel_container_name, (SELECT COUNT(*) FROM contact_external_ids z  WHERE z.provider_account_id = m.provider_account_id  AND z.container_identifier =      COALESCE(m.container_identifier, x.container_identifier)) AS ziel_container_anzahl, "
                 # Kanonische Quelle der Sendversuche (siehe `_mutation`).
                 f"o.attempt_count AS sendversuche "
                 f"FROM contacts_mutations m "
@@ -364,7 +378,7 @@ class ContactsQueryService:
                 "a.expires_at AS a_expires, "
                 "COALESCE(m.container_identifier, x.container_identifier) "
                 "AS ziel_container, "
-                "st.container_type AS ziel_container_art, "
+                "st.container_type AS ziel_container_art, st.container_name AS ziel_container_name, (SELECT COUNT(*) FROM contact_external_ids z  WHERE z.provider_account_id = m.provider_account_id  AND z.container_identifier =      COALESCE(m.container_identifier, x.container_identifier)) AS ziel_container_anzahl, "
                 "o.attempt_count AS sendversuche "
                 "FROM contacts_mutations m "
                 "LEFT JOIN contacts c ON c.id = m.target_contact_id "
@@ -441,7 +455,7 @@ class ContactsQueryService:
                 f"c.display_name AS ziel_name, "
                 f"COALESCE(m.container_identifier, x.container_identifier) "
                 f"AS ziel_container, "
-                f"st.container_type AS ziel_container_art "
+                f"st.container_type AS ziel_container_art, st.container_name AS ziel_container_name, (SELECT COUNT(*) FROM contact_external_ids z  WHERE z.provider_account_id = m.provider_account_id  AND z.container_identifier =      COALESCE(m.container_identifier, x.container_identifier)) AS ziel_container_anzahl "
                 f"FROM personal_approvals a "
                 f"JOIN contacts_mutations m ON m.approval_id = a.approval_id "
                 f"LEFT JOIN contacts c ON c.id = m.target_contact_id "
@@ -470,7 +484,7 @@ class ContactsQueryService:
                 "c.display_name AS ziel_name, "
                 "COALESCE(m.container_identifier, x.container_identifier) "
                 "AS ziel_container, "
-                "st.container_type AS ziel_container_art "
+                "st.container_type AS ziel_container_art, st.container_name AS ziel_container_name, (SELECT COUNT(*) FROM contact_external_ids z  WHERE z.provider_account_id = m.provider_account_id  AND z.container_identifier =      COALESCE(m.container_identifier, x.container_identifier)) AS ziel_container_anzahl "
                 "FROM personal_approvals a "
                 "JOIN contacts_mutations m ON m.approval_id = a.approval_id "
                 "LEFT JOIN contacts c ON c.id = m.target_contact_id "
@@ -627,6 +641,8 @@ class ContactsQueryService:
             container_identifier=row["ziel_container"],
             container_type=normalize_container_type(
                 row["ziel_container_art"]),
+            container_name=row["ziel_container_name"],
+            container_contact_count=row["ziel_container_anzahl"],
             expected_revision=row["expected_revision"],
             # **Kanonisch die Outbox.** Sie erhoeht den Zaehler beim Claim,
             # also genau dann, wenn ein Sendversuch beginnt. Die gleichnamige
@@ -665,4 +681,7 @@ class ContactsQueryService:
             target_display_name=row["ziel_name"],
             container_identifier=row["ziel_container"],
             container_type=normalize_container_type(
-                row["ziel_container_art"]))
+                row["ziel_container_art"]),
+            container_name=row["ziel_container_name"],
+            container_contact_count=row["ziel_container_anzahl"],
+            payload_digest=row["payload_digest"])

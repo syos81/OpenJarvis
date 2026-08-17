@@ -23,6 +23,7 @@ import { aktionsKnopf } from '../detail/ContactDetailPane';
 import type { ContactsDataSource } from '../data/source';
 import type { Fehlerbild } from '../workspace/fehler';
 import { fehlerbild } from '../workspace/fehler';
+import { freigeben } from '../settings/freigabe';
 
 const AUTH_TEXT: Record<AuthorizationState, { titel: string; hinweis: string }> = {
   notDetermined: {
@@ -256,7 +257,9 @@ function ApprovalBoard({ quelle, onOpenMutation }: {
               <Zielangabe command={a.command}
                           targetLabel={a.target_display_name}
                           containerRef={a.container_ref}
-                          containerType={a.container_type} />
+                          containerType={a.container_type}
+                          containerName={a.container_name}
+                          containerContactCount={a.container_contact_count} />
             </div>
             <p style={{
               font: 'var(--pjc-font-label)', color: 'var(--color-text-muted)',
@@ -270,7 +273,7 @@ function ApprovalBoard({ quelle, onOpenMutation }: {
               {wartet && !a.is_expired && (
                 <>
                   <button type="button" data-testid="freigabe-freigeben"
-                          onClick={() => void handeln(() => quelle.approve(a.mutation_id, 'lukas'))}
+                          onClick={() => void handeln(() => freigeben(a, 'lukas'))}
                           className="pjc-focusable pjc-primary"
                           style={{
                             ...aktionsKnopf(false),
@@ -446,7 +449,9 @@ function MutationDetailView({ id, quelle, onBack }: {
       <div style={{ marginTop: '10px' }}>
         <Zielangabe command={m.command} targetLabel={m.target_display_name}
                     containerRef={m.container_ref}
-                    containerType={m.container_type} />
+                    containerType={m.container_type}
+                    containerName={m.container_name}
+                    containerContactCount={m.container_contact_count} />
       </div>
 
       {m.state === 'approved' && (

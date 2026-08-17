@@ -444,6 +444,10 @@ class MutationOut(_Strict):
     target_display_name: str | None = None
     container_ref: str | None = None
     container_type: str = "unknown"
+    #: Lesbarer Name des Zielablageorts. `None` heisst „noch nicht gelesen".
+    container_name: str | None = None
+    #: Anzahl im Zielablageort. Kontext, nicht Kategorie.
+    container_contact_count: int | None = None
     expected_revision: str | None = None
     attempt_count: int = 0
     last_error_code: str | None = None
@@ -482,6 +486,13 @@ class ApprovalOut(_Strict):
     target_display_name: str | None = None
     container_ref: str | None = None
     container_type: str = "unknown"
+    #: Lesbarer Name des Zielablageorts. `None` heisst „noch nicht gelesen".
+    container_name: str | None = None
+    #: Anzahl im Zielablageort. Kontext, nicht Kategorie.
+    container_contact_count: int | None = None
+    #: Nutzlastbindung — der Beleg der Eigentuemerhandlung braucht sie neben
+    #: dem `preview_digest`.
+    payload_digest: str = ""
 
 
 class ApprovalDecisionIn(_Strict):

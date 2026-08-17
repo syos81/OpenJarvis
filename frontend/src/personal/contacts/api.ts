@@ -149,6 +149,10 @@ export interface Mutation {
   container_ref: string | null;
   /** Art des Zielablageorts — Teil der informierten Freigabe (§8 A). */
   container_type: string;
+  /** Lesbarer Name aus dem Bestand. `null` heisst „noch nicht gelesen". */
+  container_name: string | null;
+  /** Anzahl im Zielablageort. Kontext, nicht Kategorie. */
+  container_contact_count: number | null;
   expected_revision: string | null;
   attempt_count: number;
   last_error_code: string | null;
@@ -189,6 +193,12 @@ export interface Approval {
   target_display_name: string | null;
   container_ref: string | null;
   container_type: string;
+  /** Lesbarer Name aus dem Bestand. `null` heisst „noch nicht gelesen". */
+  container_name: string | null;
+  /** Anzahl im Zielablageort. Kontext, nicht Kategorie. */
+  container_contact_count: number | null;
+  /** Nutzlastbindung — der Beleg braucht sie neben `preview_digest`. */
+  payload_digest: string;
 }
 
 export interface Capabilities {

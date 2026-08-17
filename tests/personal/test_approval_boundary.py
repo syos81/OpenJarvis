@@ -311,3 +311,76 @@ def test_eine_zeichenkette_mit_doppelslash_bleibt_lesbar(tmp_path):
     assert "/approve" in sauber
     assert "Kommentar" not in sauber
     assert len(sauber) == len(quelle)
+
+
+# ═══ Die Verengung der Ausführungsmarke ═════════════════════════════════════
+#
+# `invoke(` hiess bis zum 2026-08-17 „an den App-Prozess uebergeben" und damit
+# „ausfuehren" — es gab nur einen Grund, ihn zu rufen. Der Belegaufruf der
+# Einzelfreigabe ist der zweite und sendet nichts. Die Ausnahme dafuer muss
+# eng sein, sonst schluepft das naechste aehnlich benannte Kommando mit durch.
+_BELEG = "personal_contacts_attest_owner_approval"
+
+
+def _fuehrt_aus(tmp_path, quelle: str) -> bool:
+    from tools.guards.approval_boundary import EXECUTE_MARKER
+
+    wurzel = _baum(tmp_path, kandidat__ts=quelle)
+    ergebnis = analysiere(wurzel, marker=EXECUTE_MARKER)
+    return ergebnis.erreicht("kandidat.ts", "handle")
+
+
+def test_der_belegaufruf_ist_keine_ausfuehrungsmarke(tmp_path):
+    assert not _fuehrt_aus(tmp_path, f"""\
+export async function handle(id: string) {{
+  return invoke('{_BELEG}', {{ mutationId: id }});
+}}
+""")
+
+
+def test_ein_zweiter_invoke_in_derselben_datei_zaehlt_weiterhin(tmp_path):
+    """Die Auflage: Die Ausnahme gilt dem einen Aufruf, nicht der Datei.
+
+    Ohne diese Probe waere die Verengung nur behauptet — eine Datei, die
+    einmal belegt und daneben etwas ausfuehrt, muss die Ausfuehrungsgrenze
+    weiterhin erreichen.
+    """
+    assert _fuehrt_aus(tmp_path, f"""\
+export async function handle(id: string) {{
+  await invoke('{_BELEG}', {{ mutationId: id }});
+  return invoke('personal_contacts_execute_mutation', {{ id }});
+}}
+""")
+
+
+@pytest.mark.parametrize("name", [
+    _BELEG + "_extra",          # Praefix
+    _BELEG + "2",
+    "x" + _BELEG,               # Suffixlage
+    _BELEG.upper(),
+    _BELEG.replace("_", "-"),
+])
+def test_ein_aehnlicher_kommandoname_schluepft_nicht_mit_durch(tmp_path, name):
+    """Exakt, nicht Praefix und nicht Teilstring."""
+    assert _fuehrt_aus(tmp_path, f"""\
+export async function handle(id: string) {{
+  return invoke('{name}', {{ id }});
+}}
+""")
+
+
+def test_die_ausnahme_gilt_auch_in_der_generischen_form(tmp_path):
+    """`invoke<T>(...)` ist derselbe Aufruf mit Typangabe."""
+    assert not _fuehrt_aus(tmp_path, f"""\
+export async function handle(id: string) {{
+  return invoke<Ergebnis>('{_BELEG}', {{ mutationId: id }});
+}}
+""")
+
+
+def test_ein_fremdes_kommando_in_generischer_form_zaehlt(tmp_path):
+    assert _fuehrt_aus(tmp_path, """\
+export async function handle(id: string) {
+  return invoke<Ergebnis>('personal_calendar_execute_mutation', { id });
+}
+""")

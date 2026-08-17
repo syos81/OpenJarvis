@@ -466,13 +466,18 @@ def test_die_schreibweise_ist_zwischen_kern_und_oberflaeche_identisch():
     from pathlib import Path
 
     # Seit dem Apple-Neuaufbau (2026-08-02) lebt die Ablageort-Beschriftung im
-    # Kontakte-Modul, nicht mehr im Seitenmonolithen. Seit 2026-08-13 steht sie
+    # Kontakte-Modul, nicht mehr im Seitenmonolithen. Seit 2026-08-13 stand sie
     # in `components.tsx` statt im Anlage-Dialog: Die Freigabevorschau nennt
     # den Zielort ebenfalls (§8 A), und zwei Beschriftungstabellen waeren zwei
     # Wahrheiten darueber, wie „local" heisst — ausgerechnet an der Stelle, an
     # der der Mensch entscheidet, wohin geschrieben wird.
+    #
+    # Seit 2026-08-17 steht sie bei der **Formulierung** der Zielangabe: Dort
+    # entstehen Name, Art und Anzahl als ein Satz, und die Wortliste gehoert
+    # dorthin, wo sie gebraucht wird. `components.tsx` reicht sie weiter, damit
+    # bestehende Importe unveraendert bleiben.
     quelle = Path(__file__).resolve().parents[3] / (
-        "frontend/src/personal/contacts/components.tsx")
+        "frontend/src/personal/contacts/settings/zielangabe.ts")
     text = quelle.read_text(encoding="utf-8")
     block = text.split("const CONTAINER_ART", 1)[1].split("};", 1)[0]
     for art in SPECIFIC_CONTAINER_TYPES | {CONTAINER_TYPE_UNKNOWN}:
@@ -488,8 +493,14 @@ def test_die_beschriftung_steht_genau_einmal():
     wurzel = Path(__file__).resolve().parents[3] / "frontend/src"
     # Testdateien nennen die Zeichenkette, um genau diese Regel zu pruefen —
     # sie deklarieren die Tabelle nicht.
-    treffer = [p for p in wurzel.rglob("*.tsx")
-               if not p.name.endswith(".test.tsx")
+    #
+    # `.ts` gehoert seit 2026-08-17 mit in den Suchraum: Die Tabelle ist dorthin
+    # gezogen, und ein Suchlauf nur ueber `.tsx` haette eine zweite Tabelle in
+    # einer `.ts`-Datei uebersehen — die Luecke waere genau dort gewesen, wo die
+    # Regel jetzt gilt.
+    treffer = [p for muster in ("*.tsx", "*.ts")
+               for p in wurzel.rglob(muster)
+               if not p.name.endswith((".test.tsx", ".test.ts"))
                and "const CONTAINER_ART" in p.read_text(encoding="utf-8")]
     assert len(treffer) == 1, [str(p) for p in treffer]
 

@@ -5,6 +5,7 @@
 // weg, die der Nutzer braucht.
 
 import { ContactsApiError } from '../api';
+import { FreigabeAbgelehnt, fehlerText } from '../settings/freigabe';
 
 export interface Fehlerbild {
   message: string;
@@ -14,6 +15,16 @@ export interface Fehlerbild {
 }
 
 export function fehlerbild(e: unknown): Fehlerbild {
+  // Eine abgelehnte Einzelfreigabe traegt ihren eigenen, ganzen Satz. Der
+  // haeufigste Fall ist eine seit der Handlung veraenderte Vorschau — ohne
+  // Erklaerung liest sich der gewollte Abbruch wie ein Defekt.
+  if (e instanceof FreigabeAbgelehnt) {
+    return {
+      message: fehlerText(e.grund),
+      technicalCode: e.grund,
+      retryable: e.grund === 'preview_changed',
+    };
+  }
   if (e instanceof ContactsApiError) {
     return {
       message: e.message,

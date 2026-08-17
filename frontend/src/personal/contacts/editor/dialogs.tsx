@@ -16,6 +16,7 @@ import { aktionsKnopf } from '../detail/ContactDetailPane';
 import type { ContactsDataSource } from '../data/source';
 import type { Fehlerbild } from '../workspace/fehler';
 import { fehlerbild } from '../workspace/fehler';
+import { freigeben } from '../settings/freigabe';
 
 function FehlerZeile({ fehler }: { fehler: Fehlerbild | null }) {
   if (!fehler) return null;
@@ -128,7 +129,7 @@ export function PreviewDialog({ vorgang, quelle, onClose, onEntschieden }: {
             Ablehnen
           </button>
           <button type="button" disabled={laeuft} data-testid="vorschau-freigeben"
-                  onClick={() => void entscheiden(() => quelle.approve(vorgang.mutation_id, 'lukas'))}
+                  onClick={() => void entscheiden(() => freigeben(vorgang, 'lukas'))}
                   className="pjc-focusable pjc-primary"
                   style={{
                     ...aktionsKnopf(false),
@@ -152,7 +153,9 @@ export function PreviewDialog({ vorgang, quelle, onClose, onEntschieden }: {
       <Zielangabe command={vorgang.command}
                   targetLabel={vorgang.target_label}
                   containerRef={vorgang.container_ref}
-                  containerType={vorgang.container_type} />
+                  containerType={vorgang.container_type}
+                  containerName={vorgang.container_name}
+                  containerContactCount={vorgang.container_contact_count} />
       {vorgang.warnings.map((w) => (
         <p key={w} style={{ font: 'var(--pjc-font-body)', color: 'var(--color-warning)', margin: '8px 0 0' }}>
           {w}

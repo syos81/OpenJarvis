@@ -885,6 +885,8 @@ def _mutation_out(m) -> S.MutationOut:
         container_ref=(container_ref(m.container_identifier)
                        if m.container_identifier else None),
         container_type=m.container_type or "unknown",
+        container_name=m.container_name,
+        container_contact_count=m.container_contact_count,
         expected_revision=m.expected_revision, attempt_count=m.attempt_count,
         last_error_code=m.last_error_code, created_at=m.created_at,
         approved_at=m.approved_at, completed_at=m.completed_at,

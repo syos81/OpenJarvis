@@ -10,7 +10,7 @@
 // genau diesem Vorgang gespeichert hat. Würde sie rechnen, gäbe es zwei
 // Wahrheiten über dieselbe Vorschau.
 
-import { approveMutation, ContactsApiError, type PreparedMutation } from '../api';
+import { approveMutation, ContactsApiError } from '../api';
 import { isTauri } from '../../../lib/api';
 
 /** Warum eine Freigabe nicht zustande kam — geschlossene Kennungen. */
@@ -54,7 +54,20 @@ export function fehlerText(grund: FreigabeFehler): string {
   }
 }
 
-async function belegen(vorgang: PreparedMutation): Promise<void> {
+/**
+ * Die Bindung, die ein Beleg braucht — und mehr nicht.
+ *
+ * Bewusst nicht `PreparedMutation`: Der Dialog haelt eine Vorschau, das Board
+ * einen Vorgang, und beide tragen genau diese drei Angaben. Ein breiterer Typ
+ * zwaenge eine der beiden Flaechen, sich etwas zu bauen, das sie nicht hat.
+ */
+export interface Freigabebindung {
+  mutation_id: string;
+  payload_digest: string;
+  preview_digest: string;
+}
+
+async function belegen(vorgang: Freigabebindung): Promise<void> {
   if (!isTauri()) {
     throw new FreigabeAbgelehnt('attestation_unavailable');
   }
@@ -83,7 +96,7 @@ async function belegen(vorgang: PreparedMutation): Promise<void> {
  * `actor` bleibt Protokoll für die Auditspur — er ist seit dem 17.08.
  * ausdrücklich kein Nachweis mehr.
  */
-export async function freigeben(vorgang: PreparedMutation,
+export async function freigeben(vorgang: Freigabebindung,
                                 actor: string): Promise<void> {
   await belegen(vorgang);
   try {

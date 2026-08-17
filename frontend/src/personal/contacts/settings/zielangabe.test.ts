@@ -5,13 +5,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { zielangabe } from './zielangabe';
+import { CONTAINER_ART, zielangabe } from './zielangabe';
 
 describe('Zielangabe', () => {
   it('nennt Name, Art und Anzahl, wenn alles bekannt ist', () => {
     const z = zielangabe('iCloud', 'cardDAV', 'C-1', 114);
     expect(z.name).toBe('iCloud');
-    expect(z.artText).toBe('Synchronisiertes Konto');
+    expect(z.artText).toBe(CONTAINER_ART.cardDAV);
     expect(z.anzahlText).toBe('114 Kontakte');
     expect(z.kennung).toBe('C-1');
     expect(z.nameFehltHinweis).toBeNull();
@@ -55,7 +55,7 @@ describe('Zielangabe', () => {
 
   it('faellt bei unbekannter Art auf eine ehrliche Aussage zurueck', () => {
     const z = zielangabe(null, 'etwas-neues', 'C-9', null);
-    expect(z.artText).toBe('Art noch nicht gelesen');
+    expect(z.artText).toBe(CONTAINER_ART.unknown);
     expect(z.istKonto).toBe(false);
     expect(z.anzahlText).toBeNull();
   });
