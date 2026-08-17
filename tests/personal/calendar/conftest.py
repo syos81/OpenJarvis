@@ -164,3 +164,24 @@ class FakeCalendarClient:
             window_start_utc=start_utc, window_end_utc=end_utc,
             provider_calendar_ids=provider_calendar_ids,
         )
+
+
+@pytest.fixture(autouse=True)
+def eigentuemerbeleg_vorhanden(monkeypatch):
+    """Dieselbe sichtbare Annahme wie in der Kontakte-Suite.
+
+    Seit der Reparatur vom 2026-08-17 entsteht eine Eigentümerentscheidung nur
+    gegen einen Beleg aus dem App-Prozess (`base/owner_attestation.py`). Diese
+    Suite prüft den Ablauf **nach** der Freigabe; ohne die Öffnung käme keine
+    einzige zustande. Die Herkunft prüft `test_owner_provenance.py`.
+    """
+    from personaljarvis.base import owner_attestation as beleg
+
+    def _immer(*, capability, mutation_id, payload_digest, **_):
+        return beleg.OwnerAttestation(
+            capability=capability, mutation_id=mutation_id,
+            payload_digest=payload_digest,
+            attested_at="2026-08-17T12:00:00Z", method="testannahme")
+
+    monkeypatch.setattr(beleg, "read_attestation", _immer)
+    monkeypatch.setattr(beleg, "consume_attestation", lambda **_: True)

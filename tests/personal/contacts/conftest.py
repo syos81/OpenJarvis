@@ -99,3 +99,28 @@ def make_contact(**overrides) -> Contact:
     )
     defaults.update(overrides)
     return Contact(**defaults)
+
+
+@pytest.fixture(autouse=True)
+def eigentuemerbeleg_vorhanden(monkeypatch):
+    """Diese Suite prüft den Ablauf **nach** der Freigabe, nicht ihre Herkunft.
+
+    Seit der Reparatur vom 2026-08-17 entsteht eine Eigentümerentscheidung nur
+    gegen einen Beleg aus dem App-Prozess (`base/owner_attestation.py`). Ohne
+    diese Öffnung käme in dieser Suite keine einzige Freigabe mehr zustande und
+    rund achtzig Prüfungen zu Verbrauch, Zuständen, Fingerprintbindung und
+    Nebenläufigkeit wären stumm.
+
+    Die Annahme steht deshalb hier sichtbar. Die Herkunft selbst prüft
+    `test_owner_provenance.py` — dort ausdrücklich **ohne** diese Öffnung.
+    """
+    from personaljarvis.base import owner_attestation as beleg
+
+    def _immer(*, capability, mutation_id, payload_digest, **_):
+        return beleg.OwnerAttestation(
+            capability=capability, mutation_id=mutation_id,
+            payload_digest=payload_digest,
+            attested_at="2026-08-17T12:00:00Z", method="testannahme")
+
+    monkeypatch.setattr(beleg, "read_attestation", _immer)
+    monkeypatch.setattr(beleg, "consume_attestation", lambda **_: True)

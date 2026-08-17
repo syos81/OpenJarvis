@@ -32,7 +32,7 @@ from personaljarvis.base.approvals import (
     ApprovalError,
     ApprovalStore,
     DEFAULT_TTL_SECONDS,
-    owner_decision,
+    owner_decision_attested,
 )
 from personaljarvis.base.audit import AuditStage, AuditTrail
 from personaljarvis.base.db.factory import ConnectionFactory
@@ -860,12 +860,22 @@ class CalendarMutationService:
             if zeile["state"] != "prepared":
                 raise MutationNotExecutable(
                     f"Vorgang ist '{zeile['state']}', nicht 'prepared'")
-            # Derselbe Freigabekern, dieselbe Grenze: Seit 2026-08-13
-            # verlangt `grant` die gesiegelte Eigentuemerentscheidung statt
-            # eines Namens. Eine Grenze, die nur fuer ein Modul gilt, ist
-            # keine.
-            ApprovalStore(uow).grant(zeile["approval_id"],
-                                     decision=owner_decision(decision_actor))
+            # Derselbe Freigabekern, dieselbe Grenze — und seit dem Befund vom
+            # 2026-08-17 dasselbe Primitiv: Die Entscheidung entsteht nur gegen
+            # einen Beleg aus dem App-Prozess, der an genau diesen Vorgang und
+            # diese Nutzlast gebunden ist. Eine Grenze, die nur fuer ein Modul
+            # gilt, ist keine.
+            #
+            # Fuer Kalender ist das heute ohne praktische Wirkung: sein
+            # Produktschloss verhindert jede Mutation. Die Freigabe darf
+            # deshalb trotzdem nicht schwaecher sein als die der Kontakte —
+            # sonst waere sie beim Oeffnen in B2 die schwaechste Stelle.
+            ApprovalStore(uow).grant(
+                zeile["approval_id"],
+                decision=owner_decision_attested(
+                    capability=CAPABILITY, mutation_id=mutation_id,
+                    payload_digest=zeile["payload_digest"],
+                    actor=decision_actor))
             pruefe_uebergang(zeile["state"], "approved")
             uow.execute(
                 "UPDATE calendar_mutations SET state = 'approved' "

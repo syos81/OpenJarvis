@@ -13,7 +13,7 @@ import uuid
 import pytest
 
 from personaljarvis.base.approvals import (
-    owner_decision,
+    owner_decision_for_tests,
     ApprovalExpired,
     ApprovalNotPending,
     ApprovalPayloadMismatch,
@@ -407,7 +407,7 @@ def test_freigabe_und_ausfuehrung(module):
     provider = AttrappenProvider(provider_identifier="raw-neu")
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == MutationState.SUCCEEDED
     assert len(provider.calls) == 1
@@ -421,7 +421,7 @@ def test_modell_kann_sich_nicht_selbst_freigeben(module):
                 actor="llm_assisted"))
     for versuch in ("llm_assisted", "automation", "system", "  "):
         with pytest.raises(SelfApprovalRejected):
-            service.grant(vorgang.mutation_id, decision=owner_decision(versuch))
+            service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(versuch))
 
 
 def test_abgelehnte_freigabe_ist_endgueltig(module):
@@ -430,7 +430,7 @@ def test_abgelehnte_freigabe_ist_endgueltig(module):
     vorgang = service.prepare(_create())
     service.reject(vorgang.mutation_id, decision_actor=MENSCH)
     with pytest.raises(ApprovalNotPending):
-        service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+        service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     with pytest.raises(AlreadySettled):
         service.execute(vorgang.mutation_id)
 
@@ -441,7 +441,7 @@ def test_stornierte_freigabe_ist_endgueltig(module):
     vorgang = service.prepare(_create())
     service.cancel(vorgang.mutation_id, decision_actor=MENSCH)
     with pytest.raises(ApprovalNotPending):
-        service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+        service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
 
 def test_abgelaufene_freigabe_wird_nicht_ausgefuehrt(module):
@@ -449,7 +449,7 @@ def test_abgelaufene_freigabe_wird_nicht_ausgefuehrt(module):
     provider = AttrappenProvider()
     service = ContactsMutationService(module, provider, approval_ttl_seconds=1)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     with module.unit_of_work() as uow:
         uow.execute("UPDATE personal_approvals SET requested_at = ?, "
                     "expires_at = ? WHERE approval_id = ?",
@@ -465,7 +465,7 @@ def test_geaenderte_nutzlast_entwertet_die_freigabe(module):
     provider = AttrappenProvider()
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     with module.unit_of_work() as uow:
         uow.execute("UPDATE contacts_mutations SET payload_json = ? "
                     "WHERE mutation_id = ?",
@@ -484,7 +484,7 @@ def test_freigabe_fuer_falsche_mutation_wirkt_nicht(module):
     service = ContactsMutationService(module, AttrappenProvider())
     a = service.prepare(_create())
     b = service.prepare(_create())
-    service.grant(a.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(a.mutation_id, decision=owner_decision_for_tests(MENSCH))
     with pytest.raises(MutationNotExecutable):
         service.execute(b.mutation_id)
 
@@ -493,9 +493,9 @@ def test_doppelte_freigabe_abgelehnt(module):
     _container_bekannt(module)
     service = ContactsMutationService(module, AttrappenProvider())
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     with pytest.raises(ApprovalNotPending):
-        service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+        service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
 
 def test_freigabeflaeche_listet_wartende_ohne_pii(module):
@@ -528,7 +528,7 @@ def test_zweite_ausfuehrung_nach_erfolg_sendet_nicht_erneut(module):
     provider = AttrappenProvider()
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with pytest.raises(AlreadySettled):
         service.execute(vorgang.mutation_id)
@@ -554,7 +554,7 @@ def test_veraltete_revision_endet_vor_dem_send(module):
     provider = AttrappenProvider()
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_update(expected_revision="3"))
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == MutationState.FAILED_BEFORE_SEND
     assert ergebnis.error_code == "RevisionConflict"
@@ -566,7 +566,7 @@ def test_unbekannter_container_endet_vor_dem_send(module):
     provider = AttrappenProvider()
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == MutationState.FAILED_BEFORE_SEND
     assert ergebnis.error_code == "ContainerNotAvailable"
@@ -613,7 +613,7 @@ def test_outcome_unknown_ist_nie_faellig(module):
                                  error_code="timeout_after_send")
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with module.unit_of_work() as uow:
         faellig = ExternalActionOutbox(uow).list_due(module="contacts")
@@ -624,7 +624,7 @@ def test_abgeschlossene_eintraege_werden_nicht_geloescht(module):
     _container_bekannt(module)
     service = ContactsMutationService(module, AttrappenProvider())
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with module.unit_of_work() as uow:
         eintrag = ExternalActionOutbox(uow).require(vorgang.outbox_id)
@@ -658,7 +658,7 @@ def test_alle_provider_ausgaenge(module, outcome, erwartet, gesendet):
     provider = AttrappenProvider(outcome, error_code="probe")
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == erwartet
     assert (len(provider.calls) == 1) is gesendet
@@ -674,7 +674,7 @@ def test_ausnahme_im_provider_gilt_als_unbekannter_ausgang(module, fehler):
     _container_bekannt(module)
     service = ContactsMutationService(module, AttrappenProvider(raises=fehler))
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     ergebnis = service.execute(vorgang.mutation_id)
     assert ergebnis.state == MutationState.OUTCOME_UNKNOWN
     assert ergebnis.requires_reconcile is True
@@ -685,7 +685,7 @@ def test_kein_automatischer_retry_aus_outcome_unknown(module):
     provider = AttrappenProvider(ProviderOutcome.OUTCOME_UNKNOWN)
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with pytest.raises(MutationNotExecutable, match="Abgleich"):
         service.execute(vorgang.mutation_id)
@@ -697,7 +697,7 @@ def _in_unbekannten_zustand(module, command):
     provider = AttrappenProvider(ProviderOutcome.OUTCOME_UNKNOWN)
     service = ContactsMutationService(module, provider)
     vorgang = service.prepare(command)
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     return vorgang
 
@@ -838,7 +838,7 @@ def test_abgleich_nur_aus_unbekanntem_zustand(module):
     _container_bekannt(module)
     service = ContactsMutationService(module, AttrappenProvider())
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with pytest.raises(MutationNotExecutable, match="braucht keinen Abgleich"):
         ContactsReconcileService(module, AttrappenLeser()).reconcile(
@@ -874,7 +874,7 @@ def test_vollstaendige_ereignisfolge_bei_erfolg(module):
     _container_bekannt(module)
     service = ContactsMutationService(module, AttrappenProvider())
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     stufen = _stufen(module, vorgang.mutation_id)
     for erwartet in (AuditStage.MUTATION_PREPARED, AuditStage.APPROVAL_REQUESTED,
@@ -903,7 +903,7 @@ def test_hashkette_ist_intakt(module):
     _container_bekannt(module)
     service = ContactsMutationService(module, AttrappenProvider())
     vorgang = service.prepare(_create())
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with module.unit_of_work() as uow:
         assert AuditTrail(uow, module="contacts").verify_chain() is True
@@ -924,7 +924,7 @@ def test_audit_enthaelt_keine_kontaktwerte_und_keine_nutzlast(module):
     service = ContactsMutationService(module, AttrappenProvider())
     vorgang = service.prepare(_create(draft=ContactDraft(
         {"given_name": "Geheim", "family_name": "Wert"})))
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     service.execute(vorgang.mutation_id)
     with module.unit_of_work() as uow:
         rows = uow.execute("SELECT * FROM personal_audit_log").fetchall()

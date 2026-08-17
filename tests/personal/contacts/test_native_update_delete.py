@@ -16,7 +16,7 @@ import os
 
 import pytest
 
-from personaljarvis.base.approvals import owner_decision
+from personaljarvis.base.approvals import owner_decision_for_tests
 
 from personaljarvis.contacts.application.app_channel import (
     MODE_DISABLED,
@@ -112,7 +112,7 @@ def _update_vorbereitet(modul, pid: str, patch: dict) -> str:
         initiation_context=InitiationContext.USER_DIRECT,
         correlation_id=new_id(), target_provider_identifier=pid,
         patch=ContactPatch(dict(patch))))
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     return vorgang.mutation_id
 
 
@@ -124,7 +124,7 @@ def _delete_vorbereitet(modul, pid: str) -> str:
         provider_account_id=KONTO, workspace_id=WORKSPACE, actor=MENSCH,
         initiation_context=InitiationContext.USER_DIRECT,
         correlation_id=new_id(), target_provider_identifier=pid))
-    service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+    service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     return vorgang.mutation_id
 
 

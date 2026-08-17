@@ -33,7 +33,8 @@ __all__ = [
     "ApprovalPayloadMismatch",
     "SelfApprovalRejected",
     "OwnerDecision",
-    "owner_decision",
+    "owner_decision_attested",
+    "owner_decision_for_tests",
     "Approval",
     "ApprovalStore",
     "DEFAULT_TTL_SECONDS",
@@ -99,19 +100,62 @@ class OwnerDecision:
         return f"OwnerDecision(actor={self.actor!r})"
 
 
-def owner_decision(actor: str) -> OwnerDecision:
-    """Die **einzige** Stelle, an der eine Eigentümerentscheidung entsteht.
-
-    Sie gehört an den interaktiven Freigabeweg und nirgendwo sonst. Der Name
-    bleibt erhalten, weil die Auditspur festhalten muss, *wer* entschieden
-    hat — er ist Protokoll, nicht mehr Nachweis.
-    """
+def _geprueft(actor: str) -> str:
     if not actor or not actor.strip():
         raise SelfApprovalRejected("Eine Freigabe ohne Entscheider ist keine")
     if actor.strip() in _NON_HUMAN_ORIGINS:
         raise SelfApprovalRejected(
             f"'{actor}' ist ein maschineller Ursprung und kein Entscheider")
-    return OwnerDecision(actor.strip(), seal=_SIEGEL)
+    return actor.strip()
+
+
+def owner_decision_attested(*, capability: str, mutation_id: str,
+                            payload_digest: str, actor: str,
+                            verzeichnis=None) -> OwnerDecision:
+    """Die **einzige** Stelle, an der im Produkt eine Eigentümerentscheidung
+    entsteht — und sie entsteht nur gegen einen Beleg.
+
+    Vorher genügte ein HTTP-Aufruf mit frei gesetztem `decision_actor`. Der
+    Name war ein Metadatum und wurde als Authentizitätsbeweis gelesen; gemessen
+    liefen so 25 von 25 Mutationen ohne jede Bestätigung durch. Jetzt muss ein
+    Beleg aus dem App-Prozess vorliegen, der an **diesen** Vorgang und an
+    **diese** Nutzlast gebunden ist (`base/owner_attestation.py`).
+
+    Der Beleg wird dabei verbraucht: eine Handlung, eine Mutation.
+
+    `actor` bleibt erhalten, weil die Auditspur festhalten muss, *wer*
+    entschieden hat. Er ist Protokoll — der Nachweis ist der Beleg.
+    """
+    from personaljarvis.base.owner_attestation import (
+        consume_attestation,
+        read_attestation,
+    )
+
+    name = _geprueft(actor)
+    beleg = read_attestation(capability=capability, mutation_id=mutation_id,
+                             payload_digest=payload_digest,
+                             verzeichnis=verzeichnis)
+    if beleg is None:
+        raise SelfApprovalRejected(
+            "Keine belegte Eigentümerhandlung für diesen Vorgang: Die Freigabe "
+            "entsteht im App-Prozess, nicht aus einem Aufruf")
+    consume_attestation(mutation_id=mutation_id, verzeichnis=verzeichnis)
+    return OwnerDecision(name, seal=_SIEGEL)
+
+
+def owner_decision_for_tests(actor: str) -> OwnerDecision:
+    """Ausschliesslich für Testsuiten — **nie** aus Produktcode aufrufen.
+
+    Die Suiten prüfen den Ablauf nach der Freigabe: Verbrauch, Zustände,
+    Fingerprintbindung, Nebenläufigkeit. Sie brauchen dafür eine Entscheidung,
+    aber nicht den Belegweg — sonst prüfte jeder dieser Tests zweimal dasselbe
+    und niemand mehr das Eigentliche.
+
+    Dass hier kein Produktcode landet, hält ein Statiktest fest
+    (`test_owner_provenance.py`). Ohne ihn wäre diese Funktion genau die
+    Hintertür, die `owner_decision_attested` gerade geschlossen hat.
+    """
+    return OwnerDecision(_geprueft(actor), seal=_SIEGEL)
 
 
 class ApprovalState:

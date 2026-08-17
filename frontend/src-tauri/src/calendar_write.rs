@@ -709,8 +709,16 @@ pub fn execute_order_mit_operationen(
     // Pfad zusaetzlich einen autoritativen, an genau diese Mutation
     // gebundenen Claim VOR dem Save pruefen. Frei erfindbare Hex-Digests und
     // ein frei erfindbarer `claim_token` duerfen EventKit nie erreichen.
+    //
+    // Die Fehlerklasse ist `provider_channel_disabled_before_send` und keine
+    // neu erfundene: Das Vokabular ist geschlossen und steht als
+    // CHECK-Bedingung in Migration 0008. Genau das sagt der Fall auch aus —
+    // der Kanal ist abgeschaltet, und zwar vor jedem Senden.
     if !produktreif() {
-        return CalendarExecutionReportV1::not_sent(&order, "product_write_not_ready");
+        return CalendarExecutionReportV1::not_sent(
+            &order,
+            "provider_channel_disabled_before_send",
+        );
     }
 
     let kalender_id = order.provider_target.provider_calendar_id.clone();
@@ -1607,7 +1615,10 @@ pub(crate) mod tests {
         });
 
         assert_eq!(bericht.outcome, "not_sent");
-        assert_eq!(bericht.error_class.as_deref(), Some("product_write_not_ready"));
+        assert_eq!(
+            bericht.error_class.as_deref(),
+            Some("provider_channel_disabled_before_send")
+        );
         // Der eigentliche Beleg: **kein einziger** Providerkontakt. Nicht der
         // Save, nicht der Readback, nicht einmal die Autorisierungsabfrage.
         assert_eq!(ops.beruehrungen, 0, "der Provider wurde beruehrt");

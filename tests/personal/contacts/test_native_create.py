@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from personaljarvis.base.approvals import owner_decision
+from personaljarvis.base.approvals import owner_decision_for_tests
 
 from personaljarvis.contacts.application.app_channel import (
     MODE_DISABLED,
@@ -120,7 +120,7 @@ def _vorbereitet(modul, *, freigeben: bool = True, entwurf=None) -> str:
         correlation_id=new_id(), container_identifier=CONTAINER,
         draft=ContactDraft(dict(entwurf or ENTWURF))))
     if freigeben:
-        service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+        service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     return vorgang.mutation_id
 
 

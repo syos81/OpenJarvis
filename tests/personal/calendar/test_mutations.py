@@ -889,7 +889,7 @@ KONTROLLE = {
 def _freigabe_anlegen(uow, payload_digest: str = "d",
                       preview_digest: str = "p") -> str:
     """Eine verbrauchsfaehige Freigabe fuer direkt gesetzte Testzeilen."""
-    from personaljarvis.base.approvals import owner_decision, ApprovalStore
+    from personaljarvis.base.approvals import owner_decision_for_tests, ApprovalStore
     approval_id = str(uuid.uuid4())
     ApprovalStore(uow).request(
         approval_id=approval_id, module="calendar",
@@ -898,7 +898,7 @@ def _freigabe_anlegen(uow, payload_digest: str = "d",
         correlation_id=approval_id, payload_digest=payload_digest,
         preview_digest=preview_digest,
         ttl_seconds=900)
-    ApprovalStore(uow).grant(approval_id, decision=owner_decision("lukas"))
+    ApprovalStore(uow).grant(approval_id, decision=owner_decision_for_tests("lukas"))
     return approval_id
 
 

@@ -15,7 +15,7 @@ import pytest
 from personaljarvis.base.approvals import (
     ApprovalState,
     effective_state,
-    owner_decision,
+    owner_decision_for_tests,
 )
 from personaljarvis.contacts.application import (
     ContactsMutationService,
@@ -78,7 +78,7 @@ class TestAblaufBeimLesen:
         kontakt = _lokal(module)
         befehl = _update_befehl(kontakt)
         dienst.prepare(befehl)
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
         fragen = ContactsQueryService(module)
         vorher = fragen.list_approvals(workspace_id=WORKSPACE)
@@ -97,7 +97,7 @@ class TestAblaufBeimLesen:
         kontakt = _lokal(module)
         befehl = _update_befehl(kontakt)
         dienst.prepare(befehl)
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
         ContactsQueryService(module).list_approvals(
             workspace_id=WORKSPACE, now="2099-01-01T00:00:00+00:00")

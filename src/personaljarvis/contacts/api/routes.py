@@ -30,7 +30,7 @@ from personaljarvis.base.approvals import (
     ApprovalNotPending,
     ApprovalPayloadMismatch,
     SelfApprovalRejected,
-    owner_decision,
+    owner_decision_attested,
 )
 from personaljarvis.contacts.api import schemas as S
 from personaljarvis.contacts.api.redaction import (
@@ -100,6 +100,10 @@ PREFIX = "/v1/personal/contacts"
 #: Daten liefern als eine vorhandene.
 DEFAULT_WORKSPACE_HEADER = "X-Personal-Workspace"
 DEFAULT_WORKSPACE = "default"
+
+#: Die Faehigkeit, fuer die ein Eigentuemerbeleg hier gelten muss. Steht einmal
+#: und wird nie zusammengesetzt: eine getippte Faehigkeit faende keinen Beleg.
+ATTESTATION_CAPABILITY = "contacts"
 
 #: Abbildung der Domänenfehler auf HTTP und die geschlossene Fehlertaxonomie
 #: (08 §3 Nr. 5). Kein roher Fehler verlässt die Schicht.
@@ -615,11 +619,20 @@ def create_contacts_router(module) -> APIRouter:
             if aktion == "expire":
                 service.expire(mutation_id)
             elif aktion == "grant":
-                # **Die einzige Stelle im Kontaktmodul**, an der eine
-                # Eigentuemerentscheidung entsteht. Ein Statiktest haelt das
-                # fest; ohne diese Enge waere die Grenze wieder ein String.
-                service.grant(mutation_id,
-                              decision=owner_decision(decision_actor or ""))
+                # Diese Route erzeugt **keine** Eigentuemerentscheidung mehr.
+                # Sie legt einen Beleg vor, der im App-Prozess entstanden ist;
+                # fehlt er, oder ist er nicht an genau diesen Vorgang und diese
+                # Nutzlast gebunden, scheitert die Freigabe. Der mitgelieferte
+                # Name ist Metadatum, nie Nachweis — genau diese Verwechslung
+                # war der Befund vom 2026-08-17.
+                vorgang = queries.get_mutation(mutation_id, workspace_id=ws)
+                service.grant(
+                    mutation_id,
+                    decision=owner_decision_attested(
+                        capability=ATTESTATION_CAPABILITY,
+                        mutation_id=mutation_id,
+                        payload_digest=vorgang.payload_digest,
+                        actor=decision_actor or ""))
             else:
                 getattr(service, aktion)(mutation_id,
                                          decision_actor=decision_actor)

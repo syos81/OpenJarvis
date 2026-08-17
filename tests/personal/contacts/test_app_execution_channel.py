@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from personaljarvis.base.approvals import owner_decision
+from personaljarvis.base.approvals import owner_decision_for_tests
 
 from personaljarvis.contacts.application import ContactsMutationService
 from personaljarvis.contacts.application.app_execution import (
@@ -128,7 +128,7 @@ def _vorbereitet(modul, *, freigeben: bool = True) -> str:
         draft=ContactDraft({"given_name": "Testperson",
                             "family_name": "Alpha"})))
     if freigeben:
-        service.grant(vorgang.mutation_id, decision=owner_decision(MENSCH))
+        service.grant(vorgang.mutation_id, decision=owner_decision_for_tests(MENSCH))
     return vorgang.mutation_id
 
 

@@ -12,7 +12,7 @@ Eine Allowlist derselben Sorte (`actor == 'lukas'`) wäre dieselbe Lücke mit
 umgekehrtem Vorzeichen. Geprüft wird deshalb nicht, ob ein bestimmter Name
 durchkommt, sondern ob **irgendein selbst gewählter Name** eine
 Eigentümerfreigabe erzeugen kann. Er kann es nicht: Die Freigabe verlangt ein
-`OwnerDecision`, und das entsteht ausschliesslich in `owner_decision()`.
+`OwnerDecision`, und das entsteht ausschliesslich in `owner_decision_for_tests()`.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from personaljarvis.base.approvals import (
     ApprovalStore,
     OwnerDecision,
     SelfApprovalRejected,
-    owner_decision,
+    owner_decision_for_tests,
 )
 from personaljarvis.contacts.application import ContactsMutationService
 from personaljarvis.contacts.application.errors import (
@@ -72,16 +72,16 @@ class TestOwnerDecision:
                                           "system"])
     def test_maschinelle_ursprünge_werden_abgewiesen(self, ursprung):
         with pytest.raises(SelfApprovalRejected):
-            owner_decision(ursprung)
+            owner_decision_for_tests(ursprung)
 
     @pytest.mark.parametrize("leer", ["", "   "])
     def test_eine_freigabe_ohne_entscheider_ist_keine(self, leer):
         with pytest.raises(SelfApprovalRejected):
-            owner_decision(leer)
+            owner_decision_for_tests(leer)
 
     def test_der_name_bleibt_protokoll(self):
         """Er ist Auditangabe, nicht mehr Nachweis."""
-        assert owner_decision("  lukas  ").actor == "lukas"
+        assert owner_decision_for_tests("  lukas  ").actor == "lukas"
 
 
 class TestGrantVerlangtDieHandlung:
@@ -109,7 +109,7 @@ class TestGrantVerlangtDieHandlung:
             self, module, vorbereitet):
         dienst, befehl = vorbereitet
         freigabe = dienst.grant(befehl.mutation_id,
-                                decision=owner_decision(MENSCH))
+                                decision=owner_decision_for_tests(MENSCH))
 
         assert freigabe.state == ApprovalState.GRANTED
         assert freigabe.decision_actor == MENSCH
@@ -124,7 +124,7 @@ class TestGrantVerlangtDieHandlung:
         from personaljarvis.base.approvals import ApprovalPayloadMismatch
 
         dienst, befehl = vorbereitet
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
         with module.unit_of_work() as uow:
             zeile = uow.execute(
@@ -178,7 +178,7 @@ class TestExecuteErzeugtKeineFreigabe:
     def test_nach_der_freigabe_ist_execute_ein_eigener_schritt(self, module,
                                                                vorbereitet):
         dienst, befehl = vorbereitet
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
         fragen = ContactsQueryService(module)
         nach_freigabe = fragen.get_mutation(befehl.mutation_id,
@@ -193,7 +193,7 @@ class TestExecuteErzeugtKeineFreigabe:
 
     def test_ein_zweites_execute_findet_nicht_statt(self, module, vorbereitet):
         dienst, befehl = vorbereitet
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
         dienst.execute(befehl.mutation_id)
 
         # Terminal ist terminal: Der zweite Versuch wird typisiert abgewiesen,
@@ -204,7 +204,7 @@ class TestExecuteErzeugtKeineFreigabe:
     def test_eine_abgelaufene_freigabe_traegt_kein_execute(self, module,
                                                            vorbereitet):
         dienst, befehl = vorbereitet
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
         # Beide Zeitpunkte zurueck: Der CHECK der Migration verlangt
         # `expires_at > requested_at`, und eine Freigabe, die nie gueltig war,
@@ -221,7 +221,7 @@ class TestExecuteErzeugtKeineFreigabe:
             self, module, vorbereitet):
         """Sichtbar abgelaufen — und die Anzeige hat nichts geschrieben."""
         dienst, befehl = vorbereitet
-        dienst.grant(befehl.mutation_id, decision=owner_decision(MENSCH))
+        dienst.grant(befehl.mutation_id, decision=owner_decision_for_tests(MENSCH))
 
         gelesen = ContactsQueryService(module).list_approvals(
             workspace_id=WORKSPACE, now="2099-01-01T00:00:00+00:00")
@@ -250,18 +250,31 @@ def _aufrufstellen(wurzel: Path, name: str) -> list[str]:
 
 
 def test_owner_decision_wird_nur_am_freigabeweg_aufgerufen():
-    """Eine Stelle je Modul — und beide sind der interaktive Entscheidungsweg.
+    """Eine Stelle je Modul — und beide verlangen einen Beleg.
 
-    Ohne diese Enge wäre die geschlossene Repräsentation folgenlos: Wer
-    `owner_decision()` überall aufrufen darf, hat wieder den freien String,
-    nur mit mehr Zeichen.
+    Ohne diese Enge wäre die geschlossene Repräsentation folgenlos: Wer sie
+    überall bauen darf, hat wieder den freien String, nur mit mehr Zeichen.
     """
-    stellen = _aufrufstellen(_REPO / "src" / "personaljarvis", "owner_decision")
+    stellen = _aufrufstellen(_REPO / "src" / "personaljarvis",
+                             "owner_decision_attested")
     dateien = {s.split(":")[0] for s in stellen}
     assert dateien == {
         "contacts/api/routes.py",
         "calendar/mutations/service.py",
     }, stellen
+
+
+def test_der_testweg_erreicht_keinen_produktcode():
+    """Der Riegel hinter der Reparatur vom 2026-08-17.
+
+    `owner_decision_for_tests()` baut eine Entscheidung ohne Beleg. Für Suiten
+    ist das richtig; in Produktcode wäre es genau die Hintertür, die
+    `owner_decision_attested()` gerade geschlossen hat. Ruft irgendwann eine
+    Datei unter `src/` sie auf, ist die Grenze wieder ein String.
+    """
+    stellen = _aufrufstellen(_REPO / "src" / "personaljarvis",
+                             "owner_decision_for_tests")
+    assert stellen == [], stellen
 
 
 def test_der_ausfuehrungspfad_ruft_keine_freigabe():
@@ -276,7 +289,7 @@ def test_der_ausfuehrungspfad_ruft_keine_freigabe():
                if isinstance(k, ast.Call)
                and isinstance(k.func, ast.Attribute)}
     assert "grant" not in aufrufe
-    assert "owner_decision" not in aufrufe
+    assert "owner_decision_for_tests" not in aufrufe
 
 
 def test_die_command_bar_gibt_im_ausfuehrungsschritt_nicht_frei():
