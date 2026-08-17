@@ -123,3 +123,46 @@ Angabe.
 
 **Nicht heute.** Die Ursache ist nicht erhoben. Sie zu suchen heisst, beide
 Rechner gegeneinander zu vermessen — ein eigener Arbeitsblock.
+
+## B-5 · Das Paket trägt keinen Python-Kern — der Startort entscheidet, welcher Code läuft
+
+**Was.** `Jarvis.app` enthält vier Mach-O-Dateien (`openjarvis-desktop`, den
+Schreibhelfer, beide Sidecars) und **kein** Python. Der Kern wird zur Laufzeit
+aus einem Projektordner gestartet (`uv run jarvis serve`). Welcher das ist,
+entscheidet `find_project_root()` in `frontend/src-tauri/src/lib.rs` in dieser
+Reihenfolge:
+
+1. `OPENJARVIS_ROOT`, falls gesetzt und mit `pyproject.toml`
+2. Aufstieg vom Programm aus, bis zu 14 Ebenen, bis ein `pyproject.toml` liegt
+3. Rückfall auf feste Pfade — der erste davon ist `~/OpenJarvis`
+
+**Die Gefahr.** Aus dem Bauordner heraus gestartet trägt Schritt 2: Von
+`…/target/x86_64-apple-darwin/release/bundle/macos/Jarvis.app/Contents/MacOS`
+sind es elf Ebenen bis zum Worktree — innerhalb der Grenze. Dann läuft der
+Kern dieses Zweigs.
+
+Aus `/Applications` heraus gestartet trägt Schritt 2 **nicht**: Über
+`Contents`, `Jarvis.app`, `/Applications` liegt kein `pyproject.toml`. Dann
+greift Schritt 3.
+
+**Gemessen am 2026-08-17 auf dem Intel:** `~/OpenJarvis` existiert, steht auf
+`main` bei `ed01ab8` und enthält weder `delete_gate.py` noch den
+Kontingentzähler. Ein aus `/Applications` gestarteter Build spräche also mit
+einem Kern **ohne Löschgate** — und zwar ohne sichtbaren Unterschied an der
+Oberfläche.
+
+**Was daraus folgt.** Der Livetest wird ausschliesslich aus dem Bauordner
+gestartet, oder mit ausdrücklich gesetztem `OPENJARVIS_ROOT`. Vor einem echten
+Delete wird geprüft, welchen Ordner der laufende Prozess benutzt — nicht
+angenommen, dass es der richtige ist. Ein Delete gegen einen Kern ohne Gate
+wäre genau der Fall, gegen den das Gate gebaut wurde.
+
+**Nebenbefund.** In `/Applications` liegt bereits eine `Jarvis.app`, aber eine
+andere: Version 0.1.0 vom 26.07. mit `jarvis-shell` und
+`jarvis-credential-helper` statt `openjarvis-desktop`. Ein Installationslauf
+des neuen DMG würde sie ersetzen. Das ist eine Eigentümerentscheidung und
+heute nicht getroffen.
+
+**Nicht heute.** Ein Paket, das seinen Kern selbst mitbringt, oder ein
+Startpfad, der ohne passenden Ordner ehrlich abbricht statt einen fremden zu
+nehmen, sind beides eigene Arbeitsblöcke.
