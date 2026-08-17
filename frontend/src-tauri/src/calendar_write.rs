@@ -40,6 +40,41 @@ use crate::contacts_execution::{payload_digest, sha256_hex, MAX_ORDER_BYTES};
 /// Version des Berichts — muss mit der Python-Seite übereinstimmen.
 pub const CALENDAR_REPORT_SCHEMA_VERSION: u32 = 1;
 
+/// Produktreife des Kalender-Schreibpfads — **wortgleich** zum Reifebestand
+/// des Kerns (`personaljarvis/base/product_readiness.py`, Eintrag `calendar`).
+///
+/// Solange dies `false` ist, erreicht kein Auftrag EventKit, gleich wie
+/// formvollendet er aussieht. Ein Gleichheitstest auf der Python-Seite liest
+/// diese Zeile und vergleicht sie mit dem Reifebestand: zwei Orte, aber
+/// erzwungen eine Wahrheit.
+///
+/// Geöffnet wird ausschliesslich in B2 — und dann nicht allein durch das
+/// Umstellen dieser Zeile (siehe Kommentar in `execute_order_mit_operationen`).
+pub const CALENDAR_PRODUCT_WRITE_READY: bool = false;
+
+/// Die Reife, wie der Ausführungspfad sie liest.
+///
+/// Im Produktbau ist das die Konstante und sonst nichts — sie lässt sich zur
+/// Laufzeit nicht umstellen. Im Testbau ist sie umschaltbar und steht auf
+/// „reif", sonst wären die rund dreissig Pipelineprüfungen dieser Datei stumm;
+/// dieselbe sichtbare Annahme wie in der Python-Suite. Das Schloss selbst
+/// prüft `das_produktschloss_haelt_vor_jedem_providerkontakt`, indem es
+/// ausdrücklich auf „nicht reif" stellt.
+#[cfg(not(test))]
+fn produktreif() -> bool {
+    CALENDAR_PRODUCT_WRITE_READY
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_PRODUKTREIF: std::cell::Cell<bool> = std::cell::Cell::new(true);
+}
+
+#[cfg(test)]
+fn produktreif() -> bool {
+    TEST_PRODUKTREIF.with(|z| z.get())
+}
+
 // ── Auftrag (Vertrag zur Python-Seite) ──────────────────────────────────────
 
 #[derive(Debug, Clone, Deserialize)]
@@ -648,6 +683,36 @@ pub fn execute_order_mit_operationen(
         Ok(paar) => paar,
         Err(bericht) => return bericht,
     };
+
+    // ── Das native Produktschloss ───────────────────────────────────────────
+    //
+    // Hier, und nicht nur im Kern. Der Kern prueft die Produktreife im Claim,
+    // aber dieser Ausfuehrungspfad nimmt einen Auftrag als JSON entgegen und
+    // prueft ihn sonst nur auf **Form**: nicht-leere Kennungen, Hex-Digests,
+    // bekannter Operationstyp. Ein frei zusammengesetzter, formal gueltiger
+    // Auftrag kaeme damit bis zum Save; dass der Kern hinterher den
+    // Settle-Bericht ablehnt, waere zu spaet — nach einem Providerschreiben
+    // ist die Sicherheitsentscheidung gefallen.
+    //
+    // Deshalb steht die Ablehnung **vor** jedem `ops`-Aufruf. Nicht nur vor
+    // dem Save: auch die Autorisierungs- und Kalenderabfrage unterbleibt. Wer
+    // nicht schreiben darf, fasst den Provider gar nicht erst an.
+    //
+    // Die Konstante ist wortgleich zum Reifebestand des Kerns
+    // (`personaljarvis/base/product_readiness.py`); ein Gleichheitstest haelt
+    // beide Seiten zusammen, damit aus zwei Orten nicht zwei Wahrheiten
+    // werden. Eine Uebersetzungszeitkonstante ist hier die staerkere Form:
+    // sie laesst sich zur Laufzeit gar nicht umstellen.
+    //
+    // Was das NICHT ist: die vollstaendige Claim-Verifikation. Mit B2 reicht
+    // es nicht, diese Konstante auf `true` zu drehen — dann muss der native
+    // Pfad zusaetzlich einen autoritativen, an genau diese Mutation
+    // gebundenen Claim VOR dem Save pruefen. Frei erfindbare Hex-Digests und
+    // ein frei erfindbarer `claim_token` duerfen EventKit nie erreichen.
+    if !produktreif() {
+        return CalendarExecutionReportV1::not_sent(&order, "product_write_not_ready");
+    }
+
     let kalender_id = order.provider_target.provider_calendar_id.clone();
 
     match ops.kalender_zugang(&kalender_id) {
@@ -1430,6 +1495,56 @@ pub(crate) mod tests {
         }
     }
 
+    /// Ein Doppel, das **jede** Berührung des Providers zählt.
+    ///
+    /// Der Fake oben zählt nur Save und Delete. Für das Produktschloss genügt
+    /// das nicht: Die Behauptung lautet nicht „es wurde nicht gespeichert",
+    /// sondern „der Provider wurde gar nicht erst angefasst". Wer das prüfen
+    /// will, muss auch die Autorisierungs- und Leseabfragen sehen.
+    #[derive(Default)]
+    pub(crate) struct ZaehlendeOperationen {
+        pub(crate) beruehrungen: u32,
+    }
+
+    impl KalenderOperationen for ZaehlendeOperationen {
+        fn kalender_zugang(&mut self, _: &str) -> KalenderZugang {
+            self.beruehrungen += 1;
+            KalenderZugang::Vorhanden
+        }
+        fn speichere_event(
+            &mut self,
+            _: &EventFelder,
+            _: &str,
+        ) -> Result<String, SpeicherFehler> {
+            self.beruehrungen += 1;
+            Ok("EV-NIE".into())
+        }
+        fn lese_event(&mut self, _: &str) -> Option<ReadbackEvent> {
+            self.beruehrungen += 1;
+            None
+        }
+        fn lese_fingerprint_felder(&mut self, _: &str) -> Option<FingerprintFelder> {
+            self.beruehrungen += 1;
+            None
+        }
+        fn aktualisiere_event(
+            &mut self,
+            _: &str,
+            _: &serde_json::Map<String, serde_json::Value>,
+        ) -> Result<String, SpeicherFehler> {
+            self.beruehrungen += 1;
+            Ok("EV-NIE".into())
+        }
+        fn delete_probe(&mut self, _: &str) -> Option<RohProbe> {
+            self.beruehrungen += 1;
+            None
+        }
+        fn loesche_event(&mut self, _: &str) -> Result<(), SpeicherFehler> {
+            self.beruehrungen += 1;
+            Ok(())
+        }
+    }
+
     fn payload() -> serde_json::Value {
         serde_json::json!({
             "command": "create",
@@ -1468,6 +1583,52 @@ pub(crate) mod tests {
             "expected_fingerprint": null
         })
         .to_string()
+    }
+
+    // ── Das native Produktschloss ───────────────────────────────────────────
+    #[test]
+    fn calendar_ist_im_produkt_nicht_schreibreif() {
+        // Der ausgelieferte Wert, ungefiltert. Die Testumschaltung oben
+        // beruehrt ihn nicht.
+        assert!(!CALENDAR_PRODUCT_WRITE_READY);
+    }
+
+    #[test]
+    fn das_produktschloss_haelt_vor_jedem_providerkontakt() {
+        // Ein formal einwandfreier, frei zusammengesetzter Auftrag: gueltige
+        // Kennungen, richtiger payload_digest, gueltige Frist. Genau der Fall,
+        // der bisher bis zum Save gekommen waere.
+        let mut ops = ZaehlendeOperationen::default();
+        let bericht = TEST_PRODUKTREIF.with(|z| {
+            z.set(false);
+            let b = execute_order_mit_operationen(&auftrag("create", payload()), JETZT, &mut ops);
+            z.set(true);
+            b
+        });
+
+        assert_eq!(bericht.outcome, "not_sent");
+        assert_eq!(bericht.error_class.as_deref(), Some("product_write_not_ready"));
+        // Der eigentliche Beleg: **kein einziger** Providerkontakt. Nicht der
+        // Save, nicht der Readback, nicht einmal die Autorisierungsabfrage.
+        assert_eq!(ops.beruehrungen, 0, "der Provider wurde beruehrt");
+        // Und der Bericht ist an genau diesen Auftrag gebunden, damit der Kern
+        // ihn zuordnen kann.
+        assert_eq!(bericht.mutation_id, "1".repeat(36));
+    }
+
+    #[test]
+    fn das_produktschloss_gilt_fuer_jede_operationsart() {
+        for art in ["create", "update", "delete"] {
+            let mut ops = ZaehlendeOperationen::default();
+            let bericht = TEST_PRODUKTREIF.with(|z| {
+                z.set(false);
+                let b = execute_order_mit_operationen(&auftrag(art, payload()), JETZT, &mut ops);
+                z.set(true);
+                b
+            });
+            assert_eq!(bericht.outcome, "not_sent", "{art}");
+            assert_eq!(ops.beruehrungen, 0, "{art}: der Provider wurde beruehrt");
+        }
     }
 
     #[test]

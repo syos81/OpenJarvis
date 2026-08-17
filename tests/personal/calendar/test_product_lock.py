@@ -92,6 +92,48 @@ def test_eine_unbekannte_faehigkeit_ist_nicht_reif():
     assert product_write_ready("") is False
 
 
+def test_der_app_prozess_traegt_dieselbe_reife():
+    """Zwei Orte, erzwungen eine Wahrheit.
+
+    Der native Ausfuehrungspfad kann den Kern nicht fragen — er hat keinen
+    Datenbankzugriff — und traegt die Reife deshalb als
+    Uebersetzungszeitkonstante. Driften die beiden auseinander, meldet die eine
+    Seite `darf` und die andere `darf nicht`, und welche gewinnt, haengt vom
+    Weg ab. Dieser Test macht das Auseinanderdriften unmoeglich.
+    """
+    from pathlib import Path
+    import re
+
+    quelle = (Path(__file__).resolve().parents[3]
+              / "frontend" / "src-tauri" / "src" / "calendar_write.rs")
+    text = quelle.read_text(encoding="utf-8")
+    treffer = re.search(
+        r"pub const CALENDAR_PRODUCT_WRITE_READY:\s*bool\s*=\s*(true|false)\s*;",
+        text)
+    assert treffer is not None, "Die native Reifekonstante fehlt"
+    nativ = treffer.group(1) == "true"
+    assert nativ is product_write_ready("calendar"), (
+        f"Kern meldet {product_write_ready('calendar')}, App-Prozess {nativ}")
+
+
+def test_der_native_pfad_prueft_die_reife_vor_jedem_providerkontakt():
+    """Die Konstante allein waere Zierde. Sie muss auch gelesen werden — und
+    zwar vor dem ersten `ops`-Aufruf, nicht irgendwo."""
+    from pathlib import Path
+
+    quelle = (Path(__file__).resolve().parents[3]
+              / "frontend" / "src-tauri" / "src" / "calendar_write.rs")
+    zeilen = quelle.read_text(encoding="utf-8").splitlines()
+    beginn = next(i for i, z in enumerate(zeilen)
+                  if z.startswith("pub fn execute_order_mit_operationen("))
+    rumpf = zeilen[beginn:beginn + 60]
+
+    schloss = next(i for i, z in enumerate(rumpf) if "if !produktreif()" in z)
+    erster_provider = next(i for i, z in enumerate(rumpf) if "ops." in z)
+    assert schloss < erster_provider, (
+        "Das Schloss steht nach dem ersten Providerkontakt")
+
+
 # ── Die verlangte Aussage ────────────────────────────────────────────────────
 def test_eine_gueltige_freigabe_reicht_trotzdem_nicht(dienst, factory):
     """Alles, was der Eigentümer tun kann, ist getan — und es reicht nicht.
