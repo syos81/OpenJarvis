@@ -43,6 +43,10 @@ from personaljarvis.base.outbox import (
     OutboxNotClaimable,
     token_digest,
 )
+from personaljarvis.base.product_readiness import (
+    product_write_ready,
+    readiness_reason,
+)
 from personaljarvis.calendar.domain import CanonicalEvent
 from personaljarvis.calendar.mutations.contracts import (
     ExecutionOrderV1,
@@ -117,6 +121,11 @@ CLAIM_TTL_SECONDS = 600
 #: ist die **eine** Stelle, an der eine Position Kommandos freischaltet.
 ENABLED_COMMANDS: frozenset[str] = frozenset({"create", "update", "delete"})
 
+#: Die Fähigkeit, deren Produktreife dieser Pfad braucht. Der Name steht hier
+#: einmal und wird nirgends zusammengesetzt: eine getippte Fähigkeit fände
+#: keinen Eintrag und wäre damit unreif — fail-closed.
+CAPABILITY = "calendar"
+
 #: Ablageort des Backup-Nachweises. PII-arm: Zähler und Digests, keine Termine.
 BACKUP_PROOF_PATH = (Path.home() / ".openjarvis" / "personal" / "backups"
                      / "calendar" / "latest.json")
@@ -167,6 +176,19 @@ class PositionNotEnabled(CalendarMutationError):
     als „falsch aufgerufen"."""
 
     reason_code = "position_not_enabled"
+
+
+class ProductWriteNotReady(CalendarMutationError):
+    """Das Modul darf grundsätzlich nicht mutieren — unabhängig davon, was der
+    Eigentümer freigegeben hat.
+
+    Bewusst ein eigener Fehler **über** der Freigabe: Eine formal einwandfreie
+    Einzelfreigabe ist eine Aussage über den Willen des Eigentümers, keine über
+    den Bauzustand des Schreibpfads. Solange der Bestand Serienvorkommen
+    überschreibt, entsteht hier kein Auftrag — mit Freigabe so wenig wie ohne.
+    """
+
+    reason_code = "product_write_not_ready"
 
 
 class BackupMissing(CalendarMutationError):
@@ -889,9 +911,16 @@ class CalendarMutationService:
         """Beansprucht genau einen Versuch und gibt den Auftrag heraus.
 
         Reihenfolge ist Absicht: erst alle Prüfungen, die **vor** jedem Send
-        scheitern dürfen (Backup-Gate, Positionsstufe, Zustand), dann der
-        Claim, dann `provider_send_started` in derselben Transaktion.
+        scheitern dürfen (Produktreife, Backup-Gate, Positionsstufe, Zustand),
+        dann der Claim, dann `provider_send_started` in derselben Transaktion.
         """
+        # Zuerst die Reife, vor allem anderen und vor jeder Freigabe: Der
+        # Claim ist die **einzige** Tür zum Provider — ohne Auftrag sendet
+        # niemand. Eine gültige, unverbrauchte Einzelfreigabe kommt hier
+        # deshalb an und darf trotzdem nichts bewirken.
+        if not product_write_ready(CAPABILITY):
+            raise ProductWriteNotReady(readiness_reason(CAPABILITY))
+
         # Fail-closed **vor** jeder Beanspruchung: ohne verifizierten
         # Backup-Nachweis existiert kein Schreibauftrag.
         if not self._backup_probe():

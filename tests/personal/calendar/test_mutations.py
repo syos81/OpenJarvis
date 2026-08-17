@@ -40,10 +40,15 @@ from personaljarvis.calendar.mutations.contracts import (
     validate_eligibility_probe,
     validate_fields,
 )
+from personaljarvis.base.product_readiness import (
+    PRODUCT_WRITE_READINESS,
+    ProductWriteReadiness,
+)
 from personaljarvis.calendar.mutations.service import (
     AlreadySettled,
     BackupMissing,
     CalendarMutationService,
+    ProductWriteNotReady,
     CalendarNotFound,
     CalendarNotWritable,
     DeleteNotEligible,
@@ -118,6 +123,21 @@ def _termin_anlegen(factory, kalender_id, provider_event_id=EVENT_ID,
                 location=felder["location"], time_zone=felder["time_zone"],
                 is_all_day=felder["is_all_day"]),
             PROVIDER_ACCOUNT, "2026-08-09T00:00:00Z")
+
+
+@pytest.fixture(autouse=True)
+def produktreif(monkeypatch):
+    """Diese Datei prüft die **Pipeline**, nicht das Produktschloss.
+
+    Kalender ist im Produkt nicht schreibreif (`base/product_readiness.py`),
+    und das ist gewollt: ohne diese Öffnung käme kein einziger Claim mehr
+    zustande und jede Pipelineprüfung wäre stumm. Die Annahme steht deshalb
+    hier sichtbar statt unsichtbar. Das Schloss selbst prüft
+    `TestProduktschloss` — dort ausdrücklich **ohne** diese Öffnung.
+    """
+    monkeypatch.setitem(
+        PRODUCT_WRITE_READINESS, "calendar",
+        ProductWriteReadiness(ready=True, reason="Testannahme der Pipeline"))
 
 
 @pytest.fixture
