@@ -121,6 +121,14 @@ export interface PreparedMutation {
   container_ref: string | null;
   /** Art des Zielablageorts — Teil der informierten Freigabe (§8 A). */
   container_type: string;
+  /**
+   * Lesbarer Name des Zielablageorts **aus dem Bestand**. `null` heisst „noch
+   * nicht gelesen" — die Fläche zeigt das offen und setzt nie die Kennung an
+   * seine Stelle. Nichts davon wird hier berechnet.
+   */
+  container_name: string | null;
+  /** Wie viele Kontakte dort liegen. Kontext, nicht Kategorie. */
+  container_contact_count: number | null;
   target_label: string | null;
   changes: FieldChange[];
   warnings: string[];

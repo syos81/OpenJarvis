@@ -46,6 +46,10 @@ ERLAUBTE_FREIGABEDATEIEN = {
     "personal/contacts/editor/dialogs.tsx",
     # Der Freigabeknopf des Boards.
     "personal/contacts/status/ContactsStatusSurface.tsx",
+    # Der Belegweg der Einzelfreigabe: belegt die Handlung im App-Prozess und
+    # ruft danach die Route. Er fuehrt nichts aus — der Beleg schreibt eine
+    # Urkunde, er sendet nicht.
+    "personal/contacts/settings/freigabe.ts",
     # ── Kalender ────────────────────────────────────────────────────────────
     # `freigeben()` — gibt frei und tut sonst nichts.
     "personal/calendar/TerminFormular.tsx",

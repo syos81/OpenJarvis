@@ -198,6 +198,10 @@ export function fixtureDataSource(anzahl: number): ContactsDataSource {
         target_contact_id: id,
         container_ref: m.container_ref,
         container_type: m.container_type,
+        // Der Demo-Modus kennt keinen Bestand, also auch keinen gelesenen
+        // Namen. `null` ist hier dieselbe ehrliche Aussage wie im Produkt.
+        container_name: null,
+        container_contact_count: null,
         target_label: ziel?.display_name ?? null,
         changes,
         warnings: ['Demo-Modus: Dieser Vorgang existiert nur im Speicher.'],
@@ -222,6 +226,10 @@ export function fixtureDataSource(anzahl: number): ContactsDataSource {
         target_contact_id: id,
         container_ref: m.container_ref,
         container_type: m.container_type,
+        // Der Demo-Modus kennt keinen Bestand, also auch keinen gelesenen
+        // Namen. `null` ist hier dieselbe ehrliche Aussage wie im Produkt.
+        container_name: null,
+        container_contact_count: null,
         target_label: ziel?.display_name ?? null,
         changes: [],
         warnings: ['Demo-Modus: Dieser Vorgang existiert nur im Speicher.'],

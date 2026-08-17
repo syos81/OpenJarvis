@@ -215,6 +215,8 @@ const MODULDATEIEN = [
   'data/executionTransport.ts',
   'settings/SchreibfreigabeSchalter.tsx',
   'settings/schreibfreigabe.ts',
+  'settings/freigabe.ts',
+  'settings/zielangabe.ts',
 ];
 
 /**
@@ -234,7 +236,8 @@ const MODULDATEIEN = [
  */
 const TRANSPORT = 'data/executionTransport.ts';
 const FREIGABE_TRANSPORT = 'settings/schreibfreigabe.ts';
-const KOMMANDOSTELLEN = [TRANSPORT, FREIGABE_TRANSPORT];
+const EINZELFREIGABE = 'settings/freigabe.ts';
+const KOMMANDOSTELLEN = [TRANSPORT, FREIGABE_TRANSPORT, EINZELFREIGABE];
 
 describe('Erteilungsweg der Schreibfreigabe', () => {
   const freigabe = nurCode(quelle(FREIGABE_TRANSPORT));

@@ -125,7 +125,12 @@ _ERROR_MAP: tuple[tuple[type, int, str], ...] = (
     (InvalidCommand, 422, "validation_failed"),
     (ApprovalExpired, 409, "conflict"),
     (ApprovalPayloadMismatch, 409, "conflict"),
-    (SelfApprovalRejected, 403, "forbidden"),
+    # Eigene Kennung statt eines nackten "forbidden": Der haeufigste Grund ist
+    # eine seit der Handlung veraenderte Vorschau, und die Oberflaeche muss das
+    # sagen koennen. Ein Abbruch ohne erkennbaren Grund liest sich wie ein
+    # Defekt — und ein Sicherungsverhalten, das wie ein Defekt aussieht, wird
+    # irgendwann abgeschaltet.
+    (SelfApprovalRejected, 403, "owner_attestation_missing"),
     (ApprovalNotPending, 409, "conflict"),
 )
 

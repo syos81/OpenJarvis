@@ -81,8 +81,23 @@ APPROVAL_MARKER = (
 EXECUTE_MARKER = (
     re.compile(r"/claim-app-execution\b"),
     re.compile(r"/execute\b"),
-    re.compile(r"\binvoke\s*<"),
-    re.compile(r"\binvoke\s*\("),
+    # `invoke` heisst „an den App-Prozess uebergeben". Das war bis zum
+    # 2026-08-17 gleichbedeutend mit Ausfuehren, weil es nur einen Grund gab,
+    # den App-Prozess zu rufen: einen Auftrag zu senden.
+    #
+    # Seit der Belegpflicht gibt es einen zweiten, der **zur Freigabe**
+    # gehoert und nichts sendet: `personal_contacts_attest_owner_approval`
+    # schreibt die Urkunde der Eigentuemerhandlung. Wuerde er als
+    # Ausfuehrungsmarke zaehlen, waere jede Freigabeflaeche automatisch ein
+    # Verteiler — und die Invariante „kein Blatt erreicht beide Grenzen"
+    # verloere ihre Aussage, weil sie ueberall zutraefe.
+    #
+    # Die Verengung nennt deshalb genau diesen einen Namen und keine Klasse
+    # von Namen. Jeder weitere `invoke` bleibt eine Ausfuehrungsmarke.
+    re.compile(r"\binvoke\s*<(?![^>]*>\s*\(\s*(['\"])"
+               r"personal_contacts_attest_owner_approval\1)"),
+    re.compile(r"\binvoke\s*\((?!\s*(['\"])"
+               r"personal_contacts_attest_owner_approval\1)"),
 )
 
 _QUELLDATEI = re.compile(r".*\.tsx?$")
