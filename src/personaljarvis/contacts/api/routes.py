@@ -313,6 +313,25 @@ def create_contacts_router(module) -> APIRouter:
             mutations_available=(caps.create_supported or caps.update_supported
                                  or caps.delete_supported))
 
+    @router.get("/write-quota", response_model=S.WriteQuotaOut)
+    def write_quota() -> Any:
+        """Der Stand des Kontingents — **nur lesend**.
+
+        Diese Route zaehlt nichts, bucht nichts und setzt nichts zurueck; sie
+        gibt zurueck, was der Kern ohnehin weiss. Sie steht hier und nicht
+        unter `/mutations`, weil sie an keinem Vorgang haengt, sondern an der
+        geltenden Freigabe.
+
+        Ein Schreibweg an dieser Stelle waere genau der Weg, den ein Agent
+        ginge — es gibt ihn deshalb nicht, und ein Quelltexttest haelt das
+        fest.
+        """
+        aktiv, stand = _mutation_service().kontingent()
+        return S.WriteQuotaOut(
+            active=aktiv, used=stand.used, limit=stand.limit,
+            remaining=stand.remaining, exhausted=stand.exhausted,
+            text=stand.als_text())
+
     @router.get("/sync/status", response_model=list[S.SyncStatusOut])
     def sync_status(provider_account_id: str | None = Query(
             default=None, max_length=128)) -> Any:

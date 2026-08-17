@@ -666,6 +666,26 @@ class CapabilitiesOut(_Strict):
     mutations_available: bool = False
 
 
+class WriteQuotaOut(_Strict):
+    """Der Stand des Kontingents — für die Anzeige, ohne Kennung.
+
+    Bewusst **ohne** den Fingerabdruck der Aktivierung: Die Oberfläche muss
+    wissen, wie viele Schreibvorgänge übrig sind, nicht welche Urkunde gilt.
+    `active` sagt, ob überhaupt eine Dauerfreigabe gilt; ist sie aus, hat der
+    Zähler nichts zu zeigen und die Grenze eines Vorgangs ist die Zeit.
+
+    `text` kommt wörtlich aus dem Kern (`QuotaState.als_text`) und wird in der
+    Oberfläche nicht nachgebaut — ein zweiter Satz wäre ein zweiter Vertrag.
+    """
+
+    active: bool
+    used: int
+    limit: int
+    remaining: int
+    exhausted: bool
+    text: str
+
+
 class ErrorOut(_Strict):
     """Fehlerhülle. Trägt **nie** einen Kontaktwert (08 §3 Nr. 5)."""
 

@@ -47,6 +47,7 @@ from personaljarvis.contacts.application.commands import (
     UpdateContact,
 )
 from personaljarvis.contacts.application.write_quota import (
+    QuotaState,
     activation_id,
     claim_quota,
     quota_state,
@@ -237,6 +238,25 @@ class ContactsMutationService:
         )
 
         return activation_id(read_write_release(self._release_path))
+
+    def kontingent(self) -> tuple[bool, QuotaState]:
+        """Ob eine Dauerfreigabe gilt, und ihr Stand. Liest, aendert nichts.
+
+        Anzeige und Entscheidung teilen sich hier **eine** Quelle: Was der
+        Eigentuemer liest, ist derselbe Zaehler, an dem `execute` scheitert.
+        Eine zweite, nur fuer die Oberflaeche gerechnete Zahl waere eine Zahl,
+        die irgendwann etwas anderes sagt als die Wirklichkeit.
+
+        Beides entsteht aus **einem** Lesen der Urkunde. Zwei getrennte
+        Abfragen koennten einen Augenblick zeigen, den es nie gab: aus, aber
+        mit Stand — oder an, aber mit dem Stand der vorigen Aktivierung.
+
+        Ohne gueltige Dauerfreigabe ist das erste Glied `False`. Dann gibt es
+        nichts zu zaehlen, und die Grenze eines Vorgangs ist die Zeit.
+        """
+        aktivierung = self._aktivierung()
+        with self._persistence.unit_of_work() as uow:
+            return aktivierung is not None, quota_state(uow, aktivierung)
 
     # ── 1. Vorbereiten ──────────────────────────────────────────────────────
     def prepare(self, command: MutationCommand) -> PreparedMutation:

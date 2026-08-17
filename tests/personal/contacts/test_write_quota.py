@@ -208,3 +208,98 @@ def test_ohne_dauerfreigabe_gibt_es_kein_kontingent(tmp_path):
     """Dann traegt die befristete Freigabe den Vorgang, und ihre Grenze ist
     die Zeit."""
     assert activation_id(None) is None
+
+
+# ── Der sichtbare Stand ──────────────────────────────────────────────────────
+#
+# Bis hierher lag das Kontingent im Kern und setzte dort auch die Grenze durch
+# — nur sah der Eigentuemer es nicht. Eine Grenze, die man erst beim
+# Anschlagen bemerkt, ist keine Auskunft. Der Weg nach aussen ist ausdruecklich
+# **nur lesend**: er zaehlt nicht, bucht nicht und setzt nicht zurueck.
+def _client(module, pfad):
+    """Testclient ueber einem Modul, dessen Dienst an diese Urkunde gebunden ist."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from personaljarvis.contacts.api.routes import create_contacts_router
+    from personaljarvis.contacts.domain.capabilities import ContactCapabilitySet
+
+    caps = ContactCapabilitySet(create_supported=True, update_supported=True)
+    module._capabilities = caps
+    module._mutation_service = ContactsMutationService(
+        module, AttrappenProvider(provider_identifier="raw-neu"),
+        capabilities=caps, release_path=pfad)
+    app = FastAPI()
+    app.include_router(create_contacts_router(module))
+    return TestClient(app)
+
+
+def _stand(client):
+    from personaljarvis.contacts.api.routes import PREFIX
+
+    antwort = client.get(f"{PREFIX}/write-quota")
+    assert antwort.status_code == 200
+    return antwort.json()
+
+
+def test_die_route_zeigt_den_stand_der_geltenden_freigabe(module, tmp_path):
+    pfad = _freigabe_schreiben(tmp_path)
+    _container_bekannt(module)
+    client = _client(module, pfad)
+    for _ in range(3):
+        _einmal_schreiben(module._mutation_service)
+
+    stand = _stand(client)
+    assert stand["active"] is True
+    assert (stand["used"], stand["remaining"], stand["limit"]) == (3, 7, 10)
+    assert stand["exhausted"] is False
+    # Woertlich aus dem Kern — die Oberflaeche baut den Satz nicht nach.
+    assert stand["text"] == "7 von 10 Schreibvorgängen verfügbar"
+
+
+def test_der_erschoepfte_stand_steht_woertlich(module, tmp_path):
+    pfad = _freigabe_schreiben(tmp_path)
+    _container_bekannt(module)
+    client = _client(module, pfad)
+    for _ in range(QUOTA_PER_ACTIVATION):
+        _einmal_schreiben(module._mutation_service)
+
+    stand = _stand(client)
+    assert stand["exhausted"] is True
+    assert stand["text"] == "10 von 10 verwendet – erneut freigeben erforderlich"
+
+
+def test_ohne_dauerfreigabe_zeigt_die_route_keinen_stand(module, tmp_path):
+    """Aus heisst aus: kein Zaehler, keine Zahl, kein geratener Rest."""
+    client = _client(module, tmp_path / "personal" / "gibt-es-nicht.json")
+    assert _stand(client)["active"] is False
+
+
+def test_die_route_ist_nur_lesend(module, tmp_path):
+    """Ein Schreibweg an dieser Stelle waere der Weg, den ein Agent ginge.
+
+    Geprueft wird nicht die Absicht, sondern die Oberflaeche: Was nicht
+    existiert, kann auch nicht versehentlich entstehen.
+    """
+    from personaljarvis.contacts.api.routes import PREFIX
+
+    pfad = _freigabe_schreiben(tmp_path)
+    _container_bekannt(module)
+    client = _client(module, pfad)
+    for _ in range(3):
+        _einmal_schreiben(module._mutation_service)
+
+    for verb in ("post", "put", "delete"):
+        antwort = getattr(client, verb)(f"{PREFIX}/write-quota")
+        assert antwort.status_code == 405, verb
+
+    # `PATCH` ergibt kein 405, und das ist eine Eigenschaft der Routenform,
+    # nicht dieser Route: Der Pfadparameter der Kontaktroute `PATCH
+    # /{contact_id}` schluckt jedes Segment, auch `capabilities` und
+    # `categories`. Der Aufruf landet damit in der Vorbereitung einer
+    # Kontaktaenderung — einem Weg, der das Kontingent nicht kennt — und
+    # scheitert dort an der Nutzlast.
+    assert client.patch(f"{PREFIX}/write-quota").status_code == 422
+
+    # Was allein zaehlt: Keiner dieser Wege hat den Stand bewegt.
+    assert _stand(client)["used"] == 3

@@ -405,6 +405,29 @@ export function getCapabilities(): Promise<Capabilities> {
   return request<Capabilities>('/capabilities');
 }
 
+/** Der Stand des Kontingents einer Dauerfreigabe. */
+export interface WriteQuota {
+  /** `false`, solange keine Dauerfreigabe gilt — dann gibt es nichts zu zählen. */
+  active: boolean;
+  used: number;
+  limit: number;
+  remaining: number;
+  exhausted: boolean;
+  /** Der Satz, den der Eigentümer liest — wörtlich aus dem Kern. */
+  text: string;
+}
+
+/**
+ * Liest den Kontingentstand. Ändert nichts und verbraucht nichts.
+ *
+ * Der Satz wird hier **nicht** nachgebaut: `text` kommt aus dem Kern, der auch
+ * die Grenze durchsetzt. Zwei Formulierungen desselben Sachverhalts wären zwei
+ * Verträge, und einer davon liefe irgendwann der Wirklichkeit hinterher.
+ */
+export function getWriteQuota(): Promise<WriteQuota> {
+  return request<WriteQuota>('/write-quota');
+}
+
 // ── Autorisierung und manueller Lese-Sync ──────────────────────────────────
 //
 // Diese drei Funktionen sind die einzigen im Client, die serverseitig einen

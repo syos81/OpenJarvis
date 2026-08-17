@@ -214,6 +214,7 @@ const MODULDATEIEN = [
   'data/sortierung.ts',
   'data/executionTransport.ts',
   'settings/SchreibfreigabeSchalter.tsx',
+  'settings/Kontingentanzeige.tsx',
   'settings/schreibfreigabe.ts',
   'settings/freigabe.ts',
   'settings/zielangabe.ts',

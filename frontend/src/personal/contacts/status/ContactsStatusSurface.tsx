@@ -24,6 +24,7 @@ import type { ContactsDataSource } from '../data/source';
 import type { Fehlerbild } from '../workspace/fehler';
 import { fehlerbild } from '../workspace/fehler';
 import { freigeben } from '../settings/freigabe';
+import { Kontingentanzeige } from '../settings/Kontingentanzeige';
 
 const AUTH_TEXT: Record<AuthorizationState, { titel: string; hinweis: string }> = {
   notDetermined: {
@@ -443,6 +444,13 @@ function MutationDetailView({ id, quelle, onBack }: {
         {m.last_error_code && <Chip tone="warn">{m.last_error_code}</Chip>}
         <Chip>Versuche: {m.attempt_count}</Chip>
       </div>
+
+      {/* Der Stand des Kontingents, an der Stelle, an der es sich ändert.
+          Gezählt wird beim Ausführen, nicht beim Freigeben — deshalb steht
+          die Zahl hier und nicht in der Vorschau. Der Schlüssel führt
+          Zustand und Versuchszahl mit: Beide ändern sich durch genau die
+          Handlung, die verbraucht. */}
+      <Kontingentanzeige schluessel={`${m.state}:${m.attempt_count}`} />
 
       {/* Wohin wirkt das? Vor Zustand und Aktion, weil es die erste Frage
           vor einer Freigabe ist und nicht die letzte (§8 A). */}

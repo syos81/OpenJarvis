@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
+import { Kontingentanzeige } from './Kontingentanzeige';
 import {
   AUS,
   grundText,
@@ -76,6 +77,12 @@ export function SchreibfreigabeSchalter() {
             Gilt für Anlegen und Ändern einzelner Kontakte. Löschen und
             Massenänderungen sind davon nicht erfasst.
           </p>
+
+          {/* Wie viel diese Aktivierung noch trägt. Der Schalter sagt „an" —
+              das allein ist keine Auskunft darüber, wie oft „an" noch etwas
+              bewirkt. Erneutes Einschalten erzeugt eine andere Urkunde und
+              damit ein frisches Kontingent. */}
+          <Kontingentanzeige schluessel={an} />
         </div>
 
         <button
