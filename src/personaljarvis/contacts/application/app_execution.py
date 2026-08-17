@@ -42,6 +42,7 @@ from personaljarvis.contacts.application.errors import (
     AlreadySettled,
     MutationNotExecutable,
     MutationNotFound,
+    WriteQuotaExhausted,
 )
 from personaljarvis.contacts.application.execution_contracts import (
     ExecutionOrderV1,
@@ -49,6 +50,10 @@ from personaljarvis.contacts.application.execution_contracts import (
     report_digest,
 )
 from personaljarvis.contacts.application.state_machine import pruefe_uebergang
+from personaljarvis.contacts.application.write_quota import (
+    activation_id,
+    claim_quota,
+)
 from personaljarvis.contacts.domain.models import utc_now
 
 __all__ = [
@@ -107,8 +112,12 @@ class AppExecutionService:
     """
 
     def __init__(self, persistence, *, channel_capabilities=None,
-                 backup_dir=None) -> None:
+                 backup_dir=None, release_path=None) -> None:
         self._persistence = persistence
+        #: Wo die Freigabeurkunde liegt — die Kontingentgrenze haengt an ihr.
+        #: Ein Parameter und ausdruecklich keine Umgebungsvariable, dieselbe
+        #: Regel wie im Kanalhandschlag. `None` heisst der kanonische Ort.
+        self._release_path = release_path
         #: Ablageort der Feldstandsicherungen. Ein Parameter und ausdruecklich
         #: keine Umgebungsvariable — dieselbe Regel wie beim Freigabepfad.
         #: `None` heisst: der kanonische Ort im Datenverzeichnis.
@@ -126,6 +135,23 @@ class AppExecutionService:
     @property
     def _caps(self):
         return self._caps_quelle()
+
+    def _aktivierung(self) -> str | None:
+        """Der Fingerabdruck der geltenden Urkunde — die Kontingentgrenze.
+
+        Dieselbe Ableitung wie im Mutationsdienst, damit beide Wege **eine**
+        Aktivierung meinen. Zwei Ableitungen ergaeben zwei Kontingente, und der
+        Eigentuemer haette zwanzig Schreibvorgaenge statt zehn.
+
+        Ohne gueltige Dauerfreigabe gibt es keine Aktivierung und damit kein
+        Kontingent: Dann traegt die befristete Freigabe den Vorgang, und ihre
+        Grenze ist die Zeit.
+        """
+        from personaljarvis.contacts.application.write_release import (
+            read_write_release,
+        )
+
+        return activation_id(read_write_release(self._release_path))
 
     # ── Das Loeschgate ──────────────────────────────────────────────────────
     #
@@ -224,6 +250,24 @@ class AppExecutionService:
                 raise AlreadySettled(
                     "Für diesen Vorgang wurde bereits ein Ausführungsauftrag "
                     "ausgegeben")
+
+            # ── Das Kontingent, genau hier ─────────────────────────────────
+            #
+            # Bis zum 2026-08-17 wurde ausschliesslich im aelteren Dienstweg
+            # gebucht — und produktiv geht keine Mutation dort entlang. Im
+            # Livetest schrieb Jarvis zweimal in den echten Container, und der
+            # Zaehler stand danach unveraendert auf zehn von zehn. Der Zaehler
+            # war echt, getestet und sichtbar; er sass nur auf dem Weg, den das
+            # Produkt nicht geht.
+            #
+            # Nach bestandener Vorpruefung und vor dem Verbrauch der Freigabe:
+            # Alles davor scheitert gefahrlos, alles danach kann senden.
+            # Gebucht wird die Mutation, nicht das Ereignis — ein zweiter
+            # Anlauf trifft dieselbe Zeile.
+            stand = claim_quota(uow, self._aktivierung(), mutation_id,
+                                at=utc_now())
+            if stand.used > stand.limit:
+                raise WriteQuotaExhausted(stand.als_text())
 
             # ── Das Loeschgate, Durchsetzung ───────────────────────────────
             #

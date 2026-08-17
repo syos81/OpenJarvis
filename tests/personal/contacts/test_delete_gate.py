@@ -415,9 +415,14 @@ def test_der_ablageort_liegt_ausserhalb_des_repositorys():
     """Kontaktwerte sind keine Evidenz und gehören auch nicht dorthin."""
     from pathlib import Path
 
-    from personaljarvis.contacts.application.delete_gate import field_state_dir
+    from personaljarvis.contacts.application.delete_gate import (
+        default_field_state_dir,
+    )
 
-    ort = field_state_dir()
+    # Ausdruecklich der **produktive** Ort, nicht der dieses Laufs: Die Suite
+    # leitet `field_state_dir` um, und genau deshalb muss die Aussage ueber
+    # das Produkt an einem eigenen Begriff haengen.
+    ort = default_field_state_dir()
     wurzel = Path(__file__).resolve().parents[3]
     assert wurzel not in ort.parents and ort != wurzel
     assert ort.parts[-3:] == ("backups", "contacts", "field-state")
@@ -644,3 +649,158 @@ def test_die_nicht_gedeckten_familien_werden_sehr_wohl_gelesen():
     for tabelle in ("contact_social_profiles", "contact_instant_messages",
                     "contact_relations"):
         assert f"CREATE TABLE {tabelle}" in schema
+
+
+# ═══ H · Kein Testlauf beruehrt die produktive Ablage ═══════════════════════
+def test_die_umleitung_der_sicherungsablage_ist_in_kraft(tmp_path):
+    """Der Waechter ueber der autouse-Umleitung in `conftest.py`.
+
+    Ohne ihn koennte die Umleitung verschwinden, ohne dass ein Test rot wird —
+    die Sicherungen landeten dann still im Benutzerverzeichnis, und genau das
+    ist am 2026-08-17 passiert. Dieser Test wird rot, sobald die Vorgabe
+    wieder auf das Datenverzeichnis zeigt.
+    """
+    from pathlib import Path
+
+    from personaljarvis.contacts.application.delete_gate import (
+        field_state_dir,
+        field_state_path,
+    )
+
+    vorgabe = field_state_dir()
+    assert vorgabe.is_relative_to(tmp_path.parent.parent), (
+        f"Die Sicherungsablage zeigt auf {vorgabe} — das ist kein Testort")
+    assert ".openjarvis" not in str(vorgabe)
+    assert Path.home() / ".openjarvis" not in vorgabe.parents
+
+    # Und der Weg ueber `field_state_path` erbt die Umleitung, nicht nur der
+    # direkte Aufruf: Sonst schriebe das Gate weiter am Waechter vorbei.
+    assert field_state_path("irgendeine-kennung").parent == vorgabe
+
+    # Ein ausdruecklich uebergebener Ort bleibt unberuehrt — umgeleitet wird
+    # die Vorgabe, nicht der Parameter.
+    eigen = tmp_path / "woanders"
+    assert field_state_path("k", basis=eigen).parent == eigen
+
+
+# ═══ I · Das Kontingent wirkt auf dem produktiven Weg ═══════════════════════
+#
+# Der Befund aus dem Livetest vom 2026-08-17: Jarvis schrieb zweimal in den
+# echten Container, und der Zaehler stand danach unveraendert auf zehn von
+# zehn. `claim_quota` sass ausschliesslich im aelteren Dienstweg — produktiv
+# geht dort keine Mutation entlang. Diese Tests messen den Weg, den das
+# Produkt tatsaechlich geht: Claim ueber den App-Prozess-Kanal.
+def _kanal(module, ablage, urkunde, *, delete=False):
+    from personaljarvis.contacts.application.app_channel import (
+        fake_debug_capabilities,
+    )
+
+    return AppExecutionService(
+        module,
+        channel_capabilities=fake_debug_capabilities(update=True,
+                                                     delete=delete),
+        backup_dir=ablage, release_path=urkunde)
+
+
+def _urkunde(tmp_path, *, granted_at="2026-08-17T20:42:27Z"):
+    import os
+
+    from personaljarvis.contacts.application.write_release import (
+        MODE_STANDING,
+        WRITE_RELEASE_CAPABILITY,
+        WRITE_RELEASE_CONTRACT_V2,
+    )
+
+    ordner = tmp_path / "urkunde"
+    ordner.mkdir(exist_ok=True)
+    os.chmod(ordner, 0o700)
+    pfad = ordner / "contacts-write-release.json"
+    pfad.write_text(json.dumps({
+        "contract": WRITE_RELEASE_CONTRACT_V2,
+        "capability": WRITE_RELEASE_CAPABILITY,
+        "mode": MODE_STANDING,
+        "operations": ["create", "update"],
+        "granted_at": granted_at,
+        "reason": "Im Produkt eingeschaltet nach Eigentuemerauthentisierung",
+    }), encoding="utf-8")
+    os.chmod(pfad, 0o600)
+    return pfad
+
+
+def _stand(module, urkunde):
+    from personaljarvis.base.db.unit_of_work import UnitOfWork
+    from personaljarvis.contacts.application.write_quota import (
+        activation_id,
+        quota_state,
+    )
+    from personaljarvis.contacts.application.write_release import (
+        read_write_release,
+    )
+
+    fabrik = module._factory if hasattr(module, "_factory") else module.factory
+    with UnitOfWork(fabrik) as uow:
+        return quota_state(uow, activation_id(read_write_release(urkunde)))
+
+
+def _freigegebene_aenderung(module, dienst) -> str:
+    from personaljarvis.contacts.application.commands import ContactPatch
+
+    from .test_mutation_pipeline import _update
+
+    _container_bekannt(module)
+    kontakt = _lokalen_kontakt_anlegen(module)
+    vorgang = dienst.prepare(_update(patch=ContactPatch({"nickname": "Neu"})))
+    dienst.grant(vorgang.mutation_id,
+                 decision=owner_decision_for_tests(MENSCH))
+    assert kontakt is not None
+    return vorgang.mutation_id
+
+
+def test_ein_claim_verbraucht_kontingent(module, dienst, ablage, tmp_path):
+    """Der Nachweis, der im Livetest gefehlt hat."""
+    urkunde = _urkunde(tmp_path)
+    kanal = _kanal(module, ablage, urkunde)
+    assert _stand(module, urkunde).used == 0
+
+    kanal.claim(_freigegebene_aenderung(module, dienst))
+
+    assert _stand(module, urkunde).used == 1
+
+
+def test_der_elfte_claim_wird_abgewiesen(module, dienst, ablage, tmp_path):
+    """Die Grenze wirkt dort, wo produktiv geschrieben wird."""
+    from personaljarvis.contacts.application.errors import WriteQuotaExhausted
+    from personaljarvis.contacts.application.write_quota import (
+        QUOTA_PER_ACTIVATION,
+    )
+
+    urkunde = _urkunde(tmp_path)
+    kanal = _kanal(module, ablage, urkunde)
+    for _ in range(QUOTA_PER_ACTIVATION):
+        kanal.claim(_freigegebene_aenderung(module, dienst))
+
+    letzte = _freigegebene_aenderung(module, dienst)
+    with pytest.raises(WriteQuotaExhausted):
+        kanal.claim(letzte)
+
+    # Nichts verbraucht, nichts beansprucht: Der Vorgang bleibt ausfuehrbar,
+    # sobald der Eigentuemer neu freigibt.
+    assert _zeile(module, letzte)["state"] == "approved"
+
+
+def test_beide_wege_meinen_dieselbe_aktivierung(module, dienst, ablage,
+                                                tmp_path):
+    """Sonst haette der Eigentuemer zwanzig Schreibvorgaenge statt zehn."""
+    urkunde = _urkunde(tmp_path)
+    kanal = _kanal(module, ablage, urkunde)
+    ueber_kanal = kanal._aktivierung()
+
+    from personaljarvis.contacts.application import ContactsMutationService
+
+    ueber_dienst = ContactsMutationService(
+        module, ziel_attrappe(), release_path=urkunde)._aktivierung()
+    assert ueber_kanal == ueber_dienst is not None
+
+
+def ziel_attrappe():
+    return JedeBeruehrungZaehlt()

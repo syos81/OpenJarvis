@@ -102,6 +102,41 @@ def make_contact(**overrides) -> Contact:
 
 
 @pytest.fixture(autouse=True)
+def feldstandsicherungen_liegen_im_tmp(tmp_path, monkeypatch):
+    """Kein Testlauf schreibt je in die **produktive** Sicherungsablage.
+
+    Der Befund vom 2026-08-17: Mit dem Löschgate bekam
+    `ContactsMutationService` einen `backup_dir`-Parameter, dessen Vorgabe
+    `None` auf den kanonischen Ort im Datenverzeichnis zeigt — richtig für das
+    Produkt. Die bestehenden Suiten kannten den Parameter nicht und
+    konstruierten den Dienst weiter ohne ihn. Ein `pytest`-Lauf legte damit
+    sechzehn Klartextdateien unter
+    `~/.openjarvis/personal/backups/contacts/field-state/` an. Dass darin nur
+    Attrappendaten standen, war Glück der Fixtures und keine Eigenschaft des
+    Aufbaus.
+
+    Die Umleitung steht deshalb **hier** und nicht in den einzelnen
+    Testdateien: Dort fehlte sie beim nächsten neu geschriebenen Test wieder,
+    und das Versäumnis wäre unsichtbar — die Datei landete still im
+    Benutzerverzeichnis, und der Test wäre grün.
+
+    Umgeleitet wird die Vorgabe, nicht der Parameter: Wer `basis` ausdrücklich
+    übergibt, bekommt weiterhin genau diesen Ort.
+    """
+    from pathlib import Path
+
+    from personaljarvis.contacts.application import delete_gate
+
+    ziel = tmp_path / "field-state"
+
+    def _umgeleitet(basis=None):
+        return Path(basis) if basis is not None else ziel
+
+    monkeypatch.setattr(delete_gate, "field_state_dir", _umgeleitet)
+    return ziel
+
+
+@pytest.fixture(autouse=True)
 def eigentuemerbeleg_vorhanden(monkeypatch):
     """Diese Suite prüft den Ablauf **nach** der Freigabe, nicht ihre Herkunft.
 

@@ -56,6 +56,7 @@ from personaljarvis.contacts.application.errors import (
 __all__ = [
     "FIELD_STATE_CONTRACT",
     "FieldStateBackup",
+    "default_field_state_dir",
     "field_state_dir",
     "field_state_path",
     "Loeschbindung",
@@ -74,18 +75,27 @@ _ORDNER_MODUS = 0o700
 _DATEI_MODUS = 0o600
 
 
-def field_state_dir(basis: Path | str | None = None) -> Path:
-    """`<Datenverzeichnis>/personal/backups/contacts/field-state`.
+def default_field_state_dir() -> Path:
+    """Der **produktive** Ablageort:
+    `<Datenverzeichnis>/personal/backups/contacts/field-state`.
 
     Ausserhalb des Repositorys und ausserhalb des gitignorierten
     Laufzeitbereichs: Das hier sind Kontaktwerte, keine Evidenz.
+
+    Bewusst getrennt von `field_state_dir`: Der eine Begriff ist „wohin legt
+    das Produkt sie", der andere „wohin legt *dieser Aufruf* sie". Die Suiten
+    leiten den zweiten um; der erste bleibt die Aussage ueber das Produkt und
+    laesst sich dadurch weiterhin pruefen.
     """
-    if basis is not None:
-        return Path(basis)
     from personaljarvis.base.db.factory import default_database_path
 
     return (default_database_path().parent / "backups" / "contacts"
             / "field-state")
+
+
+def field_state_dir(basis: Path | str | None = None) -> Path:
+    """Der Ablageort dieses Aufrufs — `basis`, sonst der produktive Ort."""
+    return Path(basis) if basis is not None else default_field_state_dir()
 
 
 def field_state_path(mutation_id: str, *, basis: Path | str | None = None) -> Path:

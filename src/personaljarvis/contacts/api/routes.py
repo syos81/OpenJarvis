@@ -72,6 +72,9 @@ from personaljarvis.contacts.application.queries import (
 from personaljarvis.contacts.application.app_channel import (
     app_channel_capabilities,
 )
+from personaljarvis.contacts.application.write_release import (
+    default_release_path,
+)
 from personaljarvis.contacts.application.app_execution import (
     AppExecutionService,
     ChannelNotEnabled,
@@ -248,7 +251,14 @@ def create_contacts_router(module) -> APIRouter:
         return app_channel_capabilities(database_path=module_datenbankpfad)
 
     module_datenbankpfad = getattr(getattr(module, "_factory", None), "_path", None)
-    app_execution = AppExecutionService(module, channel_capabilities=kanal)
+    # Die Urkunde wird aus **demselben** Datenbankpfad abgeleitet wie der
+    # Kanalhandschlag darüber. Ohne das läse der Handschlag die Urkunde neben
+    # dieser Datenbank und das Kontingent die neben der Vorgabedatenbank — in
+    # einer abweichenden Aufstellung wären das zwei verschiedene Dateien und
+    # damit zwei verschiedene Aussagen über dieselbe Freigabe.
+    app_execution = AppExecutionService(
+        module, channel_capabilities=kanal,
+        release_path=default_release_path(module_datenbankpfad))
 
     def _mutation_service():
         # Welcher Provider dahintersteht, bleibt Sache der Komposition.
