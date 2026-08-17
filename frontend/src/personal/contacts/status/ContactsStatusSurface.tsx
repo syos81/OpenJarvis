@@ -20,6 +20,7 @@ import {
   Zielangabe,
 } from '../components';
 import { aktionsKnopf } from '../detail/ContactDetailPane';
+import { WiederherstellungsHinweis } from '../editor/dialogs';
 import type { ContactsDataSource } from '../data/source';
 import type { Fehlerbild } from '../workspace/fehler';
 import { fehlerbild } from '../workspace/fehler';
@@ -518,10 +519,15 @@ function MutationDetailView({ id, quelle, onBack }: {
               />
               <span>
                 Ja, diesen Kontakt bei Apple Kontakte <strong>löschen</strong>.
-                Das lässt sich nicht rückgängig machen.
               </span>
             </label>
           )}
+          {/* Was umkehrbar ist und was nicht — an der Stelle, an der
+              ausgeführt wird. Bis hierher stand hier „lässt sich nicht
+              rückgängig machen"; seit dem Löschgate ist der Inhalt sehr wohl
+              wiederherstellbar, und nur die Identität ist es nicht. Der
+              alte Satz wäre jetzt der ungenauere. */}
+          {m.command === 'delete' && <WiederherstellungsHinweis />}
           {/* Ein scharfer Vorgang braucht auch den Rueckweg. Ohne ihn bliebe
               nur Warten auf den Ablauf — oder Ausfuehren. */}
           <button

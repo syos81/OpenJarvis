@@ -33,6 +33,11 @@ from personaljarvis.base.outbox import (
     OutboxNotClaimable,
     token_digest,
 )
+from personaljarvis.contacts.application.delete_gate import (
+    loeschbindung,
+    pruefe_loeschsicherung,
+    schreibe_loeschsicherung,
+)
 from personaljarvis.contacts.application.errors import (
     AlreadySettled,
     MutationNotExecutable,
@@ -101,8 +106,13 @@ class AppExecutionService:
     Freigaben, Audit. Er kennt weder Tauri noch den Sidecar.
     """
 
-    def __init__(self, persistence, *, channel_capabilities=None) -> None:
+    def __init__(self, persistence, *, channel_capabilities=None,
+                 backup_dir=None) -> None:
         self._persistence = persistence
+        #: Ablageort der Feldstandsicherungen. Ein Parameter und ausdruecklich
+        #: keine Umgebungsvariable — dieselbe Regel wie beim Freigabepfad.
+        #: `None` heisst: der kanonische Ort im Datenverzeichnis.
+        self._backup_dir = backup_dir
         # Ein Aufrufbares statt eines Wertes ist hier bedeutungstragend: Die
         # Schreibfreigabe laeuft ab und kann jederzeit zurueckgenommen
         # werden. Wer den Faehigkeitssatz einmal beim Start festhaelt,
@@ -116,6 +126,39 @@ class AppExecutionService:
     @property
     def _caps(self):
         return self._caps_quelle()
+
+    # ── Das Loeschgate ──────────────────────────────────────────────────────
+    #
+    # Geloescht wird nur, was inhaltlich wiederherstellbar ist. Die Sicherung
+    # haengt an **dieser** Mutation, nicht an der Datenbank, und sie entsteht
+    # unmittelbar vor dem Vorgang — nicht schon bei der Freigabe. Sonst
+    # entstuende fuer jede freigegebene, aber nie ausgefuehrte Loeschung eine
+    # Klartextkopie eines Kontakts, den es weiterhin gibt.
+    def _sichere_loeschziel(self, mutation_id: str, *,
+                            confirm_delete: bool) -> None:
+        """Schreibt die Feldstandsicherung — nur fuer eine bestaetigte Loeschung.
+
+        Ohne die zweite Bestaetigung wird **nichts** geschrieben: Der Claim
+        wuerde ohnehin abgewiesen, und eine Klartextkopie fuer einen Vorgang,
+        der gar nicht laufen darf, waere reiner Schaden.
+
+        Ein erneuter Anlauf derselben Mutation trifft dieselbe Datei und
+        ueberschreibt sie, statt eine zweite anzulegen.
+        """
+        if not confirm_delete:
+            return
+        with self._persistence.unit_of_work() as uow:
+            zeile = uow.execute(
+                "SELECT * FROM contacts_mutations WHERE mutation_id = ?",
+                (mutation_id,)).fetchone()
+            if zeile is None or zeile["command"] != "delete":
+                # Kein Loeschvorgang: Die Pruefungen im Claim sagen typisiert,
+                # was los ist. Hier wird nur nichts gesichert.
+                return
+            # Aufgeloest **in** der Arbeitseinheit, geschrieben ausserhalb:
+            # Die Datei entsteht ohne offene Transaktion.
+            bindung = loeschbindung(uow, zeile)
+        schreibe_loeschsicherung(bindung, at=utc_now(), basis=self._backup_dir)
 
     # ── Claim ───────────────────────────────────────────────────────────────
     def claim(self, mutation_id: str, *,
@@ -132,6 +175,13 @@ class AppExecutionService:
             # fehlender Handshake ist kein Freibrief.
             raise ChannelNotEnabled(
                 "Der App-Prozess-Schreibkanal ist nicht freigeschaltet")
+
+        # ── Das Loeschgate, teurer Teil ────────────────────────────────────
+        #
+        # Bewusst **vor** der Transaktion: Sichern heisst schreiben, zuruecklesen
+        # und verifizieren, und das gehoert nicht in eine offene Schreibsperre.
+        # Die Durchsetzung steht unten drin, wo sie billig ist.
+        self._sichere_loeschziel(mutation_id, confirm_delete=confirm_delete)
 
         with self._persistence.unit_of_work() as uow:
             zeile = uow.execute(
@@ -174,6 +224,17 @@ class AppExecutionService:
                 raise AlreadySettled(
                     "Für diesen Vorgang wurde bereits ein Ausführungsauftrag "
                     "ausgegeben")
+
+            # ── Das Loeschgate, Durchsetzung ───────────────────────────────
+            #
+            # Hier und nicht spaeter: **vor** dem Verbrauch der Freigabe und
+            # vor der Auftragsausgabe. Ohne Auftrag beruehrt der App-Prozess
+            # den Provider nie — das ist der Punkt, an dem eine Loeschung ohne
+            # belegten Inhalt endet. Die Ausnahme rollt die Transaktion
+            # zurueck: nichts verbraucht, nichts beansprucht, nichts gesendet.
+            if zeile["command"] == "delete":
+                pruefe_loeschsicherung(loeschbindung(uow, zeile),
+                                       basis=self._backup_dir)
 
             # Freigabe gegen **beide** Digests verbrauchen (ADR-0026 §9).
             try:

@@ -46,6 +46,11 @@ from personaljarvis.contacts.application.commands import (
     MutationCommand,
     UpdateContact,
 )
+from personaljarvis.contacts.application.delete_gate import (
+    loeschbindung,
+    pruefe_loeschsicherung,
+    schreibe_loeschsicherung,
+)
 from personaljarvis.contacts.application.write_quota import (
     QuotaState,
     activation_id,
@@ -217,7 +222,7 @@ class ContactsMutationService:
     def __init__(self, persistence, provider: MutationProvider, *,
                  capabilities=None,
                  approval_ttl_seconds: int = DEFAULT_TTL_SECONDS,
-                 release_path=None) -> None:
+                 release_path=None, backup_dir=None) -> None:
         self._persistence = persistence
         self._provider = provider
         self._capabilities = capabilities
@@ -225,6 +230,10 @@ class ContactsMutationService:
         #: Wo die Freigabeurkunde liegt. Ein Parameter und ausdruecklich keine
         #: Umgebungsvariable — dieselbe Regel wie im Kanalhandschlag.
         self._release_path = release_path
+        #: Ablageort der Feldstandsicherungen des Loeschgates. Dieselbe Regel:
+        #: ein Parameter, keine Umgebungsvariable. `None` heisst der
+        #: kanonische Ort im Datenverzeichnis.
+        self._backup_dir = backup_dir
 
     def _aktivierung(self) -> str | None:
         """Der Fingerabdruck der geltenden Urkunde — die Kontingentgrenze.
@@ -238,6 +247,23 @@ class ContactsMutationService:
         )
 
         return activation_id(read_write_release(self._release_path))
+
+    def _sichere_loeschziel(self, mutation_id: str) -> None:
+        """Sichert den Feldstand, bevor die Transaktion aufgeht.
+
+        Nur fuer eine Loeschung, und nur wenn es den Vorgang gibt. Alles
+        andere sagen die typisierten Pruefungen in Phase A — hier wird dann
+        schlicht nichts gesichert.
+        """
+        with self._persistence.unit_of_work() as uow:
+            zeile = uow.execute(
+                "SELECT * FROM contacts_mutations WHERE mutation_id = ?",
+                (mutation_id,)).fetchone()
+            if zeile is None or zeile["command"] != "delete":
+                return
+            # Aufgeloest **in** der Arbeitseinheit, geschrieben ausserhalb.
+            bindung = loeschbindung(uow, zeile)
+        schreibe_loeschsicherung(bindung, at=utc_now(), basis=self._backup_dir)
 
     def kontingent(self) -> tuple[bool, QuotaState]:
         """Ob eine Dauerfreigabe gilt, und ihr Stand. Liest, aendert nichts.
@@ -399,6 +425,16 @@ class ContactsMutationService:
         alles geprüft, was ohne Send prüfbar ist — jeder Fehler dort ist
         `failed_before_send` und damit gefahrlos.
         """
+        # ── Das Loeschgate, teurer Teil ────────────────────────────────────
+        #
+        # Dieser Weg ist heute nicht der produktive Loeschweg: Der Lese-Sidecar
+        # beantwortet `delete` mit `not_implemented`, geloescht wird ueber den
+        # App-Prozess-Kanal. Ungegatet bliebe hier trotzdem eine zweite Tuer
+        # stehen — dieselbe Bauart des Befunds vom 2026-08-17 am
+        # Kalenderschloss. Sie wird deshalb hier mitgeschlossen und nicht
+        # damit begruendet, dass gerade niemand hindurchgeht.
+        self._sichere_loeschziel(mutation_id)
+
         # ── Phase A: beanspruchen, prüfen, Freigabe verbrauchen ─────────────
         with self._persistence.unit_of_work() as uow:
             zeile = self._require_row(uow, mutation_id)
@@ -475,6 +511,16 @@ class ContactsMutationService:
                 # Buchung der einen Mutation zu viel und der Versuch endet
                 # hier — vor dem Verbrauch der Freigabe und vor jedem Send.
                 raise WriteQuotaExhausted(stand.als_text())
+
+            # ── Das Loeschgate, Durchsetzung ───────────────────────────────
+            #
+            # Vor dem Verbrauch der Freigabe und vor jedem Send. Die Ausnahme
+            # rollt diese Transaktion zurueck — auch die eben gebuchte
+            # Kontingentzeile: Eine Loeschung, die am Gate endet, hat den
+            # Provider nie erreicht und kostet deshalb nichts.
+            if zeile["command"] == "delete":
+                pruefe_loeschsicherung(loeschbindung(uow, zeile),
+                                       basis=self._backup_dir)
 
             ApprovalStore(uow).consume(zeile["approval_id"],
                                        payload_digest=payload.digest)

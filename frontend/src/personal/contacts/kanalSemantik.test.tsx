@@ -170,7 +170,10 @@ describe('Löschbestätigung (R2, DEC-053)', () => {
     expect(quelle).toContain('caps.create_supported || caps.update_supported');
   });
 
-  it('nennt die Unumkehrbarkeit im Bestätigungstext', async () => {
+  it('nennt im Bestätigungstext, was umkehrbar ist und was nicht', async () => {
+    // Bis zum Löschgate stand hier „nicht rückgängig". Das war wahr, solange
+    // es keine Sicherung gab. Seitdem ist der Inhalt wiederherstellbar und
+    // nur die Identität nicht — und der alte Satz wäre der ungenauere.
     const fs = await import('node:fs');
     const path = await import('node:path');
     const quelle = fs.readFileSync(
@@ -178,9 +181,10 @@ describe('Löschbestätigung (R2, DEC-053)', () => {
                 'src/personal/contacts/status/ContactsStatusSurface.tsx'),
       'utf8');
     const block = quelle.split('data-testid="delete-bestaetigung"')[1]
-      .slice(0, 600);
+      .slice(0, 800);
     expect(block).toContain('löschen');
-    expect(block).toContain('nicht rückgängig');
+    expect(block).toContain('WiederherstellungsHinweis');
+    expect(block).not.toContain('nicht rückgängig');
   });
 
   it('sperrt den Ausführungsknopf, solange nicht bestätigt ist', async () => {

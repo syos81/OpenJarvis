@@ -2,9 +2,14 @@
 // die Neuanlage (aus dem Bestand übernommen, auf die Datenquelle umgestellt).
 //
 // Alle Wege enden bei „vorbereitet" oder „freigegeben" — ausgeführt wird in
-// diesem Auftrag nichts, und die Löschbestätigung warnt weiterhin vor der
-// Unumkehrbarkeit einer späteren Ausführung: das lässt sich nicht rückgängig
-// machen.
+// diesem Auftrag nichts.
+//
+// Die Löschbestätigung sagt seit dem Löschgate genauer, was auf dem Spiel
+// steht: Der **Inhalt** ist wiederherstellbar, die **Identität** nicht. Der
+// frühere Satz „das lässt sich nicht rückgängig machen" war einmal wahr und
+// ist es seitdem nicht mehr — er hätte den Menschen vorsichtiger gemacht, als
+// die Lage es verlangt, und ihn zugleich über den echten Verlust im Unklaren
+// gelassen: die Providerkennung und alles, was daran hängt.
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Capabilities, ContactDetail, PreparedMutation } from '../api';
@@ -34,6 +39,32 @@ function FehlerZeile({ fehler }: { fehler: Fehlerbild | null }) {
           Code: {fehler.technicalCode}
         </span>
       )}
+    </p>
+  );
+}
+
+/**
+ * Was eine Löschung umkehrbar macht — und was nicht.
+ *
+ * Die Sprache ist verbindlich und bewusst eng: **Kontaktinhalt**
+ * wiederherstellbar, nicht „Kontakt wiederherstellbar". Vor der Ausführung
+ * sichert Jarvis die Feldwerte; die Providerkennung lässt sich damit nicht
+ * zurückholen. Wer „der Kontakt kommt wieder" liest, plant anders als
+ * jemand, der weiss, dass die alte Identität weg ist.
+ *
+ * Kurzform: content-recoverable, identity-irreversible.
+ */
+export function WiederherstellungsHinweis() {
+  return (
+    <p data-testid="loeschen-wiederherstellung" style={{
+      font: 'var(--pjc-font-label)', color: 'var(--color-text-secondary)',
+      margin: '8px 0 0',
+    }}>
+      Der Kontaktinhalt bleibt wiederherstellbar: Jarvis sichert die Feldwerte
+      unmittelbar vor dem Löschen. Eine Wiederherstellung erzeugt
+      voraussichtlich einen <strong>neuen</strong> Kontakt mit neuer
+      Providerkennung; externe Verknüpfungen zur alten Identität können
+      verloren bleiben.
     </p>
   );
 }
@@ -89,8 +120,9 @@ export function DeleteBestaetigung({ kontakt, quelle, onClose, onPrepared }: {
       </p>
       <p style={{ font: 'var(--pjc-font-body)', color: 'var(--color-danger)', margin: '8px 0 0' }}>
         Nach Freigabe und Ausführung wäre der Datensatz bei Apple Kontakte
-        gelöscht. Das lässt sich von hier aus nicht rückgängig machen.
+        gelöscht.
       </p>
+      <WiederherstellungsHinweis />
     </Modal>
   );
 }

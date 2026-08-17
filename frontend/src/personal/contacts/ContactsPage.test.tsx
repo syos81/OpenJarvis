@@ -457,8 +457,11 @@ describe('Bearbeitung', () => {
                       target: within(liste()).getByText('Bruno Beispiel') });
     await u.click(await screen.findByTestId('kontextmenue-loeschen'));
 
-    // Der Warnhinweis bleibt: unumkehrbar heisst unumkehrbar.
-    expect(await screen.findByText(/nicht rückgängig/)).toBeInTheDocument();
+    // Der Warnhinweis bleibt — er sagt seit dem Löschgate nur genauer, was
+    // verloren geht: der Inhalt ist wiederherstellbar, die Providerkennung
+    // nicht. „Nicht rückgängig" wäre jetzt der ungenauere Satz.
+    expect(await screen.findByTestId('loeschen-wiederherstellung'))
+      .toHaveTextContent(/neuer Providerkennung/);
     // Bis hierher wurde nichts vorbereitet und erst recht nichts gesendet.
     expect(mock.prepareDelete).not.toHaveBeenCalled();
 

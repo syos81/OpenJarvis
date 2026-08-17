@@ -343,8 +343,13 @@ describe('Seitencode', () => {
     expect(seite).toContain('Zustand abgleichen');
   });
 
-  it('warnt beim Loeschen vor der Unumkehrbarkeit', () => {
-    expect(seite.toLowerCase()).toContain('nicht rückgängig');
+  it('sagt beim Loeschen, was umkehrbar ist und was nicht', () => {
+    // Seit dem Loeschgate ist der Inhalt wiederherstellbar; unumkehrbar ist
+    // die Identitaet. „Nicht rueckgaengig" waere jetzt der ungenauere Satz —
+    // er machte vorsichtiger als noetig und verschwiege zugleich, was
+    // tatsaechlich verloren geht.
+    expect(seite).toContain('WiederherstellungsHinweis');
+    expect(seite.toLowerCase()).not.toContain('nicht rückgängig');
   });
 
   it('ruft im Transport genau ein Tauri-Kommando auf', () => {

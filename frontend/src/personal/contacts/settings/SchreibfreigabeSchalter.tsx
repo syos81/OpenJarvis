@@ -132,6 +132,23 @@ export function SchreibfreigabeSchalter() {
         dagegen, dass ein anderes Programm unter deinem Benutzerkonto die
         Freigabedatei selbst anlegt.
       </p>
+
+      {/* Wo die Löschsicherungen liegen — und dass sie liegen bleiben.
+          Kein Verwaltungsbildschirm und kein Aufräumknopf: Löschen ist
+          Eigentümersache, und ein Knopf dafür wäre ein Knopf, der Belege
+          beseitigt. Der Ort steht hier, damit er auffindbar ist, ohne dass
+          jemand ihn suchen muss. */}
+      <p data-testid="contacts-sicherungsort" style={{
+        margin: '10px 0 0', font: 'var(--pjc-font-label)',
+        color: 'var(--color-text-muted)',
+      }}>
+        Vor jedem Löschen sichert Jarvis die Feldwerte des Kontakts nach{' '}
+        <code style={{ fontFamily: 'monospace' }}>
+          ~/.openjarvis/personal/backups/contacts/field-state/
+        </code>
+        {' '}— eine Datei je Vorgang, nur für dich lesbar. Diese Sicherungen
+        bleiben liegen; Jarvis löscht sie nie von selbst.
+      </p>
     </div>
   );
 }

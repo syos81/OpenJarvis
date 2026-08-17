@@ -23,6 +23,8 @@ __all__ = [
     "MutationAlreadyPending",
     "ReconcileAmbiguous",
     "CapabilityNotDeclared",
+    "DeleteBackupMissing",
+    "DeleteBackupUnverified",
 ]
 
 
@@ -38,6 +40,26 @@ class WriteQuotaExhausted(MutationError):
     Ein neuer entsteht nur, wenn der Eigentuemer die Freigabe ausschaltet und
     erneut erteilt — im Produkt mit Systemauthentifizierung. Es gibt bewusst
     keinen Ruecksetzweg; er waere genau der Weg, den ein Agent ginge.
+    """
+
+
+class DeleteBackupMissing(MutationError):
+    """Fuer diese Loeschung liegt keine Sicherung des Feldstands vor.
+
+    Kein Fehler im Vorgang, sondern die fehlende Voraussetzung: Geloescht wird
+    nur, was inhaltlich wiederherstellbar ist. Der Vorgang bleibt freigegeben
+    und laesst sich erneut ausfuehren, sobald die Sicherung steht.
+    """
+
+
+class DeleteBackupUnverified(MutationError):
+    """Es gibt eine Sicherung, aber sie traegt diese Loeschung nicht.
+
+    Sie fehlt nicht — sie ist nicht nachweislich **diese**: falscher Vertrag,
+    andere Mutation, anderer Container, andere Providerkennung, anderer
+    Vorzustandsdigest, fehlende Werte oder falsche Rechte. Eine Sicherung, die
+    zu etwas anderem gehoert, ist schlimmer als keine, weil sie wie eine
+    aussieht.
     """
 
 
