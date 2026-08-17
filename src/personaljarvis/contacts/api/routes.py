@@ -632,6 +632,7 @@ def create_contacts_router(module) -> APIRouter:
                         capability=ATTESTATION_CAPABILITY,
                         mutation_id=mutation_id,
                         payload_digest=vorgang.payload_digest,
+                        preview_digest=vorgang.preview_digest,
                         actor=decision_actor or ""))
             else:
                 getattr(service, aktion)(mutation_id,

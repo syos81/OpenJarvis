@@ -110,16 +110,19 @@ def _geprueft(actor: str) -> str:
 
 
 def owner_decision_attested(*, capability: str, mutation_id: str,
-                            payload_digest: str, actor: str,
-                            verzeichnis=None) -> OwnerDecision:
+                            payload_digest: str, preview_digest: str,
+                            actor: str, verzeichnis=None) -> OwnerDecision:
     """Die **einzige** Stelle, an der im Produkt eine Eigentümerentscheidung
     entsteht — und sie entsteht nur gegen einen Beleg.
 
     Vorher genügte ein HTTP-Aufruf mit frei gesetztem `decision_actor`. Der
     Name war ein Metadatum und wurde als Authentizitätsbeweis gelesen; gemessen
     liefen so 25 von 25 Mutationen ohne jede Bestätigung durch. Jetzt muss ein
-    Beleg aus dem App-Prozess vorliegen, der an **diesen** Vorgang und an
-    **diese** Nutzlast gebunden ist (`base/owner_attestation.py`).
+    Beleg aus dem App-Prozess vorliegen, der an **diesen** Vorgang, an
+    **diese** Nutzlast und an **diese Darstellung** gebunden ist
+    (`base/owner_attestation.py`). Die Darstellung gehoert dazu, weil der
+    Eigentuemer eine Flaeche freigibt und keinen Digest: Was er gesehen hat,
+    muss dasselbe sein wie das, was der Beleg traegt.
 
     Der Beleg wird dabei verbraucht: eine Handlung, eine Mutation.
 
@@ -134,6 +137,7 @@ def owner_decision_attested(*, capability: str, mutation_id: str,
     name = _geprueft(actor)
     beleg = read_attestation(capability=capability, mutation_id=mutation_id,
                              payload_digest=payload_digest,
+                             preview_digest=preview_digest,
                              verzeichnis=verzeichnis)
     if beleg is None:
         raise SelfApprovalRejected(

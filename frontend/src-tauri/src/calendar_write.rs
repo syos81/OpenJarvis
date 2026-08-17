@@ -714,6 +714,15 @@ pub fn execute_order_mit_operationen(
     // neu erfundene: Das Vokabular ist geschlossen und steht als
     // CHECK-Bedingung in Migration 0008. Genau das sagt der Fall auch aus —
     // der Kanal ist abgeschaltet, und zwar vor jedem Senden.
+    //
+    // **Vermerk fuer B2:** Diese eine Klasse traegt damit zwei Aussagen, die
+    // heute zusammenfallen und es spaeter nicht mehr muessen: „der Kanal ist
+    // abgeschaltet" und „das Modul ist nicht schreibreif". Solange Kalender
+    // unreif ist, ist die Unterscheidung folgenlos. Wird in B2 geoeffnet und
+    // bleibt der Kanal aus anderen Gruenden zu, sind es zwei verschiedene
+    // Befunde mit zwei verschiedenen Handlungen — dann braucht die
+    // Produktunreife eine eigene Klasse, und das ist eine Migration auf
+    // EXECUTION_ERROR_CLASSES.
     if !produktreif() {
         return CalendarExecutionReportV1::not_sent(
             &order,

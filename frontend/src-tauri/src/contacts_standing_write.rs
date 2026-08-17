@@ -124,6 +124,14 @@ fn jetzt_unix() -> i64 {
         .unwrap_or(0)
 }
 
+/// Der aktuelle Zeitpunkt im Vertragsformat — auch fuer den Belegschreiber.
+///
+/// Eine Stelle fuer die eigenhaendige Zeitrechnung, nicht zwei: Sie ist die
+/// unangenehmste Zeile in diesem Modul und wird an genau einem Ort geprueft.
+pub fn iso_jetzt_oeffentlich() -> String {
+    iso_jetzt(jetzt_unix())
+}
+
 fn iso_jetzt(jetzt: i64) -> String {
     // Nur so viel Zeitrechnung wie nötig — dasselbe Format, das der Kern
     // schreibt und beide Leser erwarten.

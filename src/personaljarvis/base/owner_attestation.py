@@ -12,7 +12,12 @@ genau eine Mutation und an genau deren Nutzlast:
 
 * `mutation_id` — der Beleg gilt für diesen Vorgang und keinen anderen.
 * `payload_digest` — ändert sich die Nutzlast nach der Handlung, passt der
-  Beleg nicht mehr. Freigegeben wurde, was angezeigt wurde.
+  Beleg nicht mehr.
+* `preview_digest` — und ändert sich die **Darstellung**, passt er ebenso
+  wenig. Die Nutzlast allein genügt nicht: Derselbe Datensatz lässt sich
+  verschieden zeigen, und freigegeben wurde, was auf der Fläche stand. Die
+  Vorschau deckt seit 2026-08-13 auch Name und Art des Zielablageorts, also
+  bindet der Beleg genau die sechs Angaben, die der Eigentümer gesehen hat.
 * `attested_at` — er ist frisch oder er ist keiner. Ein alter Beleg darf keine
   spätere Mutation tragen.
 * Einmalig — `consume()` entfernt ihn. Kein zweiter Lauf aus derselben
@@ -74,6 +79,7 @@ class OwnerAttestation:
     capability: str
     mutation_id: str
     payload_digest: str
+    preview_digest: str
     attested_at: str
     #: Wie der Eigentümer gehandelt hat. Protokoll, nicht Nachweis — der
     #: Nachweis ist, dass der Beleg überhaupt aus dem App-Prozess kommt.
@@ -114,6 +120,7 @@ def _pfad(verzeichnis: Path, mutation_id: str) -> Path | None:
 
 
 def read_attestation(*, capability: str, mutation_id: str, payload_digest: str,
+                     preview_digest: str,
                      verzeichnis: Path | str | None = None,
                      jetzt: datetime | None = None) -> OwnerAttestation | None:
     """Liest den Beleg — oder gibt `None` zurück. Nie eine Ausnahme.
@@ -143,6 +150,10 @@ def read_attestation(*, capability: str, mutation_id: str, payload_digest: str,
         return None
     if roh.get("payload_digest") != payload_digest:
         return None
+    # Und die Darstellung. Ohne sie deckte der Beleg dieselbe Nutzlast unter
+    # einer anderen Anzeige — etwa mit einem anderen Zielablageort im Text.
+    if roh.get("preview_digest") != preview_digest:
+        return None
 
     gestempelt = roh.get("attested_at")
     if not isinstance(gestempelt, str):
@@ -166,8 +177,8 @@ def read_attestation(*, capability: str, mutation_id: str, payload_digest: str,
 
     return OwnerAttestation(
         capability=capability, mutation_id=mutation_id,
-        payload_digest=payload_digest, attested_at=gestempelt,
-        method=verfahren.strip())
+        payload_digest=payload_digest, preview_digest=preview_digest,
+        attested_at=gestempelt, method=verfahren.strip())
 
 
 def consume_attestation(*, mutation_id: str,

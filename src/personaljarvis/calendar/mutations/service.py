@@ -875,6 +875,7 @@ class CalendarMutationService:
                 decision=owner_decision_attested(
                     capability=CAPABILITY, mutation_id=mutation_id,
                     payload_digest=zeile["payload_digest"],
+                    preview_digest=zeile["preview_digest"],
                     actor=decision_actor))
             pruefe_uebergang(zeile["state"], "approved")
             uow.execute(

@@ -116,10 +116,11 @@ def eigentuemerbeleg_vorhanden(monkeypatch):
     """
     from personaljarvis.base import owner_attestation as beleg
 
-    def _immer(*, capability, mutation_id, payload_digest, **_):
+    def _immer(*, capability, mutation_id, payload_digest, preview_digest,
+               **_):
         return beleg.OwnerAttestation(
             capability=capability, mutation_id=mutation_id,
-            payload_digest=payload_digest,
+            payload_digest=payload_digest, preview_digest=preview_digest,
             attested_at="2026-08-17T12:00:00Z", method="testannahme")
 
     monkeypatch.setattr(beleg, "read_attestation", _immer)

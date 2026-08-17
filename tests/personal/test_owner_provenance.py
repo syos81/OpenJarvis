@@ -37,6 +37,7 @@ from personaljarvis.base.owner_attestation import (
 JETZT = datetime.now(timezone.utc)
 MUTATION = "11111111-1111-4111-8111-111111111111"
 DIGEST = "a" * 64
+VORSCHAU = "c" * 64
 
 
 @pytest.fixture
@@ -48,12 +49,14 @@ def belegordner(tmp_path):
 
 
 def beleg_schreiben(ordner, *, mutation_id=MUTATION, payload_digest=DIGEST,
-                    capability="contacts", modus=0o600, **rest):
+                    preview_digest=VORSCHAU, capability="contacts",
+                    modus=0o600, **rest):
     dokument = {
         "contract": ATTESTATION_CONTRACT,
         "capability": capability,
         "mutation_id": mutation_id,
         "payload_digest": payload_digest,
+        "preview_digest": preview_digest,
         "attested_at": JETZT.isoformat(),
         "method": "device_owner_authentication",
     }
@@ -70,14 +73,14 @@ def test_ein_freier_name_erzeugt_keine_eigentuemerentscheidung(belegordner):
     with pytest.raises(SelfApprovalRejected):
         owner_decision_attested(
             capability="contacts", mutation_id=MUTATION,
-            payload_digest=DIGEST, actor="lukas", verzeichnis=belegordner)
+            payload_digest=DIGEST, preview_digest=VORSCHAU, actor="lukas", verzeichnis=belegordner)
 
 
 def test_mit_beleg_entsteht_die_entscheidung(belegordner):
     beleg_schreiben(belegordner)
     entscheidung = owner_decision_attested(
         capability="contacts", mutation_id=MUTATION, payload_digest=DIGEST,
-        actor="lukas", verzeichnis=belegordner)
+        preview_digest=VORSCHAU, actor="lukas", verzeichnis=belegordner)
     assert entscheidung.actor == "lukas"
 
 
@@ -86,12 +89,12 @@ def test_ein_beleg_traegt_genau_eine_mutation(belegordner):
     beleg_schreiben(belegordner)
     owner_decision_attested(
         capability="contacts", mutation_id=MUTATION, payload_digest=DIGEST,
-        actor="lukas", verzeichnis=belegordner)
+        preview_digest=VORSCHAU, actor="lukas", verzeichnis=belegordner)
     # Der zweite Versuch findet nichts mehr — der Beleg ist verbraucht.
     with pytest.raises(SelfApprovalRejected):
         owner_decision_attested(
             capability="contacts", mutation_id=MUTATION,
-            payload_digest=DIGEST, actor="lukas", verzeichnis=belegordner)
+            payload_digest=DIGEST, preview_digest=VORSCHAU, actor="lukas", verzeichnis=belegordner)
 
 
 def test_ein_beleg_gilt_nicht_fuer_einen_anderen_vorgang(belegordner):
@@ -99,7 +102,7 @@ def test_ein_beleg_gilt_nicht_fuer_einen_anderen_vorgang(belegordner):
     fremd = "22222222-2222-4222-8222-222222222222"
     with pytest.raises(SelfApprovalRejected):
         owner_decision_attested(
-            capability="contacts", mutation_id=fremd, payload_digest=DIGEST,
+            capability="contacts", mutation_id=fremd, payload_digest=DIGEST, preview_digest=VORSCHAU,
             actor="lukas", verzeichnis=belegordner)
 
 
@@ -109,7 +112,22 @@ def test_eine_nach_der_handlung_geaenderte_nutzlast_bricht_den_beleg(belegordner
     with pytest.raises(SelfApprovalRejected):
         owner_decision_attested(
             capability="contacts", mutation_id=MUTATION,
-            payload_digest="b" * 64, actor="lukas", verzeichnis=belegordner)
+            payload_digest="b" * 64, preview_digest=VORSCHAU, actor="lukas", verzeichnis=belegordner)
+
+
+def test_eine_andere_darstellung_derselben_nutzlast_bricht_den_beleg(belegordner):
+    """Der Eigentümer gibt eine **Fläche** frei, keinen Digest.
+
+    Dieselbe Nutzlast lässt sich verschieden zeigen — etwa mit einem anderen
+    Zielablageort im Text. Deckte der Beleg nur die Nutzlast, hätte Lukas
+    etwas anderes freigegeben, als er gesehen hat.
+    """
+    beleg_schreiben(belegordner)
+    with pytest.raises(SelfApprovalRejected):
+        owner_decision_attested(
+            capability="contacts", mutation_id=MUTATION,
+            payload_digest=DIGEST, preview_digest="d" * 64,
+            actor="lukas", verzeichnis=belegordner)
 
 
 def test_ein_beleg_gilt_nicht_fuer_eine_andere_faehigkeit(belegordner):
@@ -117,14 +135,14 @@ def test_ein_beleg_gilt_nicht_fuer_eine_andere_faehigkeit(belegordner):
     with pytest.raises(SelfApprovalRejected):
         owner_decision_attested(
             capability="calendar", mutation_id=MUTATION,
-            payload_digest=DIGEST, actor="lukas", verzeichnis=belegordner)
+            payload_digest=DIGEST, preview_digest=VORSCHAU, actor="lukas", verzeichnis=belegordner)
 
 
 # ── Die Dateibedingungen ─────────────────────────────────────────────────────
 def test_ein_zu_offener_beleg_gilt_nicht(belegordner):
     beleg_schreiben(belegordner, modus=0o644)
     assert read_attestation(capability="contacts", mutation_id=MUTATION,
-                            payload_digest=DIGEST, verzeichnis=belegordner,
+                            payload_digest=DIGEST, preview_digest=VORSCHAU, verzeichnis=belegordner,
                             jetzt=JETZT) is None
 
 
@@ -133,7 +151,7 @@ def test_ein_beleg_in_einem_offenen_ordner_gilt_nicht(belegordner):
     os.chmod(belegordner, 0o755)
     try:
         assert read_attestation(capability="contacts", mutation_id=MUTATION,
-                                payload_digest=DIGEST,
+                                payload_digest=DIGEST, preview_digest=VORSCHAU,
                                 verzeichnis=belegordner, jetzt=JETZT) is None
     finally:
         os.chmod(belegordner, 0o700)
@@ -143,7 +161,7 @@ def test_ein_alter_beleg_gilt_nicht(belegordner):
     beleg_schreiben(belegordner)
     spaeter = JETZT + timedelta(minutes=20)
     assert read_attestation(capability="contacts", mutation_id=MUTATION,
-                            payload_digest=DIGEST, verzeichnis=belegordner,
+                            payload_digest=DIGEST, preview_digest=VORSCHAU, verzeichnis=belegordner,
                             jetzt=spaeter) is None
 
 
@@ -151,14 +169,14 @@ def test_ein_beleg_aus_der_zukunft_gilt_nicht(belegordner):
     beleg_schreiben(belegordner,
                     attested_at=(JETZT + timedelta(minutes=5)).isoformat())
     assert read_attestation(capability="contacts", mutation_id=MUTATION,
-                            payload_digest=DIGEST, verzeichnis=belegordner,
+                            payload_digest=DIGEST, preview_digest=VORSCHAU, verzeichnis=belegordner,
                             jetzt=JETZT) is None
 
 
 def test_ein_fremder_vertrag_gilt_nicht(belegordner):
     beleg_schreiben(belegordner, contract="owner-approval-v0")
     assert read_attestation(capability="contacts", mutation_id=MUTATION,
-                            payload_digest=DIGEST, verzeichnis=belegordner,
+                            payload_digest=DIGEST, preview_digest=VORSCHAU, verzeichnis=belegordner,
                             jetzt=JETZT) is None
 
 
@@ -167,7 +185,7 @@ def test_eine_kennung_kann_nicht_aus_dem_ordner_ausbrechen(belegordner):
     nicht bereinigt."""
     for boese in ["../andere", "a/b", "a.b", ""]:
         assert read_attestation(capability="contacts", mutation_id=boese,
-                                payload_digest=DIGEST,
+                                payload_digest=DIGEST, preview_digest=VORSCHAU,
                                 verzeichnis=belegordner, jetzt=JETZT) is None
         assert consume_attestation(mutation_id=boese,
                                    verzeichnis=belegordner) is False
@@ -186,14 +204,14 @@ def test_ein_maschineller_ursprung_entscheidet_nie(belegordner):
         with pytest.raises(SelfApprovalRejected):
             owner_decision_attested(
                 capability="contacts", mutation_id=MUTATION,
-                payload_digest=DIGEST, actor=maschine,
+                payload_digest=DIGEST, preview_digest=VORSCHAU, actor=maschine,
                 verzeichnis=belegordner)
 
 
 def test_der_beleg_traegt_sein_verfahren(belegordner):
     beleg_schreiben(belegordner)
     beleg = read_attestation(capability="contacts", mutation_id=MUTATION,
-                             payload_digest=DIGEST, verzeichnis=belegordner,
+                             payload_digest=DIGEST, preview_digest=VORSCHAU, verzeichnis=belegordner,
                              jetzt=JETZT)
     assert isinstance(beleg, OwnerAttestation)
     assert beleg.method == "device_owner_authentication"

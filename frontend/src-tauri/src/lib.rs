@@ -4,6 +4,7 @@ mod contacts_authorization;
 pub mod contacts_create;
 pub mod contacts_execution;
 pub mod contacts_standing_write;
+pub mod owner_attestation;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -3294,6 +3295,7 @@ pub fn run() {
             contacts_standing_write::personal_contacts_standing_write_state,
             contacts_standing_write::personal_contacts_standing_write_enable,
             contacts_standing_write::personal_contacts_standing_write_disable,
+            owner_attestation::personal_contacts_attest_owner_approval,
             personal_contacts_execute_mutation,
             personal_calendar_execute_mutation,
             personal_calendar_delete_probe,
