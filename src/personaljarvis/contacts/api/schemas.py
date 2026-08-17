@@ -419,6 +419,12 @@ class PreparedMutationOut(_Strict):
     #: „wohin" nicht beantwortet: eine Kennung allein unterscheidet den
     #: lokalen Ablageort nicht von einem Konto.
     container_type: str = "unknown"
+    #: Lesbarer Name des Zielablageorts aus dem Bestand. `None` heisst „noch
+    #: nicht gelesen" und wird von der Flaeche als solches gezeigt — nie durch
+    #: die Kennung ersetzt.
+    container_name: str | None = None
+    #: Wie viele Kontakte dort derzeit liegen. Kontext, nicht Kategorie.
+    container_contact_count: int | None = None
     target_label: str | None = None
     changes: list[FieldChangeOut] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

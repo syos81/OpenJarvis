@@ -59,6 +59,17 @@ class MutationPreview:
     #: allein sagt dem Menschen nicht, ob er in den lokalen Ablageort oder in
     #: ein Konto schreibt (§8 A, ADR-0025 §2).
     container_type: str | None = None
+    #: Lesbarer Name des Zielablageorts aus dem **Bestand** — nie im Frontend
+    #: gebildet und nie aus der Kennung abgeleitet. `None` heisst „noch nicht
+    #: gelesen": Vor dem ersten Sync nach Migration 0012 trägt der Bestand
+    #: keinen Namen, und die Fläche sagt das offen, statt die Kennung als
+    #: Namen auszugeben. Ein stiller Rückfall behauptete Wissen, das niemand
+    #: hat.
+    container_name: str | None = None
+    #: Wie viele Kontakte der Zielablageort derzeit führt. **Kontext, nicht
+    #: Kategorie**: Eine Null macht aus einem synchronisierten Konto keinen
+    #: lokalen Ablageort. Die kategoriale Aussage steht in `container_type`.
+    container_contact_count: int | None = None
 
     @property
     def digest(self) -> str:
@@ -75,6 +86,12 @@ class MutationPreview:
             "target": self.target_provider_identifier,
             "container": self.container_identifier,
             "containerType": self.container_type,
+            # Name und Anzahl stehen auf der Flaeche, also bindet der Digest
+            # sie. Sonst deckte die Freigabe dieselbe Nutzlast unter einem
+            # anderen Zielnamen — und der Zielname ist die Angabe, an der ein
+            # Mensch „wohin" erkennt.
+            "containerName": self.container_name,
+            "containerContactCount": self.container_contact_count,
             "changes": [
                 {"field": c.field_name, "previous": c.previous,
                  "planned": c.planned} for c in self.changes

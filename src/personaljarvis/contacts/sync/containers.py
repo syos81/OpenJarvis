@@ -98,3 +98,27 @@ def validate_inventory(container: Iterable) -> dict[str, str]:
                 code="inventory_ambiguous_type")
         arten[kennung] = art
     return arten
+
+
+def inventory_names(container: Iterable) -> dict[str, str]:
+    """Bildet Kennung → **lesbaren Namen** ab, soweit der Provider einen nennt.
+
+    Getrennt von `validate_inventory`, obwohl beide dasselbe Inventar lesen:
+    Die Art ist eine Vertragsangabe mit geschlossenem Vorrat, aus der
+    Entscheidungen folgen — ein Widerspruch dort ist ein Fehlschlag. Der Name
+    ist eine Anzeige. Ein fehlender oder wechselnder Name darf keinen Sync
+    scheitern lassen; er darf nur nicht erfunden werden.
+
+    Deshalb entsteht bei leerem Namen **kein** Eintrag statt eines leeren
+    Strings: „nicht genannt" und „heisst nichts" sind verschiedene Aussagen,
+    und nur die erste ist hier wahr.
+    """
+    namen: dict[str, str] = {}
+    for eintrag in container:
+        kennung = (getattr(eintrag, "identifier", "") or "").strip()
+        if not kennung:
+            continue
+        name = (getattr(eintrag, "name", "") or "").strip()
+        if name:
+            namen[kennung] = name
+    return namen

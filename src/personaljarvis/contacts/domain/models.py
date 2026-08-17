@@ -441,6 +441,10 @@ class ContactSyncState:
     #: Provider sie meldet. `None` heisst „noch nicht synchronisiert" — nicht
     #: „unbekannter Typ", und schon gar nicht „lokal".
     container_type: str | None = None
+    #: Lesbarer Name des Ablageorts, wie der Provider ihn nennt. `None` heisst
+    #: „noch nicht gelesen" — nie „hat keinen Namen". Die Vorschau zeigt diesen
+    #: Zustand offen an, statt die Kennung als Namen auszugeben.
+    container_name: str | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.provider_account_id, "provider_account_id")

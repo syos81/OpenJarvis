@@ -872,7 +872,7 @@ class ContactsMutationService:
                 command=zeile["command"],
                 target_provider_identifier=zeile["target_provider_identifier"],
                 container_identifier=container,
-                container_type=self._container_art(
+                **self._container_anzeige(
                     uow, zeile["provider_account_id"], container),
                 target_contact_id=zeile["target_contact_id"]),
             reused=True)
@@ -932,6 +932,40 @@ class ContactsMutationService:
                 target_provider_identifier=command.target_provider_identifier,
                 expected_revision=command.expected_revision, fields={})
         raise InvalidCommand(f"Unbekannter Command: {type(command).__name__}")
+
+    @staticmethod
+    def _container_anzeige(uow: UnitOfWork, provider_account_id: str,
+                           container_identifier: str | None) -> dict:
+        """Art, Name und Anzahl des Zielablageorts — aus dem Bestand.
+
+        **Eine** Quelle fuer alle drei Angaben, damit die Flaeche nicht drei
+        Wege hat, an denen sie auseinanderlaufen koennen. Der Name kommt aus
+        `contacts_sync_state`; ist er `None`, heisst das „noch nicht gelesen"
+        und wird als solches weitergereicht — die Kennung wird nicht zum Namen
+        umgedeutet.
+
+        Die Anzahl ist Kontext, nicht Kategorie: Ein synchronisiertes Konto
+        bleibt eines, auch wenn gerade nichts darin steht. Die kategoriale
+        Aussage traegt allein die Art.
+        """
+        art = ContactsMutationService._container_art(
+            uow, provider_account_id, container_identifier)
+        if not container_identifier:
+            return {"container_type": art, "container_name": None,
+                    "container_contact_count": None}
+        zeile = uow.execute(
+            "SELECT container_name FROM contacts_sync_state "
+            "WHERE provider_account_id = ? AND container_identifier = ?",
+            (provider_account_id, container_identifier)).fetchone()
+        anzahl = uow.execute(
+            "SELECT COUNT(*) AS n FROM contact_external_ids "
+            "WHERE provider_account_id = ? AND container_identifier = ?",
+            (provider_account_id, container_identifier)).fetchone()
+        return {
+            "container_type": art,
+            "container_name": (zeile["container_name"] if zeile else None),
+            "container_contact_count": (anzahl["n"] if anzahl else 0),
+        }
 
     @staticmethod
     def _container_art(uow: UnitOfWork, provider_account_id: str,
@@ -996,7 +1030,7 @@ class ContactsMutationService:
             return MutationPreview(
                 command="create", target_provider_identifier=None,
                 container_identifier=command.container_identifier,
-                container_type=self._container_art(
+                **self._container_anzeige(
                     uow, command.provider_account_id,
                     command.container_identifier),
                 changes=tuple(FieldChange(name, None, wert) for name, wert
@@ -1009,12 +1043,13 @@ class ContactsMutationService:
             if zeile is not None:
                 vorher = dict(zeile)
         container = self._ziel_container(uow, command)
-        art = self._container_art(uow, command.provider_account_id, container)
+        anzeige = self._container_anzeige(
+            uow, command.provider_account_id, container)
         if isinstance(command, UpdateContact):
             return MutationPreview(
                 command="update",
                 target_provider_identifier=command.target_provider_identifier,
-                container_identifier=container, container_type=art,
+                container_identifier=container, **anzeige,
                 changes=tuple(
                     FieldChange(k, vorher.get(k), v) for k, v
                     in sorted(command.patch.fields.items())),
@@ -1024,7 +1059,7 @@ class ContactsMutationService:
         return MutationPreview(
             command="delete",
             target_provider_identifier=command.target_provider_identifier,
-            container_identifier=container, container_type=art,
+            container_identifier=container, **anzeige,
             target_label=vorher.get("display_name"),
             target_contact_id=ziel.get("contact_id"),
             warnings=("Der Datensatz wird beim Provider geloescht.",))

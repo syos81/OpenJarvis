@@ -716,6 +716,8 @@ def create_contacts_router(module) -> APIRouter:
             container_ref=(container_ref(vorschau.container_identifier)
                            if vorschau.container_identifier else None),
             container_type=vorschau.container_type or "unknown",
+            container_name=vorschau.container_name,
+            container_contact_count=vorschau.container_contact_count,
             target_label=vorschau.target_label,
             changes=[S.FieldChangeOut(field_name=c.field_name,
                                       previous=c.previous, planned=c.planned)

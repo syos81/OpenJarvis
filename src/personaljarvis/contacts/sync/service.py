@@ -60,6 +60,7 @@ from personaljarvis.contacts.sync.audit import (
     container_ref,
 )
 from personaljarvis.contacts.sync.containers import (
+    inventory_names,
     is_specific_container_type,
     validate_inventory,
 )
@@ -141,6 +142,9 @@ class ContactsSyncService:
         #: diesem Lauf nicht erhoben" — nie „unbekannter Typ". Die verbindliche
         #: Quelle ist die Datenbank; das hier ist nur der kurze Weg dorthin.
         self._container_arten: dict[str, str] = {}
+        #: Kennung -> lesbarer Name, soweit das Inventar einen nennt. Fehlt
+        #: einer, steht hier kein Eintrag — und nicht ein leerer String.
+        self._container_namen: dict[str, str] = {}
 
     # ── Vorbedingungen ──────────────────────────────────────────────────────
     def _require_started(self) -> None:
@@ -217,6 +221,7 @@ class ContactsSyncService:
         # Erst nach bestandener Pruefung merken: ein mehrdeutiges Inventar darf
         # auch den Folgelauf nicht mit halben Angaben versorgen.
         self._container_arten = dict(arten)
+        self._container_namen = dict(inventory_names(container))
         if not arten:
             return ()
 
@@ -231,6 +236,7 @@ class ContactsSyncService:
                     repos.sync_state.upsert(ContactSyncState(
                         provider_account_id=self._provider_account_id,
                         container_identifier=kennung, container_type=art,
+                        container_name=self._container_namen.get(kennung),
                         # Der Schluesselsatz des laufenden Sidecars. Er wird
                         # beim ersten echten Lauf ohnehin ueberschrieben; bis
                         # dahin ist er die einzige belegte Angabe.
@@ -966,6 +972,7 @@ class ContactsSyncService:
             provider_account_id=self._provider_account_id,
             container_identifier=container_identifier,
             container_type=self._container_arten.get(container_identifier),
+            container_name=self._container_namen.get(container_identifier),
             key_set_version=key_set_version, mode=mode.value,
             cursor_token=cursor_token, cursor_taken_at=cursor_taken_at,
             last_full_diff_at=last_full_diff_at,

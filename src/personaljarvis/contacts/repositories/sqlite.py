@@ -491,7 +491,8 @@ class SqliteSyncStateRepository(_Base):
                 "INSERT INTO contacts_sync_state (provider_account_id, "
                 "container_identifier, cursor_token, cursor_taken_at, "
                 "last_full_diff_at, key_set_version, mode, circuit_state, "
-                "updated_at, container_type) VALUES (?,?,?,?,?,?,?,?,?,?) "
+                "updated_at, container_type, container_name) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(provider_account_id, container_identifier) DO UPDATE SET "
                 "cursor_token=excluded.cursor_token, "
                 "cursor_taken_at=excluded.cursor_taken_at, "
@@ -508,11 +509,18 @@ class SqliteSyncStateRepository(_Base):
                 "WHEN excluded.container_type IS NULL "
                 "OR excluded.container_type = 'unknown' "
                 "THEN contacts_sync_state.container_type "
-                "ELSE excluded.container_type END",
+                "ELSE excluded.container_type END, "
+                # Derselbe Schutz fuer den Namen: ein Lauf ohne Auskunft
+                # loescht keinen bereits gelesenen Namen.
+                "container_name=CASE "
+                "WHEN excluded.container_name IS NULL "
+                "THEN contacts_sync_state.container_name "
+                "ELSE excluded.container_name END",
                 (state.provider_account_id, state.container_identifier,
                  state.cursor_token, state.cursor_taken_at, state.last_full_diff_at,
                  state.key_set_version, state.mode, state.circuit_state,
-                 state.updated_at, state.container_type),
+                 state.updated_at, state.container_type,
+                 state.container_name),
             )
         except sqlite3.IntegrityError as exc:
             raise IntegrityError(f"Sync-Zustand nicht speicherbar: {exc}") from exc
@@ -538,6 +546,7 @@ class SqliteSyncStateRepository(_Base):
             provider_account_id=r["provider_account_id"],
             container_identifier=r["container_identifier"],
             container_type=r["container_type"],
+            container_name=r["container_name"],
             cursor_token=r["cursor_token"], cursor_taken_at=r["cursor_taken_at"],
             last_full_diff_at=r["last_full_diff_at"],
             key_set_version=r["key_set_version"], mode=r["mode"],
