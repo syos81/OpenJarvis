@@ -418,3 +418,65 @@ Der Produktcode dieser Reparatur ist **gemeinsam** für x86_64 und arm64.
 Calendar arm64 ist damit nicht abgeschlossen: Es existiert weiterhin kein
 finaler arm64-Abschlussbericht, und die Reparatur verlangt den Nachweis auf
 dem M2 auf genau diesem Stand. `Calendar = COMPLETE` bleibt unzulässig.
+
+---
+
+## 14. Nachtrag: Guard auf dem M2 aktiviert (2026-08-17)
+
+*Dieser Abschnitt hebt ausschliesslich die Zeile `M2_GUARD_OWNER_SETUP` in §11
+und in §13 auf. Alle uebrigen Aussagen bleiben unveraendert; sie betreffen den
+x86_64-Rechner und wurden hier nicht erneut gemessen.*
+
+Der Eigentuemer hat die Aktivierung nach DEC-068 — Eigentuemergrenzen
+(`docs/governance/decisions/DEC-068-eigentuemergrenzen.md`) selbst ausgefuehrt.
+Agentenseitig wurde nichts installiert und nichts eskaliert; die Bestaetigung
+unten ist ausschliesslich lesend erhoben, mit einer Ausnahme: dem bewussten
+Verbotsversuch, ausgefuehrt in einem Wegwerf-Repository ausserhalb des
+Projekts.
+
+**Rechner:** Apple M2, macOS 26.2, arm64, Sitzungsbenutzer uid 501.
+
+| Pruefung | Befund |
+|---|---|
+| Installationswurzel `/usr/local/jarvis-guard` | vorhanden, `root:wheel 0755`, Ahnenkette bis `/` durchgehend root-eigen |
+| Bootstrap-Wrapper / Entrypoint | `root:wheel 0755` / `0644` |
+| Aktives Paket, Regelkonfiguration | `root:wheel`, Verzeichnisse `0755`, Dateien `0444`, keine Symlinks |
+| Laufzeitbereich / Sammelbereich / Aktivierungsprotokoll | `0755` / `0755` / `0600`; Ausnahme- und Beobachtungsbereich `01733` + ACL |
+| `active.json` | `guard_version 1.3.0`, `config_schema guard-config-1`, Interpreter der Command Line Tools, `source_commit 5fe885a7` |
+| Paket-Hash | `a775a30f…12db4` — **neu berechnet** aus dem installierten Paket, identisch mit `active.json` |
+| Paketinhalt gegen das Commitobjekt | alle zwoelf Laufzeitmodule byteweise identisch mit `5fe885a7:tools/guard`, keine zusaetzliche Datei |
+| Hook-Registrierung | `/Library/Application Support/ClaudeCode/managed-settings.json`, `root:wheel 0644`, registriert `PreToolUse` auf `/usr/local/jarvis-guard/bootstrap.sh` |
+
+ACL-Verhalten unter den Rechten der bewachten Sitzung, real geprueft: Anhaengen
+an das Schutzprotokoll gelingt, Abschneiden und Ueberschreiben scheitern; einen
+Ausnahmemarker anlegen gelingt, ihn entfernen scheitert; Schreiben in
+Sammelbereich, Installationswurzel, aktives Paket, `active.json` und
+Policy-Datei scheitert durchgehend.
+
+**Wirksamkeit im ausgefuehrten Pfad.** Der harte Verbotsfall
+`git_commit_amend` wurde in einem Wegwerf-Repository ausserhalb des Projekts
+ausgeloest und **vor der Ausfuehrung** abgewiesen. Der HEAD des
+Wegwerf-Repositorys ist unveraendert; das Schutzprotokoll fuehrt den Versuch
+mit `decision deny`, `detection_layer argv`, `reason_code git_commit_amend`,
+`guard_version 1.3.0`. Ein Push wurde zur Probe **nicht** ausgeloest, auch kein
+aussichtsloser — das bleibt Klasse (1) aus DEC-068.
+
+Ein zweiter, unbeabsichtigter Beleg entstand beim Schreiben dieses Nachtrags:
+derselbe Verbotsfall griff auf die **Textform** in einer Werkzeugeingabe und
+wies den gesamten zusammengesetzten Befehl ab, bevor irgendetwas geschrieben
+war. Fail-closed auf der Zeichenkette, nicht erst auf der Wirkung.
+
+Das Schutzprotokoll ist dabei stuetzendes Signal, nicht Beweis; die Beweislast
+liegt bei der Hashbindung, den Eigentuemer- und Modusbefunden und dem aktiven
+Verbotsversuch (`config/governance/guard-trust-model.json`,
+`evidence_use_limit`). Die Grenze lautet unveraendert
+`requires_interactive_owner_authentication`.
+
+| Aussage | Stand |
+|---|---|
+| `M2_GUARD_OWNER_SETUP` | ~~`PENDING`~~ → **`DONE`** |
+
+**Nebenbefund:** Der ACL-Test hat einen Marker `probe-claude` im
+Ausnahmebereich `var/exceptions/spent/` hinterlassen. Er ist aus der Sitzung
+nicht entfernbar — genau das war die geprueffte Eigenschaft. Entfernen ist eine
+Eigentuemerhandlung ueber `scripts/guard-collect.sh`.
