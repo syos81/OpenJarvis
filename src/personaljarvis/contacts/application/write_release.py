@@ -114,6 +114,10 @@ class WriteRelease:
     reason: str
     capability: str = WRITE_RELEASE_CAPABILITY
     mode: str = MODE_TEMPORARY
+    #: Ausstellungszeitpunkt einer Dauerfreigabe. Er unterscheidet zwei sonst
+    #: wortgleiche Urkunden — und daran haengt, ob ein erneutes Einschalten ein
+    #: frisches Kontingent bekommt (`write_quota`).
+    granted_at: str | None = None
 
     def erlaubt(self, operation: str) -> bool:
         return operation in self.operations
@@ -250,7 +254,8 @@ def read_write_release(pfad: Path | str | None = None, *,
             return None
         return WriteRelease(contract=vertrag, operations=tuple(operationen),
                             expires_at=None, reason=grund.strip(),
-                            capability=gemeint, mode=MODE_STANDING)
+                            capability=gemeint, mode=MODE_STANDING,
+                            granted_at=roh.get("granted_at"))
 
     ablauf = roh.get("expires_at")
     endet = _zeitpunkt(ablauf)

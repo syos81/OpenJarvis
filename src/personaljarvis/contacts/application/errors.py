@@ -30,6 +30,17 @@ class MutationError(PersonalJarvisError):
     """Wurzel aller Mutationsfehler."""
 
 
+class WriteQuotaExhausted(MutationError):
+    """Das Kontingent dieser Schreibfreigabe ist aufgebraucht.
+
+    Kein Fehler im Vorgang: Die Mutation ist gueltig, vorbereitet und
+    freigegeben. Aufgebraucht ist der Rahmen, den **eine** Aktivierung traegt.
+    Ein neuer entsteht nur, wenn der Eigentuemer die Freigabe ausschaltet und
+    erneut erteilt — im Produkt mit Systemauthentifizierung. Es gibt bewusst
+    keinen Ruecksetzweg; er waere genau der Weg, den ein Agent ginge.
+    """
+
+
 class InvalidCommand(MutationError):
     """Der Command ist unvollständig oder in sich widersprüchlich."""
 

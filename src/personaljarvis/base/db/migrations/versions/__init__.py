@@ -40,9 +40,12 @@ from personaljarvis.base.db.migrations.versions.m0011_calendar_semantic_state im
 from personaljarvis.base.db.migrations.versions.m0012_container_name import (
     MIGRATION as M0012,
 )
+from personaljarvis.base.db.migrations.versions.m0013_write_quota import (
+    MIGRATION as M0013,
+)
 
 __all__ = ["ALL_MIGRATIONS"]
 
 ALL_MIGRATIONS: tuple[Migration, ...] = (M0001, M0002, M0003, M0004, M0005,
                                           M0006, M0007, M0008, M0009, M0010,
-                                          M0011, M0012)
+                                          M0011, M0012, M0013)

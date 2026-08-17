@@ -46,6 +46,11 @@ from personaljarvis.contacts.application.commands import (
     MutationCommand,
     UpdateContact,
 )
+from personaljarvis.contacts.application.write_quota import (
+    activation_id,
+    claim_quota,
+    quota_state,
+)
 from personaljarvis.contacts.application.errors import (
     AlreadySettled,
     CapabilityNotDeclared,
@@ -56,6 +61,7 @@ from personaljarvis.contacts.application.errors import (
     MutationAlreadyPending,
     MutationNotExecutable,
     MutationNotFound,
+    WriteQuotaExhausted,
     RevisionConflict,
 )
 from personaljarvis.contacts.application.models import (
@@ -209,11 +215,28 @@ class ContactsMutationService:
 
     def __init__(self, persistence, provider: MutationProvider, *,
                  capabilities=None,
-                 approval_ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
+                 approval_ttl_seconds: int = DEFAULT_TTL_SECONDS,
+                 release_path=None) -> None:
         self._persistence = persistence
         self._provider = provider
         self._capabilities = capabilities
         self._ttl = approval_ttl_seconds
+        #: Wo die Freigabeurkunde liegt. Ein Parameter und ausdruecklich keine
+        #: Umgebungsvariable — dieselbe Regel wie im Kanalhandschlag.
+        self._release_path = release_path
+
+    def _aktivierung(self) -> str | None:
+        """Der Fingerabdruck der geltenden Urkunde — die Kontingentgrenze.
+
+        Ohne gueltige Dauerfreigabe gibt es keine Aktivierung und damit auch
+        kein Kontingent: Dann traegt die befristete Freigabe den Vorgang, und
+        ihre Grenze ist die Zeit.
+        """
+        from personaljarvis.contacts.application.write_release import (
+            read_write_release,
+        )
+
+        return activation_id(read_write_release(self._release_path))
 
     # ── 1. Vorbereiten ──────────────────────────────────────────────────────
     def prepare(self, command: MutationCommand) -> PreparedMutation:
@@ -417,6 +440,21 @@ class ContactsMutationService:
                     mutation_id=mutation_id,
                     state=MutationState.FAILED_BEFORE_SEND, outcome="failed",
                     error_code=code, attempt_count=eintrag.attempt_count)
+
+            # ── Das Kontingent, genau hier ─────────────────────────────────
+            #
+            # Nach der Vorpruefung und vor dem Verbrauch der Freigabe: Alles
+            # davor ist gefahrlos gescheitert und kostet nichts, alles danach
+            # erreicht den Provider. Gebucht wird die **Mutation**, nicht das
+            # Ereignis — ein technischer Wiederholungsversuch trifft dieselbe
+            # Zeile und verbraucht nicht doppelt.
+            aktivierung = self._aktivierung()
+            stand = claim_quota(uow, aktivierung, mutation_id, at=utc_now())
+            if stand.used > stand.limit:
+                # Gebucht wird nur, was neu ist; ist der Rahmen voll, ist die
+                # Buchung der einen Mutation zu viel und der Versuch endet
+                # hier — vor dem Verbrauch der Freigabe und vor jedem Send.
+                raise WriteQuotaExhausted(stand.als_text())
 
             ApprovalStore(uow).consume(zeile["approval_id"],
                                        payload_digest=payload.digest)
