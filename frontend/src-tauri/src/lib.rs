@@ -3,6 +3,7 @@ pub mod calendar_write;
 mod contacts_authorization;
 pub mod contacts_create;
 pub mod contacts_execution;
+pub mod contacts_standing_write;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -3290,6 +3291,9 @@ pub fn run() {
             get_overlay_conversation,
             personal_contacts_authorization_status,
             personal_contacts_request_authorization,
+            contacts_standing_write::personal_contacts_standing_write_state,
+            contacts_standing_write::personal_contacts_standing_write_enable,
+            contacts_standing_write::personal_contacts_standing_write_disable,
             personal_contacts_execute_mutation,
             personal_calendar_execute_mutation,
             personal_calendar_delete_probe,

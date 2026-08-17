@@ -31,6 +31,7 @@ import {
   type InferenceSource,
 } from '../lib/api';
 import { isAutoUpdateDisabled, setAutoUpdateDisabled } from '../components/Desktop/UpdateChecker';
+import { SchreibfreigabeSchalter } from '../personal/contacts/settings/SchreibfreigabeSchalter';
 
 const CLOUD_KEY_STATUS_CHANGED = 'openjarvis-cloud-key-status-changed';
 
@@ -544,6 +545,12 @@ export function SettingsPage() {
             <SettingRow label="Web Search" description="Tavily key for web search tool">
               <ApiKeyInput keyName="TAVILY_API_KEY" placeholder="tvly-..." />
             </SettingRow>
+          </Section>
+
+          {/* Persoenliche Daten — der einzige Ort im Produkt, an dem
+              Schreibrechte an echten Kontaktdaten erteilt werden. */}
+          <Section title="Persönliche Daten">
+            <SchreibfreigabeSchalter />
           </Section>
 
           {/* Memory */}

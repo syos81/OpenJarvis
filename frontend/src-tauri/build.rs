@@ -35,6 +35,18 @@ fn main() {
             .compile("jc_calendar_write");
         println!("cargo:rerun-if-changed=objc/JCCalendarWrite.m");
         println!("cargo:rerun-if-changed=objc/JCCalendarWrite.h");
+        // Interaktive Eigentuemerauthentisierung fuer den Uebergang von
+        // Contacts Standing Write AUS -> AN. Systemfunktion statt eigenem
+        // Geheimnis: LAPolicyDeviceOwnerAuthentication zeigt Touch ID und
+        // faellt selbsttaetig auf das Anmeldekennwort zurueck.
+        cc::Build::new()
+            .file("objc/JCOwnerAuth.m")
+            .flag("-fobjc-arc")
+            .flag("-fmodules")
+            .compile("jc_owner_auth");
+        println!("cargo:rerun-if-changed=objc/JCOwnerAuth.m");
+        println!("cargo:rerun-if-changed=objc/JCOwnerAuth.h");
+        println!("cargo:rustc-link-lib=framework=LocalAuthentication");
         println!("cargo:rustc-link-lib=framework=EventKit");
         println!("cargo:rustc-link-lib=framework=Contacts");
         println!("cargo:rustc-link-lib=framework=AppKit");

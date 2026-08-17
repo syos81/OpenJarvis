@@ -213,18 +213,54 @@ const MODULDATEIEN = [
   'data/fixtures.ts',
   'data/sortierung.ts',
   'data/executionTransport.ts',
+  'settings/SchreibfreigabeSchalter.tsx',
+  'settings/schreibfreigabe.ts',
 ];
 
 /**
- * Der Transport des App-Prozess-Kanals ist die **einzige** Stelle des
- * Moduls, die ein Tauri-Kommando aufrufen darf (ADR-0026 §5). Sie wird
- * deshalb aus der modulweiten Verbotsprüfung herausgenommen — und dafür
- * eigens geprüft: genau ein Kommando, genau eine Aufrufstelle.
+ * Die Stellen des Moduls, die ein Tauri-Kommando aufrufen dürfen. Sie werden
+ * aus der modulweiten Verbotsprüfung herausgenommen — und dafür einzeln
+ * geprüft, damit „lokalisiert" nicht zu „irgendwo" wird.
+ *
+ * `data/executionTransport.ts` ist der Transport des App-Prozess-Kanals
+ * (ADR-0026 §5): genau ein Kommando, genau eine Aufrufstelle.
+ *
+ * `settings/schreibfreigabe.ts` ist der **Erteilungs**weg der dauerhaften
+ * Schreibfreigabe. Ein zweiter Kanal deshalb, weil er etwas anderes tut als
+ * der erste: Der Transport führt eine freigegebene Mutation aus, dieser hier
+ * erteilt und nimmt die Freigabe zurück. Beides in eine Datei zu legen hiesse,
+ * die Erlaubnis mit ihrer Ausübung zu vermischen — genau die Trennung, auf der
+ * der ganze Kanal beruht. Seine Kommandos sind unten abschliessend aufgezählt.
  */
 const TRANSPORT = 'data/executionTransport.ts';
+const FREIGABE_TRANSPORT = 'settings/schreibfreigabe.ts';
+const KOMMANDOSTELLEN = [TRANSPORT, FREIGABE_TRANSPORT];
+
+describe('Erteilungsweg der Schreibfreigabe', () => {
+  const freigabe = nurCode(quelle(FREIGABE_TRANSPORT));
+
+  it('ruft genau die drei Freigabekommandos und kein weiteres', () => {
+    const treffer = [...freigabe.matchAll(/invoke<[^>]*>\((\w+)\)|'(personal_[a-z_]+)'/g)]
+      .map((m) => m[2])
+      .filter(Boolean);
+    expect(new Set(treffer)).toEqual(new Set([
+      'personal_contacts_standing_write_state',
+      'personal_contacts_standing_write_enable',
+      'personal_contacts_standing_write_disable',
+    ]));
+  });
+
+  it('erteilt nichts ueber eine HTTP-Route', () => {
+    // Der Punkt der Architektur: Es gibt keinen Backendweg zum Schalter.
+    // Gaebe es einen, koennte der Agent ihn selbst betaetigen.
+    for (const verboten of ['fetch(', 'getBase', 'authHeaders', '/v1/']) {
+      expect(freigabe).not.toContain(verboten);
+    }
+  });
+});
 
 describe('Seitencode', () => {
-  const ohneTransport = MODULDATEIEN.filter((d) => d !== TRANSPORT);
+  const ohneTransport = MODULDATEIEN.filter((d) => !KOMMANDOSTELLEN.includes(d));
   const seite = nurCode(ohneTransport.map(quelle).join('\n'));
   const klient = nurCode(quelle('api.ts'));
 
