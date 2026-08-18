@@ -286,6 +286,22 @@ fn fake_kanal_aktiv() -> bool {
     false
 }
 
+/// Ist der Schreibweg umgeleitet — also ausdruecklich vom Provider weg?
+///
+/// Der Fake-Kanal ist genau diese Ansage: „Sprich nicht mit dem Provider."
+/// Eine Freigabedatei, die im Heim des Eigentuemers liegt, darf sie nicht
+/// ueberstimmen. Vorher stand die Freigabepruefung **vor** dem Fake-Zweig;
+/// ein Testlauf auf dem Rechner des Eigentuemers erreichte bei gueltiger
+/// Freigabe den nativen Weg und blieb allein deshalb folgenlos, weil neben
+/// der Testbinaerdatei kein Schreibhelfer liegt. Das war ein Zufall der
+/// Ordnerform, keine Zusicherung.
+///
+/// Im Release ist `fake_kanal_aktiv()` konstant `false`; dieser Waechter hat
+/// dort also **keine** Wirkung und kann den produktiven Weg nicht schliessen.
+fn schreibweg_ist_umgeleitet() -> bool {
+    fake_kanal_aktiv()
+}
+
 /// Führt einen Ausführungsauftrag aus — in Phase A **ohne** Providerkontakt.
 pub fn execute_order(roh: &str) -> ExecutionReportV1 {
     if roh.len() > MAX_ORDER_BYTES {
@@ -304,7 +320,7 @@ pub fn execute_order(roh: &str) -> ExecutionReportV1 {
     // fail-closed. Der Fake ist damit nie eine Alternative zum echten Weg,
     // sondern nur das, was uebrig bleibt, wenn es keinen echten gibt.
     #[cfg(target_os = "macos")]
-    {
+    if !schreibweg_ist_umgeleitet() {
         let jetzt = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
@@ -389,6 +405,81 @@ mod tests {
             .unwrap_or_else(|vergiftet| vergiftet.into_inner())
     }
 
+    /// Die Testumleitung: Sperre **und** ein eigenes `OPENJARVIS_HOME`.
+    ///
+    /// `execute_order` liest die Schreibfreigabe unter
+    /// `default_release_path()` — ohne Umleitung also im echten Heim des
+    /// Eigentuemers. Liegt dort eine gueltige Freigabe, und genau das ist
+    /// waehrend eines Livetests der Fall, betraete jeder dieser Tests den
+    /// nativen Schreibweg. Folgenlos bliebe er nur, weil neben der
+    /// Testbinaerdatei kein Schreibhelfer liegt — ein Zufall der Ordnerform.
+    ///
+    /// Diese Umleitung macht daraus eine Zusicherung: Jeder Test dieses
+    /// Moduls liest ein leeres Wegwerfheim, nie das des Eigentuemers.
+    struct Umleitung {
+        _sperre: std::sync::MutexGuard<'static, ()>,
+        heim: std::path::PathBuf,
+        vorheriges_heim: Option<String>,
+    }
+
+    impl Umleitung {
+        /// Der Ordner, in dem die Freigabedatei erwartet wird — 0700, leer.
+        fn personal(&self) -> std::path::PathBuf {
+            self.heim.join("personal")
+        }
+    }
+
+    impl Drop for Umleitung {
+        fn drop(&mut self) {
+            match &self.vorheriges_heim {
+                Some(wert) => std::env::set_var("OPENJARVIS_HOME", wert),
+                None => std::env::remove_var("OPENJARVIS_HOME"),
+            }
+            let _ = std::fs::remove_dir_all(&self.heim);
+        }
+    }
+
+    fn umleitung(name: &str) -> Umleitung {
+        let sperre = gate_sperre();
+        let heim = std::env::temp_dir()
+            .join(format!("jx-exec-heim-{}-{}", name, std::process::id()));
+        let personal = heim.join("personal");
+        let _ = std::fs::remove_dir_all(&heim);
+        std::fs::create_dir_all(&personal).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&personal, std::fs::Permissions::from_mode(0o700))
+                .unwrap();
+        }
+        let vorheriges_heim = std::env::var("OPENJARVIS_HOME").ok();
+        std::env::set_var("OPENJARVIS_HOME", &heim);
+        Umleitung { _sperre: sperre, heim, vorheriges_heim }
+    }
+
+    /// Legt eine **gueltige** Dauerfreigabe fuer `create` ins Wegwerfheim.
+    ///
+    /// Dauerhaft (v2/`standing`) statt befristet, damit sie von der Wanduhr
+    /// unabhaengig ist: Eine befristete Freigabe waere je nach Laufzeitpunkt
+    /// gueltig oder abgelaufen, und ein Nachweis, der am Tag der Messung
+    /// haengt, ist keiner.
+    #[cfg(unix)]
+    fn lege_gueltige_freigabe(um: &Umleitung) -> std::path::PathBuf {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        let pfad = um
+            .personal()
+            .join(crate::contacts_create::WRITE_RELEASE_FILENAME);
+        let inhalt = r#"{"contract":"contacts-write-v2","capability":"contacts",
+             "mode":"standing","operations":["create"],
+             "granted_at":"2026-08-16T09:00:00+00:00",
+             "reason":"Nachweis der Testumleitung"}"#;
+        let mut datei = std::fs::File::create(&pfad).unwrap();
+        datei.write_all(inhalt.as_bytes()).unwrap();
+        std::fs::set_permissions(&pfad, std::fs::Permissions::from_mode(0o600)).unwrap();
+        pfad
+    }
+
     fn auftrag(payload: serde_json::Value) -> String {
         let digest = payload_digest(&payload);
         serde_json::json!({
@@ -437,7 +528,7 @@ mod tests {
 
     #[test]
     fn ohne_gate_ist_der_kanal_geschlossen() {
-        let _sperre = gate_sperre();
+        let _um = umleitung("ohne-gate");
         std::env::remove_var(FAKE_ENV_VAR);
         let bericht = execute_order(&auftrag(serde_json::json!({"fields": {}})));
         assert_eq!(bericht.outcome, "not_sent");
@@ -451,7 +542,7 @@ mod tests {
 
     #[test]
     fn manipulierter_payload_wird_erkannt() {
-        let _sperre = gate_sperre();
+        let _um = umleitung("payload");
         std::env::remove_var(FAKE_ENV_VAR);
         let mut roh: serde_json::Value =
             serde_json::from_str(&auftrag(serde_json::json!({"fields": {}}))).unwrap();
@@ -499,7 +590,7 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn alle_fuenf_fake_ausgaenge_sind_deterministisch() {
-        let _sperre = gate_sperre();
+        let _um = umleitung("fake-ausgaenge");
         std::env::set_var(FAKE_ENV_VAR, "1");
         let faelle = [
             ("applied", "applied", true, 1u32),
@@ -524,7 +615,7 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn der_fake_erfindet_keine_echte_providerkennung() {
-        let _sperre = gate_sperre();
+        let _um = umleitung("fake-kennung");
         std::env::set_var(FAKE_ENV_VAR, "1");
         let bericht = execute_order(&auftrag(serde_json::json!({"fields": {}})));
         // Nur ein Digest ueber "fake:<operation_id>" — nie eine Apple-Kennung.
@@ -533,6 +624,67 @@ mod tests {
             Some(sha256_hex(&format!("fake:{}", "0".repeat(36))))
         );
         std::env::remove_var(FAKE_ENV_VAR);
+    }
+
+    // ── Nachweis der Testumleitung ──────────────────────────────────────────
+    //
+    // Drei Tests, die zusammen eine Aussage tragen und einzeln keine:
+    //   1. Die Umleitung greift ueberhaupt (der gelesene Pfad ist ein anderer).
+    //   2. Die Freigabe im Wegwerfheim wird von **derselben** Pruefung
+    //      anerkannt, die `execute_order` benutzt — sonst waere Nummer 3 nur
+    //      deshalb gruen, weil dort gar keine Freigabe liegt.
+    //   3. Der Waechter schlaegt diese anerkannte Freigabe.
+    //
+    // Kein Test dieses Abschnitts betritt den nativen Schreibweg. Nummer 2
+    // ruft ein reines Praedikat auf; es liest eine Datei und schreibt nichts.
+
+    #[cfg(unix)]
+    #[test]
+    fn die_umleitung_zeigt_nicht_ins_heim_des_eigentuemers() {
+        let um = umleitung("pfadnachweis");
+        let gelesen = crate::contacts_create::default_release_path();
+        assert!(gelesen.starts_with(&um.heim), "{gelesen:?}");
+
+        let echtes_heim = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".openjarvis");
+        assert!(!gelesen.starts_with(&echtes_heim), "{gelesen:?}");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn die_freigabe_im_wegwerfheim_wird_wirklich_anerkannt() {
+        let um = umleitung("freigabe-echt");
+        lege_gueltige_freigabe(&um);
+        let jetzt = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        // Genau die Pruefung, die `execute_order` aufruft — und sie sagt ja.
+        assert!(crate::contacts_create::write_release_erlaubt(
+            &crate::contacts_create::default_release_path(),
+            "create",
+            jetzt
+        ));
+    }
+
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    #[test]
+    fn die_umleitung_schlaegt_die_anerkannte_freigabe() {
+        let um = umleitung("waechter");
+        lege_gueltige_freigabe(&um);
+        std::env::set_var(FAKE_ENV_VAR, "1");
+        let bericht = execute_order(&auftrag(serde_json::json!({"fields": {}})));
+        std::env::remove_var(FAKE_ENV_VAR);
+
+        // Der Fake-Digest ist der Beweis: Den kann der native Weg nicht
+        // erzeugen. Waere die Freigabe vor der Umleitung geprueft worden,
+        // stuende hier `write_stack_unavailable` — oder, mit einem Helfer
+        // neben der Testbinaerdatei, ein echter Kontakt im Adressbuch.
+        assert_eq!(
+            bericht.provider_identifier_digest,
+            Some(sha256_hex(&format!("fake:{}", "0".repeat(36))))
+        );
+        assert_eq!(bericht.error_class, None);
     }
 
     #[test]
