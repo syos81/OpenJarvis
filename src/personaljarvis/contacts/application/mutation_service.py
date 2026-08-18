@@ -24,16 +24,15 @@ Verbindliche Regeln, die hier durchgesetzt werden:
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 import uuid
+from dataclasses import replace
 from typing import Protocol
 
 from personaljarvis.base.approvals import (
+    DEFAULT_TTL_SECONDS,
     Approval,
     ApprovalState,
     ApprovalStore,
-    DEFAULT_TTL_SECONDS,
     OwnerDecision,
 )
 from personaljarvis.base.audit import AuditStage, AuditTrail
@@ -51,12 +50,6 @@ from personaljarvis.contacts.application.delete_gate import (
     pruefe_loeschsicherung,
     schreibe_loeschsicherung,
 )
-from personaljarvis.contacts.application.write_quota import (
-    QuotaState,
-    activation_id,
-    claim_quota,
-    quota_state,
-)
 from personaljarvis.contacts.application.errors import (
     AlreadySettled,
     CapabilityNotDeclared,
@@ -67,8 +60,8 @@ from personaljarvis.contacts.application.errors import (
     MutationAlreadyPending,
     MutationNotExecutable,
     MutationNotFound,
-    WriteQuotaExhausted,
     RevisionConflict,
+    WriteQuotaExhausted,
 )
 from personaljarvis.contacts.application.models import (
     ExecutionResult,
@@ -77,6 +70,16 @@ from personaljarvis.contacts.application.models import (
     MutationPreview,
     PreparedMutation,
     ProviderOutcome,
+)
+from personaljarvis.contacts.application.recovery_snapshot import (
+    SnapshotErgebnis,
+    sichere_zusatzfamilien,
+)
+from personaljarvis.contacts.application.write_quota import (
+    QuotaState,
+    activation_id,
+    claim_quota,
+    quota_state,
 )
 from personaljarvis.contacts.domain.models import utc_now
 
@@ -222,7 +225,8 @@ class ContactsMutationService:
     def __init__(self, persistence, provider: MutationProvider, *,
                  capabilities=None,
                  approval_ttl_seconds: int = DEFAULT_TTL_SECONDS,
-                 release_path=None, backup_dir=None) -> None:
+                 release_path=None, backup_dir=None,
+                 snapshot_dir=None) -> None:
         self._persistence = persistence
         self._provider = provider
         self._capabilities = capabilities
@@ -234,6 +238,15 @@ class ContactsMutationService:
         #: ein Parameter, keine Umgebungsvariable. `None` heisst der
         #: kanonische Ort im Datenverzeichnis.
         self._backup_dir = backup_dir
+        #: Ablageort der Wiederherstellungsschnappschuesse — ein eigener Ort,
+        #: nicht der der Sicherungen. Dieselbe Regel: ein Parameter, keine
+        #: Umgebungsvariable, `None` heisst der kanonische Ort.
+        self._snapshot_dir = snapshot_dir
+        #: Was der letzte Wiederherstellungsschnappschuss ergab. Nicht in der
+        #: Auditkette: Die ist das Entscheidungsprotokoll, und er entscheidet
+        #: nichts.
+        self._letzter_schnappschuss = SnapshotErgebnis(
+            written=False, reason_code="not_attempted")
 
     def _aktivierung(self) -> str | None:
         """Der Fingerabdruck der geltenden Urkunde — die Kontingentgrenze.
@@ -263,7 +276,13 @@ class ContactsMutationService:
                 return
             # Aufgeloest **in** der Arbeitseinheit, geschrieben ausserhalb.
             bindung = loeschbindung(uow, zeile)
+            konto = zeile["provider_account_id"]
         schreibe_loeschsicherung(bindung, at=utc_now(), basis=self._backup_dir)
+        # Danach, nie davor, und ohne Rueckwirkung: die drei Familien
+        # ausserhalb des Feldvertrags v1 (B-3). Entscheidet nichts.
+        self._letzter_schnappschuss = sichere_zusatzfamilien(
+            self._persistence, bindung=bindung, provider_account_id=konto,
+            at=utc_now(), basis=self._snapshot_dir)
 
     def kontingent(self) -> tuple[bool, QuotaState]:
         """Ob eine Dauerfreigabe gilt, und ihr Stand. Liest, aendert nichts.

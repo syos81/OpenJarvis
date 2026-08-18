@@ -137,6 +137,33 @@ def feldstandsicherungen_liegen_im_tmp(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def schnappschuesse_liegen_im_tmp(tmp_path, monkeypatch):
+    """Dieselbe Umleitung für den Wiederherstellungsschnappschuss.
+
+    Er ist eine **zweite** Klartextablage neben der Feldstandsicherung, mit
+    Werten aus demselben Kontakt. Die Lehre vom 2026-08-17 gilt deshalb
+    wörtlich noch einmal, und sie steht aus demselben Grund hier und nicht in
+    den einzelnen Testdateien: Dort fehlte sie beim nächsten neu geschriebenen
+    Test wieder, die Datei landete still im Benutzerverzeichnis, und der Test
+    wäre grün.
+
+    Umgeleitet wird die Vorgabe, nicht der Parameter: Wer `basis` ausdrücklich
+    übergibt, bekommt weiterhin genau diesen Ort.
+    """
+    from pathlib import Path
+
+    from personaljarvis.contacts.application import recovery_snapshot
+
+    ziel = tmp_path / "recovery-snapshot"
+
+    def _umgeleitet(basis=None):
+        return Path(basis) if basis is not None else ziel
+
+    monkeypatch.setattr(recovery_snapshot, "recovery_snapshot_dir", _umgeleitet)
+    return ziel
+
+
+@pytest.fixture(autouse=True)
 def eigentuemerbeleg_vorhanden(monkeypatch):
     """Diese Suite prüft den Ablauf **nach** der Freigabe, nicht ihre Herkunft.
 

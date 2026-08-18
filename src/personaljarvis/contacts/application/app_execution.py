@@ -49,6 +49,10 @@ from personaljarvis.contacts.application.execution_contracts import (
     ExecutionReportV1,
     report_digest,
 )
+from personaljarvis.contacts.application.recovery_snapshot import (
+    SnapshotErgebnis,
+    sichere_zusatzfamilien,
+)
 from personaljarvis.contacts.application.state_machine import pruefe_uebergang
 from personaljarvis.contacts.application.write_quota import (
     activation_id,
@@ -112,7 +116,8 @@ class AppExecutionService:
     """
 
     def __init__(self, persistence, *, channel_capabilities=None,
-                 backup_dir=None, release_path=None) -> None:
+                 backup_dir=None, release_path=None,
+                 snapshot_dir=None) -> None:
         self._persistence = persistence
         #: Wo die Freigabeurkunde liegt — die Kontingentgrenze haengt an ihr.
         #: Ein Parameter und ausdruecklich keine Umgebungsvariable, dieselbe
@@ -122,6 +127,19 @@ class AppExecutionService:
         #: keine Umgebungsvariable — dieselbe Regel wie beim Freigabepfad.
         #: `None` heisst: der kanonische Ort im Datenverzeichnis.
         self._backup_dir = backup_dir
+        #: Ablageort der Wiederherstellungsschnappschuesse — ein eigener Ort,
+        #: nicht der der Sicherungen. Dieselbe Regel: ein Parameter, keine
+        #: Umgebungsvariable, `None` heisst der kanonische Ort.
+        self._snapshot_dir = snapshot_dir
+        #: Was der letzte Wiederherstellungsschnappschuss ergab.
+        #:
+        #: Bewusst **nicht** in der Auditkette: Die ist das Entscheidungs-
+        #: protokoll der Pipeline, und dieser Schnappschuss entscheidet
+        #: nichts — eine Stufe dort liesse ihn aussehen, als taete er es.
+        #: Ihre Fakten werden ohnehin nur gehasht abgelegt und waeren als
+        #: Auskunft unlesbar. Hier steht das Ergebnis lesbar und geprueft.
+        self._letzter_schnappschuss = SnapshotErgebnis(
+            written=False, reason_code="not_attempted")
         # Ein Aufrufbares statt eines Wertes ist hier bedeutungstragend: Die
         # Schreibfreigabe laeuft ab und kann jederzeit zurueckgenommen
         # werden. Wer den Faehigkeitssatz einmal beim Start festhaelt,
@@ -184,7 +202,14 @@ class AppExecutionService:
             # Aufgeloest **in** der Arbeitseinheit, geschrieben ausserhalb:
             # Die Datei entsteht ohne offene Transaktion.
             bindung = loeschbindung(uow, zeile)
+            konto = zeile["provider_account_id"]
         schreibe_loeschsicherung(bindung, at=utc_now(), basis=self._backup_dir)
+        # Danach, nie davor, und ohne Rueckwirkung: Der Schnappschuss der drei
+        # Familien ausserhalb des Feldvertrags v1 (B-3). Sein Ergebnis wird
+        # protokolliert und entscheidet nichts.
+        self._letzter_schnappschuss = sichere_zusatzfamilien(
+            self._persistence, bindung=bindung, provider_account_id=konto,
+            at=utc_now(), basis=self._snapshot_dir)
 
     # ── Claim ───────────────────────────────────────────────────────────────
     def claim(self, mutation_id: str, *,
