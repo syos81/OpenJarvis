@@ -172,6 +172,11 @@ nehmen, sind beides eigene Arbeitsblöcke.
 **Nachtrag vom 2026-08-18**, gemessen an der laufenden Oberfläche per
 `getComputedStyle`, nicht aus dem Stylesheet gelesen.
 
+**Rechner** (B-4): Apple M2 Pro, `arm64`, macOS 26.2 (Build 25C56) —
+mechanisch bestimmt über `uname -m`, `sw_vers` und
+`sysctl -n machdep.cpu.brand_string`. Nicht der Intel aus dem Kopf dieses
+Registers.
+
 **Die Familie stimmt.** `body` rechnet auf
 `system-ui, -apple-system, "system-ui", "Segoe UI", sans-serif`, und
 `system-ui` zeichnet tatsächlich — eine Breitenprobe über `Handgloves` bei
@@ -252,3 +257,58 @@ es kommt Verschiedenes heraus.
 Gestaltungsfrage und wird bei der Sichtprüfung der Statusfläche entschieden.
 Die Reparatur ist danach ein Einzeiler — in die eine oder die andere
 Richtung, aber in beiden Dateien gleich.
+
+
+## Berichtigung 2026-08-18 · Eine Rechnerangabe, die niemand gemessen hat
+
+**Was falsch war.** Die Commitnachricht von `0c272499`
+(„der Schnappschuss der drei Familien, der nichts entscheidet") führt den
+Testlauf als
+
+> Intel MacBook Air, x86_64, macOS 12.7.6; die Rechnerangabe folgt B-4
+
+Das ist falsch. Gemessen am 2026-08-18:
+
+| Befehl | Ausgabe |
+|---|---|
+| `uname -m` | `arm64` |
+| `sw_vers` | macOS 26.2, Build 25C56 |
+| `sysctl -n machdep.cpu.brand_string` | `Apple M2 Pro` |
+
+**Woher sie kam.** Aus dem **Kopf dieses Registers**, nicht aus einer
+Messung. Die Zeile „Stand: 2026-08-17, Intel MacBook Air (x86_64,
+macOS 12.7.6)" wurde beim Lesen des Registers als aktueller Rechner
+weitergeschrieben. Der Rechner wurde in jenem Block an keiner Stelle
+bestimmt.
+
+**Warum das kein Schönheitsfehler ist.** B-4 ist genau gegen diesen Fall
+geschrieben: Eine Angabe zu vorbestehend roten Tests nennt den Rechner, weil
+das Ergebnis vom Rechner abhängt. Eine Zahl mit dem **falschen** Rechner ist
+schlechter als eine ohne — sie sieht aus wie eine Messung und ist eine
+Übernahme. Dieselbe Fehlerklasse wie B-5 und wie der Kontingentzähler: Der
+Nachweis stimmte, er belegte bloss etwas anderes.
+
+**Was von der Messung stehen bleibt.** Das Ergebnis selbst:
+`tests/personal/contacts` meldet 1314 passed, 64 skipped, 1 failed, und
+`test_mutation_channel_contract_static.py::test_dec_052_ist_registriert` ist
+mit `git stash` als vorbestehend gegengeprüft. Diese Gegenprobe lief auf dem
+M2 Pro und gilt für den M2 Pro. Nur die Beschriftung war falsch.
+
+**Was daraus für den Fensterumbau folgt.** Die Sorge, der Umbau sei auf einem
+Rechner ohne Systemmaterial entstanden, ist gegenstandslos: macOS 26.2 trägt
+`NSVisualEffectView` mit
+`NSVisualEffectMaterialUnderWindowBackground` (seit 10.14). Der Umbau ist auf
+einer Maschine entstanden, die ihn zeigen kann.
+
+**Was offen bleibt.** Die Commitnachricht von `0c272499` trägt die falsche
+Angabe weiterhin. Sie zu berichtigen hiesse, vier lokale Commits neu zu
+schreiben und damit vier Kurzkennungen zu ändern, die bereits berichtet
+wurden. Ob umgeschrieben oder mit dieser Berichtigung danebengelegt wird, ist
+eine Eigentümerentscheidung; bis dahin gilt dieser Abschnitt als die
+geltende Angabe.
+
+**Ebenfalls neu zu lesen.** Jeder Befund dieses Registers, der eine Messung
+ohne Rechnerangabe nennt, meint den Intel aus dem Kopf — nicht diesen
+Rechner. Betroffen ist insbesondere B-5: Die Aussage über `~/OpenJarvis`
+(`main` bei `ed01ab8`, ohne Löschgate) ist am Intel gemessen und für den
+M2 Pro **nicht** erhoben.
