@@ -166,3 +166,89 @@ heute nicht getroffen.
 **Nicht heute.** Ein Paket, das seinen Kern selbst mitbringt, oder ein
 Startpfad, der ohne passenden Ordner ehrlich abbricht statt einen fremden zu
 nehmen, sind beides eigene Arbeitsblöcke.
+
+## B-6 · Es gibt nichts zu ersetzen — die Schrift ist eine Größenfrage
+
+**Nachtrag vom 2026-08-18**, gemessen an der laufenden Oberfläche per
+`getComputedStyle`, nicht aus dem Stylesheet gelesen.
+
+**Die Familie stimmt.** `body` rechnet auf
+`system-ui, -apple-system, "system-ui", "Segoe UI", sans-serif`, und
+`system-ui` zeichnet tatsächlich — eine Breitenprobe über `Handgloves` bei
+100 px trennt es sauber von der Rückfallschrift (495,6 px gegen 476,1 px).
+Es fehlt keine Schrift zur Laufzeit: `document.fonts` enthält ausschliesslich
+die zwanzig KaTeX-Gesichter, alle im Zustand `unloaded`. Kein `@font-face`
+des Produkts, keine Webfont, kein Ladefehler.
+
+**Eine Korrektur am bisherigen Befund.** `@fontsource-variable/geist` steht
+sehr wohl in `frontend/package.json` und liegt installiert in
+`node_modules/`. Es wird nur **nirgends importiert** — nicht in `src/`, nicht
+in `index.html`, nicht in der Vite-Konfiguration. Die Breitenprobe bestätigt
+es: `Geist` und `Geist Variable` messen exakt wie die Rückfallschrift, sind
+also nicht vorhanden. Der Befund „keine Webfont im Baum" trifft im Ergebnis
+zu; die Ursache ist aber nicht Abwesenheit, sondern eine verdrahtete
+Abhängigkeit ohne Verdrahtung. Ob Geist einmal gewollt war, ist damit eine
+offene Frage — und eine Eigentümerentscheidung, weil ihre Beantwortung das
+Aussehen der ganzen Anwendung ändert.
+
+**Was tatsächlich klein ist.** Auf `/contacts` gemessen, 22 Textknoten:
+
+| Fläche | Grösse | Gewicht |
+|---|---|---|
+| Seitentitel „Kontakte" | 15 px | 600 |
+| Abschnittstitel „Alle Kontakte", „Quelle & Status" | 13 px | 600 |
+| Fliesstext | 14 px | 400 |
+| Tastenkürzel | 10 px | 400 |
+
+Auf der Startfläche, 45 Textknoten: 26 davon liegen bei **12 px oder
+darunter**, der grösste Wert ausser einem einzelnen Titel ist 14 px.
+
+Die Hypothese `0.8125rem` trifft zu — sie ist `--pjc-font-title` und
+`--pjc-font-body` in `frontend/src/personal/contacts/tokens.css` und ergibt
+13 px. Sie trifft aber nicht den Seitentitel (15 px) und nicht den Fliesstext
+der Anwendung (14 px).
+
+**Der eigentliche Befund ist die fehlende Staffelung.** Titel 15 px,
+Abschnitt 13 px, Fliesstext 14 px — alles liegt in einem Zwei-Pixel-Band, und
+unterschieden wird fast nur über das Gewicht. Dazu läuft
+`letter-spacing: -0.01em` von `body` (`index.css:278`) auf **jeden**
+Textknoten durch, auch auf die mit 9 bis 12 px; gemessen wurden −0,16 px
+überall. Negative Laufweite gehört auf grosse Schrift, nicht auf 10-px-Text.
+
+**Was daraus folgt.** Es ist eine Feinjustierung an Grösse und Laufweite,
+keine Schriftersetzung. Welche Staffelung richtig ist, ist eine
+Gestaltungsentscheidung und berührt jede Fläche der Anwendung; sie wird
+deshalb heute nicht einseitig gesetzt.
+
+**Grenze dieser Messung.** Gemessen im Vorschaufenster (Chromium), nicht in
+der ausgelieferten `WKWebView`. Rechenwerte aus `rem`-Arithmetik und
+Kaskadenregeln übertragen sich; welche Glyphen `system-ui` dort zeichnet,
+kann abweichen und ist hier nicht belegt.
+
+## B-7 · Zweimal derselbe Vorsatz, zwei verschiedene Schriften
+
+**Was.** Die technische Kennung („Code: …") wird an zwei Stellen gesetzt, mit
+denselben zwei Eigenschaften in **umgekehrter** Reihenfolge:
+
+* `frontend/src/personal/contacts/status/ContactsStatusSurface.tsx:140`
+  — `fontFamily: 'monospace'`, **danach** `font: 'var(--pjc-font-label)'`
+* `frontend/src/personal/contacts/editor/dialogs.tsx:36–37`
+  — `font: 'var(--pjc-font-label)'`, **danach** `fontFamily: 'monospace'`
+
+**Gemessen** am 2026-08-18, beide Schreibweisen zur Laufzeit gegeneinander
+gestellt und per `getComputedStyle` gelesen:
+
+| Stelle | gerechnete Familie | Grösse |
+|---|---|---|
+| Statusfläche | `system-ui` | 12 px |
+| Dialog | `monospace` | 12 px |
+
+Die Kurzform `font` setzt `font-family` mit zurück. Wer sie **nach** der
+Familie schreibt, verliert die Familie; wer sie davor schreibt, behält sie.
+Beide Male steht dasselbe im Quelltext, beide Male ist dasselbe gemeint, und
+es kommt Verschiedenes heraus.
+
+**Nicht angefasst.** Ob an diesen Stellen Monospace gewollt war, ist eine
+Gestaltungsfrage und wird bei der Sichtprüfung der Statusfläche entschieden.
+Die Reparatur ist danach ein Einzeiler — in die eine oder die andere
+Richtung, aber in beiden Dateien gleich.
