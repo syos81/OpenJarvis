@@ -20,7 +20,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 toml_edit = "0.22"
-tauri = { version = "2", features = ["tray-icon"] }
+# `macos-private-api` gehoert zu `app.macOSPrivateApi` in tauri.conf.json:
+# Ohne die Freigabe hier verweigert der Build-Schritt den Abgleich. Sie ist
+# die Voraussetzung fuer ein durchsichtiges Fenster und damit fuer das
+# Systemmaterial dahinter (src/window_material.rs).
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-notification = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-global-shortcut = "2"

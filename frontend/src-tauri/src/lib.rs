@@ -3,6 +3,7 @@ pub mod calendar_write;
 mod contacts_authorization;
 pub mod contacts_create;
 pub mod contacts_execution;
+pub mod window_material;
 pub mod contacts_standing_write;
 pub mod owner_attestation;
 
@@ -3142,6 +3143,17 @@ pub fn run() {
             }
         }))
         .setup(move |app| {
+            // ── Systemmaterial hinter dem Hauptfenster ────────────────────
+            //
+            // Gemeldet wird der Oberflaeche **nur** bei nachgewiesenem
+            // Erfolg. Scheitert es, bleibt `data-material` aus, das CSS malt
+            // seine Flaechen weiter, und das Fenster sieht aus wie vorher.
+            if let Some(fenster) = app.get_webview_window("main") {
+                if crate::window_material::material_einrichten(&fenster) {
+                    crate::window_material::material_melden(&fenster);
+                }
+            }
+
             // System tray
             let show = MenuItemBuilder::with_id("show", "Show / Hide").build(app)?;
             let health = MenuItemBuilder::with_id("health", "Health: starting...")
