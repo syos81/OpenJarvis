@@ -271,12 +271,59 @@
     overflow: hidden;
   }
 
+  /* ── Die Materialflaeche: eine Definition, drei Fuellungen ──────────────
+
+     Alle grossflaechigen Hintergruende der Anwendung laufen ueber diese drei
+     Namen und nicht mehr ueber `--color-bg` direkt. Der Grund ist die
+     Umschaltbarkeit: Sitzt echtes Systemmaterial hinter dem Fenster, aendern
+     sich hier drei Werte, und nicht dreissig Stellen in Komponenten.
+
+     `--surface-material` ist die Grundflaeche des Fensters.
+     `--surface-material-raised` ist alles, was darauf liegt.
+
+     **Ohne Material aendert sich heute nichts an der Farbe.** Das ist
+     Absicht. Eine sichtbare „Annaeherung" liesse sich nur bauen, indem die
+     aufliegende Flaeche durchscheinend ueber der Grundflaeche liegt — und
+     gemessen kehrte das die Schichtung um: Die Seitenleiste wuerde heller
+     als die Liste statt dunkler (rgb(253,253,253) gegen bisher
+     rgb(244,244,245)). Welche Richtung die richtige ist, ist eine
+     Gestaltungsentscheidung und steht dem Fensterumbau nicht zu. Die
+     Definition ist deshalb heute farbneutral; sie ist der Schalter, nicht
+     der Entwurf.
+
+     Beide Fuellungen sind Farben und keine Verlaeufe: Sie werden ueber
+     `background-color` gesetzt, und dort taete ein Verlauf nichts.
+
+     `--surface-opaque` ist die Ausnahme und die Regel zugleich: Flaechen,
+     deren Lesbarkeit vor der Optik geht, nehmen diesen Namen und bleiben
+     undurchsichtig — auch mit Material dahinter. Das ist gesetzt und keine
+     Abwaegung.
+
+     `rgba(var(--x-rgb), a)` statt `color-mix()`: dieselbe Messung vom
+     2026-08-16, dieselbe Zielplattform. */
+  :root {
+    --surface-material: var(--color-bg);
+    --surface-material-raised: var(--color-bg-secondary);
+    --surface-opaque: var(--color-surface);
+  }
+
+  /* Echtes Systemmaterial hinter dem Fenster. Das Attribut setzt der
+     App-Prozess beim Start; ohne ihn — im Browser, im Test, nach einer
+     Ruecknahme des Fensterumbaus — greift dieser Block nie, und die
+     Annaeherung oben bleibt stehen. */
+  :root[data-material="native"] {
+    --surface-material: transparent;
+    --surface-material-raised: rgba(var(--color-surface-rgb), 0.55);
+    /* `--surface-opaque` steht hier ausdruecklich **nicht**. Wer sie hier
+       durchscheinend machte, naehme der Lesbarkeitsregel ihren Sinn. */
+  }
+
   body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 400;
     line-height: 1.5;
     letter-spacing: -0.01em;
-    background-color: var(--color-bg);
+    background-color: var(--surface-material);
     color: var(--color-text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

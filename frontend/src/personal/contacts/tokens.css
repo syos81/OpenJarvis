@@ -107,9 +107,13 @@
   --pjc-icon-stroke: 1.75;
 
   /* ── Flächen, Divider, Auswahl (Divider M2-GEMESSEN, Rest VORLÄUFIG) ── */
-  --pjc-bg-sidebar: var(--color-bg-secondary);
-  --pjc-bg-list: var(--color-bg);
-  --pjc-bg-detail: var(--color-bg);
+  /* Ueber die Materialflaeche aus `index.css`, nicht mehr ueber `--color-bg`
+     direkt: Damit traegt der Fensterumbau hier durch, ohne dass eine einzige
+     Komponente etwas davon merkt. Die Seitenleiste liegt auf der
+     Grundflaeche, Liste und Detail sind die Grundflaeche. */
+  --pjc-bg-sidebar: var(--surface-material-raised);
+  --pjc-bg-list: var(--surface-material);
+  --pjc-bg-detail: var(--surface-material);
   /* M2 gemessen: hell rgb(230,230,230) auf Weiss, dunkel rgb(56,61,63) auf
      rgb(35,41,44) — beides rund 10 % Kontrast zur Fläche. Der vorherige Wert
      kam aus `--color-border-subtle` und lag bei 4 %, also sichtbar zu blass. */

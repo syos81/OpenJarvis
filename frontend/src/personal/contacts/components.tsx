@@ -347,9 +347,15 @@ export function Modal({ open, onClose, title, description, children, footer }: {
         className="w-full max-w-2xl overflow-auto rounded-lg border p-5 shadow-lg"
         style={{
           maxHeight: '85vh',
-          backgroundColor: 'var(--color-surface, #111)',
+          // Die Lesbarkeitsregel, gesetzt und nicht abgewogen: Hier steht die
+          // produktive Vorschau — Ablageort, Art, Anzahl, betroffener Kontakt,
+          // Operation und der Satz zur Endgueltigkeit der Kennung. Diese
+          // Flaeche bleibt undurchsichtig, auch mit Systemmaterial hinter dem
+          // Fenster. Verliert die Optik hier, ist das die Absicht.
+          backgroundColor: 'var(--surface-opaque, var(--color-surface, #111))',
           borderColor: 'var(--color-border, rgba(127,127,127,0.3))',
         }}
+        data-surface="opaque"
       >
         <h2 id="pj-modal-title" className="text-base font-semibold">{title}</h2>
         {description && (
