@@ -1,6 +1,7 @@
 # OpenJarvis — Dauerregeln V2
 
-Stand: Eigentümervereinfachung 2026-08-11
+Stand: Eigentümervereinfachung 2026-08-11; Ergänzung Loop, Owner-Bündelung,
+Messen vor Bauen 2026-08-18
 
 ## Ziel
 
@@ -436,3 +437,89 @@ So viel Sicherung wie für den realen Schaden und die Wahrheit notwendig.
 Geschwindigkeit wird nicht durch Weglassen von Sicherheitsbeweisen erreicht,
 sondern durch Weglassen von Zeremonie, Wiederholungen und Prüfungen ohne
 zusätzliche Aussagekraft.
+
+## §24 Autonomer Loop
+
+Ein Loop ist ein Beschleuniger für Fleißarbeit. Er ist kein Ersatz für die
+Arbeitsweise, die die entscheidenden Fehler gefunden hat.
+
+Ein Loop ist nur zulässig, wenn alle folgenden Bedingungen erfüllt sind:
+
+- die Arbeit ist vorher vollständig definiert und mechanisch,
+- die Abbruchbedingung steht vor dem Start fest und ist maschinenprüfbar,
+- der Prüfmaßstab wird vor dem Loop eingefroren — Tests, Gate, Suchmuster,
+  Manifest oder erwartetes Ergebnis; der Loop darf ihn nicht ändern,
+  löschen, abschwächen oder umgehen,
+- keine neue Produktsemantik, Architektur- oder Eigentümerentscheidung,
+- keine Änderung an Freigabe-, Authentifizierungs-, Sicherheits-,
+  Recovery-, Completeness- oder Gate-Semantik,
+- keine Mutation echter Daten, kein Livetest, keine produktive
+  Provideraktion,
+- kein Packaging- oder Release-Nachweis im autonomen Loop,
+- harte Rundenobergrenze.
+
+Sofortiger Stopp bei:
+
+- unerwartetem Befund,
+- Scope-Ausweitung,
+- Guard-ASK oder Guard-DENY,
+- neuem Sicherheitsbefund,
+- sobald eine Eigentümerhandlung nach §4 nötig wird.
+
+Danach folgt ein Bericht mit Ausgangszustand, den tatsächlich vorgenommenen
+Änderungen, der Rundenanzahl und dem mechanischen Endnachweis.
+
+Rote Tests als Loop-Ziel:
+
+- „diesen vorher geprüften Regressionstest grün machen, Testdatei ist tabu"
+  ist zulässig,
+- „die Suite irgendwie grün machen" ist kein Loop,
+- „Code und Tests ändern, bis alles grün ist" ist ausdrücklich verboten.
+
+Bedingung: Der Test steht vor dem Loop als unveränderliches Oracle fest, und
+der Loop darf ausschließlich Produktcode reparieren.
+
+Risk Lane nach §2: Der Name „Risk Lane" allein verbietet nicht jeden Loop.
+
+- keine Loops über Risk-Lane-Entscheidungen oder Sicherheitssemantik,
+- mechanische, bereits vollständig entschiedene Teilaufgaben innerhalb einer
+  Risk Lane dürfen geloopt werden, wenn Oracle und zulässiger Diff vorher
+  feststehen.
+
+Beispiel zulässig: nach fertig entschiedener Calendar-Migration mechanisch
+identische Call-Sites anpassen.
+
+## §25 Bündelung von Eigentümerpunkten
+
+Eigentümerhandlungen nach §4 werden möglichst früh erkannt und gesammelt
+statt einzeln über den Tag verteilt angefordert.
+
+Früh zu sammeln sind insbesondere:
+
+- benötigte Pushes,
+- Touch-ID- und sonstige Eigentümerbestätigungen,
+- Signaturidentität,
+- reale Livetests,
+- Entscheidungen, die mechanisch nicht selbst getroffen werden können.
+
+Daraus entsteht ein zusammenhängendes Eigentümerfenster statt mehrerer
+Unterbrechungen.
+
+## §26 Erst messen, dann bauen
+
+Vor einer Reparatur wird die vermutete Ursache zuerst mechanisch
+reproduziert oder widerlegt, sofern das mit vertretbarem Aufwand möglich
+ist.
+
+Das ist die normale Arbeitsweise und nicht dem Einzelfall überlassen. Es
+macht die Arbeit nicht langsamer: ungeprüftes Bauen hätte bei den Befunden
+zu Resurrection/Tombstones, Backup-Weg, Approval-Weg und Packaging-Kern
+jeweils mehr Arbeit erzeugt als die vorherige Messung gekostet hat.
+
+Reihenfolge der Hebel:
+
+1. Eigentümerpunkte bündeln (§25),
+2. erst messen, dann bauen (§26),
+3. danach der Loop (§24).
+
+Der Loop steht bewusst an dritter Stelle.
